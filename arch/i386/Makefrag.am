@@ -1,0 +1,34 @@
+if I386
+
+# Force 32-bits builds.
+AM_CPPFLAGS += -m32
+x15_LDFLAGS += -m32
+
+x15_SOURCES += \
+	arch/i386/machine/acpimp.c \
+	arch/i386/machine/acpimp.h \
+	arch/i386/machine/biosmem.c \
+	arch/i386/machine/biosmem.h \
+	arch/i386/machine/boot.h \
+	arch/i386/machine/boot.S \
+	arch/i386/machine/cpu.c \
+	arch/i386/machine/cpu_asm.S \
+	arch/i386/machine/cpu.h \
+	arch/i386/machine/endian.h \
+	arch/i386/machine/init.c \
+	arch/i386/machine/init.h \
+	arch/i386/machine/io.h \
+	arch/i386/machine/lapic.c \
+	arch/i386/machine/lapic.h \
+	arch/i386/machine/mps.c \
+	arch/i386/machine/mps.h \
+	arch/i386/machine/multiboot.h \
+	arch/i386/machine/param.h \
+	arch/i386/machine/pit.c \
+	arch/i386/machine/pit.h \
+	arch/i386/machine/pmap.c \
+	arch/i386/machine/pmap.h \
+	arch/i386/machine/vga.c \
+	arch/i386/machine/vga.h
+
+endif I386

@@ -1,0 +1,52 @@
+#
+# 'arch/xxx' sources
+#
+include arch/i386/Makefrag.am
+
+#
+# 'kern/' sources
+#
+x15_SOURCES += \
+	kern/init.h \
+	kern/kernel.c \
+	kern/kernel.h \
+	kern/kmem.c \
+	kern/kmem.h \
+	kern/panic.c \
+	kern/panic.h \
+	kern/printk.c \
+	kern/printk.h
+
+#
+# 'lib/' sources
+#
+x15_SOURCES += \
+	lib/assert.h \
+	lib/limits.h \
+	lib/list.h \
+	lib/macros.h \
+	lib/rbtree.c \
+	lib/rbtree.h \
+	lib/rbtree_i.h \
+	lib/sprintf.c \
+	lib/sprintf.h \
+	lib/stddef.h \
+	lib/stdint.h \
+	lib/string.c \
+	lib/string.h
+
+#
+# 'vm/' sources
+#
+x15_SOURCES += \
+	vm/vm_kmem.c \
+	vm/vm_kmem.h \
+	vm/vm_map.c \
+	vm/vm_map.h \
+	vm/vm_page.h \
+	vm/vm_param.h \
+	vm/vm_phys.c \
+	vm/vm_phys.h \
+	vm/vm_setup.c \
+	vm/vm_setup.h \
+	vm/vm_types.h

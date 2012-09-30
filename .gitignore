@@ -1,0 +1,15 @@
+*.o
+*.a
+.deps/
+.dirstamp
+aclocal.m4
+autom4te.cache/
+build-aux/
+config.*
+configure
+tags
+stamp-h1
+x15.lds
+x15
+Makefile
+Makefile.in
