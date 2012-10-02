@@ -45,6 +45,7 @@ END(boot_header)
  * Entry point.
  */
 ENTRY(_start)
+ .code32
  /*
   * Set up a simple GDT to conform to the multiboot specification.
   */
@@ -63,10 +64,16 @@ ENTRY(_start)
  ljmp $8, $1f
 
 1:
+
+/* XXX For now */
+#ifdef __LP64__
+ hlt
+#endif
+
  /*
   * Set up the init stack.
   */
- movl $(init_stack + BOOT_STACK_SIZE - KERNEL_OFFSET), %esp
+ movl $(init_stack + BOOT_STACK_SIZE), %esp
  movl %esp, %ebp
 
  /*
@@ -82,10 +89,13 @@ ENTRY(_start)
  ljmp $8, $1f
 
 1:
+#ifdef __LP64__
+ hlt
+#else /* __LP64__ */
  /*
   * Reset the stack, use high addresses.
   */
- movl $(init_stack + BOOT_STACK_SIZE), %esp
+ movl $(init_stack + BOOT_STACK_SIZE + KERNEL_OFFSET), %esp
  movl %esp, %ebp
 
  /*
@@ -93,6 +103,7 @@ ENTRY(_start)
   */
  pushl $0
  jmp init
+#endif /* __LP64__ */
 
  /*
   * Never reached.
@@ -129,7 +140,7 @@ ENTRY(boot_ap_start32)
  /*
   * Set up the init stack.
   */
- movl $(init_ap_stack + BOOT_STACK_SIZE - KERNEL_OFFSET), %esp
+ movl $(init_ap_stack + BOOT_STACK_SIZE), %esp
  movl %esp, %ebp
 
  /*
@@ -146,7 +157,7 @@ ENTRY(boot_ap_start32)
  /*
   * Switch to the boot stack preallocated for this AP by the BSP.
   */
- movl (init_ap_boot_stack - KERNEL_OFFSET), %esp
+ movl init_ap_boot_stack_addr, %esp
  addl $BOOT_STACK_SIZE, %esp
  movl %esp, %ebp
 

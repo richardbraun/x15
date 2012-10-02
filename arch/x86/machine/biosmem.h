@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _I386_BIOSMEM_H
-#define _I386_BIOSMEM_H
+#ifndef _X86_BIOSMEM_H
+#define _X86_BIOSMEM_H
 
 #include <machine/multiboot.h>
 
@@ -69,4 +69,4 @@ void biosmem_setup(void);
  */
 void biosmem_free_usable(void);
 
-#endif /* _I386_BIOSMEM_H */
+#endif /* _X86_BIOSMEM_H */

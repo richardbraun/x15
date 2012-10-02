@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _I386_PARAM_H
-#define _I386_PARAM_H
+#ifndef _X86_PARAM_H
+#define _X86_PARAM_H
 
 #include <machine/boot.h>
 
@@ -105,4 +105,4 @@
  */
 #define VM_MAP_KENTRY_SIZE 0x800000UL
 
-#endif /* _I386_PARAM_H */
+#endif /* _X86_PARAM_H */

@@ -527,7 +527,7 @@ vm_phys_setup(void)
         pages += vm_page_atop(vm_phys_seg_size(&vm_phys_segs[i]));
 
     map_size = P2ROUND(pages * sizeof(struct vm_page), PAGE_SIZE);
-    printk("vm_phys: page table size: %u entries (%uk)\n", pages,
+    printk("vm_phys: page table size: %zu entries (%zuk)\n", pages,
            map_size >> 10);
     map = (struct vm_page *)vm_kmem_bootalloc(map_size);
 

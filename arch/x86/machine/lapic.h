@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Richard Braun.
+ * Copyright (c) 2011 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,30 +15,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _I386_IO_H
-#define _I386_IO_H
+#ifndef _X86_LAPIC_H
+#define _X86_LAPIC_H
 
 #include <lib/stdint.h>
 
 /*
- * Read a byte from an I/O port.
+ * Set up the lapic module.
  */
-static inline uint8_t
-io_read_byte(uint16_t port)
-{
-    uint8_t value;
-
-    asm volatile("inb %%dx, %%al" : "=a" (value) : "d" (port));
-    return value;
-}
+void lapic_setup(uint32_t map_addr);
 
 /*
- * Write a byte to an I/O port.
+ * Set up the local APIC for an AP.
  */
-static inline void
-io_write_byte(uint16_t port, uint8_t value)
-{
-    asm volatile("outb %%al, %%dx" : : "d" (port), "a" (value));
-}
+void lapic_ap_setup(void);
 
-#endif /* _I386_IO_H */
+/*
+ * Functions used when initializing an AP.
+ */
+void lapic_ipi_init_assert(uint32_t dest);
+void lapic_ipi_init_deassert(uint32_t dest);
+void lapic_ipi_startup(uint32_t dest, uint32_t vector);
+
+/*
+ * Interrupt handlers.
+ */
+void lapic_timer_intr(void);
+
+#endif /* _X86_LAPIC_H */

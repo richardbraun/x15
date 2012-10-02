@@ -13,15 +13,21 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Information gathering module, supporting the Intel MultiProcessor
+ * Specification v1.4.
  */
 
-#ifndef _I386_TYPES_H
-#define _I386_TYPES_H
+#ifndef _X86_MPS_H
+#define _X86_MPS_H
 
-#ifdef PAE
-typedef unsigned long long vm_phys_t;
-#else /* PAE */
-typedef unsigned long vm_phys_t;
-#endif /* PAE */
+/*
+ * Load multiprocessor information.
+ *
+ * Return 0 if successful (an error usually means hardware doesn't support
+ * the MPS).
+ */
+int mps_setup(void);
 
-#endif /* _I386_TYPES_H */
+#endif /* _X86_MPS_H */

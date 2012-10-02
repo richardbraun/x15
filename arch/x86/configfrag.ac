@@ -1,0 +1,46 @@
+systype=x86
+
+#
+# Arguments to configure
+#
+AC_ARG_WITH([i386],
+            [AS_HELP_STRING([--with-i386],
+                            [build for a 32-bit IA-32 machine])],
+            [opt_i386=$withval],
+            [opt_i386=no])
+
+AC_ARG_WITH([amd64],
+            [AS_HELP_STRING([--with-amd64],
+                            [build for a 64-bit AMD64 machine])],
+            [opt_amd64=$withval],
+            [opt_amd64=no])
+
+AC_ARG_ENABLE([pae],
+              [AS_HELP_STRING([--enable-pae],
+              [enable physical address extension (i386 only)])])
+
+#
+# Options
+#
+m4_define([i386_ENABLE_PAE],
+          [AC_DEFINE([PAE], [1], [use PAE page tables])
+           AC_MSG_NOTICE([physical address extension enabled])])
+
+m4_define([x86_SELECT_I386],
+          [AC_MSG_NOTICE([build type: i386])
+           AS_IF([test x"$enable_pae" = xyes], [i386_ENABLE_PAE])])
+
+m4_define([x86_SELECT_AMD64],
+          [AC_MSG_NOTICE([build type: amd64])
+           AS_IF([test x"$enable_pae" = xyes],
+                 [AC_MSG_WARN([pae option available for i386 only, ignoring])])])
+
+AS_IF([test x"$opt_i386$opt_amd64" = xyesyes],
+      [AC_MSG_ERROR([select only one of i386 or amd64])],
+      [test x"$opt_i386$opt_amd64" = xnono],
+      [AS_CASE(["$host_cpu"],
+               [i?86], [opt_i386=yes],
+               [x86_64], [opt_amd64=yes])])
+
+AS_IF([test x"$opt_i386" = xyes], [x86_SELECT_I386],
+      [test x"$opt_amd64" = xyes], [x86_SELECT_AMD64])

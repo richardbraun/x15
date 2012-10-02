@@ -1,10 +1,14 @@
-/*
- * Don't replace i386.
- */
+/* Don't replace i386 */
 #undef i386
 
+#ifdef __LP64__
+OUTPUT_FORMAT("elf64-x86-64")
+OUTPUT_ARCH(i386:x86-64)
+#else
 OUTPUT_FORMAT("elf32-i386")
 OUTPUT_ARCH(i386)
+#endif /* __LP64__ */
+
 ENTRY(_start)
 
 #define __ASSEMBLY__
@@ -29,6 +33,7 @@ SECTIONS
         _boot = .;
         *(.boothdr)
         *(.boot)
+        *(.bootdata)
         _eboot = .;
     } : boot
 

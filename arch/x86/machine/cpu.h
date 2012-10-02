@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _I386_CPU_H
-#define _I386_CPU_H
+#ifndef _X86_CPU_H
+#define _X86_CPU_H
 
 /*
  * GDT entry indexes and size.
@@ -207,13 +207,13 @@ cpu_tlb_flush_va(unsigned long va)
 static __always_inline unsigned long
 cpu_get_flags(void)
 {
-    unsigned long eflags;
+    unsigned long flags;
 
     asm volatile("pushf\n"
-                 "popl %0\n"
-                 : "=r" (eflags));
+                 "pop %0\n"
+                 : "=r" (flags));
 
-    return eflags;
+    return flags;
 }
 
 /*
@@ -238,11 +238,11 @@ cpu_intr_disable(void)
  * Restore the content of the EFLAGS register, possibly enabling interrupts.
  */
 static __always_inline void
-cpu_intr_restore(unsigned long eflags)
+cpu_intr_restore(unsigned long flags)
 {
-    asm volatile("pushl %0\n"
+    asm volatile("push %0\n"
                  "popf\n"
-                 : : "r" (eflags));
+                 : : "r" (flags));
 }
 
 /*
@@ -252,12 +252,12 @@ cpu_intr_restore(unsigned long eflags)
 static __always_inline unsigned long
 cpu_intr_save(void)
 {
-    unsigned long eflags;
+    unsigned long flags;
 
-    eflags = cpu_get_flags();
+    flags = cpu_get_flags();
     cpu_intr_disable();
 
-    return eflags;
+    return flags;
 }
 
 /*
@@ -266,10 +266,10 @@ cpu_intr_save(void)
 static __always_inline int
 cpu_intr_enabled(void)
 {
-    unsigned long eflags;
+    unsigned long flags;
 
-    eflags = cpu_get_flags();
-    return (eflags & CPU_EFL_IF) ? 1 : 0;
+    flags = cpu_get_flags();
+    return (flags & CPU_EFL_IF) ? 1 : 0;
 }
 
 /*
@@ -307,9 +307,14 @@ cpu_current(void)
 {
     struct cpu *cpu;
 
+#ifdef __LP64__
+    cpu = NULL;
+#else /* __LP64__ */
     asm volatile("movl %%fs:%1, %0"
                  : "=r" (cpu)
                  : "m" (*(struct cpu *)offsetof(struct cpu, self)));
+#endif /* __LP64__ */
+
     return cpu;
 }
 
@@ -403,4 +408,4 @@ void cpu_trap_lapic_spurious_intr(void);
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* _I386_CPU_H */
+#endif /* _X86_CPU_H */

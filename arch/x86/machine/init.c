@@ -43,15 +43,15 @@
 #define INIT_VGACHARS   (80 * 25)
 #define INIT_VGACOLOR   0x7
 
-char init_stack[BOOT_STACK_SIZE] __initdata;
-char init_ap_stack[BOOT_STACK_SIZE] __initdata;
-unsigned long init_ap_id __initdata;
-unsigned long init_ap_boot_stack __initdata;
+char init_stack[BOOT_STACK_SIZE] __aligned(8) __bootdata;
+char init_ap_stack[BOOT_STACK_SIZE] __aligned(8) __bootdata;
+unsigned long init_ap_id __bootdata;
+unsigned long init_ap_boot_stack_addr __bootdata;
 
 /*
  * Copy of the multiboot data passed by the boot loader.
  */
-static struct multiboot_info init_mbi __initdata;
+static struct multiboot_info init_mbi __bootdata;
 
 void __boot
 init_panic(const char *msg)
@@ -62,12 +62,12 @@ init_panic(const char *msg)
     ptr = INIT_VGAMEM;
     end = ptr + INIT_VGACHARS;
 
-    s = (const char *)BOOT_ADDR_VTOP("boot panic: ");
+    s = (const char *)BOOT_VTOP("boot panic: ");
 
     while ((ptr < end) && (*s != '\0'))
         *ptr++ = (INIT_VGACOLOR << 8) | *s++;
 
-    s = (const char *)BOOT_ADDR_VTOP(msg);
+    s = (const char *)BOOT_VTOP(msg);
 
     while ((ptr < end) && (*s != '\0'))
         *ptr++ = (INIT_VGACOLOR << 8) | *s++;
@@ -96,8 +96,8 @@ init_paging(uint32_t eax, const struct multiboot_info *mbi)
      * Save the multiboot data passed by the boot loader and initialize the
      * bootstrap allocator.
      */
-    BOOT_VTOP(init_mbi) = *mbi;
-    biosmem_bootstrap(&BOOT_VTOP(init_mbi));
+    init_mbi = *mbi;
+    biosmem_bootstrap(&init_mbi);
 
     /*
      * Create the kernel virtual mapping. Two mappings are actually established,
@@ -113,13 +113,13 @@ init_paging(uint32_t eax, const struct multiboot_info *mbi)
      */
 
     /* Allocate the PTPs */
-    kern_end = BOOT_ADDR_VTOP(&_end);
+    kern_end = BOOT_VTOP(&_end);
     nr_pages = (kern_end / PAGE_SIZE) + PMAP_RESERVED_PAGES;
     nr_ptps = P2ROUND(nr_pages, PMAP_PTE_PER_PT) / PMAP_PTE_PER_PT;
     ptps = biosmem_bootalloc(nr_ptps);
 
     /* Insert the PTPs in the page directory */
-    pdir = (pmap_pte_t *)BOOT_ADDR_VTOP(pmap_kpdir);
+    pdir = (pmap_pte_t *)pmap_kpdir;
     pte = pdir + (KERNEL_OFFSET >> PMAP_PDE_SHIFT);
     id_pte = pdir;
 
@@ -136,7 +136,7 @@ init_paging(uint32_t eax, const struct multiboot_info *mbi)
         ptps[vm_page_atop(i)] = i | PMAP_PTE_WRITE | PMAP_PTE_PRESENT;
 
 #ifdef PAE
-    pte = (pmap_pte_t *)BOOT_ADDR_VTOP(pmap_kpdpt);
+    pte = (pmap_pte_t *)pmap_kpdpt;
 
     for (i = 0; i < PMAP_NR_PDT; i++)
         pte[i] = ((unsigned long)pdir + (i * PAGE_SIZE)) | PMAP_PTE_PRESENT;
@@ -154,9 +154,9 @@ init_ap_paging(void)
 {
 #ifdef PAE
     cpu_enable_pae();
-    return (pmap_pte_t *)BOOT_ADDR_VTOP(pmap_kpdpt);
+    return (pmap_pte_t *)pmap_kpdpt;
 #else /* PAE */
-    return (pmap_pte_t *)BOOT_ADDR_VTOP(pmap_kpdir);
+    return (pmap_pte_t *)pmap_kpdir;
 #endif /* PAE */
 }
 

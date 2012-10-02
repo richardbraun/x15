@@ -1,7 +1,7 @@
 #
 # 'arch/xxx' sources
 #
-include arch/i386/Makefrag.am
+include arch/x86/Makefrag.am
 
 #
 # 'kern/' sources

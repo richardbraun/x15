@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _I386_TRAP_H
-#define _I386_TRAP_H
+#ifndef _X86_TRAP_H
+#define _X86_TRAP_H
 
 /*
  * Trap vectors.
@@ -44,4 +44,4 @@
 #define T_APIC_ERROR_INTR       254
 #define T_APIC_SPURIOUS_INTR    255
 
-#endif /* _I386_TRAP_H */
+#endif /* _X86_TRAP_H */

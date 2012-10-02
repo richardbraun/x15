@@ -390,7 +390,7 @@ cpu_mp_start_aps(void)
             panic("unable to allocate boot stack for cpu%u", i);
 
         init_ap_id = i;
-        init_ap_boot_stack = cpu->boot_stack;
+        init_ap_boot_stack_addr = cpu->boot_stack;
 
         lapic_ipi_init_assert(cpu->apic_id);
         cpu_delay(200);

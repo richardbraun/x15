@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _I386_INIT_H
-#define _I386_INIT_H
+#ifndef _X86_INIT_H
+#define _X86_INIT_H
 
 #include <lib/macros.h>
 #include <lib/stdint.h>
@@ -44,7 +44,7 @@ extern unsigned long init_ap_id;
  * addresses. At this point, it switches to a per-AP preallocated
  * stack. This variable contains the (virtual) address of that stack.
  */
-extern unsigned long init_ap_boot_stack;
+extern unsigned long init_ap_boot_stack_addr;
 
 /*
  * Print the given message and halt the system immediately.
@@ -79,4 +79,4 @@ void init(void);
  */
 void init_ap(void);
 
-#endif /* _I386_INIT_H */
+#endif /* _X86_INIT_H */

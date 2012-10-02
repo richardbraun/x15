@@ -640,5 +640,5 @@ vm_map_info(struct vm_map *map)
                entry->flags, type);
     }
 
-    printk("vm_map: total: %uk\n", map->size >> 10);
+    printk("vm_map: total: %zuk\n", map->size >> 10);
 }

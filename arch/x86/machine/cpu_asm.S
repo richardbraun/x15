@@ -23,6 +23,9 @@
 .text
 
 ENTRY(cpu_load_gdt)
+#ifdef __LP64__
+ ret
+#else /* __LP64__ */
  movl 4(%esp), %eax
  lgdt (%eax)
 
@@ -42,6 +45,7 @@ ENTRY(cpu_load_gdt)
  pushl $(CPU_GDT_SELECTOR(CPU_GDT_CODE_IDX))
  pushl %eax
  lret
+#endif /* __LP64__ */
 END(cpu_load_gdt)
 
 /*

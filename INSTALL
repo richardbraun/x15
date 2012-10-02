@@ -240,9 +240,15 @@ X15 Options
      Disable all debugging facilities.  By default, debugging is enabled.
 
 
-i386 options
+x86 options
 ------------
+
+`--with-i386'
+     Build for a 32-bit IA-32 machine.
+
+`--with-amd64'
+     Build for a 64-bit AMD64 machine.
 
 `--enable-pae'
      Use the PAE (Physical Address Extension) processor feature to address
-     physical memory beyond 4 GiB.
+     physical memory beyond 4 GiB (i386 only).

@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _I386_BOOT_H
-#define _I386_BOOT_H
+#ifndef _X86_BOOT_H
+#define _X86_BOOT_H
 
 /*
  * The kernel is physically loaded at BOOT_OFFSET by the boot loader. It
@@ -25,7 +25,12 @@
  * See the linker script for more information.
  */
 #define BOOT_OFFSET     0x00100000
+
+#ifdef __LP64__
+#define KERNEL_OFFSET   0xffffffff80000000
+#else /* __LP64__ */
 #define KERNEL_OFFSET   0xc0000000
+#endif /* __LP64__ */
 
 /*
  * Size of the stack used to bootstrap the kernel.
@@ -45,24 +50,17 @@
 #include <lib/macros.h>
 
 /*
- * Access a variable during bootstrap, while still running at physical
- * addresses.
+ * Virtual to physical address translation macro.
  */
-#define BOOT_VTOP(var) \
-    (*((typeof(var) *)((unsigned long)(&var) - KERNEL_OFFSET)))
+#define BOOT_VTOP(addr) ((unsigned long)(addr) - KERNEL_OFFSET)
 
 /*
- * Address translation macros.
- */
-#define BOOT_ADDR_VTOP(addr)    ((unsigned long)(addr) - KERNEL_OFFSET)
-#define BOOT_ADDR_PTOV(addr)    ((unsigned long)(addr) + KERNEL_OFFSET)
-
-/*
- * Functions used before paging is enabled must be part of the .boot section
- * so that they run at physical addresses. There is no .bootdata section; the
- * BOOT_VTOP() macro should be used instead.
+ * Functions and data used before paging is enabled must be part of the .boot
+ * and .bootdata sections respectively, so that they use physical addresses.
+ * Once paging is enabled, their access relies on the kernel identity mapping.
  */
 #define __boot __section(".boot")
+#define __bootdata __section(".bootdata")
 
 /*
  * Boundaries of the .boot section.
@@ -82,4 +80,4 @@ void boot_ap_start(void);
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* _I386_BOOT_H */
+#endif /* _X86_BOOT_H */

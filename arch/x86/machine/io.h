@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 Richard Braun.
+ * Copyright (c) 2010 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,28 +15,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _I386_ASM_H
-#define _I386_ASM_H
+#ifndef _X86_IO_H
+#define _X86_IO_H
 
-#ifdef __ASSEMBLY__
+#include <lib/stdint.h>
 
-#define TEXT_ALIGN  4
-#define DATA_ALIGN  2
+/*
+ * Read a byte from an I/O port.
+ */
+static inline uint8_t
+io_read_byte(uint16_t port)
+{
+    uint8_t value;
 
-#define ENTRY(x)            \
-.p2align TEXT_ALIGN, 0x90;  \
-.global x;                  \
-.type x, STT_FUNC;          \
-x:
+    asm volatile("inb %%dx, %%al" : "=a" (value) : "d" (port));
+    return value;
+}
 
-#define DATA(x)         \
-.p2align DATA_ALIGN;    \
-.global x;              \
-.type x, STT_OBJECT;    \
-x:
+/*
+ * Write a byte to an I/O port.
+ */
+static inline void
+io_write_byte(uint16_t port, uint8_t value)
+{
+    asm volatile("outb %%al, %%dx" : : "d" (port), "a" (value));
+}
 
-#define END(x) .size x, . - x;
-
-#endif /* __ASSEMBLY__ */
-
-#endif /* _I386_ASM_H */
+#endif /* _X86_IO_H */

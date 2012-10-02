@@ -34,13 +34,14 @@
 /*
  * Kernel page directory.
  */
-pmap_pte_t pmap_kpdir[PMAP_NR_PDT * PMAP_PTE_PER_PT] __aligned(PAGE_SIZE);
+pmap_pte_t pmap_kpdir[PMAP_NR_PDT * PMAP_PTE_PER_PT] __aligned(PAGE_SIZE)
+    __bootdata;
 
 #ifdef PAE
 /*
  * Kernel page directory pointer table.
  */
-pmap_pte_t pmap_kpdpt[PMAP_NR_PDT] __aligned(sizeof(pmap_kpdpt));
+pmap_pte_t pmap_kpdpt[PMAP_NR_PDT] __aligned(sizeof(pmap_kpdpt)) __bootdata;
 #endif /* PAE */
 
 /*
@@ -125,10 +126,10 @@ pmap_bootstrap(void)
      */
     kernel_pmap = &kernel_pmap_store;
     kernel_pmap->pdir = pmap_kpdir;
-    kernel_pmap->pdir_pa = BOOT_ADDR_VTOP(pmap_kpdir);
+    kernel_pmap->pdir_pa = (unsigned long)pmap_kpdir;
 
 #ifdef PAE
-    kernel_pmap->pdpt = (pmap_pte_t *)BOOT_ADDR_VTOP(pmap_kpdpt);
+    kernel_pmap->pdpt = pmap_kpdpt;
 #endif /* PAE */
 
     /*

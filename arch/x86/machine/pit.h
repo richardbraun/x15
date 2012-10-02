@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _I386_PIT_H
-#define _I386_PIT_H
+#ifndef _X86_PIT_H
+#define _X86_PIT_H
 
 /*
  * Set up the i8253 Programmable Interval Timer.
@@ -28,4 +28,4 @@ void pit_setup(void);
  */
 void pit_delay(unsigned long usecs);
 
-#endif /* _I386_PIT_H */
+#endif /* _X86_PIT_H */

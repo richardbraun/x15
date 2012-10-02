@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 Richard Braun.
+ * Copyright (c) 2012 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,33 +13,21 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Multiprocessor information gathering module, supporting the ACPI
+ * specification v1.0.
  */
 
-#ifndef _I386_LAPIC_H
-#define _I386_LAPIC_H
-
-#include <lib/stdint.h>
+#ifndef _X86_ACPIMP_H
+#define _X86_ACPIMP_H
 
 /*
- * Set up the lapic module.
+ * Load multiprocessor information.
+ *
+ * Return 0 if successful (an error usually means hardware doesn't support
+ * ACPI).
  */
-void lapic_setup(uint32_t map_addr);
+int acpimp_setup(void);
 
-/*
- * Set up the local APIC for an AP.
- */
-void lapic_ap_setup(void);
-
-/*
- * Functions used when initializing an AP.
- */
-void lapic_ipi_init_assert(uint32_t dest);
-void lapic_ipi_init_deassert(uint32_t dest);
-void lapic_ipi_startup(uint32_t dest, uint32_t vector);
-
-/*
- * Interrupt handlers.
- */
-void lapic_timer_intr(void);
-
-#endif /* _I386_LAPIC_H */
+#endif /* _X86_ACPIMP_H */

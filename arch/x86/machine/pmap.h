@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _I386_PMAP_H
-#define _I386_PMAP_H
+#ifndef _X86_PMAP_H
+#define _X86_PMAP_H
 
 #include <kern/param.h>
 #include <kern/types.h>
@@ -194,4 +194,4 @@ vm_phys_t pmap_kextract(unsigned long va);
  */
 void pmap_zero_page(vm_phys_t pa);
 
-#endif /* _I386_PMAP_H */
+#endif /* _X86_PMAP_H */

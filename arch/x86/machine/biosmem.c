@@ -67,19 +67,19 @@ struct biosmem_map_entry {
  * based on the mem_lower and mem_upper multiboot fields.
  */
 static struct biosmem_map_entry biosmem_map[BIOSMEM_MAX_MAP_SIZE * 2]
-    __initdata;
+    __bootdata;
 
 /*
  * Number of valid entries in the BIOS memory map table.
  */
-static unsigned int biosmem_map_size __initdata;
+static unsigned int biosmem_map_size __bootdata;
 
 /*
  * Boundaries of the simple bootstrap heap.
  */
-static unsigned long biosmem_heap_start __initdata;
-static unsigned long biosmem_heap_free __initdata;
-static unsigned long biosmem_heap_end __initdata;
+static unsigned long biosmem_heap_start __bootdata;
+static unsigned long biosmem_heap_free __bootdata;
+static unsigned long biosmem_heap_end __bootdata;
 
 static void __boot
 biosmem_map_build(const struct multiboot_info *mbi)
@@ -89,7 +89,7 @@ biosmem_map_build(const struct multiboot_info *mbi)
 
     mb_entry = mbi->mmap_addr;
     mb_end = mbi->mmap_addr + mbi->mmap_length;
-    start = (struct biosmem_map_entry *)BOOT_ADDR_VTOP(biosmem_map);
+    start = biosmem_map;
     entry = start;
     end = entry + BIOSMEM_MAX_MAP_SIZE;
 
@@ -102,7 +102,7 @@ biosmem_map_build(const struct multiboot_info *mbi)
         entry++;
     }
 
-    BOOT_VTOP(biosmem_map_size) = entry - start;
+    biosmem_map_size = entry - start;
 }
 
 static void __boot
@@ -110,7 +110,7 @@ biosmem_map_build_simple(const struct multiboot_info *mbi)
 {
     struct biosmem_map_entry *entry;
 
-    entry = (struct biosmem_map_entry *)BOOT_ADDR_VTOP(biosmem_map);
+    entry = biosmem_map;
     entry->base_addr = 0;
     entry->length = mbi->mem_lower << 10;
     entry->type = BIOSMEM_TYPE_AVAILABLE;
@@ -120,7 +120,7 @@ biosmem_map_build_simple(const struct multiboot_info *mbi)
     entry->length = mbi->mem_upper << 10;
     entry->type = BIOSMEM_TYPE_AVAILABLE;
 
-    BOOT_VTOP(biosmem_map_size) = 2;
+    biosmem_map_size = 2;
 }
 
 static void __boot
@@ -158,7 +158,7 @@ biosmem_find_boot_data(const struct multiboot_info *mbi, unsigned long min,
     start = max;
 
     biosmem_find_boot_data_update(min, &start, &end, &_boot,
-                                  (void *)BOOT_ADDR_VTOP(&_end));
+                                  (void *)BOOT_VTOP(&_end));
 
     if ((mbi->flags & MULTIBOOT_LOADER_CMDLINE) && (mbi->cmdline != NULL))
         biosmem_find_boot_data_update(min, &start, &end, mbi->cmdline,
@@ -222,9 +222,9 @@ biosmem_setup_allocator(struct multiboot_info *mbi)
     if (max_heap_start >= max_heap_end)
         init_panic("unable to find memory for the boot allocator");
 
-    BOOT_VTOP(biosmem_heap_start) = max_heap_start;
-    BOOT_VTOP(biosmem_heap_free) = max_heap_start;
-    BOOT_VTOP(biosmem_heap_end) = max_heap_end;
+    biosmem_heap_start = max_heap_start;
+    biosmem_heap_free = max_heap_start;
+    biosmem_heap_end = max_heap_end;
 }
 
 static size_t __boot
@@ -281,15 +281,14 @@ biosmem_bootalloc(unsigned int nr_pages)
     if (nr_pages == 0)
         init_panic("attempt to allocate 0 pages");
 
-    free = BOOT_VTOP(biosmem_heap_free);
+    free = biosmem_heap_free;
     page = free;
     free += PAGE_SIZE * nr_pages;
 
-    if ((free <= BOOT_VTOP(biosmem_heap_start))
-        || (free > BOOT_VTOP(biosmem_heap_end)))
+    if ((free <= biosmem_heap_start) || (free > biosmem_heap_end))
         init_panic("unable to allocate memory");
 
-    BOOT_VTOP(biosmem_heap_free) = free;
+    biosmem_heap_free = free;
 
     for (ptr = (char *)page; ptr < (char *)free; ptr++)
         *ptr = '\0';
@@ -600,7 +599,7 @@ biosmem_find_reserved_area(vm_phys_t min, vm_phys_t max,
 
     start = max;
     biosmem_find_reserved_area_update(min, &start, &end, (unsigned long)&_boot,
-                                      BOOT_ADDR_VTOP(&_end));
+                                      BOOT_VTOP(&_end));
     biosmem_find_reserved_area_update(min, &start, &end, biosmem_heap_start,
                                       biosmem_heap_end);
 
