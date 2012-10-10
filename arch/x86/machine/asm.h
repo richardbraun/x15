@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 Richard Braun.
+ * Copyright (c) 2011, 2012 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,24 +18,25 @@
 #ifndef _X86_ASM_H
 #define _X86_ASM_H
 
+#include <machine/param.h>
+
 #ifdef __ASSEMBLY__
 
-#define TEXT_ALIGN  4
-#define DATA_ALIGN  2
-
-#define ENTRY(x)            \
-.p2align TEXT_ALIGN, 0x90;  \
-.global x;                  \
-.type x, STT_FUNC;          \
+#define ENTRY(x)        \
+.align TEXT_ALIGN;      \
+.global x;              \
+.type x, STT_FUNC;      \
 x:
 
 #define DATA(x)         \
-.p2align DATA_ALIGN;    \
+.align DATA_ALIGN;      \
 .global x;              \
 .type x, STT_OBJECT;    \
 x:
 
-#define END(x) .size x, . - x;
+#define END(x)  \
+.size x, . - x; \
+x ## _end:
 
 #endif /* __ASSEMBLY__ */
 

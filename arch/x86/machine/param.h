@@ -30,6 +30,12 @@
 #define CPU_L1_SIZE 64
 
 /*
+ * Code/data alignment.
+ */
+#define TEXT_ALIGN  16
+#define DATA_ALIGN  8
+
+/*
  * System timer frequency.
  */
 #define HZ 100

@@ -13,6 +13,32 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Early initialization procedure for x86.
+ *
+ * This module is separated in assembly and C code. The former is where
+ * the first instructions are run, and where actions that aren't possible,
+ * easy or clean in C are performed.
+ *
+ * When the boot loader passes control to the kernel, the main processor is
+ * in protected mode, paging is disabled, and some boot data are availabe
+ * outside the kernel. This module first sets up a basic physical memory
+ * allocator so that it can allocate page tables without corrupting the
+ * boot data. The .init section is linked at physical addresses, so that
+ * it can run with and without paging enabled. The page tables must properly
+ * configure an identity mapping so that this remains true as long as
+ * initialization code and data are used. Once the VM system is available,
+ * boot data are copied in kernel allocated buffers and their original pages
+ * are freed.
+ *
+ * On amd64, 64-bit code cannot run in legacy or compatibility mode. In order
+ * to walk the boot data structures, the kernel must either run 32-bit code
+ * (e.g. converting ELF32 to ELF64 objects before linking them) or establish
+ * a temporary identity mapping for the first 4 GiB of physical memory. As a
+ * way to simplify development, and make it possible to use 64-bit code
+ * almost everywhere, the latter solution is implemented (a small part of
+ * 32-bit code is required until the identity mapping is in place).
  */
 
 #include <kern/init.h>
@@ -42,10 +68,16 @@
 #define INIT_VGACHARS   (80 * 25)
 #define INIT_VGACOLOR   0x7
 
-char boot_stack[BOOT_STACK_SIZE] __aligned(8) __initdata;
-char boot_ap_stack[BOOT_STACK_SIZE] __aligned(8) __initdata;
+char boot_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
+char boot_ap_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
 unsigned long boot_ap_id __initdata;
 unsigned long boot_ap_stack_addr __initdata;
+
+#ifdef __LP64__
+pmap_pte_t boot_pml4[PMAP_PTE_PER_PT] __aligned(PAGE_SIZE) __initdata;
+pmap_pte_t boot_pdpt[PMAP_PTE_PER_PT] __aligned(PAGE_SIZE) __initdata;
+pmap_pte_t boot_pdir[4 * PMAP_PTE_PER_PT] __aligned(PAGE_SIZE) __initdata;
+#endif /* __LP64__ */
 
 /*
  * Copy of the multiboot data passed by the boot loader.
@@ -61,7 +93,7 @@ boot_panic(const char *msg)
     ptr = INIT_VGAMEM;
     end = ptr + INIT_VGACHARS;
 
-    s = (const char *)BOOT_VTOP("boot panic: ");
+    s = (const char *)BOOT_VTOP("panic: ");
 
     while ((ptr < end) && (*s != '\0'))
         *ptr++ = (INIT_VGACOLOR << 8) | *s++;
@@ -90,6 +122,10 @@ boot_setup_paging(uint32_t eax, const struct multiboot_info *mbi)
 
     if (!(mbi->flags & MULTIBOOT_LOADER_MEMORY))
         boot_panic("missing basic memory information");
+
+#ifdef __LP64__
+    boot_panic("64-bit long mode successfully enabled");
+#endif
 
     /*
      * Save the multiboot data passed by the boot loader and initialize the

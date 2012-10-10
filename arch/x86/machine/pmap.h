@@ -18,37 +18,33 @@
 #ifndef _X86_PMAP_H
 #define _X86_PMAP_H
 
-#include <kern/param.h>
-#include <kern/types.h>
-#include <lib/stdint.h>
+#include <lib/macros.h>
 
 /*
  * Page directory/table properties.
+ *
+ * TODO amd64
  */
+#ifdef __LP64__
+#define PMAP_PDE_SHIFT  21
+#define PMAP_PT_SHIFT   9
+#define PMAP_NR_PDT     4
+#define PMAP_PTE_PMASK  DECL_CONST(0x000ffffffffff000, ULL)
+#else /* __LP64__ */
 #ifdef PAE
 #define PMAP_PDE_SHIFT  21
 #define PMAP_PT_SHIFT   9
 #define PMAP_NR_PDT     4
-#define PMAP_PTE_PMASK  0x0000000ffffff000ULL
+#define PMAP_PTE_PMASK  DECL_CONST(0x0000000ffffff000, ULL)
 #else /* PAE */
 #define PMAP_PDE_SHIFT  22
 #define PMAP_PT_SHIFT   10
 #define PMAP_NR_PDT     1
-#define PMAP_PTE_PMASK  (~PAGE_MASK)
+#define PMAP_PTE_PMASK  DECL_CONST(0xfffff000, UL)
 #endif /* PAE */
+#endif /* __LP64__ */
 
 #define PMAP_PTE_SHIFT 12
-
-/*
- * The amount of virtual memory described by a page directory/table entry.
- */
-#define PMAP_PDE_MAPSIZE    (1 << PMAP_PDE_SHIFT)
-#define PMAP_PTE_MAPSIZE    (1 << PMAP_PTE_SHIFT)
-
-/*
- * Number of entries in a page directory/table.
- */
-#define PMAP_PTE_PER_PT (1 << PMAP_PT_SHIFT)
 
 /*
  * PDE/PTE flags.
@@ -60,10 +56,17 @@
 #define PMAP_PTE_CACHE_DISABLE  0x010
 #define PMAP_PTE_ACCESSED       0x020
 #define PMAP_PTE_DIRTY          0x040
+#define PMAP_PTE_PAGE_SIZE      0x080
 #define PMAP_PTE_GLOBAL         0x100
 #define PMAP_PTE_AVAIL1         0x200
 #define PMAP_PTE_AVAIL2         0x400
 #define PMAP_PTE_AVAIL3         0x800
+
+#ifndef __ASSEMBLY__
+
+#include <kern/param.h>
+#include <kern/types.h>
+#include <lib/stdint.h>
 
 /*
  * Flags related to page protection.
@@ -87,8 +90,19 @@
 #ifdef PAE
 typedef uint64_t pmap_pte_t;
 #else /* PAE */
-typedef uint32_t pmap_pte_t;
+typedef unsigned long pmap_pte_t;
 #endif /* PAE */
+
+/*
+ * The amount of virtual memory described by a page directory/table entry.
+ */
+#define PMAP_PDE_MAPSIZE    (1 << PMAP_PDE_SHIFT)
+#define PMAP_PTE_MAPSIZE    (1 << PMAP_PTE_SHIFT)
+
+/*
+ * Number of entries in a page directory/table.
+ */
+#define PMAP_PTE_PER_PT (1 << PMAP_PT_SHIFT)
 
 /*
  * Base virtual address of the linear mapping of PTEs.
@@ -193,5 +207,7 @@ vm_phys_t pmap_kextract(unsigned long va);
  * Zero a page at the given physical address.
  */
 void pmap_zero_page(vm_phys_t pa);
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* _X86_PMAP_H */

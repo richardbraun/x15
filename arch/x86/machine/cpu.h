@@ -64,6 +64,16 @@
 #define CPU_FEATURE2_APIC   0x00000200
 #define CPU_FEATURE2_PGE    0x00002000
 
+/*
+ * Model specific registers.
+ */
+#define CPU_MSR_EFER    0xc0000080
+
+/*
+ * EFER MSR flags.
+ */
+#define CPU_EFER_LME    0x00000100
+
 #ifndef __ASSEMBLY__
 
 #include <kern/param.h>
