@@ -18,18 +18,20 @@
 #ifndef _X86_BOOT_H
 #define _X86_BOOT_H
 
+#include <lib/macros.h>
+
 /*
  * The kernel is physically loaded at BOOT_OFFSET by the boot loader. It
  * will quickly establish the necessary mappings to run at KERNEL_OFFSET.
  *
  * See the linker script for more information.
  */
-#define BOOT_OFFSET     0x00100000
+#define BOOT_OFFSET     DECL_CONST(0x100000, UL)
 
 #ifdef __LP64__
-#define KERNEL_OFFSET   0xffffffff80000000
+#define KERNEL_OFFSET   DECL_CONST(0xffffffff80000000, UL)
 #else /* __LP64__ */
-#define KERNEL_OFFSET   0xc0000000
+#define KERNEL_OFFSET   DECL_CONST(0xc0000000, UL)
 #endif /* __LP64__ */
 
 /*

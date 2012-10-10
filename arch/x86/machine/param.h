@@ -19,6 +19,7 @@
 #define _X86_PARAM_H
 
 #include <machine/boot.h>
+#include <lib/macros.h>
 
 #define __LITTLE_ENDIAN__
 
@@ -42,8 +43,8 @@
 /*
  * User space boundaries.
  */
-#define VM_MIN_ADDRESS  0UL
-#define VM_MAX_ADDRESS  (unsigned long)KERNEL_OFFSET
+#define VM_MIN_ADDRESS  DECL_CONST(0, UL)
+#define VM_MAX_ADDRESS  KERNEL_OFFSET
 
 /*
  * Kernel stack size for threads and interrupt handlers.
@@ -54,9 +55,9 @@
  * Size of a linear mapping of PTEs (see the pmap module).
  */
 #ifdef PAE
-#define VM_PMAP_PTEMAP_SIZE 0x800000UL
+#define VM_PMAP_PTEMAP_SIZE DECL_CONST(0x800000, UL)
 #else /* PAE */
-#define VM_PMAP_PTEMAP_SIZE 0x400000UL
+#define VM_PMAP_PTEMAP_SIZE DECL_CONST(0x400000, UL)
 #endif /* PAE */
 
 /*
@@ -94,15 +95,15 @@
  * Segment boundaries.
  */
 #ifdef PAE
-#define VM_PHYS_NORMAL_LIMIT    0x100000000ULL
-#define VM_PHYS_HIGHMEM_LIMIT   0x1000000000ULL
+#define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0x100000000, ULL)
+#define VM_PHYS_HIGHMEM_LIMIT   DECL_CONST(0x1000000000, ULL)
 #else /* PAE */
-#define VM_PHYS_NORMAL_LIMIT    0xfffff000UL
+#define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0xfffff000, UL)
 #endif /* PAE */
 
 /*
  * Virtual space reserved for kernel map entries.
  */
-#define VM_MAP_KENTRY_SIZE 0x800000UL
+#define VM_MAP_KENTRY_SIZE DECL_CONST(0x800000, UL)
 
 #endif /* _X86_PARAM_H */

@@ -21,42 +21,51 @@
 #ifndef _LIB_MACROS_H
 #define _LIB_MACROS_H
 
+#ifndef __ASSEMBLY__
 #include <lib/stddef.h>
+#endif /* __ASSEMBLY__ */
 
-#define MACRO_BEGIN     ({
-#define MACRO_END       })
+#define MACRO_BEGIN         ({
+#define MACRO_END           })
 
-#define XQUOTE(x)       #x
-#define QUOTE(x)        XQUOTE(x)
+#define XQUOTE(x)           #x
+#define QUOTE(x)            XQUOTE(x)
 
-#define STRLEN(x)       (sizeof(x) - 1)
-#define ARRAY_SIZE(x)   (sizeof(x) / sizeof((x)[0]))
+#ifdef __ASSEMBLY__
+#define DECL_CONST(x, s)    x
+#else /* __ASSEMBLY__ */
+#define __DECL_CONST(x, s)  x##s
+#define DECL_CONST(x, s)    __DECL_CONST(x, s)
+#endif /* __ASSEMBLY__ */
 
-#define MIN(a, b)       ((a) < (b) ? (a) : (b))
-#define MAX(a, b)       ((a) > (b) ? (a) : (b))
+#define STRLEN(x)           (sizeof(x) - 1)
+#define ARRAY_SIZE(x)       (sizeof(x) / sizeof((x)[0]))
 
-#define P2ALIGNED(x, a) (((x) & ((a) - 1)) == 0)
-#define ISP2(x)         P2ALIGNED(x, x)
-#define P2ALIGN(x, a)   ((x) & -(a))
-#define P2ROUND(x, a)   (-(-(x) & -(a)))
-#define P2END(x, a)     (-(~(x) & -(a)))
+#define MIN(a, b)           ((a) < (b) ? (a) : (b))
+#define MAX(a, b)           ((a) > (b) ? (a) : (b))
+
+#define P2ALIGNED(x, a)     (((x) & ((a) - 1)) == 0)
+#define ISP2(x)             P2ALIGNED(x, x)
+#define P2ALIGN(x, a)       ((x) & -(a))
+#define P2ROUND(x, a)       (-(-(x) & -(a)))
+#define P2END(x, a)         (-(~(x) & -(a)))
 
 #define structof(ptr, type, member) \
     ((type *)((char *)ptr - offsetof(type, member)))
 
-#define alignof(x)      __alignof__(x)
+#define alignof(x)          __alignof__(x)
 
-#define likely(expr)    __builtin_expect(!!(expr), 1)
-#define unlikely(expr)  __builtin_expect(!!(expr), 0)
+#define likely(expr)        __builtin_expect(!!(expr), 1)
+#define unlikely(expr)      __builtin_expect(!!(expr), 0)
 
-#define barrier()       asm volatile("" : : : "memory")
+#define barrier()           asm volatile("" : : : "memory")
 
-#define __noreturn      __attribute__((noreturn))
-#define __aligned(x)    __attribute__((aligned(x)))
-#define __always_inline inline __attribute__((always_inline))
-#define __section(x)    __attribute__((section(x)))
-#define __packed        __attribute__((packed))
-#define __alias(x)      __attribute__((alias(x)))
+#define __noreturn          __attribute__((noreturn))
+#define __aligned(x)        __attribute__((aligned(x)))
+#define __always_inline     inline __attribute__((always_inline))
+#define __section(x)        __attribute__((section(x)))
+#define __packed            __attribute__((packed))
+#define __alias(x)          __attribute__((alias(x)))
 
 #define __format_printf(fmt, args) \
     __attribute__((format(printf, fmt, args)))
