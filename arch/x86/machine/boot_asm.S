@@ -29,7 +29,7 @@
 #define BOOT_MP_ADDR_PTOT(addr) (BOOT_MP_TRAMPOLINE_ADDR + (addr) \
                                  - boot_mp_trampoline)
 
-.section .boothdr, "wax"
+.section .init.hdr, "wax"
 
  /*
   * Multiboot header.
@@ -109,8 +109,6 @@ ENTRY(_start)
   * Never reached.
   */
 END(_start)
-
-.section .boot, "wax"
 
 DATA(boot_gdtr)
  .word (8 * 3)

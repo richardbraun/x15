@@ -26,7 +26,6 @@
 extern char _text;
 extern char _rodata;
 extern char _data;
-extern char _bss;
 extern char _end;
 
 /*

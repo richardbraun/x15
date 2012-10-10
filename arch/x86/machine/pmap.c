@@ -23,7 +23,6 @@
 #include <lib/macros.h>
 #include <lib/stddef.h>
 #include <lib/string.h>
-#include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>
 #include <vm/vm_kmem.h>
@@ -35,13 +34,13 @@
  * Kernel page directory.
  */
 pmap_pte_t pmap_kpdir[PMAP_NR_PDT * PMAP_PTE_PER_PT] __aligned(PAGE_SIZE)
-    __bootdata;
+    __initdata;
 
 #ifdef PAE
 /*
  * Kernel page directory pointer table.
  */
-pmap_pte_t pmap_kpdpt[PMAP_NR_PDT] __aligned(sizeof(pmap_kpdpt)) __bootdata;
+pmap_pte_t pmap_kpdpt[PMAP_NR_PDT] __aligned(sizeof(pmap_kpdpt)) __initdata;
 #endif /* PAE */
 
 /*

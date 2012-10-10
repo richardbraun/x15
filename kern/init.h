@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Richard Braun.
+ * Copyright (c) 2010, 2012 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,13 @@
  * These sections should contain code and data which can be discarded once
  * kernel initialization is done.
  */
-#define __init __section(".init")
-#define __initrodata __section(".initrodata")
-#define __initdata __section(".initdata")
+#define __init __section(".init.text")
+#define __initdata __section(".init.data")
+
+/*
+ * Boundaries of the .init section.
+ */
+extern char _init;
+extern char _einit;
 
 #endif /* _KERN_INIT_H */

@@ -42,17 +42,17 @@
 #define INIT_VGACHARS   (80 * 25)
 #define INIT_VGACOLOR   0x7
 
-char boot_stack[BOOT_STACK_SIZE] __aligned(8) __bootdata;
-char boot_ap_stack[BOOT_STACK_SIZE] __aligned(8) __bootdata;
-unsigned long boot_ap_id __bootdata;
-unsigned long boot_ap_stack_addr __bootdata;
+char boot_stack[BOOT_STACK_SIZE] __aligned(8) __initdata;
+char boot_ap_stack[BOOT_STACK_SIZE] __aligned(8) __initdata;
+unsigned long boot_ap_id __initdata;
+unsigned long boot_ap_stack_addr __initdata;
 
 /*
  * Copy of the multiboot data passed by the boot loader.
  */
-static struct multiboot_info boot_mbi __bootdata;
+static struct multiboot_info boot_mbi __initdata;
 
-void __boot
+void __init
 boot_panic(const char *msg)
 {
     uint16_t *ptr, *end;
@@ -79,7 +79,7 @@ boot_panic(const char *msg)
     /* Never reached */
 }
 
-pmap_pte_t * __boot
+pmap_pte_t * __init
 boot_setup_paging(uint32_t eax, const struct multiboot_info *mbi)
 {
     pmap_pte_t *pdir, *ptps, *pte, *id_pte;
@@ -129,7 +129,7 @@ boot_setup_paging(uint32_t eax, const struct multiboot_info *mbi)
     }
 
     /* Map the kernel */
-    kern_start = (unsigned long)&_boot;
+    kern_start = (unsigned long)&_init;
 
     for (i = kern_start; i < kern_end; i += PAGE_SIZE)
         ptps[vm_page_atop(i)] = i | PMAP_PTE_WRITE | PMAP_PTE_PRESENT;
@@ -148,7 +148,7 @@ boot_setup_paging(uint32_t eax, const struct multiboot_info *mbi)
 #endif /* PAE */
 }
 
-pmap_pte_t * __boot
+pmap_pte_t * __init
 boot_ap_setup_paging(void)
 {
 #ifdef PAE

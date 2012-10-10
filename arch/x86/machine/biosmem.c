@@ -66,21 +66,21 @@ struct biosmem_map_entry {
  * based on the mem_lower and mem_upper multiboot fields.
  */
 static struct biosmem_map_entry biosmem_map[BIOSMEM_MAX_MAP_SIZE * 2]
-    __bootdata;
+    __initdata;
 
 /*
  * Number of valid entries in the BIOS memory map table.
  */
-static unsigned int biosmem_map_size __bootdata;
+static unsigned int biosmem_map_size __initdata;
 
 /*
  * Boundaries of the simple bootstrap heap.
  */
-static unsigned long biosmem_heap_start __bootdata;
-static unsigned long biosmem_heap_free __bootdata;
-static unsigned long biosmem_heap_end __bootdata;
+static unsigned long biosmem_heap_start __initdata;
+static unsigned long biosmem_heap_free __initdata;
+static unsigned long biosmem_heap_end __initdata;
 
-static void __boot
+static void __init
 biosmem_map_build(const struct multiboot_info *mbi)
 {
     struct multiboot_mmap_entry *mb_entry, *mb_end;
@@ -104,7 +104,7 @@ biosmem_map_build(const struct multiboot_info *mbi)
     biosmem_map_size = entry - start;
 }
 
-static void __boot
+static void __init
 biosmem_map_build_simple(const struct multiboot_info *mbi)
 {
     struct biosmem_map_entry *entry;
@@ -122,7 +122,7 @@ biosmem_map_build_simple(const struct multiboot_info *mbi)
     biosmem_map_size = 2;
 }
 
-static void __boot
+static void __init
 biosmem_find_boot_data_update(unsigned long min, unsigned long *start,
                               unsigned long *end, const void *data_start,
                               const void *data_end)
@@ -146,7 +146,7 @@ biosmem_find_boot_data_update(unsigned long min, unsigned long *start,
  *
  * If no boot data was found, 0 is returned, and the end address isn't set.
  */
-static unsigned long __boot
+static unsigned long __init
 biosmem_find_boot_data(const struct multiboot_info *mbi, unsigned long min,
                        unsigned long max, unsigned long *endp)
 {
@@ -156,7 +156,7 @@ biosmem_find_boot_data(const struct multiboot_info *mbi, unsigned long min,
 
     start = max;
 
-    biosmem_find_boot_data_update(min, &start, &end, &_boot,
+    biosmem_find_boot_data_update(min, &start, &end, &_init,
                                   (void *)BOOT_VTOP(&_end));
 
     if ((mbi->flags & MULTIBOOT_LOADER_CMDLINE) && (mbi->cmdline != NULL))
@@ -185,7 +185,7 @@ biosmem_find_boot_data(const struct multiboot_info *mbi, unsigned long min,
     return start;
 }
 
-static void __boot
+static void __init
 biosmem_setup_allocator(struct multiboot_info *mbi)
 {
     unsigned long heap_start, heap_end, max_heap_start, max_heap_end;
@@ -226,7 +226,7 @@ biosmem_setup_allocator(struct multiboot_info *mbi)
     biosmem_heap_end = max_heap_end;
 }
 
-static size_t __boot
+static size_t __init
 biosmem_strlen(const char *s)
 {
     size_t i;
@@ -239,7 +239,7 @@ biosmem_strlen(const char *s)
     return i;
 }
 
-static void __boot
+static void __init
 biosmem_save_cmdline_sizes(struct multiboot_info *mbi)
 {
     struct multiboot_module *mod;
@@ -255,7 +255,7 @@ biosmem_save_cmdline_sizes(struct multiboot_info *mbi)
         }
 }
 
-void __boot
+void __init
 biosmem_bootstrap(struct multiboot_info *mbi)
 {
     if (mbi->flags & MULTIBOOT_LOADER_MMAP)
@@ -271,7 +271,7 @@ biosmem_bootstrap(struct multiboot_info *mbi)
     biosmem_setup_allocator(mbi);
 }
 
-void * __boot
+void * __init
 biosmem_bootalloc(unsigned int nr_pages)
 {
     unsigned long free, page;
@@ -597,7 +597,7 @@ biosmem_find_reserved_area(vm_phys_t min, vm_phys_t max,
     vm_phys_t start, end = end;
 
     start = max;
-    biosmem_find_reserved_area_update(min, &start, &end, (unsigned long)&_boot,
+    biosmem_find_reserved_area_update(min, &start, &end, (unsigned long)&_init,
                                       BOOT_VTOP(&_end));
     biosmem_find_reserved_area_update(min, &start, &end, biosmem_heap_start,
                                       biosmem_heap_end);

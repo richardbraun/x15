@@ -13,12 +13,12 @@ ENTRY(_start)
 
 #define __ASSEMBLY__
 
-#include <kern/param.h>
 #include <machine/boot.h>
+#include <machine/param.h>
 
 PHDRS
 {
-    boot    PT_LOAD FLAGS(7);
+    /* Flags are actually similar to classic Unix permissions */
     init    PT_LOAD FLAGS(7);
     text    PT_LOAD FLAGS(5);
     rodata  PT_LOAD FLAGS(4);
@@ -28,66 +28,47 @@ PHDRS
 SECTIONS
 {
     . = BOOT_OFFSET;
+    _init = .;
 
-    .boot ALIGN(PAGE_SIZE): {
-        _boot = .;
-        *(.boothdr)
-        *(.boot)
-        *(.bootdata)
-        _eboot = .;
-    } : boot
+    .init ALIGN(PAGE_SIZE): {
+        *(.init.hdr)
+        *(.init.text)
+        *(.init.data)
+    } : init
+
+    . = ALIGN(PAGE_SIZE);
+    _einit = .;
 
     . += KERNEL_OFFSET;
-
-    .init ALIGN(PAGE_SIZE): AT(ADDR(.init) - KERNEL_OFFSET) {
-        _init = .;
-        *(.init)
-        _einit = .;
-    } : init
-
-    .initrodata ALIGN(8): AT(ADDR(.initrodata) - KERNEL_OFFSET) {
-        _initrodata = .;
-        *(.initrodata)
-        _einitrodata = .;
-    } : init
-
-    .initdata ALIGN(8): AT(ADDR(.initdata) - KERNEL_OFFSET) {
-        _initdata = .;
-        *(.initdata)
-        _einitdata = .;
-    } : init
+    _text = .;
 
     .text ALIGN(PAGE_SIZE): AT(ADDR(.text) - KERNEL_OFFSET) {
-        _text = .;
         *(.text)
-        _etext = .;
     } : text
 
+    . = ALIGN(PAGE_SIZE);
+    _rodata = .;
+
     .rodata ALIGN(PAGE_SIZE): AT(ADDR(.rodata) - KERNEL_OFFSET) {
-        _rodata = .;
         *(.rodata)
-        _erodata = .;
     } : rodata
 
     .notes ALIGN(8): AT(ADDR(.notes) - KERNEL_OFFSET) {
-        _notes = .;
         *(.note.*)
-        _enotes = .;
     } : rodata
 
+    . = ALIGN(PAGE_SIZE);
+    _data = .;
+
     .data ALIGN(PAGE_SIZE): AT(ADDR(.data) - KERNEL_OFFSET) {
-        _data = .;
         *(.data)
-        _edata = .;
     } : data
 
     .bss ALIGN(8): AT(ADDR(.bss) - KERNEL_OFFSET) {
-        _bss = .;
         *(.bss)
         *(COMMON)
-        . = ALIGN(PAGE_SIZE);
-        _ebss = .;
     } : data
 
+    . = ALIGN(PAGE_SIZE);
     _end = .;
 }

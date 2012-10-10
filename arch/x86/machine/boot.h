@@ -60,20 +60,6 @@
 #define BOOT_VTOP(addr) ((unsigned long)(addr) - KERNEL_OFFSET)
 
 /*
- * Functions and data used before paging is enabled must be part of the .boot
- * and .bootdata sections respectively, so that they use physical addresses.
- * Once paging is enabled, their access relies on the kernel identity mapping.
- */
-#define __boot __section(".boot")
-#define __bootdata __section(".bootdata")
-
-/*
- * Boundaries of the .boot section.
- */
-extern char _boot;
-extern char _eboot;
-
-/*
  * Stack used to bootstrap the kernel.
  */
 extern char boot_stack[BOOT_STACK_SIZE];
