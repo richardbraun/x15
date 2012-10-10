@@ -32,7 +32,7 @@
 MACRO_BEGIN                                                         \
     if (unlikely(!(expression)))                                    \
         panic("assertion (%s) failed in %s:%d, function %s()",      \
-              XQUOTE(expression), __FILE__, __LINE__, __func__);    \
+              __QUOTE(expression), __FILE__, __LINE__, __func__);   \
 MACRO_END
 
 #endif /* NDEBUG */

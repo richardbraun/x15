@@ -28,8 +28,8 @@
 #define MACRO_BEGIN         ({
 #define MACRO_END           })
 
-#define XQUOTE(x)           #x
-#define QUOTE(x)            XQUOTE(x)
+#define __QUOTE(x)          #x
+#define QUOTE(x)            __QUOTE(x)
 
 #ifdef __ASSEMBLY__
 #define DECL_CONST(x, s)    x

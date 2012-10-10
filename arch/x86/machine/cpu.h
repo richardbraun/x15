@@ -163,14 +163,14 @@ cpu_get_ ## name(void)                                              \
 {                                                                   \
     unsigned long name;                                             \
                                                                     \
-    asm volatile("mov %%" XQUOTE(name) ", %0" : "=r" (name));       \
+    asm volatile("mov %%" __QUOTE(name) ", %0" : "=r" (name));      \
     return name;                                                    \
 }                                                                   \
                                                                     \
 static __always_inline void                                         \
 cpu_set_ ## name(unsigned long value)                               \
 {                                                                   \
-    asm volatile("mov %0, %%" XQUOTE(name) : : "r" (value));        \
+    asm volatile("mov %0, %%" __QUOTE(name) : : "r" (value));       \
 }
 
 /*
