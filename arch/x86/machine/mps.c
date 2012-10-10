@@ -204,7 +204,7 @@ mps_check_fps(const struct mps_fps *fps)
 }
 
 static int __init
-mps_get_fps(vm_phys_t start, size_t size, struct mps_fps *fps)
+mps_get_fps(phys_addr_t start, size_t size, struct mps_fps *fps)
 {
     const struct mps_fps *src;
     unsigned long addr, end, map_addr;

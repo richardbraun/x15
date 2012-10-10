@@ -105,8 +105,8 @@ struct vm_phys_seg {
     struct vm_phys_cpu_pool cpu_pools[MAX_CPUS];
 
     struct list node;
-    vm_phys_t start;
-    vm_phys_t end;
+    phys_addr_t start;
+    phys_addr_t end;
     struct vm_page *pages;
     struct vm_page *pages_end;
     /* struct mutex mutex; */
@@ -119,8 +119,8 @@ struct vm_phys_seg {
  * Bootstrap information about a segment.
  */
 struct vm_phys_boot_seg {
-    vm_phys_t avail_start;
-    vm_phys_t avail_end;
+    phys_addr_t avail_start;
+    phys_addr_t avail_end;
 };
 
 int vm_phys_ready;
@@ -150,7 +150,7 @@ static int vm_phys_load_initialized __initdata = 0;
 
 static void __init
 vm_phys_init_page(struct vm_page *page, unsigned short seg_index,
-                  unsigned short order, vm_phys_t pa)
+                  unsigned short order, phys_addr_t pa)
 {
     page->seg_index = seg_index;
     page->order = order;
@@ -225,7 +225,7 @@ vm_phys_seg_free_to_buddy(struct vm_phys_seg *seg, struct vm_page *page,
                           unsigned int order)
 {
     struct vm_page *buddy;
-    vm_phys_t pa, buddy_pa;
+    phys_addr_t pa, buddy_pa;
     unsigned int nr_pages;
 
     assert(page >= seg->pages);
@@ -339,7 +339,7 @@ vm_phys_cpu_pool_drain(struct vm_phys_cpu_pool *cpu_pool,
     /* mutex_unlock(&seg->mutex); */
 }
 
-static inline vm_phys_t __init
+static inline phys_addr_t __init
 vm_phys_seg_size(struct vm_phys_seg *seg)
 {
     return seg->end - seg->start;
@@ -348,7 +348,7 @@ vm_phys_seg_size(struct vm_phys_seg *seg)
 static int __init
 vm_phys_seg_compute_pool_size(struct vm_phys_seg *seg)
 {
-    vm_phys_t size;
+    phys_addr_t size;
 
     size = vm_page_atop(vm_phys_seg_size(seg)) / VM_PHYS_CPU_POOL_RATIO;
 
@@ -363,7 +363,7 @@ vm_phys_seg_compute_pool_size(struct vm_phys_seg *seg)
 static void __init
 vm_phys_seg_init(struct vm_phys_seg *seg, struct vm_page *pages)
 {
-    vm_phys_t pa;
+    phys_addr_t pa;
     int pool_size;
     unsigned int i;
 
@@ -447,8 +447,8 @@ vm_phys_seg_free(struct vm_phys_seg *seg, struct vm_page *page,
 }
 
 void __init
-vm_phys_load(const char *name, vm_phys_t start, vm_phys_t end,
-             vm_phys_t avail_start, vm_phys_t avail_end,
+vm_phys_load(const char *name, phys_addr_t start, phys_addr_t end,
+             phys_addr_t avail_start, phys_addr_t avail_end,
              unsigned int seglist_prio)
 {
     struct vm_phys_boot_seg *boot_seg;
@@ -485,13 +485,13 @@ vm_phys_load(const char *name, vm_phys_t start, vm_phys_t end,
     vm_phys_segs_size++;
 }
 
-vm_phys_t __init
+phys_addr_t __init
 vm_phys_bootalloc(void)
 {
     struct vm_phys_boot_seg *boot_seg;
     struct vm_phys_seg *seg;
     struct list *seg_list;
-    vm_phys_t pa;
+    phys_addr_t pa;
 
     for (seg_list = &vm_phys_seg_lists[ARRAY_SIZE(vm_phys_seg_lists) - 1];
          seg_list >= vm_phys_seg_lists;
@@ -565,7 +565,7 @@ vm_phys_manage(struct vm_page *page)
 }
 
 struct vm_page *
-vm_phys_lookup_page(vm_phys_t pa)
+vm_phys_lookup_page(phys_addr_t pa)
 {
     struct vm_phys_seg *seg;
     unsigned int i;

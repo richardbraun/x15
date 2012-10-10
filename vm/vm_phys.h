@@ -36,8 +36,8 @@ extern int vm_phys_ready;
  * The avail_start and avail_end parameters are used to maintain a simple
  * heap for bootstrap allocations.
  */
-void vm_phys_load(const char *name, vm_phys_t start, vm_phys_t end,
-                  vm_phys_t avail_start, vm_phys_t avail_end,
+void vm_phys_load(const char *name, phys_addr_t start, phys_addr_t end,
+                  phys_addr_t avail_start, phys_addr_t avail_end,
                   unsigned int seglist_prio);
 
 /*
@@ -46,7 +46,7 @@ void vm_phys_load(const char *name, vm_phys_t start, vm_phys_t end,
  * This function is used to allocate physical memory at boot time, before the
  * vm_phys module is ready, but after the physical memory has been loaded.
  */
-vm_phys_t vm_phys_bootalloc(void);
+phys_addr_t vm_phys_bootalloc(void);
 
 /*
  * Set up the vm_phys module.
@@ -67,7 +67,7 @@ void vm_phys_manage(struct vm_page *page);
 /*
  * Return the page descriptor for the given physical address.
  */
-struct vm_page * vm_phys_lookup_page(vm_phys_t pa);
+struct vm_page * vm_phys_lookup_page(phys_addr_t pa);
 
 /*
  * Allocate a block of 2^order physical pages.

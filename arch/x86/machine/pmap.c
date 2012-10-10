@@ -194,7 +194,7 @@ pmap_growkernel(unsigned long va)
 {
     struct vm_page *page;
     pmap_pte_t *pde;
-    vm_phys_t pa;
+    phys_addr_t pa;
 
     while (va > pmap_klimit) {
         pde = pmap_pde(pmap_kpdir, pmap_klimit);
@@ -218,7 +218,7 @@ pmap_growkernel(unsigned long va)
 }
 
 void
-pmap_kenter(unsigned long va, vm_phys_t pa)
+pmap_kenter(unsigned long va, phys_addr_t pa)
 {
     PMAP_PTE_BASE[vm_page_atop(va)] = (pa & PMAP_PTE_PMASK) | pmap_pte_global
                                       | PMAP_PTE_WRITE | PMAP_PTE_PRESENT;
@@ -250,7 +250,7 @@ pmap_kprotect(unsigned long start, unsigned long end, int prot)
     }
 }
 
-vm_phys_t
+phys_addr_t
 pmap_kextract(unsigned long va)
 {
     pmap_pte_t *pde;
@@ -264,7 +264,7 @@ pmap_kextract(unsigned long va)
 }
 
 void
-pmap_zero_page(vm_phys_t pa)
+pmap_zero_page(phys_addr_t pa)
 {
     pmap_kenter(pmap_zero_va, pa);
     memset((void *)pmap_zero_va, 0, PAGE_SIZE);

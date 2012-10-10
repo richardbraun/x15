@@ -74,7 +74,7 @@ void vm_kmem_free(unsigned long addr, size_t size);
  * TODO When mapping attributes are implemented, make this function disable
  * caching on the mapping.
  */
-void * vm_kmem_map_pa(vm_phys_t addr, size_t size, unsigned long *map_addrp,
+void * vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
                       size_t *map_sizep);
 
 /*

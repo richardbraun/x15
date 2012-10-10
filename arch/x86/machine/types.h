@@ -19,9 +19,9 @@
 #define _X86_TYPES_H
 
 #ifdef PAE
-typedef unsigned long long vm_phys_t;
+typedef unsigned long long phys_addr_t;
 #else /* PAE */
-typedef unsigned long vm_phys_t;
+typedef unsigned long phys_addr_t;
 #endif /* PAE */
 
 #endif /* _X86_TYPES_H */

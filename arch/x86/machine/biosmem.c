@@ -481,14 +481,14 @@ biosmem_map_show(void)
 }
 
 static int __init
-biosmem_map_find_avail(vm_phys_t *phys_start, vm_phys_t *phys_end)
+biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
 {
     const struct biosmem_map_entry *entry, *map_end;
-    vm_phys_t start, end, seg_start, seg_end;
+    phys_addr_t start, end, seg_start, seg_end;
     uint64_t entry_end;
 
-    seg_start = (vm_phys_t)-1;
-    seg_end = (vm_phys_t)-1;
+    seg_start = (phys_addr_t)-1;
+    seg_end = (phys_addr_t)-1;
     map_end = biosmem_map + biosmem_map_size;
 
     for (entry = biosmem_map; entry < map_end; entry++) {
@@ -516,14 +516,14 @@ biosmem_map_find_avail(vm_phys_t *phys_start, vm_phys_t *phys_end)
 
         /* TODO: check against a minimum size */
         if ((start < end) && (start < *phys_end) && (end > *phys_start)) {
-            if (seg_start == (vm_phys_t)-1)
+            if (seg_start == (phys_addr_t)-1)
                 seg_start = start;
 
             seg_end = end;
         }
     }
 
-    if ((seg_start == (vm_phys_t)-1) || (seg_end == (vm_phys_t)-1))
+    if ((seg_start == (phys_addr_t)-1) || (seg_end == (phys_addr_t)-1))
         return -1;
 
     if (seg_start > *phys_start)
@@ -536,9 +536,9 @@ biosmem_map_find_avail(vm_phys_t *phys_start, vm_phys_t *phys_end)
 }
 
 static void __init
-biosmem_load_segment(const char *name, vm_phys_t phys_start,
-                     vm_phys_t phys_end, vm_phys_t avail_start,
-                     vm_phys_t avail_end, unsigned int seglist_prio)
+biosmem_load_segment(const char *name, phys_addr_t phys_start,
+                     phys_addr_t phys_end, phys_addr_t avail_start,
+                     phys_addr_t avail_end, unsigned int seglist_prio)
 {
     if ((avail_start < phys_start) || (avail_start > phys_end))
         avail_start = phys_start;
@@ -553,7 +553,7 @@ biosmem_load_segment(const char *name, vm_phys_t phys_start,
 void __init
 biosmem_setup(void)
 {
-    vm_phys_t phys_start, phys_end;
+    phys_addr_t phys_start, phys_end;
     int error;
 
     biosmem_map_adjust();
@@ -580,9 +580,9 @@ biosmem_setup(void)
 }
 
 static void __init
-biosmem_find_reserved_area_update(vm_phys_t min, vm_phys_t *start,
-                                  vm_phys_t *end, vm_phys_t reserved_start,
-                                  vm_phys_t reserved_end)
+biosmem_find_reserved_area_update(phys_addr_t min, phys_addr_t *start,
+                                  phys_addr_t *end, phys_addr_t reserved_start,
+                                  phys_addr_t reserved_end)
 {
     if ((min <= reserved_start) && (reserved_start < *start)) {
         *start = reserved_start;
@@ -590,11 +590,11 @@ biosmem_find_reserved_area_update(vm_phys_t min, vm_phys_t *start,
     }
 }
 
-static vm_phys_t __init
-biosmem_find_reserved_area(vm_phys_t min, vm_phys_t max,
-                           vm_phys_t *endp)
+static phys_addr_t __init
+biosmem_find_reserved_area(phys_addr_t min, phys_addr_t max,
+                           phys_addr_t *endp)
 {
-    vm_phys_t start, end = end;
+    phys_addr_t start, end = end;
 
     start = max;
     biosmem_find_reserved_area_update(min, &start, &end, (unsigned long)&_init,
@@ -610,7 +610,7 @@ biosmem_find_reserved_area(vm_phys_t min, vm_phys_t max,
 }
 
 static void __init
-biosmem_free_usable_range(vm_phys_t start, vm_phys_t end)
+biosmem_free_usable_range(phys_addr_t start, phys_addr_t end)
 {
     struct vm_page *page;
 
@@ -623,9 +623,9 @@ biosmem_free_usable_range(vm_phys_t start, vm_phys_t end)
 }
 
 static void __init
-biosmem_free_usable_upper(vm_phys_t upper_end)
+biosmem_free_usable_upper(phys_addr_t upper_end)
 {
-    vm_phys_t next, start, end;
+    phys_addr_t next, start, end;
 
     next = BIOSMEM_END;
 
@@ -646,7 +646,7 @@ void __init
 biosmem_free_usable(void)
 {
     struct biosmem_map_entry *entry;
-    vm_phys_t start, end;
+    phys_addr_t start, end;
     uint64_t entry_end;
     unsigned int i;
 

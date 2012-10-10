@@ -51,7 +51,7 @@ unsigned long __init
 vm_kmem_bootalloc(size_t size)
 {
     unsigned long start, va;
-    vm_phys_t pa;
+    phys_addr_t pa;
 
     assert(size > 0);
 
@@ -162,7 +162,7 @@ vm_kmem_free(unsigned long addr, size_t size)
 {
     struct vm_page *page;
     unsigned long va, end;
-    vm_phys_t pa;
+    phys_addr_t pa;
 
     assert(vm_kmem_free_check(addr, size) == 0);
 
@@ -184,12 +184,12 @@ vm_kmem_free(unsigned long addr, size_t size)
 }
 
 void *
-vm_kmem_map_pa(vm_phys_t addr, size_t size, unsigned long *map_addrp,
+vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
                size_t *map_sizep)
 {
     unsigned long offset, map_addr;
     size_t map_size;
-    vm_phys_t start;
+    phys_addr_t start;
 
     assert(vm_kmem_alloc_check(size) == 0);
 

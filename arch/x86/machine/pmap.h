@@ -131,8 +131,8 @@ typedef unsigned long pmap_pte_t;
  * Physical address map.
  */
 struct pmap {
-    pmap_pte_t *pdir;   /* Page directory virtual address */
-    vm_phys_t pdir_pa;  /* Page directory physical address */
+    pmap_pte_t *pdir;       /* Page directory virtual address */
+    phys_addr_t pdir_pa;    /* Page directory physical address */
 #ifdef PAE
     pmap_pte_t *pdpt;   /* Page directory pointer table physical address */
 #endif /* PAE */
@@ -198,15 +198,15 @@ void pmap_growkernel(unsigned long va);
  *
  * Resources for the new mappings must be preallocated.
  */
-void pmap_kenter(unsigned long va, vm_phys_t pa);
+void pmap_kenter(unsigned long va, phys_addr_t pa);
 void pmap_kremove(unsigned long start, unsigned long end);
 void pmap_kprotect(unsigned long start, unsigned long end, int prot);
-vm_phys_t pmap_kextract(unsigned long va);
+phys_addr_t pmap_kextract(unsigned long va);
 
 /*
  * Zero a page at the given physical address.
  */
-void pmap_zero_page(vm_phys_t pa);
+void pmap_zero_page(phys_addr_t pa);
 
 #endif /* __ASSEMBLY__ */
 

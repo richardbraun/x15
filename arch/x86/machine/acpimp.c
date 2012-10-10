@@ -242,7 +242,7 @@ acpimp_check_rsdp(const struct acpimp_rsdp *rsdp)
 }
 
 static int __init
-acpimp_get_rsdp(vm_phys_t start, size_t size, struct acpimp_rsdp *rsdp)
+acpimp_get_rsdp(phys_addr_t start, size_t size, struct acpimp_rsdp *rsdp)
 {
     const struct acpimp_rsdp *src;
     unsigned long addr, end, map_addr;

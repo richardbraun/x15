@@ -41,10 +41,10 @@ struct vm_page {
     struct list node;
     unsigned short seg_index;
     unsigned short order;
-    vm_phys_t phys_addr;
+    phys_addr_t phys_addr;
 };
 
-static inline vm_phys_t
+static inline phys_addr_t
 vm_page_to_pa(const struct vm_page *page)
 {
     return page->phys_addr;
