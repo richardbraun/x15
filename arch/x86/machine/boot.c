@@ -26,7 +26,6 @@
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
-#include <machine/init.h>
 #include <machine/multiboot.h>
 #include <machine/pit.h>
 #include <machine/pmap.h>
@@ -43,18 +42,18 @@
 #define INIT_VGACHARS   (80 * 25)
 #define INIT_VGACOLOR   0x7
 
-char init_stack[BOOT_STACK_SIZE] __aligned(8) __bootdata;
-char init_ap_stack[BOOT_STACK_SIZE] __aligned(8) __bootdata;
-unsigned long init_ap_id __bootdata;
-unsigned long init_ap_boot_stack_addr __bootdata;
+char boot_stack[BOOT_STACK_SIZE] __aligned(8) __bootdata;
+char boot_ap_stack[BOOT_STACK_SIZE] __aligned(8) __bootdata;
+unsigned long boot_ap_id __bootdata;
+unsigned long boot_ap_stack_addr __bootdata;
 
 /*
  * Copy of the multiboot data passed by the boot loader.
  */
-static struct multiboot_info init_mbi __bootdata;
+static struct multiboot_info boot_mbi __bootdata;
 
 void __boot
-init_panic(const char *msg)
+boot_panic(const char *msg)
 {
     uint16_t *ptr, *end;
     const char *s;
@@ -81,23 +80,23 @@ init_panic(const char *msg)
 }
 
 pmap_pte_t * __boot
-init_paging(uint32_t eax, const struct multiboot_info *mbi)
+boot_setup_paging(uint32_t eax, const struct multiboot_info *mbi)
 {
     pmap_pte_t *pdir, *ptps, *pte, *id_pte;
     unsigned long i, nr_pages, nr_ptps, kern_start, kern_end;
 
     if (eax != MULTIBOOT_LOADER_MAGIC)
-        init_panic("not started by a multiboot compliant boot loader");
+        boot_panic("not started by a multiboot compliant boot loader");
 
     if (!(mbi->flags & MULTIBOOT_LOADER_MEMORY))
-        init_panic("missing basic memory information");
+        boot_panic("missing basic memory information");
 
     /*
      * Save the multiboot data passed by the boot loader and initialize the
      * bootstrap allocator.
      */
-    init_mbi = *mbi;
-    biosmem_bootstrap(&init_mbi);
+    boot_mbi = *mbi;
+    biosmem_bootstrap(&boot_mbi);
 
     /*
      * Create the kernel virtual mapping. Two mappings are actually established,
@@ -150,7 +149,7 @@ init_paging(uint32_t eax, const struct multiboot_info *mbi)
 }
 
 pmap_pte_t * __boot
-init_ap_paging(void)
+boot_ap_setup_paging(void)
 {
 #ifdef PAE
     cpu_enable_pae();
@@ -164,7 +163,7 @@ init_ap_paging(void)
  * Copy physical memory into a kernel allocated buffer.
  */
 static void * __init
-init_save_boot_data_copy(const void *ptr, size_t size)
+boot_save_boot_data_copy(const void *ptr, size_t size)
 {
     unsigned long map_addr;
     size_t map_size;
@@ -196,41 +195,41 @@ init_save_boot_data_copy(const void *ptr, size_t size)
  * TODO Handle more boot data such as debugging symbols.
  */
 static void __init
-init_save_boot_data(void)
+boot_save_boot_data(void)
 {
     uint32_t i;
 
-    if (init_mbi.flags & MULTIBOOT_LOADER_CMDLINE)
-        init_mbi.cmdline = init_save_boot_data_copy(init_mbi.cmdline,
-                                                    init_mbi.unused0);
+    if (boot_mbi.flags & MULTIBOOT_LOADER_CMDLINE)
+        boot_mbi.cmdline = boot_save_boot_data_copy(boot_mbi.cmdline,
+                                                    boot_mbi.unused0);
     else
-        init_mbi.cmdline = NULL;
+        boot_mbi.cmdline = NULL;
 
-    if (init_mbi.flags & MULTIBOOT_LOADER_MODULES) {
+    if (boot_mbi.flags & MULTIBOOT_LOADER_MODULES) {
         struct multiboot_module *mod;
         size_t size;
 
-        size = init_mbi.mods_count * sizeof(struct multiboot_module);
-        init_mbi.mods_addr = init_save_boot_data_copy(init_mbi.mods_addr, size);
+        size = boot_mbi.mods_count * sizeof(struct multiboot_module);
+        boot_mbi.mods_addr = boot_save_boot_data_copy(boot_mbi.mods_addr, size);
 
-        for (i = 0; i < init_mbi.mods_count; i++) {
-            mod = &init_mbi.mods_addr[i];
+        for (i = 0; i < boot_mbi.mods_count; i++) {
+            mod = &boot_mbi.mods_addr[i];
             size = mod->mod_end - mod->mod_start;
-            mod->mod_start = init_save_boot_data_copy(mod->mod_start, size);
+            mod->mod_start = boot_save_boot_data_copy(mod->mod_start, size);
             mod->mod_end = mod->mod_start + size;
 
             if (mod->string != NULL)
-                mod->string = init_save_boot_data_copy(mod->string,
+                mod->string = boot_save_boot_data_copy(mod->string,
                                                        mod->reserved);
         }
     } else {
-        init_mbi.mods_count = 0;
-        init_mbi.mods_addr = NULL;
+        boot_mbi.mods_count = 0;
+        boot_mbi.mods_addr = NULL;
     }
 }
 
 void __init
-init(void)
+boot_main(void)
 {
     cpu_setup();
     pmap_bootstrap();
@@ -240,7 +239,7 @@ init(void)
     cpu_info(cpu_current());
     biosmem_setup();
     vm_setup();
-    init_save_boot_data();
+    boot_save_boot_data();
     biosmem_free_usable();
     vm_phys_info();
     pit_setup();
@@ -251,7 +250,7 @@ init(void)
 }
 
 void __init
-init_ap(void)
+boot_ap(void)
 {
     cpu_ap_setup();
     cpu_info(cpu_current());

@@ -27,7 +27,6 @@
 #include <lib/string.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
-#include <machine/init.h>
 #include <machine/multiboot.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
@@ -220,7 +219,7 @@ biosmem_setup_allocator(struct multiboot_info *mbi)
     max_heap_end = vm_page_trunc(max_heap_end);
 
     if (max_heap_start >= max_heap_end)
-        init_panic("unable to find memory for the boot allocator");
+        boot_panic("unable to find memory for the boot allocator");
 
     biosmem_heap_start = max_heap_start;
     biosmem_heap_free = max_heap_start;
@@ -279,14 +278,14 @@ biosmem_bootalloc(unsigned int nr_pages)
     char *ptr;
 
     if (nr_pages == 0)
-        init_panic("attempt to allocate 0 pages");
+        boot_panic("attempt to allocate 0 pages");
 
     free = biosmem_heap_free;
     page = free;
     free += PAGE_SIZE * nr_pages;
 
     if ((free <= biosmem_heap_start) || (free > biosmem_heap_end))
-        init_panic("unable to allocate memory");
+        boot_panic("unable to allocate memory");
 
     biosmem_heap_free = free;
 

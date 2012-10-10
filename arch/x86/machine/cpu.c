@@ -28,7 +28,6 @@
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
-#include <machine/init.h>
 #include <machine/io.h>
 #include <machine/lapic.h>
 #include <machine/mps.h>
@@ -353,16 +352,16 @@ cpu_mp_start_aps(void)
 
     assert(BOOT_MP_TRAMPOLINE_ADDR < BIOSMEM_BASE);
     assert(vm_page_aligned(BOOT_MP_TRAMPOLINE_ADDR));
-    assert(boot_ap_size <= PAGE_SIZE);
+    assert(boot_mp_trampoline_size <= PAGE_SIZE);
 
     /* Set up the AP trampoline code */
-    ptr = vm_kmem_map_pa(BOOT_MP_TRAMPOLINE_ADDR, boot_ap_size,
+    ptr = vm_kmem_map_pa(BOOT_MP_TRAMPOLINE_ADDR, boot_mp_trampoline_size,
                          &map_addr, &map_size);
 
     if (ptr == NULL)
         panic("cpu: unable to map trampoline area in kernel map");
 
-    memcpy(ptr, boot_ap_start, boot_ap_size);
+    memcpy(ptr, boot_mp_trampoline, boot_mp_trampoline_size);
     vm_kmem_unmap_pa(map_addr, map_size);
 
     /* Set up the warm reset vector */
@@ -389,8 +388,8 @@ cpu_mp_start_aps(void)
         if (cpu->boot_stack == 0)
             panic("unable to allocate boot stack for cpu%u", i);
 
-        init_ap_id = i;
-        init_ap_boot_stack_addr = cpu->boot_stack;
+        boot_ap_id = i;
+        boot_ap_stack_addr = cpu->boot_stack;
 
         lapic_ipi_init_assert(cpu->apic_id);
         cpu_delay(200);
@@ -447,7 +446,7 @@ cpu_mp_setup(void)
 void __init
 cpu_ap_setup(void)
 {
-    cpu_init(&cpu_array[init_ap_id]);
+    cpu_init(&cpu_array[boot_ap_id]);
     cpu_check(cpu_current());
     lapic_ap_setup();
 }

@@ -18,14 +18,13 @@ x15_SOURCES += \
 	arch/x86/machine/acpimp.h \
 	arch/x86/machine/biosmem.c \
 	arch/x86/machine/biosmem.h \
+	arch/x86/machine/boot.c \
+	arch/x86/machine/boot_asm.S \
 	arch/x86/machine/boot.h \
-	arch/x86/machine/boot.S \
 	arch/x86/machine/cpu.c \
 	arch/x86/machine/cpu_asm.S \
 	arch/x86/machine/cpu.h \
 	arch/x86/machine/endian.h \
-	arch/x86/machine/init.c \
-	arch/x86/machine/init.h \
 	arch/x86/machine/io.h \
 	arch/x86/machine/lapic.c \
 	arch/x86/machine/lapic.h \

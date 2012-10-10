@@ -27,7 +27,7 @@
  * the MP trampoline code.
  */
 #define BOOT_MP_ADDR_PTOT(addr) (BOOT_MP_TRAMPOLINE_ADDR + (addr) \
-                                 - boot_ap_start)
+                                 - boot_mp_trampoline)
 
 .section .boothdr, "wax"
 
@@ -71,9 +71,9 @@ ENTRY(_start)
 #endif
 
  /*
-  * Set up the init stack.
+  * Set up the boot stack.
   */
- movl $(init_stack + BOOT_STACK_SIZE), %esp
+ movl $(boot_stack + BOOT_STACK_SIZE), %esp
  movl %esp, %ebp
 
  /*
@@ -81,7 +81,7 @@ ENTRY(_start)
   */
  pushl %ebx
  pushl %eax
- call init_paging
+ call boot_setup_paging
  movl %eax, %cr3
  movl %cr0, %eax
  orl $CPU_CR0_PG, %eax
@@ -95,14 +95,14 @@ ENTRY(_start)
  /*
   * Reset the stack, use high addresses.
   */
- movl $(init_stack + BOOT_STACK_SIZE + KERNEL_OFFSET), %esp
+ movl $(boot_stack + BOOT_STACK_SIZE + KERNEL_OFFSET), %esp
  movl %esp, %ebp
 
  /*
   * Prevent stack tracing from searching previous frames.
   */
  pushl $0
- jmp init
+ jmp boot_main
 #endif /* __LP64__ */
 
  /*
@@ -138,15 +138,15 @@ ENTRY(boot_ap_start32)
 
 1:
  /*
-  * Set up the init stack.
+  * Set up the boot stack.
   */
- movl $(init_ap_stack + BOOT_STACK_SIZE), %esp
+ movl $(boot_ap_stack + BOOT_STACK_SIZE), %esp
  movl %esp, %ebp
 
  /*
   * Enable paging.
   */
- call init_ap_paging
+ call boot_ap_setup_paging
  movl %eax, %cr3
  movl %cr0, %eax
  orl $CPU_CR0_PG, %eax
@@ -157,7 +157,7 @@ ENTRY(boot_ap_start32)
  /*
   * Switch to the boot stack preallocated for this AP by the BSP.
   */
- movl init_ap_boot_stack_addr, %esp
+ movl boot_ap_stack_addr, %esp
  addl $BOOT_STACK_SIZE, %esp
  movl %esp, %ebp
 
@@ -165,7 +165,7 @@ ENTRY(boot_ap_start32)
   * Prevent stack tracing from searching previous frames.
   */
  pushl $0
- jmp init_ap
+ jmp boot_ap
 
  /*
   * Never reached.
@@ -178,7 +178,7 @@ END(boot_ap_start32)
  * must enable protected mode to jump back into the kernel.
  */
 .align 8
-ENTRY(boot_ap_start)
+ENTRY(boot_mp_trampoline)
  .code16
  cli
  xorw %ax, %ax
@@ -204,7 +204,7 @@ ENTRY(boot_ap_start)
  movw %ax, %fs
  movw %ax, %gs
  ljmp $8, $boot_ap_start32
-END(boot_ap_start)
+END(boot_mp_trampoline)
 
 DATA(boot_ap_gdtr)
  .word (8 * 3)
@@ -238,6 +238,6 @@ DATA(boot_gdt)
  .word 0x00cf
 END(boot_gdt)
 
-DATA(boot_ap_size)
- .long . - boot_ap_start
-END(boot_ap_size)
+DATA(boot_mp_trampoline_size)
+ .long . - boot_mp_trampoline
+END(boot_mp_trampoline_size)

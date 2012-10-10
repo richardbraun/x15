@@ -18,7 +18,6 @@
 #ifndef _X86_PARAM_H
 #define _X86_PARAM_H
 
-#include <machine/boot.h>
 #include <lib/macros.h>
 
 #define __LITTLE_ENDIAN__
@@ -38,18 +37,20 @@
 /*
  * 4 KiB virtual pages.
  */
-#define PAGE_SHIFT 12
+#define PAGE_SHIFT  12
+#define PAGE_SIZE   (1 << PAGE_SHIFT)
+#define PAGE_MASK   (PAGE_SIZE - 1)
+
+/*
+ * Kernel stack size for threads and interrupt handlers.
+ */
+#define STACK_SIZE PAGE_SIZE
 
 /*
  * User space boundaries.
  */
 #define VM_MIN_ADDRESS  DECL_CONST(0, UL)
-#define VM_MAX_ADDRESS  KERNEL_OFFSET
-
-/*
- * Kernel stack size for threads and interrupt handlers.
- */
-#define STACK_SIZE 4096
+#define VM_MAX_ADDRESS  DECL_CONST(0xc0000000, UL)
 
 /*
  * Size of a linear mapping of PTEs (see the pmap module).
