@@ -144,28 +144,29 @@ struct pmap {
 extern struct pmap *kernel_pmap;
 
 /*
- * Kernel page directory.
- */
-extern pmap_pte_t pmap_kpdir[PMAP_NR_PDT * PMAP_PTE_PER_PT];
-
-#ifdef PAE
-/*
- * Kernel page directory pointer table.
- */
-extern pmap_pte_t pmap_kpdpt[PMAP_NR_PDT];
-#endif /* PAE */
-
-/*
  * Address below which using the low level kernel pmap functions is safe.
  * Its value is adjusted by calling pmap_growkernel().
  */
 extern unsigned long pmap_klimit;
 
 /*
- * Early initialization of the pmap module.
+ * Early initialization of the MMU.
  *
- * When this function is called, basic paging is enabled and the kernel
- * already runs at virtual addresses.
+ * This function is called before paging is enabled by the boot module. It
+ * maps the kernel at physical and virtual addresses, after which all kernel
+ * functions and data can be accessed.
+ */
+pmap_pte_t * pmap_setup_paging(void);
+
+/*
+ * This function is called by the AP bootstrap code before paging is enabled.
+ * It merely returns the physical address of the already existing kernel page
+ * directory.
+ */
+pmap_pte_t * pmap_ap_setup_paging(void);
+
+/*
+ * Early initialization of the pmap module.
  */
 void pmap_bootstrap(void);
 

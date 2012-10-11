@@ -23,6 +23,8 @@
 #include <lib/macros.h>
 #include <lib/stddef.h>
 #include <lib/string.h>
+#include <machine/biosmem.h>
+#include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>
 #include <vm/vm_kmem.h>
@@ -30,25 +32,24 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_phys.h>
 
+static struct pmap kernel_pmap_store;
+struct pmap *kernel_pmap;
+
+unsigned long pmap_klimit;
+
 /*
  * Kernel page directory.
  */
-pmap_pte_t pmap_kpdir[PMAP_NR_PDT * PMAP_PTE_PER_PT] __aligned(PAGE_SIZE)
-    __initdata;
+static pmap_pte_t pmap_kpdir[PMAP_NR_PDT * PMAP_PTE_PER_PT]
+    __aligned(PAGE_SIZE) __initdata;
 
 #ifdef PAE
 /*
  * Kernel page directory pointer table.
  */
-pmap_pte_t pmap_kpdpt[PMAP_NR_PDT] __aligned(sizeof(pmap_kpdpt)) __initdata;
+static pmap_pte_t pmap_kpdpt[PMAP_NR_PDT] __aligned(sizeof(pmap_kpdpt))
+    __initdata;
 #endif /* PAE */
-
-/*
- * Global symbols required by the pmap MI interface.
- */
-static struct pmap kernel_pmap_store;
-struct pmap *kernel_pmap;
-unsigned long pmap_klimit;
 
 /*
  * Reserved pages of virtual memory available for early allocation.
@@ -76,6 +77,75 @@ static pmap_pte_t pmap_pte_global;
  * Address for temporary mappings of pages to zero.
  */
 static unsigned long pmap_zero_va;
+
+pmap_pte_t * __init
+pmap_setup_paging(void)
+{
+    pmap_pte_t *pdir, *ptps, *pte, *id_pte;
+    unsigned long i, nr_pages, nr_ptps, kern_start, kern_end;
+
+    /*
+     * TODO Update comment.
+     *
+     * Create the kernel virtual mapping. Two mappings are actually established,
+     * using the same PTPs: a direct physical mapping, where virtual and
+     * physical addresses are identical (the identity mapping), and the true
+     * kernel mapping at KERNEL_OFFSET. The identity mapping is required to
+     * avoid a fault directly after paging is enabled. In addition, a few pages
+     * are reserved immediately after the kernel for the pmap module.
+     *
+     * While only the kernel is mapped, the PTPs are initialized so that all
+     * memory from KERNEL_OFFSET up to the pmap reserved pages can be mapped,
+     * which is required by pmap_growkernel().
+     */
+
+    /* Allocate the PTPs */
+    kern_end = BOOT_VTOP(&_end);
+    nr_pages = (kern_end / PAGE_SIZE) + PMAP_RESERVED_PAGES;
+    nr_ptps = P2ROUND(nr_pages, PMAP_PTE_PER_PT) / PMAP_PTE_PER_PT;
+    ptps = biosmem_bootalloc(nr_ptps);
+
+    /* Insert the PTPs in the page directory */
+    pdir = (pmap_pte_t *)pmap_kpdir;
+    pte = pdir + (KERNEL_OFFSET >> PMAP_PDE_SHIFT);
+    id_pte = pdir;
+
+    for (i = 0; i < nr_ptps; i++) {
+        *pte = ((unsigned long)ptps + (i * PAGE_SIZE))
+               | PMAP_PTE_WRITE | PMAP_PTE_PRESENT;
+        *id_pte++ = *pte++;
+    }
+
+    /* Map the kernel */
+    kern_start = (unsigned long)&_init;
+
+    for (i = kern_start; i < kern_end; i += PAGE_SIZE)
+        ptps[vm_page_atop(i)] = i | PMAP_PTE_WRITE | PMAP_PTE_PRESENT;
+
+#ifdef PAE
+    pte = (pmap_pte_t *)pmap_kpdpt;
+
+    for (i = 0; i < PMAP_NR_PDT; i++)
+        pte[i] = ((unsigned long)pdir + (i * PAGE_SIZE)) | PMAP_PTE_PRESENT;
+
+    cpu_enable_pae();
+
+    return pte;
+#else /* PAE */
+    return pdir;
+#endif /* PAE */
+}
+
+pmap_pte_t * __init
+pmap_ap_setup_paging(void)
+{
+#ifdef PAE
+    cpu_enable_pae();
+    return (pmap_pte_t *)pmap_kpdpt;
+#else /* PAE */
+    return (pmap_pte_t *)pmap_kpdir;
+#endif /* PAE */
+}
 
 static void __init
 pmap_setup_global_pages(void)

@@ -179,7 +179,7 @@ ENTRY(boot_ap_start32)
 1:
  movl $(boot_ap_stack + BOOT_STACK_SIZE), %esp
  movl %esp, %ebp
- call boot_ap_setup_paging
+ call pmap_ap_setup_paging
  movl %eax, %cr3
  movl %cr0, %eax
  orl $CPU_CR0_PG, %eax

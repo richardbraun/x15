@@ -104,15 +104,10 @@ void __noreturn boot_panic(const char *s);
  * It establishes a direct mapping of the kernel at virtual addresses and
  * returns the physical address of the page directory. It is up to the
  * caller to actually enable paging.
+ *
+ * TODO Update comment.
  */
 pmap_pte_t * boot_setup_paging(uint32_t eax, const struct multiboot_info *mbi);
-
-/*
- * This function is called by the AP bootstrap code before paging is enabled.
- * It merely returns the physical address of the already existing kernel page
- * directory.
- */
-pmap_pte_t * boot_ap_setup_paging(void);
 
 /*
  * Main entry point, called directly after basic paging is initialized.
