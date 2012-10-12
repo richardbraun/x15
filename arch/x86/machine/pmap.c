@@ -47,8 +47,7 @@ static pmap_pte_t pmap_kpdir[PMAP_NR_PDT * PMAP_PTE_PER_PT]
 /*
  * Kernel page directory pointer table.
  */
-static pmap_pte_t pmap_kpdpt[PMAP_NR_PDT] __aligned(sizeof(pmap_kpdpt))
-    __initdata;
+static pmap_pte_t pmap_kpdpt[PMAP_NR_PDT] __aligned(32) __initdata;
 #endif /* PAE */
 
 /*
