@@ -80,8 +80,9 @@ pmap_pte_t boot_pdir[4 * PMAP_PTE_PER_PT] __aligned(PAGE_SIZE) __initdata;
 #endif /* __LP64__ */
 
 /*
- * Copy of the multiboot data passed by the boot loader.
+ * Copies of the multiboot data passed by the boot loader.
  */
+static struct multiboot_raw_info boot_raw_mbi __initdata;
 static struct multiboot_info boot_mbi __initdata;
 
 void __init
@@ -112,7 +113,7 @@ boot_panic(const char *msg)
 }
 
 pmap_pte_t * __init
-boot_setup_paging(uint32_t eax, const struct multiboot_info *mbi)
+boot_setup_paging(uint32_t eax, const struct multiboot_raw_info *mbi)
 {
     if (eax != MULTIBOOT_LOADER_MAGIC)
         boot_panic("not started by a multiboot compliant boot loader");
@@ -128,23 +129,24 @@ boot_setup_paging(uint32_t eax, const struct multiboot_info *mbi)
      * Save the multiboot data passed by the boot loader, initialize the
      * bootstrap allocator and set up paging.
      */
-    boot_mbi = *mbi;
-    biosmem_bootstrap(&boot_mbi);
+    boot_raw_mbi = *mbi;
+
+    if ((mbi->flags & MULTIBOOT_LOADER_MODULES) && (mbi->mods_count == 0))
+        boot_raw_mbi.flags &= ~MULTIBOOT_LOADER_MODULES;
+
+    biosmem_bootstrap(&boot_raw_mbi);
     return pmap_setup_paging();
 }
 
-/*
- * Copy physical memory into a kernel allocated buffer.
- */
 static void * __init
-boot_save_boot_data_copy(const void *ptr, size_t size)
+boot_save_memory(uint32_t addr, size_t size)
 {
     unsigned long map_addr;
     size_t map_size;
     const void *src;
     void *copy;
 
-    src = vm_kmem_map_pa((unsigned long)ptr, size, &map_addr, &map_size);
+    src = vm_kmem_map_pa(addr, size, &map_addr, &map_size);
 
     if (src == NULL)
         panic("unable to map boot data in kernel map");
@@ -159,6 +161,74 @@ boot_save_boot_data_copy(const void *ptr, size_t size)
     return copy;
 }
 
+static void __init
+boot_save_mod(struct multiboot_module *dest_mod,
+              const struct multiboot_raw_module *src_mod)
+{
+    unsigned long map_addr;
+    size_t size, map_size;
+    const void *src;
+    void *copy;
+
+    size = src_mod->mod_end - src_mod->mod_start;
+    src = vm_kmem_map_pa(src_mod->mod_start, size, &map_addr, &map_size);
+
+    if (src == NULL)
+        panic("boot: unable to map module in kernel map");
+
+    copy = kmem_alloc(size);
+
+    if (copy == NULL)
+        panic("boot: unable to allocate memory for module copy");
+
+    memcpy(copy, src, size);
+    vm_kmem_unmap_pa(map_addr, map_size);
+
+    dest_mod->mod_start = copy;
+    dest_mod->mod_end = copy + size;
+
+    if (src_mod->string == 0)
+        dest_mod->string = NULL;
+    else
+        dest_mod->string = boot_save_memory(src_mod->string, src_mod->reserved);
+}
+
+static void __init
+boot_save_mods(void)
+{
+    const struct multiboot_raw_module *src;
+    struct multiboot_module *dest;
+    unsigned long map_addr;
+    size_t size, map_size;
+    uint32_t i;
+
+    if (!(boot_raw_mbi.flags & MULTIBOOT_LOADER_MODULES)) {
+        boot_mbi.mods_addr = NULL;
+        boot_mbi.mods_count = boot_raw_mbi.mods_count;
+        return;
+    }
+
+    size = boot_raw_mbi.mods_count * sizeof(struct multiboot_raw_module);
+    src = vm_kmem_map_pa(boot_raw_mbi.mods_addr, size, &map_addr, &map_size);
+
+    if (src == NULL)
+        panic("unable to map module table in kernel map");
+
+    size = boot_raw_mbi.mods_count * sizeof(struct multiboot_module);
+    dest = kmem_alloc(size);
+
+    if (dest == NULL)
+        panic("unable to allocate memory for the module table");
+
+    for (i = 0; i < boot_raw_mbi.mods_count; i++)
+        boot_save_mod(&dest[i], &src[i]);
+
+    vm_kmem_unmap_pa(map_addr, map_size);
+
+    boot_mbi.mods_addr = dest;
+    boot_mbi.mods_count = boot_raw_mbi.mods_count;
+}
+
 /*
  * Copy boot data in kernel allocated memory.
  *
@@ -169,37 +239,17 @@ boot_save_boot_data_copy(const void *ptr, size_t size)
  * TODO Handle more boot data such as debugging symbols.
  */
 static void __init
-boot_save_boot_data(void)
+boot_save_data(void)
 {
-    uint32_t i;
+    boot_mbi.flags = boot_raw_mbi.flags;
 
     if (boot_mbi.flags & MULTIBOOT_LOADER_CMDLINE)
-        boot_mbi.cmdline = boot_save_boot_data_copy(boot_mbi.cmdline,
-                                                    boot_mbi.unused0);
+        boot_mbi.cmdline = boot_save_memory(boot_raw_mbi.cmdline,
+                                            boot_raw_mbi.unused0);
     else
         boot_mbi.cmdline = NULL;
 
-    if (boot_mbi.flags & MULTIBOOT_LOADER_MODULES) {
-        struct multiboot_module *mod;
-        size_t size;
-
-        size = boot_mbi.mods_count * sizeof(struct multiboot_module);
-        boot_mbi.mods_addr = boot_save_boot_data_copy(boot_mbi.mods_addr, size);
-
-        for (i = 0; i < boot_mbi.mods_count; i++) {
-            mod = &boot_mbi.mods_addr[i];
-            size = mod->mod_end - mod->mod_start;
-            mod->mod_start = boot_save_boot_data_copy(mod->mod_start, size);
-            mod->mod_end = mod->mod_start + size;
-
-            if (mod->string != NULL)
-                mod->string = boot_save_boot_data_copy(mod->string,
-                                                       mod->reserved);
-        }
-    } else {
-        boot_mbi.mods_count = 0;
-        boot_mbi.mods_addr = NULL;
-    }
+    boot_save_mods();
 }
 
 void __init
@@ -213,7 +263,7 @@ boot_main(void)
     cpu_info(cpu_current());
     biosmem_setup();
     vm_setup();
-    boot_save_boot_data();
+    boot_save_data();
     biosmem_free_usable();
     vm_phys_info();
     pit_setup();

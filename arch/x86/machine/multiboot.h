@@ -26,7 +26,7 @@
 /*
  * Multiboot flags requesting services from the boot loader.
  */
-#define MULTIBOOT_OS_MEMORY_INFO    0x2
+#define MULTIBOOT_OS_MEMORY_INFO 0x2
 
 #define MULTIBOOT_OS_FLAGS MULTIBOOT_OS_MEMORY_INFO
 
@@ -51,17 +51,17 @@
 /*
  * A multiboot module.
  */
-struct multiboot_module {
-    void *mod_start;
-    void *mod_end;
-    char *string;
+struct multiboot_raw_module {
+    uint32_t mod_start;
+    uint32_t mod_end;
+    uint32_t string;
     uint32_t reserved;
 } __packed;
 
 /*
  * Memory map entry.
  */
-struct multiboot_mmap_entry {
+struct multiboot_raw_mmap_entry {
     uint32_t size;
     uint64_t base_addr;
     uint64_t length;
@@ -69,21 +69,38 @@ struct multiboot_mmap_entry {
 } __packed;
 
 /*
- * Multiboot information structure to get data passed by the boot loader.
+ * Multiboot information structure as passed by the boot loader.
  */
-struct multiboot_info {
+struct multiboot_raw_info {
     uint32_t flags;
     uint32_t mem_lower;
     uint32_t mem_upper;
     uint32_t unused0;
-    char *cmdline;
+    uint32_t cmdline;
     uint32_t mods_count;
-    struct multiboot_module *mods_addr;
+    uint32_t mods_addr;
     uint32_t unused1[4];
     uint32_t mmap_length;
-    void *mmap_addr;
+    uint32_t mmap_addr;
     uint32_t unused2[9];
 } __packed;
+
+/*
+ * Versions of the multiboot structures suitable for use with 64-bit pointers.
+ */
+
+struct multiboot_module {
+    void *mod_start;
+    void *mod_end;
+    char *string;
+};
+
+struct multiboot_info {
+    uint32_t flags;
+    char *cmdline;
+    struct multiboot_module *mods_addr;
+    uint32_t mods_count;
+};
 
 #endif /* __ASSEMBLY__ */
 

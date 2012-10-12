@@ -76,18 +76,20 @@ static unsigned int biosmem_map_size __initdata;
 /*
  * Boundaries of the simple bootstrap heap.
  */
-static unsigned long biosmem_heap_start __initdata;
-static unsigned long biosmem_heap_free __initdata;
-static unsigned long biosmem_heap_end __initdata;
+static uint32_t biosmem_heap_start __initdata;
+static uint32_t biosmem_heap_free __initdata;
+static uint32_t biosmem_heap_end __initdata;
 
 static void __init
-biosmem_map_build(const struct multiboot_info *mbi)
+biosmem_map_build(const struct multiboot_raw_info *mbi)
 {
-    struct multiboot_mmap_entry *mb_entry, *mb_end;
+    struct multiboot_raw_mmap_entry *mb_entry, *mb_end;
     struct biosmem_map_entry *start, *entry, *end;
+    unsigned long addr;
 
-    mb_entry = mbi->mmap_addr;
-    mb_end = mbi->mmap_addr + mbi->mmap_length;
+    addr = mbi->mmap_addr;
+    mb_entry = (struct multiboot_raw_mmap_entry *)addr;
+    mb_end = (struct multiboot_raw_mmap_entry *)(addr + mbi->mmap_length);
     start = biosmem_map;
     entry = start;
     end = entry + BIOSMEM_MAX_MAP_SIZE;
@@ -105,7 +107,7 @@ biosmem_map_build(const struct multiboot_info *mbi)
 }
 
 static void __init
-biosmem_map_build_simple(const struct multiboot_info *mbi)
+biosmem_map_build_simple(const struct multiboot_raw_info *mbi)
 {
     struct biosmem_map_entry *entry;
 
@@ -123,14 +125,12 @@ biosmem_map_build_simple(const struct multiboot_info *mbi)
 }
 
 static void __init
-biosmem_find_boot_data_update(unsigned long min, unsigned long *start,
-                              unsigned long *end, const void *data_start,
-                              const void *data_end)
+biosmem_find_boot_data_update(uint32_t min, uint32_t *start, uint32_t *end,
+                              uint32_t data_start, uint32_t data_end)
 {
-    if ((min <= (unsigned long)data_start)
-        && ((unsigned long)data_start < *start)) {
-        *start = (unsigned long)data_start;
-        *end = (unsigned long)data_end;
+    if ((min <= data_start) && (data_start < *start)) {
+        *start = data_start;
+        *end = data_end;
     }
 }
 
@@ -146,33 +146,35 @@ biosmem_find_boot_data_update(unsigned long min, unsigned long *start,
  *
  * If no boot data was found, 0 is returned, and the end address isn't set.
  */
-static unsigned long __init
-biosmem_find_boot_data(const struct multiboot_info *mbi, unsigned long min,
-                       unsigned long max, unsigned long *endp)
+static uint32_t __init
+biosmem_find_boot_data(const struct multiboot_raw_info *mbi, uint32_t min,
+                       uint32_t max, uint32_t *endp)
 {
-    struct multiboot_module *mod;
-    unsigned long start, end = end;
-    uint32_t i;
+    struct multiboot_raw_module *mod;
+    uint32_t i, start, end = end;
+    unsigned long tmp;
 
     start = max;
 
-    biosmem_find_boot_data_update(min, &start, &end, &_init,
-                                  (void *)BOOT_VTOP(&_end));
+    biosmem_find_boot_data_update(min, &start, &end, (unsigned long)&_init,
+                                  BOOT_VTOP(&_end));
 
-    if ((mbi->flags & MULTIBOOT_LOADER_CMDLINE) && (mbi->cmdline != NULL))
+    if ((mbi->flags & MULTIBOOT_LOADER_CMDLINE) && (mbi->cmdline != 0))
         biosmem_find_boot_data_update(min, &start, &end, mbi->cmdline,
                                       mbi->cmdline + mbi->unused0);
 
-    if ((mbi->flags & MULTIBOOT_LOADER_MODULES) && (mbi->mods_count > 0)) {
+    if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
+        i = mbi->mods_count * sizeof(struct multiboot_raw_module);
         biosmem_find_boot_data_update(min, &start, &end, mbi->mods_addr,
-                                   mbi->mods_addr + mbi->mods_count);
+                                      mbi->mods_addr + i);
+        tmp = mbi->mods_addr;
 
         for (i = 0; i < mbi->mods_count; i++) {
-            mod = &mbi->mods_addr[i];
+            mod = (struct multiboot_raw_module *)tmp + i;
             biosmem_find_boot_data_update(min, &start, &end, mod->mod_start,
                                           mod->mod_end);
 
-            if (mod->string != NULL)
+            if (mod->string != 0)
                 biosmem_find_boot_data_update(min, &start, &end, mod->string,
                                               mod->string + mod->reserved);
         }
@@ -186,10 +188,10 @@ biosmem_find_boot_data(const struct multiboot_info *mbi, unsigned long min,
 }
 
 static void __init
-biosmem_setup_allocator(struct multiboot_info *mbi)
+biosmem_setup_allocator(struct multiboot_raw_info *mbi)
 {
-    unsigned long heap_start, heap_end, max_heap_start, max_heap_end;
-    unsigned long mem_end, next;
+    uint32_t heap_start, heap_end, max_heap_start, max_heap_end;
+    uint32_t mem_end, next;
 
     /*
      * Find some memory for the heap. Look for the largest unused area in
@@ -226,11 +228,13 @@ biosmem_setup_allocator(struct multiboot_info *mbi)
     biosmem_heap_end = max_heap_end;
 }
 
-static size_t __init
-biosmem_strlen(const char *s)
+static uint32_t __init
+biosmem_strlen(uint32_t addr)
 {
-    size_t i;
+    const char *s;
+    uint32_t i;
 
+    s = (void *)(unsigned long)addr;
     i = 0;
 
     while (*s++ != '\0')
@@ -240,23 +244,28 @@ biosmem_strlen(const char *s)
 }
 
 static void __init
-biosmem_save_cmdline_sizes(struct multiboot_info *mbi)
+biosmem_save_cmdline_sizes(struct multiboot_raw_info *mbi)
 {
-    struct multiboot_module *mod;
+    struct multiboot_raw_module *mod;
     uint32_t i;
 
     if (mbi->flags & MULTIBOOT_LOADER_CMDLINE)
         mbi->unused0 = biosmem_strlen(mbi->cmdline) + 1;
 
-    if (mbi->flags & MULTIBOOT_LOADER_MODULES)
+    if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
+        unsigned long addr;
+
+        addr = mbi->mods_addr;
+
         for (i = 0; i < mbi->mods_count; i++) {
-            mod = &mbi->mods_addr[i];
+            mod = (struct multiboot_raw_module *)addr + i;
             mod->reserved = biosmem_strlen(mod->string) + 1;
         }
+    }
 }
 
 void __init
-biosmem_bootstrap(struct multiboot_info *mbi)
+biosmem_bootstrap(struct multiboot_raw_info *mbi)
 {
     if (mbi->flags & MULTIBOOT_LOADER_MMAP)
         biosmem_map_build(mbi);

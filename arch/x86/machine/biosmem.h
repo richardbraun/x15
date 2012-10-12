@@ -46,7 +46,7 @@
  *
  * It is called before paging is enabled.
  */
-void biosmem_bootstrap(struct multiboot_info *mbi);
+void biosmem_bootstrap(struct multiboot_raw_info *mbi);
 
 /*
  * Allocate contiguous physical pages during bootstrap.

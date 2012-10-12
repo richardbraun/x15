@@ -107,7 +107,8 @@ void __noreturn boot_panic(const char *s);
  *
  * TODO Update comment.
  */
-pmap_pte_t * boot_setup_paging(uint32_t eax, const struct multiboot_info *mbi);
+pmap_pte_t * boot_setup_paging(uint32_t eax,
+                               const struct multiboot_raw_info *mbi);
 
 /*
  * Main entry point, called directly after basic paging is initialized.
