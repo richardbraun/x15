@@ -23,17 +23,18 @@
 
 /*
  * The kernel is physically loaded at BOOT_OFFSET by the boot loader. It
- * will quickly establish the necessary mappings to run at KERNEL_OFFSET.
+ * is divided in two parts: the .init section which uses physical addresses
+ * and the main kernel code and data at KERNEL_OFFSET.
  *
  * See the linker script for more information.
  */
 #define BOOT_OFFSET     DECL_CONST(0x100000, UL)
+#define KERNEL_OFFSET   VM_MAX_KERNEL_ADDRESS
 
-#ifdef __LP64__
-#define KERNEL_OFFSET   DECL_CONST(0xffffffff80000000, UL)
-#else /* __LP64__ */
-#define KERNEL_OFFSET   VM_MAX_ADDRESS
-#endif /* __LP64__ */
+/*
+ * Virtual to physical address translation macro.
+ */
+#define BOOT_VTOP(addr) ((addr) - KERNEL_OFFSET)
 
 /*
  * Size of the stack used to bootstrap the kernel.
@@ -50,14 +51,8 @@
 
 #ifndef __ASSEMBLY__
 
-#include <lib/stdint.h>
 #include <machine/multiboot.h>
 #include <machine/pmap.h>
-
-/*
- * Virtual to physical address translation macro.
- */
-#define BOOT_VTOP(addr) ((unsigned long)(addr) - KERNEL_OFFSET)
 
 /*
  * Stack used to bootstrap the kernel.
@@ -107,8 +102,8 @@ void __noreturn boot_panic(const char *s);
  *
  * TODO Update comment.
  */
-pmap_pte_t * boot_setup_paging(uint32_t eax,
-                               const struct multiboot_raw_info *mbi);
+pmap_pte_t * boot_setup_paging(const struct multiboot_raw_info *mbi,
+                               unsigned long eax);
 
 /*
  * Main entry point, called directly after basic paging is initialized.

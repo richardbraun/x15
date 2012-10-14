@@ -38,7 +38,8 @@
  * a temporary identity mapping for the first 4 GiB of physical memory. As a
  * way to simplify development, and make it possible to use 64-bit code
  * almost everywhere, the latter solution is implemented (a small part of
- * 32-bit code is required until the identity mapping is in place).
+ * 32-bit code is required until the identity mapping is in place). Mentions
+ * to "enabling paging" do not refer to this initial identity mapping.
  */
 
 #include <kern/init.h>
@@ -74,9 +75,9 @@ unsigned long boot_ap_id __initdata;
 unsigned long boot_ap_stack_addr __initdata;
 
 #ifdef __LP64__
-pmap_pte_t boot_pml4[PMAP_PTE_PER_PT] __aligned(PAGE_SIZE) __initdata;
-pmap_pte_t boot_pdpt[PMAP_PTE_PER_PT] __aligned(PAGE_SIZE) __initdata;
-pmap_pte_t boot_pdir[4 * PMAP_PTE_PER_PT] __aligned(PAGE_SIZE) __initdata;
+pmap_pte_t boot_pml4[PMAP_L4_NR_PTES] __aligned(PAGE_SIZE) __initdata;
+pmap_pte_t boot_pdpt[PMAP_L3_NR_PTES] __aligned(PAGE_SIZE) __initdata;
+pmap_pte_t boot_pdir[4 * PMAP_L2_NR_PTES] __aligned(PAGE_SIZE) __initdata;
 #endif /* __LP64__ */
 
 /*
@@ -94,12 +95,12 @@ boot_panic(const char *msg)
     ptr = INIT_VGAMEM;
     end = ptr + INIT_VGACHARS;
 
-    s = (const char *)BOOT_VTOP("panic: ");
+    s = (void *)BOOT_VTOP((unsigned long)"panic: ");
 
     while ((ptr < end) && (*s != '\0'))
         *ptr++ = (INIT_VGACOLOR << 8) | *s++;
 
-    s = (const char *)BOOT_VTOP(msg);
+    s = BOOT_VTOP(msg);
 
     while ((ptr < end) && (*s != '\0'))
         *ptr++ = (INIT_VGACOLOR << 8) | *s++;
@@ -113,17 +114,13 @@ boot_panic(const char *msg)
 }
 
 pmap_pte_t * __init
-boot_setup_paging(uint32_t eax, const struct multiboot_raw_info *mbi)
+boot_setup_paging(const struct multiboot_raw_info *mbi, unsigned long eax)
 {
     if (eax != MULTIBOOT_LOADER_MAGIC)
         boot_panic("not started by a multiboot compliant boot loader");
 
     if (!(mbi->flags & MULTIBOOT_LOADER_MEMORY))
         boot_panic("missing basic memory information");
-
-#ifdef __LP64__
-    boot_panic("64-bit long mode successfully enabled");
-#endif
 
     /*
      * Save the multiboot data passed by the boot loader, initialize the

@@ -42,9 +42,8 @@ static unsigned long vm_kmem_boot_end __initdata;
 void __init
 vm_kmem_setup(void)
 {
-    pmap_virtual_space(&vm_kmem_boot_start, &vm_kmem_boot_end);
-    assert(vm_page_aligned(vm_kmem_boot_start));
-    assert(vm_page_aligned(vm_kmem_boot_end));
+    vm_kmem_boot_start = VM_MIN_KERNEL_ADDRESS;
+    vm_kmem_boot_end = VM_MAX_KERNEL_ADDRESS;
 }
 
 unsigned long __init

@@ -19,6 +19,7 @@
 #define _X86_PARAM_H
 
 #include <lib/macros.h>
+#include <machine/pmap.h>
 
 #define __LITTLE_ENDIAN__
 
@@ -41,7 +42,7 @@
 #define HZ 100
 
 /*
- * 4 KiB virtual pages.
+ * 4 KiB pages.
  */
 #define PAGE_SHIFT  12
 #define PAGE_SIZE   (1 << PAGE_SHIFT)
@@ -56,27 +57,34 @@
  * User space boundaries.
  */
 #define VM_MIN_ADDRESS  DECL_CONST(0, UL)
+
+#ifdef __LP64__
+#define VM_MAX_ADDRESS  DECL_CONST(0x800000000000, UL)
+#else /* __LP64__ */
 #define VM_MAX_ADDRESS  DECL_CONST(0xc0000000, UL)
+#endif/* __LP64__ */
 
 /*
- * Size of a linear mapping of PTEs (see the pmap module).
- */
-#ifdef PAE
-#define VM_PMAP_PTEMAP_SIZE DECL_CONST(0x800000, UL)
-#else /* PAE */
-#define VM_PMAP_PTEMAP_SIZE DECL_CONST(0x400000, UL)
-#endif /* PAE */
-
-/*
- * Kernel space boundaries.
- *
- * Addresses beyond VM_MAX_KERNEL_ADDRESS are used for PTEs linear mappings.
- * An area the size of such a mapping is reserved to avoid overflows.
+ * Location of the recursive mapping of PTEs.
  *
  * See the pmap module for more information.
  */
-#define VM_MIN_KERNEL_ADDRESS   VM_MAX_ADDRESS
-#define VM_MAX_KERNEL_ADDRESS   (~(VM_PMAP_PTEMAP_SIZE * 2) + 1)
+#ifdef __LP64__
+#define VM_PMAP_PTEMAP_ADDRESS  DECL_CONST(0xffff800000000000, UL)
+#else /* __LP64__ */
+#define VM_PMAP_PTEMAP_ADDRESS  VM_MAX_ADDRESS
+#endif /* __LP64__ */
+
+/*
+ * Kernel space boundaries.
+ */
+#define VM_MIN_KERNEL_ADDRESS   (VM_PMAP_PTEMAP_ADDRESS + PMAP_PTEMAP_SIZE)
+
+#ifdef __LP64__
+#define VM_MAX_KERNEL_ADDRESS   DECL_CONST(0xffffffff80000000, UL)
+#else /* __LP64__ */
+#define VM_MAX_KERNEL_ADDRESS   DECL_CONST(0xffe00000, UL)
+#endif /* __LP64__ */
 
 /*
  * Maximum number of physical segments.

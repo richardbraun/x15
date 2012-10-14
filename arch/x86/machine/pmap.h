@@ -13,6 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * TODO Comment.
  */
 
 #ifndef _X86_PMAP_H
@@ -21,72 +24,85 @@
 #include <lib/macros.h>
 
 /*
- * Page directory/table properties.
- *
- * TODO amd64
+ * Page table entry flags.
  */
+#define PMAP_PTE_P      0x00000001
+#define PMAP_PTE_RW     0x00000002
+#define PMAP_PTE_US     0x00000004
+#define PMAP_PTE_PWT    0x00000008
+#define PMAP_PTE_PCD    0x00000010
+#define PMAP_PTE_A      0x00000020
+#define PMAP_PTE_D      0x00000040
+#define PMAP_PTE_PS     0x00000080
+#define PMAP_PTE_G      0x00000100
+
+/*
+ * Page translation hierarchy properties.
+ */
+#define PMAP_L1_MASK    (PMAP_PA_MASK | PMAP_PTE_D | PMAP_PTE_A \
+                         | PMAP_PTE_PCD | PMAP_PTE_PWT | PMAP_PTE_US \
+                         | PMAP_PTE_RW | PMAP_PTE_P)
+#define PMAP_L2_MASK    (PMAP_PA_MASK | PMAP_PTE_A | PMAP_PTE_PCD \
+                         | PMAP_PTE_PWT | PMAP_PTE_US | PMAP_PTE_RW \
+                         | PMAP_PTE_P)
+
 #ifdef __LP64__
-#define PMAP_PDE_SHIFT  21
-#define PMAP_PT_SHIFT   9
-#define PMAP_NR_PDT     4
-#define PMAP_PTE_PMASK  DECL_CONST(0x000ffffffffff000, ULL)
+#define PMAP_NR_RPTPS   1
+#define PMAP_NR_LEVELS  4
+#define PMAP_L1_BITS    9
+#define PMAP_L2_BITS    9
+#define PMAP_L3_BITS    9
+#define PMAP_L4_BITS    9
+#define PMAP_VA_MASK    DECL_CONST(0x0000ffffffffffff, UL)
+#define PMAP_PA_MASK    DECL_CONST(0x000ffffffffff000, UL)
+#define PMAP_L3_MASK    PMAP_L2_MASK
+#define PMAP_L4_MASK    PMAP_L2_MASK
 #else /* __LP64__ */
 #ifdef PAE
-#define PMAP_PDE_SHIFT  21
-#define PMAP_PT_SHIFT   9
-#define PMAP_NR_PDT     4
-#define PMAP_PTE_PMASK  DECL_CONST(0x0000000ffffff000, ULL)
+#define PMAP_NR_RPTPS   4   /* Assume two levels with a 4-page root table */
+#define PMAP_NR_LEVELS  2
+#define PMAP_L1_BITS    9
+#define PMAP_L2_BITS    11
+#define PMAP_VA_MASK    DECL_CONST(0xffffffff, UL)
+#define PMAP_PA_MASK    DECL_CONST(0x000ffffffffff000, ULL)
 #else /* PAE */
-#define PMAP_PDE_SHIFT  22
-#define PMAP_PT_SHIFT   10
-#define PMAP_NR_PDT     1
-#define PMAP_PTE_PMASK  DECL_CONST(0xfffff000, UL)
+#define PMAP_NR_RPTPS   1
+#define PMAP_NR_LEVELS  2
+#define PMAP_L1_BITS    10
+#define PMAP_L2_BITS    10
+#define PMAP_VA_MASK    DECL_CONST(0xffffffff, UL)
+#define PMAP_PA_MASK    DECL_CONST(0xfffff000, UL)
 #endif /* PAE */
 #endif /* __LP64__ */
 
-#define PMAP_PTE_SHIFT 12
+#define PMAP_L1_SHIFT   12
+#define PMAP_L2_SHIFT   (PMAP_L1_SHIFT + PMAP_L1_BITS)
+#define PMAP_L3_SHIFT   (PMAP_L2_SHIFT + PMAP_L2_BITS)
+#define PMAP_L4_SHIFT   (PMAP_L3_SHIFT + PMAP_L3_BITS)
+
+#define PMAP_L1_NR_PTES (1 << PMAP_L1_BITS)
+#define PMAP_L2_NR_PTES (1 << PMAP_L2_BITS)
+#define PMAP_L3_NR_PTES (1 << PMAP_L3_BITS)
+#define PMAP_L4_NR_PTES (1 << PMAP_L4_BITS)
 
 /*
- * PDE/PTE flags.
+ * Size of the recursive mapping of PTEs.
  */
-#define PMAP_PTE_PRESENT        0x001
-#define PMAP_PTE_WRITE          0x002
-#define PMAP_PTE_USER           0x004
-#define PMAP_PTE_WRITE_THROUGH  0x008
-#define PMAP_PTE_CACHE_DISABLE  0x010
-#define PMAP_PTE_ACCESSED       0x020
-#define PMAP_PTE_DIRTY          0x040
-#define PMAP_PTE_PAGE_SIZE      0x080
-#define PMAP_PTE_GLOBAL         0x100
-#define PMAP_PTE_AVAIL1         0x200
-#define PMAP_PTE_AVAIL2         0x400
-#define PMAP_PTE_AVAIL3         0x800
+#ifdef __LP64__
+#define PMAP_PTEMAP_SIZE DECL_CONST(0x8000000000, UL)
+#else /* __LP64__ */
+#ifdef PAE
+#define PMAP_PTEMAP_SIZE DECL_CONST(0x800000, UL)
+#else /* PAE */
+#define PMAP_PTEMAP_SIZE DECL_CONST(0x400000, UL)
+#endif /* PAE */
+#endif /* __LP64__ */
 
 #ifndef __ASSEMBLY__
 
-#include <kern/param.h>
 #include <kern/types.h>
 #include <lib/stdint.h>
 
-/*
- * Flags related to page protection.
- */
-#define PMAP_PTE_PROT_MASK PMAP_PTE_WRITE
-
-/*
- * Index of the first PDE for the kernel address space.
- */
-#define PMAP_PDE_KERN (VM_MIN_KERNEL_ADDRESS >> PMAP_PDE_SHIFT)
-
-/*
- * PDE index for the page directory.
- */
-#define PMAP_PDE_PTE (VM_MAX_KERNEL_ADDRESS >> PMAP_PDE_SHIFT)
-
-/*
- * Page table entry (also usable as a page directory entry or page directory
- * pointer table entry).
- */
 #ifdef PAE
 typedef uint64_t pmap_pte_t;
 #else /* PAE */
@@ -94,48 +110,10 @@ typedef unsigned long pmap_pte_t;
 #endif /* PAE */
 
 /*
- * The amount of virtual memory described by a page directory/table entry.
- */
-#define PMAP_PDE_MAPSIZE    (1 << PMAP_PDE_SHIFT)
-#define PMAP_PTE_MAPSIZE    (1 << PMAP_PTE_SHIFT)
-
-/*
- * Number of entries in a page directory/table.
- */
-#define PMAP_PTE_PER_PT (1 << PMAP_PT_SHIFT)
-
-/*
- * Base virtual address of the linear mapping of PTEs.
- */
-#define PMAP_PTE_BASE   ((pmap_pte_t *)(PMAP_PDE_PTE << PMAP_PDE_SHIFT))
-
-/*
- * Base virtual address of the page directory, in the linear mapping of PTEs.
- */
-#define PMAP_PDP_BASE   (PMAP_PTE_BASE + (PMAP_PDE_PTE * PMAP_PTE_PER_PT))
-
-/*
- * Virtual address of the PDE that points to the PDP.
- */
-#define PMAP_PDP_PDE    (PMAP_PDP_BASE + PMAP_PDE_PTE)
-
-/*
- * Number of pages to reserve for the pmap module after the kernel.
- *
- * This pool of pure virtual memory can be used to reserve virtual addresses
- * before the VM system is initialized.
- */
-#define PMAP_RESERVED_PAGES 2
-
-/*
  * Physical address map.
  */
 struct pmap {
-    pmap_pte_t *pdir;       /* Page directory virtual address */
-    phys_addr_t pdir_pa;    /* Page directory physical address */
-#ifdef PAE
-    pmap_pte_t *pdpt;   /* Page directory pointer table physical address */
-#endif /* PAE */
+    phys_addr_t root_pt;    /* Root page table physical address */
 };
 
 /*
@@ -160,8 +138,8 @@ pmap_pte_t * pmap_setup_paging(void);
 
 /*
  * This function is called by the AP bootstrap code before paging is enabled.
- * It merely returns the physical address of the already existing kernel page
- * directory.
+ * It merely returns the physical address of the already existing kernel root
+ * page table.
  */
 pmap_pte_t * pmap_ap_setup_paging(void);
 
@@ -178,15 +156,6 @@ void pmap_bootstrap(void);
  * be created before the VM system is available.
  */
 unsigned long pmap_bootalloc(unsigned int nr_pages);
-
-/*
- * Return the available kernel virtual space in virt_start and virt_end.
- *
- * This function is called early, during initialization of the VM system, and
- * can't be used after since the VM has taken control of the kernel address
- * space.
- */
-void pmap_virtual_space(unsigned long *virt_start, unsigned long *virt_end);
 
 /*
  * Preallocate resources so that addresses up to va can be mapped safely in

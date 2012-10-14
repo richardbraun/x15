@@ -574,7 +574,7 @@ vm_map_bootstrap(void)
 
     /*
      * Create the initial kernel mapping. This reserves memory for at least
-     * the kernel image and the physical page table.
+     * the physical page table.
      */
     vm_kmem_boot_space(&start, &end);
     flags = VM_MAP_PROT_ALL | VM_MAP_MAX_PROT_ALL | VM_MAP_INHERIT_NONE

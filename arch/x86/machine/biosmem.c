@@ -157,7 +157,7 @@ biosmem_find_boot_data(const struct multiboot_raw_info *mbi, uint32_t min,
     start = max;
 
     biosmem_find_boot_data_update(min, &start, &end, (unsigned long)&_init,
-                                  BOOT_VTOP(&_end));
+                                  BOOT_VTOP((unsigned long)&_end));
 
     if ((mbi->flags & MULTIBOOT_LOADER_CMDLINE) && (mbi->cmdline != 0))
         biosmem_find_boot_data_update(min, &start, &end, mbi->cmdline,
@@ -607,7 +607,7 @@ biosmem_find_reserved_area(phys_addr_t min, phys_addr_t max,
 
     start = max;
     biosmem_find_reserved_area_update(min, &start, &end, (unsigned long)&_init,
-                                      BOOT_VTOP(&_end));
+                                      BOOT_VTOP((unsigned long)&_end));
     biosmem_find_reserved_area_update(min, &start, &end, biosmem_heap_start,
                                       biosmem_heap_end);
 

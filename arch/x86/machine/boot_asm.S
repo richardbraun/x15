@@ -67,32 +67,34 @@ ENTRY(_start)
  call boot_setup_long_mode
 
  /*
-  * At this point, the processor runs in long mode, but still uses the compatibility
-  * mode code segment. Switch to 64-bit mode with a far return.
+  * At this point, the processor runs in long mode, but still uses the
+  * compatibility mode code segment. Switch to 64-bit mode with a far return.
   */
  pushl $0x18
  pushl $1f
  lret
-1:
-#endif
 
- pushl %ebx
+1:
+ movl %ebx, %edi
+ movl %eax, %esi
+#else /* __LP64__ */
  pushl %eax
+ pushl %ebx
+#endif /* __LP64__ */
+
  call boot_setup_paging
  movl %eax, %cr3
+
+#ifndef __LP64__
  movl %cr0, %eax
  orl $CPU_CR0_PG, %eax
  movl %eax, %cr0
  ljmp $8, $1f
 
 1:
-#ifdef __LP64__
- hlt
-#else /* __LP64__ */
- /* Prevent stack tracing from searching previous frames */
- pushl $0
- jmp boot_main
 #endif /* __LP64__ */
+
+ call boot_main
 
  /* Never reached */
 END(_start)
@@ -109,12 +111,12 @@ END(boot_gdtr)
 ENTRY(boot_setup_long_mode)
  /* Set PML4[0] */
  movl $boot_pdpt, %edx
- orl $(PMAP_PTE_WRITE | PMAP_PTE_PRESENT), %edx
+ orl $(PMAP_PTE_RW | PMAP_PTE_P), %edx
  movl %edx, boot_pml4
 
  /* Set PDPT[0] through PDPT[3] */
  movl $boot_pdir, %edx
- orl $(PMAP_PTE_WRITE | PMAP_PTE_PRESENT), %edx
+ orl $(PMAP_PTE_RW | PMAP_PTE_P), %edx
  movl $boot_pdpt, %edi
  movl $4, %ecx
 
@@ -125,13 +127,13 @@ ENTRY(boot_setup_long_mode)
  loop 1b
 
  /* Set PDIR[0] through PDIR[2047] */
- movl $(PMAP_PTE_PAGE_SIZE | PMAP_PTE_WRITE | PMAP_PTE_PRESENT), %edx
+ movl $(PMAP_PTE_PS | PMAP_PTE_RW | PMAP_PTE_P), %edx
  movl $boot_pdir, %edi
  movl $2048, %ecx
 
 1:
  movl %edx, (%edi)
- addl $(1 << PMAP_PDE_SHIFT), %edx
+ addl $(1 << PMAP_L2_SHIFT), %edx
  addl $8, %edi
  loop 1b
 
@@ -192,9 +194,7 @@ ENTRY(boot_ap_start32)
  addl $BOOT_STACK_SIZE, %esp
  movl %esp, %ebp
 
- /* Prevent stack tracing from searching previous frames */
- pushl $0
- jmp boot_ap
+ call boot_ap
 
  /* Never reached */
 END(boot_ap_start32)

@@ -42,29 +42,29 @@ SECTIONS
     . += KERNEL_OFFSET;
     _text = .;
 
-    .text ALIGN(PAGE_SIZE): AT(ADDR(.text) - KERNEL_OFFSET) {
+    .text ALIGN(PAGE_SIZE): AT(BOOT_VTOP(ADDR(.text))) {
         *(.text)
     } : text
 
     . = ALIGN(PAGE_SIZE);
     _rodata = .;
 
-    .rodata ALIGN(PAGE_SIZE): AT(ADDR(.rodata) - KERNEL_OFFSET) {
+    .rodata ALIGN(PAGE_SIZE): AT(BOOT_VTOP(ADDR(.rodata))) {
         *(.rodata)
     } : rodata
 
-    .notes ALIGN(8): AT(ADDR(.notes) - KERNEL_OFFSET) {
+    .notes ALIGN(8): AT(BOOT_VTOP(ADDR(.notes))) {
         *(.note.*)
     } : rodata
 
     . = ALIGN(PAGE_SIZE);
     _data = .;
 
-    .data ALIGN(PAGE_SIZE): AT(ADDR(.data) - KERNEL_OFFSET) {
+    .data ALIGN(PAGE_SIZE): AT(BOOT_VTOP(ADDR(.data))) {
         *(.data)
     } : data
 
-    .bss ALIGN(8): AT(ADDR(.bss) - KERNEL_OFFSET) {
+    .bss ALIGN(8): AT(BOOT_VTOP(ADDR(.bss))) {
         *(.bss)
         *(COMMON)
     } : data
