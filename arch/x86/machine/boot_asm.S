@@ -98,7 +98,7 @@ ENTRY(_start)
 END(_start)
 
 DATA(boot_gdtr)
- .word boot_gdt_end - boot_gdt
+ .word boot_gdt_end - boot_gdt - 1
  .long boot_gdt
 END(boot_gdtr)
 
@@ -233,7 +233,7 @@ ENTRY(boot_mp_trampoline)
 END(boot_mp_trampoline)
 
 DATA(boot_ap_gdtr)
- .word boot_gdt_end - boot_gdt
+ .word boot_gdt_end - boot_gdt - 1
  .long BOOT_MP_ADDR_PTOT(boot_gdt)
 END(boot_ap_gdtr)
 
