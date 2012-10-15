@@ -87,13 +87,22 @@
 #endif /* __LP64__ */
 
 /*
- * Maximum number of physical segments.
+ * Physical memory properties.
  */
+#ifdef __LP64__
+#define VM_MAX_PHYS_SEG 2
+#define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0x100000000, UL)
+#define VM_PHYS_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, UL)
+#else /* __LP64__ */
 #ifdef PAE
 #define VM_MAX_PHYS_SEG 2
+#define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0x100000000, ULL)
+#define VM_PHYS_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, ULL)
 #else /* PAE */
 #define VM_MAX_PHYS_SEG 1
+#define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0xfffff000, UL)
 #endif /* PAE */
+#endif /* __LP64__ */
 
 /*
  * Number of physical segment lists.
@@ -105,16 +114,6 @@
  */
 #define VM_PHYS_SEGLIST_HIGHMEM 1
 #define VM_PHYS_SEGLIST_NORMAL  0
-
-/*
- * Segment boundaries.
- */
-#ifdef PAE
-#define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0x100000000, ULL)
-#define VM_PHYS_HIGHMEM_LIMIT   DECL_CONST(0x1000000000, ULL)
-#else /* PAE */
-#define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0xfffff000, UL)
-#endif /* PAE */
 
 /*
  * Virtual space reserved for kernel map entries.

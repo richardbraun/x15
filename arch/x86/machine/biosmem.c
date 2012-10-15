@@ -504,10 +504,10 @@ biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
         if (entry->type != BIOSMEM_TYPE_AVAILABLE)
             continue;
 
-#ifndef PAE
+#ifndef VM_PHYS_HIGHMEM_LIMIT
         if (entry->base_addr >= VM_PHYS_NORMAL_LIMIT)
             break;
-#endif /* PAE */
+#endif /* VM_PHYS_HIGHMEM_LIMIT */
 
         start = vm_page_round(entry->base_addr);
 
@@ -516,10 +516,10 @@ biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
 
         entry_end = entry->base_addr + entry->length;
 
-#ifndef PAE
+#ifndef VM_PHYS_HIGHMEM_LIMIT
         if (entry_end > VM_PHYS_NORMAL_LIMIT)
             entry_end = VM_PHYS_NORMAL_LIMIT;
-#endif /* PAE */
+#endif /* VM_PHYS_HIGHMEM_LIMIT */
 
         end = vm_page_trunc(entry_end);
 
@@ -577,7 +577,7 @@ biosmem_setup(void)
                              biosmem_heap_free, biosmem_heap_end,
                              VM_PHYS_SEGLIST_NORMAL);
 
-#ifdef PAE
+#ifdef VM_PHYS_HIGHMEM_LIMIT
     phys_start = VM_PHYS_NORMAL_LIMIT;
     phys_end = VM_PHYS_HIGHMEM_LIMIT;
     error = biosmem_map_find_avail(&phys_start, &phys_end);
@@ -585,7 +585,7 @@ biosmem_setup(void)
     if (!error)
         biosmem_load_segment("highmem", phys_start, phys_end,
                              phys_start, phys_end, VM_PHYS_SEGLIST_HIGHMEM);
-#endif /* PAE */
+#endif /* VM_PHYS_HIGHMEM_LIMIT */
 }
 
 static void __init
