@@ -37,16 +37,16 @@
  /*
   * Multiboot header.
   */
-DATA(boot_header)
+ASM_DATA(boot_header)
  .long MULTIBOOT_OS_MAGIC
  .long MULTIBOOT_OS_FLAGS
  .long -(MULTIBOOT_OS_FLAGS + MULTIBOOT_OS_MAGIC)
-END(boot_header)
+ASM_END(boot_header)
 
 /*
  * Entry point.
  */
-ENTRY(_start)
+ASM_ENTRY(_start)
  lgdt boot_gdtr
 
  /* Keep %eax and %ebx */
@@ -98,12 +98,12 @@ ENTRY(_start)
  call boot_main
 
  /* Never reached */
-END(_start)
+ASM_END(_start)
 
-DATA(boot_gdtr)
+ASM_DATA(boot_gdtr)
  .word boot_gdt_end - boot_gdt - 1
  .long boot_gdt
-END(boot_gdtr)
+ASM_END(boot_gdtr)
 
 #ifdef __LP64__
 
@@ -111,7 +111,7 @@ END(boot_gdtr)
  * The %eax and %ebx registers must be preserved.
  */
 
-ENTRY(boot_check_long_mode)
+ASM_ENTRY(boot_check_long_mode)
  pushl %eax
  pushl %ebx
  movl $0x80000000, %eax
@@ -125,14 +125,14 @@ ENTRY(boot_check_long_mode)
  popl %ebx
  popl %eax
  ret
-END(boot_check_long_mode)
+ASM_END(boot_check_long_mode)
 
-ENTRY(boot_no_long_mode)
+ASM_ENTRY(boot_no_long_mode)
  hlt
  jmp boot_no_long_mode
-END(boot_no_long_mode)
+ASM_END(boot_no_long_mode)
 
-ENTRY(boot_setup_long_mode)
+ASM_ENTRY(boot_setup_long_mode)
  /* Set PML4[0] */
  movl $boot_pdpt, %edx
  orl $(PMAP_PTE_RW | PMAP_PTE_P), %edx
@@ -180,13 +180,13 @@ ENTRY(boot_setup_long_mode)
 1:
  movl %edi, %eax
  ret
-END(boot_setup_long_mode)
+ASM_END(boot_setup_long_mode)
 #endif /* __LP64__ */
 
 /*
  * This is where an AP runs after leaving the trampoline code.
  */
-ENTRY(boot_ap_start32)
+ASM_ENTRY(boot_ap_start32)
  /*
   * Set up the GDT again, because the current one is from the trampoline code
   * which isn't part of the identity mapping and won't be available once paging
@@ -243,14 +243,14 @@ ENTRY(boot_ap_start32)
  call boot_ap
 
  /* Never reached */
-END(boot_ap_start32)
+ASM_END(boot_ap_start32)
 
 /*
  * This section, including the GDT, is the MP trampoline code run by APs
  * on startup. It is copied at a fixed location in the first segment and
  * must enable protected mode to jump back into the kernel.
  */
-ENTRY(boot_mp_trampoline)
+ASM_ENTRY(boot_mp_trampoline)
  .code16
  cli
  xorw %ax, %ax
@@ -276,14 +276,14 @@ ENTRY(boot_mp_trampoline)
  movl %eax, %fs
  movl %eax, %gs
  ljmp $8, $boot_ap_start32
-END(boot_mp_trampoline)
+ASM_END(boot_mp_trampoline)
 
-DATA(boot_ap_gdtr)
+ASM_DATA(boot_ap_gdtr)
  .word boot_gdt_end - boot_gdt - 1
  .long BOOT_MP_ADDR_PTOT(boot_gdt)
-END(boot_ap_gdtr)
+ASM_END(boot_ap_gdtr)
 
-DATA(boot_gdt)
+ASM_DATA(boot_gdt)
  .quad 0x0000000000000000   /* Null selector */
  .quad 0x00cf9a000000ffff   /* Code segment selector */
  .quad 0x00cf92000000ffff   /* Data segment selector */
@@ -291,8 +291,8 @@ DATA(boot_gdt)
 #ifdef __LP64__
  .quad 0x00209a0000000000   /* 64-bit code segment selector */
 #endif /* __LP64__ */
-END(boot_gdt)
+ASM_END(boot_gdt)
 
-DATA(boot_mp_trampoline_size)
+ASM_DATA(boot_mp_trampoline_size)
  .long . - boot_mp_trampoline
-END(boot_mp_trampoline_size)
+ASM_END(boot_mp_trampoline_size)

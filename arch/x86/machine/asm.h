@@ -22,26 +22,26 @@
 
 #ifdef __ASSEMBLY__
 
-#define ENTRY(x)        \
+#define ASM_ENTRY(x)    \
 .align TEXT_ALIGN;      \
 .global x;              \
 .type x, STT_FUNC;      \
 x:
 
-#define DATA(x)         \
+#define ASM_DATA(x)     \
 .align DATA_ALIGN;      \
 .global x;              \
 .type x, STT_OBJECT;    \
 x:
 
-#define END(x)  \
-.size x, . - x; \
+#define ASM_END(x)  \
+.size x, . - x;     \
 x ## _end:
 
 #ifdef __LP64__
-#define IRET iretq
+#define ASM_IRET iretq
 #else /* __LP64__ */
-#define IRET iret
+#define ASM_IRET iret
 #endif /* __LP64__ */
 
 #endif /* __ASSEMBLY__ */

@@ -22,7 +22,7 @@
 
 .text
 
-ENTRY(cpu_load_gdt)
+ASM_ENTRY(cpu_load_gdt)
 #ifdef __LP64__
  lgdt (%rsi)
 #else /* __LP64__ */
@@ -61,20 +61,20 @@ ENTRY(cpu_load_gdt)
  pushl %eax
  lret
 #endif /* __LP64__ */
-END(cpu_load_gdt)
+ASM_END(cpu_load_gdt)
 
 /*
  * TODO: traps handling.
  */
-ENTRY(cpu_trap_default)
- IRET
-END(cpu_trap_default)
+ASM_ENTRY(cpu_trap_default)
+ ASM_IRET
+ASM_END(cpu_trap_default)
 
-ENTRY(cpu_trap_lapic_timer_intr)
+ASM_ENTRY(cpu_trap_lapic_timer_intr)
  call lapic_timer_intr
- IRET
-END(cpu_trap_lapic_timer_intr)
+ ASM_IRET
+ASM_END(cpu_trap_lapic_timer_intr)
 
-ENTRY(cpu_trap_lapic_spurious_intr)
- IRET
-END(cpu_trap_lapic_spurious_intr)
+ASM_ENTRY(cpu_trap_lapic_spurious_intr)
+ ASM_IRET
+ASM_END(cpu_trap_lapic_spurious_intr)
