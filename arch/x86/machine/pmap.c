@@ -342,6 +342,13 @@ pmap_bootstrap(void)
     pmap_klimit = VM_MIN_KERNEL_ADDRESS;
 }
 
+void __init
+pmap_ap_bootstrap(void)
+{
+    if (cpu_has_global_pages())
+        cpu_enable_global_pages();
+}
+
 unsigned long __init
 pmap_bootalloc(unsigned int nr_pages)
 {

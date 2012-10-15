@@ -138,8 +138,6 @@ pmap_pte_t * pmap_setup_paging(void);
 
 /*
  * This function is called by the AP bootstrap code before paging is enabled.
- * It merely returns the physical address of the already existing kernel root
- * page table.
  */
 pmap_pte_t * pmap_ap_setup_paging(void);
 
@@ -147,6 +145,11 @@ pmap_pte_t * pmap_ap_setup_paging(void);
  * Early initialization of the pmap module.
  */
 void pmap_bootstrap(void);
+
+/*
+ * Early initialization of the MMU on APs.
+ */
+void pmap_ap_bootstrap(void);
 
 /*
  * Allocate pure virtual memory.
