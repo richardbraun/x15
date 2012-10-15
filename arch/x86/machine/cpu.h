@@ -64,6 +64,8 @@
 #define CPU_FEATURE2_APIC   0x00000200
 #define CPU_FEATURE2_PGE    0x00002000
 
+#define CPU_FEATURE4_LM     0x20000000
+
 /*
  * Model specific registers.
  */

@@ -64,6 +64,7 @@ ENTRY(_start)
  movl %esp, %ebp
 
 #ifdef __LP64__
+ call boot_check_long_mode
  call boot_setup_long_mode
 
  /*
@@ -105,9 +106,32 @@ DATA(boot_gdtr)
 END(boot_gdtr)
 
 #ifdef __LP64__
+
 /*
  * The %eax and %ebx registers must be preserved.
  */
+
+ENTRY(boot_check_long_mode)
+ pushl %eax
+ pushl %ebx
+ movl $0x80000000, %eax
+ cpuid
+ cmpl $0x80000000, %eax
+ jbe boot_no_long_mode
+ movl $0x80000001, %eax
+ cpuid
+ testl $CPU_FEATURE4_LM, %edx
+ jz boot_no_long_mode
+ popl %ebx
+ popl %eax
+ ret
+END(boot_check_long_mode)
+
+ENTRY(boot_no_long_mode)
+ hlt
+ jmp boot_no_long_mode
+END(boot_no_long_mode)
+
 ENTRY(boot_setup_long_mode)
  /* Set PML4[0] */
  movl $boot_pdpt, %edx
