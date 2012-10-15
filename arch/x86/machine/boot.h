@@ -79,7 +79,7 @@ extern unsigned long boot_ap_stack_addr;
 /*
  * Size of the trampoline code used for APs.
  */
-extern unsigned long boot_mp_trampoline_size;
+extern uint32_t boot_mp_trampoline_size;
 
 /*
  * Address of the MP trampoline code.

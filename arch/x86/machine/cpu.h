@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011 Richard Braun.
+ * Copyright (c) 2010, 2011, 2012 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,18 +19,18 @@
 #define _X86_CPU_H
 
 /*
- * GDT entry indexes and size.
+ * GDT segment selectors.
  */
-#define CPU_GDT_NULL_IDX    0
-#define CPU_GDT_CPU_IDX     1
-#define CPU_GDT_CODE_IDX    2
-#define CPU_GDT_DATA_IDX    3
-#define CPU_GDT_SIZE        4
+#define CPU_GDT_SEL_NULL    0
+#define CPU_GDT_SEL_CODE    8
+#define CPU_GDT_SEL_DATA    16
 
-/*
- * Convert a GDT index into a selector.
- */
-#define CPU_GDT_SELECTOR(index) ((index) * 8)
+#ifdef __LP64__
+#define CPU_GDT_SIZE        24
+#else /* __LP64__ */
+#define CPU_GDT_SEL_CPU     24
+#define CPU_GDT_SIZE        32
+#endif /* __LP64__ */
 
 /*
  * Control register 0 flags.
@@ -70,6 +70,7 @@
  * Model specific registers.
  */
 #define CPU_MSR_EFER    0xc0000080
+#define CPU_MSR_FSBASE  0xc0000100
 
 /*
  * EFER MSR flags.
@@ -89,25 +90,21 @@
 
 struct cpu_pseudo_desc {
     uint16_t limit;
-    uint32_t address;
+    unsigned long address;
 } __packed;
 
 /*
  * Gate/segment descriptor bits and masks.
  */
-#define CPU_DESC_TYPE_DATA_WRITEABLE    0x00000200
-#define CPU_DESC_TYPE_CODE_READABLE     0x00000a00
+#define CPU_DESC_TYPE_DATA              0x00000200
+#define CPU_DESC_TYPE_CODE              0x00000a00
 #define CPU_DESC_TYPE_GATE_INTR         0x00000e00
 #define CPU_DESC_TYPE_GATE_TRAP         0x00000f00
-#define CPU_DESC_TYPE_MASK              0x00000f00
-#define CPU_DESC_S_CODE_DATA            0x00001000
-#define CPU_DESC_S_MASK                 0x00001000
-#define CPU_DESC_PL_SYSTEM              0x00000000
-#define CPU_DESC_PL_MASK                0x00006000
+#define CPU_DESC_S                      0x00001000
 #define CPU_DESC_PRESENT                0x00008000
-#define CPU_DESC_DB32                   0x00400000
+#define CPU_DESC_LONG                   0x00200000
+#define CPU_DESC_DB                     0x00400000
 #define CPU_DESC_GRAN_4KB               0x00800000
-#define CPU_DESC_GRAN_MASK              0x00800000
 
 #define CPU_DESC_GATE_OFFSET_LOW_MASK   0x0000ffff
 #define CPU_DESC_GATE_OFFSET_HIGH_MASK  0xffff0000
@@ -121,12 +118,16 @@ struct cpu_pseudo_desc {
  * Gate descriptor.
  */
 struct cpu_gate_desc {
-    uint32_t low;
-    uint32_t high;
+    uint32_t word1;
+    uint32_t word2;
+#ifdef __LP64__
+    uint32_t word3;
+    uint32_t word4;
+#endif /* __LP64__ */
 } __packed;
 
 /*
- * Segment descriptor.
+ * Code or data segment descriptor.
  */
 struct cpu_seg_desc {
     uint32_t low;
@@ -159,7 +160,7 @@ struct cpu {
     unsigned int initial_apic_id;
     unsigned int features1;
     unsigned int features2;
-    struct cpu_seg_desc gdt[CPU_GDT_SIZE] __aligned(8);
+    char gdt[CPU_GDT_SIZE] __aligned(8);
     volatile int state;
     unsigned long boot_stack;
 } __aligned(CPU_ALIGN);
@@ -319,13 +320,9 @@ cpu_current(void)
 {
     struct cpu *cpu;
 
-#ifdef __LP64__
-    cpu = NULL;
-#else /* __LP64__ */
-    asm volatile("movl %%fs:%1, %0"
+    asm volatile("mov %%fs:%1, %0"
                  : "=r" (cpu)
                  : "m" (*(struct cpu *)offsetof(struct cpu, self)));
-#endif /* __LP64__ */
 
     return cpu;
 }
@@ -379,7 +376,7 @@ cpu_delay(unsigned long usecs)
  * Set the given GDT for the current processor, and reload its segment
  * registers.
  */
-void cpu_load_gdt(struct cpu_pseudo_desc *gdtr);
+void cpu_load_gdt(struct cpu *cpu, struct cpu_pseudo_desc *gdtr);
 
 /*
  * Set up the cpu module.

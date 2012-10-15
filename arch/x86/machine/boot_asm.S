@@ -205,18 +205,40 @@ ENTRY(boot_ap_start32)
 1:
  movl $(boot_ap_stack + BOOT_STACK_SIZE), %esp
  movl %esp, %ebp
+
+#ifdef __LP64__
+ call boot_setup_long_mode
+ pushl $0x18
+ pushl $1f
+ lret
+
+1:
+#endif /* __LP64__ */
+
  call pmap_ap_setup_paging
  movl %eax, %cr3
+
+#ifndef __LP64__
  movl %cr0, %eax
  orl $CPU_CR0_PG, %eax
  movl %eax, %cr0
  ljmp $8, $1f
 
 1:
+#endif /* __LP64__
+
  /* Switch to the boot stack preallocated for this AP by the BSP */
+#ifdef __LP64__
+ .code64
+ movq boot_ap_stack_addr, %rsp
+ addq $BOOT_STACK_SIZE, %rsp
+ movq %rsp, %rbp
+ .code32
+#else /* __LP64__ */
  movl boot_ap_stack_addr, %esp
  addl $BOOT_STACK_SIZE, %esp
  movl %esp, %ebp
+#endif /* __LP64__ */
 
  call boot_ap
 

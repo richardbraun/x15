@@ -38,6 +38,12 @@ x:
 .size x, . - x; \
 x ## _end:
 
+#ifdef __LP64__
+#define IRET iretq
+#else /* __LP64__ */
+#define IRET iret
+#endif /* __LP64__ */
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _X86_ASM_H */

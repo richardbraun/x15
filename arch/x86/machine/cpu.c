@@ -80,46 +80,56 @@ static unsigned int cpu_array_size;
 static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8);
 
 static void
-cpu_seg_set(struct cpu_seg_desc *desc, unsigned long base, unsigned long limit,
-            unsigned long granularity, unsigned long dpl, unsigned long s_flag,
-            unsigned long type)
+cpu_seg_set_null(char *table, unsigned int selector)
 {
-    if (granularity & CPU_DESC_GRAN_4KB)
-        limit >>= 12;
+    struct cpu_seg_desc *desc;
 
-    desc->high = (base & CPU_DESC_SEG_BASE_HIGH_MASK)
-                 | (granularity & CPU_DESC_GRAN_MASK)
-                 | CPU_DESC_DB32
-                 | (limit & CPU_DESC_SEG_LIMIT_HIGH_MASK)
-                 | CPU_DESC_PRESENT
-                 | (dpl & CPU_DESC_PL_MASK)
-                 | (s_flag & CPU_DESC_S_MASK)
-                 | (type & CPU_DESC_TYPE_MASK)
-                 | ((base & CPU_DESC_SEG_BASE_MID_MASK) >> 16);
-    desc->low = ((base & CPU_DESC_SEG_BASE_LOW_MASK) << 16)
-                | (limit & CPU_DESC_SEG_LIMIT_LOW_MASK);
-}
-
-static void
-cpu_seg_set_null(struct cpu_seg_desc *desc)
-{
+    desc = (struct cpu_seg_desc *)(table + selector);
     desc->high = 0;
     desc->low = 0;
 }
 
 static void
-cpu_seg_set_code(struct cpu_seg_desc *desc, unsigned long dpl)
+cpu_seg_set_code(char *table, unsigned int selector)
 {
-    cpu_seg_set(desc, 0, 0xffffffff, CPU_DESC_GRAN_4KB, dpl,
-                CPU_DESC_S_CODE_DATA, CPU_DESC_TYPE_CODE_READABLE);
+    struct cpu_seg_desc *desc;
+
+    desc = (struct cpu_seg_desc *)(table + selector);
+
+#ifdef __LP64__
+    desc->high = CPU_DESC_LONG | CPU_DESC_PRESENT | CPU_DESC_S
+                 | CPU_DESC_TYPE_CODE;
+    desc->low = 0;
+#else /* __LP64__ */
+    desc->high = CPU_DESC_GRAN_4KB | CPU_DESC_DB
+                 | (0x000fffff & CPU_DESC_SEG_LIMIT_HIGH_MASK)
+                 | CPU_DESC_PRESENT | CPU_DESC_S | CPU_DESC_TYPE_CODE;
+    desc->low = 0x000fffff & CPU_DESC_SEG_LIMIT_LOW_MASK;
+#endif /* __LP64__ */
 }
 
 static void
-cpu_seg_set_data(struct cpu_seg_desc *desc, unsigned long base,
-                 unsigned long dpl)
+cpu_seg_set_data(char *table, unsigned int selector, uint32_t base)
 {
-    cpu_seg_set(desc, base, 0xffffffff, CPU_DESC_GRAN_4KB, dpl,
-                CPU_DESC_S_CODE_DATA, CPU_DESC_TYPE_DATA_WRITEABLE);
+    struct cpu_seg_desc *desc;
+
+    desc = (struct cpu_seg_desc *)(table + selector);
+
+#ifdef __LP64__
+    (void)base;
+
+    desc->high = CPU_DESC_DB | CPU_DESC_PRESENT | CPU_DESC_S
+                 | CPU_DESC_TYPE_DATA;
+    desc->low = 0;
+#else /* __LP64__ */
+    desc->high = (base & CPU_DESC_SEG_BASE_HIGH_MASK)
+                 | CPU_DESC_GRAN_4KB | CPU_DESC_DB
+                 | (0x000fffff & CPU_DESC_SEG_LIMIT_HIGH_MASK)
+                 | CPU_DESC_PRESENT | CPU_DESC_S | CPU_DESC_TYPE_DATA
+                 | ((base & CPU_DESC_SEG_BASE_MID_MASK) >> 16);
+    desc->low = ((base & CPU_DESC_SEG_BASE_LOW_MASK) << 16)
+                | (0x000fffff & CPU_DESC_SEG_LIMIT_LOW_MASK);
+#endif /* __LP64__ */
 }
 
 static void __init
@@ -127,31 +137,37 @@ cpu_init_gdt(struct cpu *cpu)
 {
     struct cpu_pseudo_desc gdtr;
 
-    cpu_seg_set_null(&cpu->gdt[CPU_GDT_NULL_IDX]);
-    cpu_seg_set_data(&cpu->gdt[CPU_GDT_CPU_IDX], (unsigned long)cpu,
-                     CPU_DESC_PL_SYSTEM);
-    cpu_seg_set_code(&cpu->gdt[CPU_GDT_CODE_IDX], CPU_DESC_PL_SYSTEM);
-    cpu_seg_set_data(&cpu->gdt[CPU_GDT_DATA_IDX], 0, CPU_DESC_PL_SYSTEM);
+    cpu_seg_set_null(cpu->gdt, CPU_GDT_SEL_NULL);
+    cpu_seg_set_code(cpu->gdt, CPU_GDT_SEL_CODE);
+    cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_DATA, 0);
+
+#ifndef __LP64__
+    cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_CPU, (unsigned long)cpu);
+#endif /* __LP64__ */
+
     gdtr.address = (unsigned long)cpu->gdt;
     gdtr.limit = sizeof(cpu->gdt) - 1;
-    cpu_load_gdt(&gdtr);
+    cpu_load_gdt(cpu, &gdtr);
 }
 
 static void
-cpu_idt_set_gate(unsigned int vector, unsigned long dpl, unsigned long type,
-                 void (*isr)(void))
+cpu_idt_set_gate(unsigned int vector, unsigned long type, void (*isr)(void))
 {
     struct cpu_gate_desc *desc;
 
     assert(vector < ARRAY_SIZE(cpu_idt));
 
     desc = &cpu_idt[vector];
-    desc->high = ((unsigned long)isr & CPU_DESC_GATE_OFFSET_HIGH_MASK)
-                 | CPU_DESC_PRESENT
-                 | (dpl & CPU_DESC_PL_MASK)
-                 | (type & CPU_DESC_TYPE_MASK);
-    desc->low = ((CPU_GDT_SELECTOR(CPU_GDT_CODE_IDX)) << 16)
-                | ((unsigned long)isr & CPU_DESC_GATE_OFFSET_LOW_MASK);
+
+#ifdef __LP64__
+    desc->word4 = 0;
+    desc->word3 = (unsigned long)isr >> 32;
+#endif /* __LP64__ */
+
+    desc->word2 = ((unsigned long)isr & CPU_DESC_GATE_OFFSET_HIGH_MASK)
+                  | CPU_DESC_PRESENT | type;
+    desc->word1 = (CPU_GDT_SEL_CODE << 16)
+                  | ((unsigned long)isr & CPU_DESC_GATE_OFFSET_LOW_MASK);
 }
 
 static void __init
@@ -160,14 +176,13 @@ cpu_idt_init(void)
     size_t i;
 
     for (i = 0; i < ARRAY_SIZE(cpu_idt); i++)
-        cpu_idt_set_gate(i, CPU_DESC_PL_SYSTEM, CPU_DESC_TYPE_GATE_TRAP,
-                         cpu_trap_default);
+        cpu_idt_set_gate(i, CPU_DESC_TYPE_GATE_TRAP, cpu_trap_default);
 
     /* TODO Complete */
-    cpu_idt_set_gate(T_APIC_TIMER_INTR, CPU_DESC_PL_SYSTEM,
-                     CPU_DESC_TYPE_GATE_INTR, cpu_trap_lapic_timer_intr);
-    cpu_idt_set_gate(T_APIC_SPURIOUS_INTR, CPU_DESC_PL_SYSTEM,
-                     CPU_DESC_TYPE_GATE_INTR, cpu_trap_lapic_spurious_intr);
+    cpu_idt_set_gate(T_APIC_TIMER_INTR, CPU_DESC_TYPE_GATE_INTR,
+                     cpu_trap_lapic_timer_intr);
+    cpu_idt_set_gate(T_APIC_SPURIOUS_INTR, CPU_DESC_TYPE_GATE_INTR,
+                     cpu_trap_lapic_spurious_intr);
 }
 
 static void

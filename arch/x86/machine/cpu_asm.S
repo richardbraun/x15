@@ -24,25 +24,40 @@
 
 ENTRY(cpu_load_gdt)
 #ifdef __LP64__
- ret
+ lgdt (%rsi)
 #else /* __LP64__ */
- movl 4(%esp), %eax
+ movl 8(%esp), %eax
  lgdt (%eax)
+#endif /* __LP64__ */
 
- movl $(CPU_GDT_SELECTOR(CPU_GDT_DATA_IDX)), %eax
+ movl $CPU_GDT_SEL_DATA, %eax
  movl %eax, %ds
  movl %eax, %es
  movl %eax, %ss
 
- xorl %eax, %eax
+#ifdef __LP64__
+ movq %rdi, %rax
+ movq %rdi, %rdx
+ shrq $32, %rdx
+ movq $CPU_MSR_FSBASE, %rcx
+ wrmsr
+#else /* __LP64__ */
+ movl $CPU_GDT_SEL_CPU, %eax
+ movl %eax, %fs
+#endif /* __LP64__ */
+
+ movl $CPU_GDT_SEL_NULL, %eax
  movl %eax, %gs
 
- movl $(CPU_GDT_SELECTOR(CPU_GDT_CPU_IDX)), %eax
- movl %eax, %fs
-
  /* Alter the stack to reload the code segment using a far return */
+#ifdef __LP64__
+ popq %rax
+ pushq $CPU_GDT_SEL_CODE
+ pushq %rax
+ lretq
+#else /* __LP64__ */
  popl %eax
- pushl $(CPU_GDT_SELECTOR(CPU_GDT_CODE_IDX))
+ pushl $CPU_GDT_SEL_CODE
  pushl %eax
  lret
 #endif /* __LP64__ */
@@ -52,14 +67,14 @@ END(cpu_load_gdt)
  * TODO: traps handling.
  */
 ENTRY(cpu_trap_default)
- iret
+ IRET
 END(cpu_trap_default)
 
 ENTRY(cpu_trap_lapic_timer_intr)
  call lapic_timer_intr
- iret
+ IRET
 END(cpu_trap_lapic_timer_intr)
 
 ENTRY(cpu_trap_lapic_spurious_intr)
- iret
+ IRET
 END(cpu_trap_lapic_spurious_intr)
