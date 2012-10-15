@@ -33,18 +33,21 @@
 #include <vm/vm_phys.h>
 
 #define PMAP_PTEMAP_INDEX(va, shift) (((va) & PMAP_VA_MASK) >> (shift))
-#define PMAP_LX_PTEMAP(prev) (PMAP_L ## prev ## _PTEMAP                     \
-                              + PMAP_PTEMAP_INDEX(VM_PMAP_PTEMAP_ADDRESS,   \
-                                                  PMAP_L ## prev ## _SHIFT))
 
 /*
  * Recursive mapping of PTEs.
  */
-#define PMAP_PTEMAP_BASE    ((pmap_pte_t *)VM_PMAP_PTEMAP_ADDRESS)
-#define PMAP_L1_PTEMAP      PMAP_PTEMAP_BASE
-#define PMAP_L2_PTEMAP      PMAP_LX_PTEMAP(1)
-#define PMAP_L3_PTEMAP      PMAP_LX_PTEMAP(2)
-#define PMAP_L4_PTEMAP      PMAP_LX_PTEMAP(3)
+#define PMAP_PTEMAP_BASE ((pmap_pte_t *)VM_PMAP_PTEMAP_ADDRESS)
+
+#define PMAP_LX_INDEX(shift) PMAP_PTEMAP_INDEX(VM_PMAP_PTEMAP_ADDRESS, shift)
+
+/*
+ * Base addresses of the page tables for each level in the recursive mapping.
+ */
+#define PMAP_L1_PTEMAP  PMAP_PTEMAP_BASE
+#define PMAP_L2_PTEMAP  (PMAP_L1_PTEMAP + PMAP_LX_INDEX(PMAP_L1_SHIFT))
+#define PMAP_L3_PTEMAP  (PMAP_L2_PTEMAP + PMAP_LX_INDEX(PMAP_L2_SHIFT))
+#define PMAP_L4_PTEMAP  (PMAP_L3_PTEMAP + PMAP_LX_INDEX(PMAP_L3_SHIFT))
 
 /*
  * Flags related to page protection.
