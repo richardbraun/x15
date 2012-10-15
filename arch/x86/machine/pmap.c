@@ -370,10 +370,9 @@ pmap_growkernel(unsigned long va)
     pmap_pte_t *pte;
     phys_addr_t pa;
 
-    assert(pmap_klimit < va);
-
     start = pmap_klimit;
-    va = P2ROUND(va, 1 << PMAP_L2_SHIFT) - 1;
+    va = P2END(va, 1 << PMAP_L2_SHIFT) - 1;
+    assert(start < va);
 
     for (level = PMAP_NR_LEVELS; level > 1; level--) {
         pt_level = &pmap_pt_levels[level - 1];
