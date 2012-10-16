@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2012 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,20 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Architecture specific additions to the build system config.h header.
  */
-
-#ifndef _KERN_KERNEL_H
-#define _KERN_KERNEL_H
 
 /*
- * Kernel properties.
+ * Avoid obscure bugs due to this historical built-in macro.
  */
-#define KERNEL_NAME     PACKAGE_NAME
-#define KERNEL_VERSION  PACKAGE_VERSION
-
-/*
- * Machine-independent entry point.
- */
-void kernel_main(void);
-
-#endif /* _KERN_KERNEL_H */
+#ifdef i386
+#undef i386
+#endif

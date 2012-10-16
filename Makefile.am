@@ -1,4 +1,4 @@
-noinst_LIBRARIES =
+EXTRA_DIST =
 MOSTLYCLEANFILES =
 
 AM_CPPFLAGS = \
@@ -6,7 +6,7 @@ AM_CPPFLAGS = \
 	-std=gnu99 \
 	-imacros config.h \
 	-I$(top_srcdir) \
-	-I$(top_srcdir)/arch/$(systype)
+	-I$(top_srcdir)/arch/$(arch)
 
 AM_CFLAGS = \
 	-Wall \
@@ -17,7 +17,6 @@ AM_CFLAGS = \
 	-ffreestanding \
 	-fno-stack-protector
 
-# Silent build support.
 LDS_V = $(LDS_V_$(V))
 LDS_V_ = $(LDS_V_$(AM_DEFAULT_VERBOSITY))
 LDS_V_0 = @echo "  LDS    $@";
@@ -29,12 +28,10 @@ SUFFIXES = .lds .lds.S
 
 exec_bootdir = $(exec_prefix)/boot
 exec_boot_PROGRAMS = x15
-x15_DEPENDENCIES = arch/$(systype)/x15.lds
-MOSTLYCLEANFILES += arch/$(systype)/x15.lds
+x15_DEPENDENCIES = arch/$(arch)/x15.lds
+MOSTLYCLEANFILES += arch/$(arch)/x15.lds
 x15_SOURCES =
-nodist_x15_SOURCES =
-x15_LDFLAGS = -nostartfiles -nostdlib -T arch/$(systype)/x15.lds
+x15_LDFLAGS = -nostartfiles -nostdlib -T arch/$(arch)/x15.lds
 x15_LDADD = -lgcc
 
-# Sources
 include Makefrag.am

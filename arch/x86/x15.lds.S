@@ -1,6 +1,3 @@
-/* Don't replace i386 */
-#undef i386
-
 #ifdef __LP64__
 OUTPUT_FORMAT("elf64-x86-64")
 OUTPUT_ARCH(i386:x86-64)

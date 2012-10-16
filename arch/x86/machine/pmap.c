@@ -77,13 +77,13 @@ struct pmap *kernel_pmap = &kernel_pmap_store;
 
 unsigned long pmap_klimit;
 
-#ifdef PAE
+#ifdef X86_PAE
 /*
  * "Hidden" root page table for PAE mode.
  */
 static pmap_pte_t pmap_boot_pdpt[PMAP_NR_RPTPS] __aligned(32) __initdata;
 static pmap_pte_t pmap_pdpt[PMAP_NR_RPTPS] __aligned(32);
-#endif /* PAE */
+#endif /* X86_PAE */
 
 /*
  * Physical address of the page table root, used during bootstrap.
@@ -239,16 +239,16 @@ pmap_setup_paging(void)
 
     pmap_setup_recursive_mapping(root_pt);
 
-#ifdef PAE
+#ifdef X86_PAE
     for (i = 0; i < PMAP_NR_RPTPS; i++)
         pmap_boot_pdpt[i] = ((unsigned long)root_pt + (i * PAGE_SIZE))
                             | PMAP_PTE_P;
 
     pmap_boot_root_pt = pmap_boot_pdpt;
     cpu_enable_pae();
-#else /* PAE */
+#else /* X86_PAE */
     pmap_boot_root_pt = root_pt;
-#endif /* PAE */
+#endif /* X86_PAE */
 
     return pmap_boot_root_pt;
 }
@@ -256,9 +256,9 @@ pmap_setup_paging(void)
 pmap_pte_t * __init
 pmap_ap_setup_paging(void)
 {
-#ifdef PAE
+#ifdef X86_PAE
     cpu_enable_pae();
-#endif /* PAE */
+#endif /* X86_PAE */
 
     return pmap_boot_root_pt;
 }
@@ -308,14 +308,14 @@ pmap_bootstrap(void)
 {
     memcpy(pmap_pt_levels, pmap_boot_pt_levels, sizeof(pmap_pt_levels));
 
-#ifdef PAE
+#ifdef X86_PAE
     memcpy(pmap_pdpt, pmap_boot_pdpt, sizeof(pmap_pdpt));
     pmap_boot_root_pt = (void *)BOOT_VTOP((unsigned long)pmap_pdpt);
     kernel_pmap->root_pt = (unsigned long)pmap_boot_root_pt;
     cpu_set_cr3(kernel_pmap->root_pt);
-#else /* PAE */
+#else /* X86_PAE */
     kernel_pmap->root_pt = (unsigned long)pmap_boot_root_pt;
-#endif /* PAE */
+#endif /* X86_PAE */
 
     pmap_prot_table[VM_PROT_NONE] = 0;
     pmap_prot_table[VM_PROT_READ] = 0;

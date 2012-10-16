@@ -47,6 +47,7 @@
 #include <kern/kernel.h>
 #include <kern/panic.h>
 #include <kern/param.h>
+#include <kern/printk.h>
 #include <lib/stddef.h>
 #include <lib/stdint.h>
 #include <lib/string.h>
@@ -133,6 +134,16 @@ boot_setup_paging(const struct multiboot_raw_info *mbi, unsigned long eax)
 
     biosmem_bootstrap(&boot_raw_mbi);
     return pmap_setup_paging();
+}
+
+static void __init
+boot_show_version(void)
+{
+    printk(KERNEL_NAME "/" QUOTE(X86_MACHINE) " " KERNEL_VERSION
+#ifdef X86_PAE
+           " PAE"
+#endif /* X86_PAE */
+           "\n");
 }
 
 static void * __init
@@ -255,7 +266,7 @@ boot_main(void)
     cpu_setup();
     pmap_bootstrap();
     vga_setup();
-    kernel_show_banner();
+    boot_show_version();
     cpu_check(cpu_current());
     cpu_info(cpu_current());
     biosmem_setup();

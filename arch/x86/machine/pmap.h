@@ -58,21 +58,21 @@
 #define PMAP_L3_MASK    PMAP_L2_MASK
 #define PMAP_L4_MASK    PMAP_L2_MASK
 #else /* __LP64__ */
-#ifdef PAE
+#ifdef X86_PAE
 #define PMAP_NR_RPTPS   4   /* Assume two levels with a 4-page root table */
 #define PMAP_NR_LEVELS  2
 #define PMAP_L1_BITS    9
 #define PMAP_L2_BITS    11
 #define PMAP_VA_MASK    DECL_CONST(0xffffffff, UL)
 #define PMAP_PA_MASK    DECL_CONST(0x000ffffffffff000, ULL)
-#else /* PAE */
+#else /* X86_PAE */
 #define PMAP_NR_RPTPS   1
 #define PMAP_NR_LEVELS  2
 #define PMAP_L1_BITS    10
 #define PMAP_L2_BITS    10
 #define PMAP_VA_MASK    DECL_CONST(0xffffffff, UL)
 #define PMAP_PA_MASK    DECL_CONST(0xfffff000, UL)
-#endif /* PAE */
+#endif /* X86_PAE */
 #endif /* __LP64__ */
 
 #define PMAP_L1_SHIFT   12
@@ -91,11 +91,11 @@
 #ifdef __LP64__
 #define PMAP_PTEMAP_SIZE DECL_CONST(0x8000000000, UL)
 #else /* __LP64__ */
-#ifdef PAE
+#ifdef X86_PAE
 #define PMAP_PTEMAP_SIZE DECL_CONST(0x800000, UL)
-#else /* PAE */
+#else /* X86_PAE */
 #define PMAP_PTEMAP_SIZE DECL_CONST(0x400000, UL)
-#endif /* PAE */
+#endif /* X86_PAE */
 #endif /* __LP64__ */
 
 #ifndef __ASSEMBLY__
@@ -103,11 +103,11 @@
 #include <kern/types.h>
 #include <lib/stdint.h>
 
-#ifdef PAE
+#ifdef X86_PAE
 typedef uint64_t pmap_pte_t;
-#else /* PAE */
+#else /* X86_PAE */
 typedef unsigned long pmap_pte_t;
-#endif /* PAE */
+#endif /* X86_PAE */
 
 /*
  * Physical address map.

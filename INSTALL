@@ -234,14 +234,17 @@ an Autoconf bug.  Until the bug is fixed you can use this workaround:
 
 
 X15 Options
-================
+===========
 
 `--disable-debug'
-     Disable all debugging facilities.  By default, debugging is enabled.
+     Disable all debugging facilities. By default, debugging is enabled.
+
+`--with-max-cpus=MAX_CPUS'
+     Set the maximum number of supported processors.
 
 
 x86 options
-------------
+-----------
 
 `--with-i386'
      Build for a 32-bit IA-32 machine.

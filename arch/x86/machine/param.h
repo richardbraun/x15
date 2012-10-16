@@ -94,14 +94,14 @@
 #define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0x100000000, UL)
 #define VM_PHYS_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, UL)
 #else /* __LP64__ */
-#ifdef PAE
+#ifdef X86_PAE
 #define VM_MAX_PHYS_SEG 2
 #define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0x100000000, ULL)
 #define VM_PHYS_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, ULL)
-#else /* PAE */
+#else /* X86_PAE */
 #define VM_MAX_PHYS_SEG 1
 #define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0xfffff000, UL)
-#endif /* PAE */
+#endif /* X86_PAE */
 #endif /* __LP64__ */
 
 /*
