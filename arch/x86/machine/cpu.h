@@ -170,31 +170,31 @@ struct cpu {
 extern struct cpu cpu_array[MAX_CPUS];
 
 /*
- * Macro to create functions that read/write registers.
+ * Macro to create functions that read/write control registers.
  */
-#define CPU_DECL_GETSET_REGISTER(name)                              \
-static __always_inline unsigned long                                \
-cpu_get_ ## name(void)                                              \
-{                                                                   \
-    unsigned long name;                                             \
-                                                                    \
-    asm volatile("mov %%" __QUOTE(name) ", %0" : "=r" (name));      \
-    return name;                                                    \
-}                                                                   \
-                                                                    \
-static __always_inline void                                         \
-cpu_set_ ## name(unsigned long value)                               \
-{                                                                   \
-    asm volatile("mov %0, %%" __QUOTE(name) : : "r" (value));       \
+#define CPU_DECL_GETSET_CR(name)                                \
+static __always_inline unsigned long                            \
+cpu_get_ ## name(void)                                          \
+{                                                               \
+    unsigned long name;                                         \
+                                                                \
+    asm volatile("mov %%" __QUOTE(name) ", %0" : "=r" (name));  \
+    return name;                                                \
+}                                                               \
+                                                                \
+static __always_inline void                                     \
+cpu_set_ ## name(unsigned long value)                           \
+{                                                               \
+    asm volatile("mov %0, %%" __QUOTE(name) : : "r" (value));   \
 }
 
 /*
  * Access to the processor control registers. CR1 is reserved.
  */
-CPU_DECL_GETSET_REGISTER(cr0)
-CPU_DECL_GETSET_REGISTER(cr2)
-CPU_DECL_GETSET_REGISTER(cr3)
-CPU_DECL_GETSET_REGISTER(cr4)
+CPU_DECL_GETSET_CR(cr0)
+CPU_DECL_GETSET_CR(cr2)
+CPU_DECL_GETSET_CR(cr3)
+CPU_DECL_GETSET_CR(cr4)
 
 /*
  * Flush the whole TLB.
@@ -220,15 +220,15 @@ cpu_tlb_flush_va(unsigned long va)
  * Return the content of the EFLAGS register.
  */
 static __always_inline unsigned long
-cpu_get_flags(void)
+cpu_get_eflags(void)
 {
-    unsigned long flags;
+    unsigned long eflags;
 
     asm volatile("pushf\n"
                  "pop %0\n"
-                 : "=r" (flags));
+                 : "=r" (eflags));
 
-    return flags;
+    return eflags;
 }
 
 /*
@@ -253,11 +253,11 @@ cpu_intr_disable(void)
  * Restore the content of the EFLAGS register, possibly enabling interrupts.
  */
 static __always_inline void
-cpu_intr_restore(unsigned long flags)
+cpu_intr_restore(unsigned long eflags)
 {
     asm volatile("push %0\n"
                  "popf\n"
-                 : : "r" (flags));
+                 : : "r" (eflags));
 }
 
 /*
@@ -267,12 +267,12 @@ cpu_intr_restore(unsigned long flags)
 static __always_inline unsigned long
 cpu_intr_save(void)
 {
-    unsigned long flags;
+    unsigned long eflags;
 
-    flags = cpu_get_flags();
+    eflags = cpu_get_eflags();
     cpu_intr_disable();
 
-    return flags;
+    return eflags;
 }
 
 /*
@@ -281,10 +281,10 @@ cpu_intr_save(void)
 static __always_inline int
 cpu_intr_enabled(void)
 {
-    unsigned long flags;
+    unsigned long eflags;
 
-    flags = cpu_get_flags();
-    return (flags & CPU_EFL_IF) ? 1 : 0;
+    eflags = cpu_get_eflags();
+    return (eflags & CPU_EFL_IF) ? 1 : 0;
 }
 
 /*
