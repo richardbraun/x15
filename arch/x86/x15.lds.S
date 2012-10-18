@@ -8,8 +8,6 @@ OUTPUT_ARCH(i386)
 
 ENTRY(_start)
 
-#define __ASSEMBLY__
-
 #include <machine/boot.h>
 #include <machine/param.h>
 

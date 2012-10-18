@@ -43,7 +43,7 @@
 #define MULTIBOOT_LOADER_MODULES    0x08
 #define MULTIBOOT_LOADER_MMAP       0x40
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <lib/macros.h>
 #include <lib/stdint.h>
@@ -102,6 +102,6 @@ struct multiboot_info {
     uint32_t mods_count;
 };
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _X86_MULTIBOOT_H */

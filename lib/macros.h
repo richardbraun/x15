@@ -21,9 +21,9 @@
 #ifndef _LIB_MACROS_H
 #define _LIB_MACROS_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <lib/stddef.h>
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #define MACRO_BEGIN         ({
 #define MACRO_END           })
@@ -31,12 +31,12 @@
 #define __QUOTE(x)          #x
 #define QUOTE(x)            __QUOTE(x)
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #define DECL_CONST(x, s)    x
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 #define __DECL_CONST(x, s)  x##s
 #define DECL_CONST(x, s)    __DECL_CONST(x, s)
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #define STRLEN(x)           (sizeof(x) - 1)
 #define ARRAY_SIZE(x)       (sizeof(x) / sizeof((x)[0]))

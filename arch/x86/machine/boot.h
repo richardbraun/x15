@@ -49,7 +49,7 @@
  */
 #define BOOT_MP_TRAMPOLINE_ADDR 0x7000
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <machine/multiboot.h>
 #include <machine/pmap.h>
@@ -115,6 +115,6 @@ void boot_main(void);
  */
 void boot_ap(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _X86_BOOT_H */

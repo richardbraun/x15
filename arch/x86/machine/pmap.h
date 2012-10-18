@@ -98,7 +98,7 @@
 #endif /* X86_PAE */
 #endif /* __LP64__ */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <kern/types.h>
 #include <lib/stdint.h>
@@ -181,6 +181,6 @@ phys_addr_t pmap_kextract(unsigned long va);
  */
 void pmap_zero_page(phys_addr_t pa);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _X86_PMAP_H */

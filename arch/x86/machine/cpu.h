@@ -77,7 +77,7 @@
  */
 #define CPU_EFER_LME    0x00000100
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <kern/param.h>
 #include <lib/macros.h>
@@ -417,6 +417,6 @@ void cpu_trap_default(void);
 void cpu_trap_lapic_timer_intr(void);
 void cpu_trap_lapic_spurious_intr(void);
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _X86_CPU_H */

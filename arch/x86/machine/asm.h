@@ -20,7 +20,7 @@
 
 #include <machine/param.h>
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #define ASM_ENTRY(x)    \
 .align TEXT_ALIGN;      \
@@ -44,6 +44,6 @@ x ## _end:
 #define ASM_IRET iret
 #endif /* __LP64__ */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _X86_ASM_H */
