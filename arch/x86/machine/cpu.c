@@ -214,7 +214,7 @@ cpu_init(struct cpu *cpu)
     unsigned long eax, ebx, ecx, edx, max_eax;
 
     /*
-     * Assume at least an i686 processor.
+     * Assume at least an i586 processor.
      */
 
     cpu_intr_restore(CPU_EFL_ONE);
@@ -258,7 +258,14 @@ cpu_init(struct cpu *cpu)
     eax = 0x80000000;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
-    if ((eax & 0x80000000) && (eax >= 0x80000004)) {
+    if (eax >= 0x80000001) {
+        eax = 0x80000001;
+        cpu_cpuid(&eax, &ebx, &ecx, &edx);
+        cpu->features3 = ecx;
+        cpu->features4 = edx;
+    }
+
+    if (eax >= 0x80000004) {
         eax = 0x80000002;
         cpu_cpuid(&eax, &ebx, &ecx, &edx);
         memcpy(cpu->model_name, &eax, sizeof(eax));

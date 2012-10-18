@@ -160,6 +160,8 @@ struct cpu {
     unsigned int initial_apic_id;
     unsigned int features1;
     unsigned int features2;
+    unsigned int features3;
+    unsigned int features4;
     char gdt[CPU_GDT_SIZE] __aligned(8);
     volatile int state;
     unsigned long boot_stack;
