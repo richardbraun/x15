@@ -211,7 +211,7 @@ cpu_cpuid(unsigned long *eax, unsigned long *ebx, unsigned long *ecx,
 static void __init
 cpu_init(struct cpu *cpu)
 {
-    unsigned long eax, ebx, ecx, edx, max_eax;
+    unsigned long eax, ebx, ecx, edx, max_basic, max_extended;
 
     /*
      * Assume at least an i586 processor.
@@ -225,7 +225,7 @@ cpu_init(struct cpu *cpu)
 
     eax = 0;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
-    max_eax = eax;
+    max_basic = eax;
     memcpy(cpu->vendor_id, &ebx, sizeof(ebx));
     memcpy(cpu->vendor_id + 4, &edx, sizeof(edx));
     memcpy(cpu->vendor_id + 8, &ecx, sizeof(ecx));
@@ -234,7 +234,7 @@ cpu_init(struct cpu *cpu)
     /* Initialized if the processor supports brand strings */
     cpu->model_name[0] = '\0';
 
-    assert(max_eax >= 1);
+    assert(max_basic >= 1);
 
     eax = 1;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
@@ -258,14 +258,22 @@ cpu_init(struct cpu *cpu)
     eax = 0x80000000;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
-    if (eax >= 0x80000001) {
+    if (eax <= 0x80000000)
+        max_extended = 0;
+    else
+        max_extended = eax;
+
+    if (max_extended < 0x80000001) {
+        cpu->features3 = 0;
+        cpu->features4 = 0;
+    } else {
         eax = 0x80000001;
         cpu_cpuid(&eax, &ebx, &ecx, &edx);
         cpu->features3 = ecx;
         cpu->features4 = edx;
     }
 
-    if (eax >= 0x80000004) {
+    if (max_extended >= 0x80000004) {
         eax = 0x80000002;
         cpu_cpuid(&eax, &ebx, &ecx, &edx);
         memcpy(cpu->model_name, &eax, sizeof(eax));
