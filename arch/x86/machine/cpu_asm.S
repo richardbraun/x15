@@ -60,19 +60,3 @@ ASM_ENTRY(cpu_load_gdt)
  lret
 #endif /* __LP64__ */
 ASM_END(cpu_load_gdt)
-
-/*
- * TODO: traps handling.
- */
-ASM_ENTRY(cpu_trap_default)
- ASM_IRET
-ASM_END(cpu_trap_default)
-
-ASM_ENTRY(cpu_trap_lapic_timer_intr)
- call lapic_timer_intr
- ASM_IRET
-ASM_END(cpu_trap_lapic_timer_intr)
-
-ASM_ENTRY(cpu_trap_lapic_spurious_intr)
- ASM_IRET
-ASM_END(cpu_trap_lapic_spurious_intr)

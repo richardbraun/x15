@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 Richard Braun.
+ * Copyright (c) 2011, 2012 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #define _X86_LAPIC_H
 
 #include <lib/stdint.h>
+#include <machine/trap.h>
 
 /*
  * Set up the lapic module.
@@ -40,6 +41,8 @@ void lapic_ipi_startup(uint32_t dest, uint32_t vector);
 /*
  * Interrupt handlers.
  */
-void lapic_timer_intr(void);
+void lapic_intr_timer(struct trap_frame *frame);
+void lapic_intr_error(struct trap_frame *frame);
+void lapic_intr_spurious(struct trap_frame *frame);
 
 #endif /* _X86_LAPIC_H */

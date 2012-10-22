@@ -225,15 +225,15 @@ lapic_setup_registers(void)
     /*
      * LVT mask bits can only be cleared when the local APIC is enabled.
      */
-    lapic_write(&lapic_map->svr, LAPIC_SVR_SOFT_EN | T_APIC_SPURIOUS_INTR);
+    lapic_write(&lapic_map->svr, LAPIC_SVR_SOFT_EN | TRAP_LAPIC_SPURIOUS);
     lapic_write(&lapic_map->tpr, 0);
     lapic_write(&lapic_map->eoi, 0);
     lapic_write(&lapic_map->esr, 0);
     lapic_write(&lapic_map->lvt_timer, LAPIC_LVT_TIMER_PERIODIC
-                                       | T_APIC_TIMER_INTR);
+                                       | TRAP_LAPIC_TIMER);
     lapic_write(&lapic_map->lvt_lint0, LAPIC_LVT_MASK_INTR);
     lapic_write(&lapic_map->lvt_lint1, LAPIC_LVT_MASK_INTR);
-    lapic_write(&lapic_map->lvt_error, T_APIC_ERROR_INTR);
+    lapic_write(&lapic_map->lvt_error, TRAP_LAPIC_ERROR);
     lapic_write(&lapic_map->timer_dcr, LAPIC_TIMER_DCR_DIV1);
     lapic_write(&lapic_map->timer_icr, lapic_bus_freq / HZ);
 }
@@ -316,7 +316,24 @@ lapic_ipi_startup(uint32_t dest, uint32_t vector)
 }
 
 void
-lapic_timer_intr(void)
+lapic_intr_timer(struct trap_frame *frame)
 {
+    (void)frame;
     lapic_eoi();
+}
+
+void
+lapic_intr_error(struct trap_frame *frame)
+{
+    (void)frame;
+    panic("lapic: unhandled error interrupt");
+}
+
+void
+lapic_intr_spurious(struct trap_frame *frame)
+{
+    (void)frame;
+    printk("lapic: warning: spurious interrupt\n");
+
+    /* No EOI for this interrupt */
 }

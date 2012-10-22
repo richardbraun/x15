@@ -57,6 +57,7 @@
 #include <machine/multiboot.h>
 #include <machine/pit.h>
 #include <machine/pmap.h>
+#include <machine/trap.h>
 #include <machine/vga.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
@@ -263,6 +264,7 @@ boot_save_data(void)
 void __init
 boot_main(void)
 {
+    trap_setup();
     cpu_setup();
     pmap_bootstrap();
     vga_setup();

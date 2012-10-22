@@ -32,6 +32,14 @@
 #define CPU_GDT_SIZE        32
 #endif /* __LP64__ */
 
+#define CPU_IDT_SIZE 256
+
+/*
+ * Processor privilege levels.
+ */
+#define CPU_PL_KERNEL   0
+#define CPU_PL_USER     3
+
 /*
  * Control register 0 flags.
  */
@@ -99,7 +107,6 @@ struct cpu_pseudo_desc {
 #define CPU_DESC_TYPE_DATA              0x00000200
 #define CPU_DESC_TYPE_CODE              0x00000a00
 #define CPU_DESC_TYPE_GATE_INTR         0x00000e00
-#define CPU_DESC_TYPE_GATE_TRAP         0x00000f00
 #define CPU_DESC_S                      0x00001000
 #define CPU_DESC_PRESENT                0x00008000
 #define CPU_DESC_LONG                   0x00200000
@@ -381,6 +388,11 @@ cpu_delay(unsigned long usecs)
 void cpu_load_gdt(struct cpu *cpu, struct cpu_pseudo_desc *gdtr);
 
 /*
+ * Install an interrupt handler in the IDT.
+ */
+void cpu_idt_set_gate(unsigned int vector, void (*isr)(void));
+
+/*
  * Set up the cpu module.
  */
 void cpu_setup(void);
@@ -409,13 +421,6 @@ void cpu_mp_setup(void);
  * AP-specific functions.
  */
 void cpu_ap_setup(void);
-
-/*
- * Trap functions.
- */
-void cpu_trap_default(void);
-void cpu_trap_lapic_timer_intr(void);
-void cpu_trap_lapic_spurious_intr(void);
 
 #endif /* __ASSEMBLER__ */
 

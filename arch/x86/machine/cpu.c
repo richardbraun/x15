@@ -54,8 +54,6 @@
 #define CPU_APIC_ID_MASK    0xff000000
 #define CPU_APIC_ID_SHIFT   24
 
-#define CPU_IDT_SIZE 256
-
 #define CPU_INVALID_APIC_ID ((unsigned int)-1)
 
 /*
@@ -150,8 +148,8 @@ cpu_init_gdt(struct cpu *cpu)
     cpu_load_gdt(cpu, &gdtr);
 }
 
-static void
-cpu_idt_set_gate(unsigned int vector, unsigned long type, void (*isr)(void))
+void
+cpu_idt_set_gate(unsigned int vector, void (*isr)(void))
 {
     struct cpu_gate_desc *desc;
 
@@ -164,25 +162,11 @@ cpu_idt_set_gate(unsigned int vector, unsigned long type, void (*isr)(void))
     desc->word3 = (unsigned long)isr >> 32;
 #endif /* __LP64__ */
 
+    /* Use interrupt gates only to simplify trap handling */
     desc->word2 = ((unsigned long)isr & CPU_DESC_GATE_OFFSET_HIGH_MASK)
-                  | CPU_DESC_PRESENT | type;
+                  | CPU_DESC_PRESENT | CPU_DESC_TYPE_GATE_INTR;
     desc->word1 = (CPU_GDT_SEL_CODE << 16)
                   | ((unsigned long)isr & CPU_DESC_GATE_OFFSET_LOW_MASK);
-}
-
-static void __init
-cpu_idt_init(void)
-{
-    size_t i;
-
-    for (i = 0; i < ARRAY_SIZE(cpu_idt); i++)
-        cpu_idt_set_gate(i, CPU_DESC_TYPE_GATE_TRAP, cpu_trap_default);
-
-    /* TODO Complete */
-    cpu_idt_set_gate(T_APIC_TIMER_INTR, CPU_DESC_TYPE_GATE_INTR,
-                     cpu_trap_lapic_timer_intr);
-    cpu_idt_set_gate(T_APIC_SPURIOUS_INTR, CPU_DESC_TYPE_GATE_INTR,
-                     cpu_trap_lapic_spurious_intr);
 }
 
 static void
@@ -305,8 +289,6 @@ void __init
 cpu_setup(void)
 {
     size_t i;
-
-    cpu_idt_init();
 
     for (i = 0; i < ARRAY_SIZE(cpu_array); i++) {
         cpu_array[i].self = &cpu_array[i];
@@ -438,7 +420,7 @@ cpu_mp_start_aps(void)
 static void __init
 cpu_mp_info(void)
 {
-    printk("cpu: %u processors configured\n", cpu_array_size);
+    printk("cpu: %u processor(s) configured\n", cpu_array_size);
 }
 
 static int __init
