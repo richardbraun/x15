@@ -57,7 +57,7 @@
 #define TRAP(vector, name)          \
 ASM_ENTRY(trap_isr_ ## name)        \
  pushq $0;                          \
- pushq $vector;                     \
+ pushq $(vector);                   \
  TRAP_PUSH_REGISTERS;               \
  movq %rsp, %rdi;                   \
  call trap_main;                    \
@@ -68,7 +68,7 @@ ASM_END(trap_isr_ ## name)
 
 #define TRAP_ERROR(vector, name)    \
 ASM_ENTRY(trap_isr_ ## name)        \
- pushq $vector;                     \
+ pushq $(vector);                   \
  TRAP_PUSH_REGISTERS;               \
  movq %rsp, %rdi;                   \
  call trap_main;                    \
@@ -108,7 +108,7 @@ ASM_END(trap_isr_ ## name)
 #define TRAP(vector, name)          \
 ASM_ENTRY(trap_isr_ ## name)        \
  pushl $0;                          \
- pushl $vector;                     \
+ pushl $(vector);                   \
  TRAP_PUSH_REGISTERS;               \
  pushl %esp;                        \
  call trap_main;                    \
@@ -120,7 +120,7 @@ ASM_END(trap_isr_ ## name)
 
 #define TRAP_ERROR(vector, name)    \
 ASM_ENTRY(trap_isr_ ## name)        \
- pushl $vector;                     \
+ pushl $(vector);                   \
  TRAP_PUSH_REGISTERS;               \
  pushl %esp;                        \
  call trap_main;                    \
@@ -155,6 +155,10 @@ TRAP(TRAP_MF, math_fault)
 TRAP_ERROR(TRAP_AC, alignment_check)
 TRAP(TRAP_MC, machine_check)
 TRAP(TRAP_XM, simd_fp_exception)
+
+/* Basic PIC support */
+TRAP(TRAP_PIC_BASE + 7, pic_int7)
+TRAP(TRAP_PIC_BASE + 15, pic_int15)
 
 /* System defined traps */
 TRAP(TRAP_LAPIC_TIMER, lapic_timer)

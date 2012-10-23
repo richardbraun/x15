@@ -55,6 +55,7 @@
 #include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/multiboot.h>
+#include <machine/pic.h>
 #include <machine/pit.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
@@ -276,6 +277,7 @@ boot_main(void)
     boot_save_data();
     biosmem_free_usable();
     vm_phys_info();
+    pic_setup();
     pit_setup();
     cpu_mp_setup();
     kernel_main();

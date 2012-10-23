@@ -22,6 +22,7 @@
 #include <lib/macros.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>
+#include <machine/pic.h>
 #include <machine/trap.h>
 
 /*
@@ -59,6 +60,8 @@ void trap_isr_math_fault(void);
 void trap_isr_alignment_check(void);
 void trap_isr_machine_check(void);
 void trap_isr_simd_fp_exception(void);
+void trap_isr_pic_int7(void);
+void trap_isr_pic_int15(void);
 void trap_isr_lapic_timer(void);
 void trap_isr_lapic_error(void);
 void trap_isr_lapic_spurious(void);
@@ -118,6 +121,10 @@ trap_setup(void)
     trap_install(TRAP_AC, trap_isr_alignment_check, trap_default);
     trap_install(TRAP_MC, trap_isr_machine_check, trap_default);
     trap_install(TRAP_XM, trap_isr_simd_fp_exception, trap_default);
+
+    /* Basic PIC support */
+    trap_install(TRAP_PIC_BASE + 7, trap_isr_pic_int7, pic_intr_spurious);
+    trap_install(TRAP_PIC_BASE + 15, trap_isr_pic_int15, pic_intr_spurious);
 
     /* System defined traps */
     trap_install(TRAP_LAPIC_TIMER, trap_isr_lapic_timer, lapic_intr_timer);

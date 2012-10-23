@@ -44,6 +44,11 @@
 #define TRAP_XM             19  /* SIMD Floating-Point Exception */
 
 /*
+ * Interrupts reserved for the legacy PIC.
+ */
+#define TRAP_PIC_BASE       32
+
+/*
  * System defined traps.
  */
 #define TRAP_LAPIC_TIMER    253
