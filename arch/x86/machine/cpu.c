@@ -30,7 +30,6 @@
 #include <machine/cpu.h>
 #include <machine/io.h>
 #include <machine/lapic.h>
-#include <machine/mps.h>
 #include <machine/trap.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
@@ -423,34 +422,10 @@ cpu_mp_info(void)
     printk("cpu: %u processor(s) configured\n", cpu_array_size);
 }
 
-static int __init
-cpu_mp_probe(void)
-{
-    int error;
-
-    error = acpimp_setup();
-
-    if (!error)
-        return 0;
-
-    error = mps_setup();
-
-    if (!error)
-        return 0;
-
-    return -1;
-}
-
 void __init
 cpu_mp_setup(void)
 {
-    int error;
-
-    error = cpu_mp_probe();
-
-    if (error)
-        return;
-
+    acpimp_setup();
     cpu_mp_start_aps();
     cpu_mp_info();
 }
