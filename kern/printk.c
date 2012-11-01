@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Richard Braun.
+ * Copyright (c) 2010, 2012 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
  */
 
 #include <kern/printk.h>
+#include <kern/spinlock.h>
 #include <lib/sprintf.h>
-#include <machine/cpu.h>
 
 /*
  * Size of the static buffer.
@@ -30,6 +30,7 @@
 extern void console_write_byte(char c);
 
 static char printk_buffer[PRINTK_BUFSIZE];
+static struct spinlock printk_lock = SPINLOCK_INITIALIZER;
 
 int
 printk(const char *format, ...)
@@ -51,14 +52,14 @@ vprintk(const char *format, va_list ap)
     int length;
     char *ptr;
 
-    flags = cpu_intr_save();
+    flags = spinlock_lock(&printk_lock);
 
     length = vsnprintf(printk_buffer, sizeof(printk_buffer), format, ap);
 
     for (ptr = printk_buffer; *ptr != '\0'; ptr++)
         console_write_byte(*ptr);
 
-    cpu_intr_restore(flags);
+    spinlock_unlock(&printk_lock, flags);
 
     return length;
 }
