@@ -13,6 +13,7 @@ x15_SOURCES +=              \
 	kern/param.h        \
 	kern/printk.c       \
 	kern/printk.h       \
+	kern/spinlock.h     \
 	kern/types.h
 
 x15_SOURCES +=              \
