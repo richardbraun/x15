@@ -290,7 +290,6 @@ boot_ap(void)
 {
     cpu_ap_setup();
     pmap_ap_bootstrap();
-    cpu_info(cpu_current());
 
     cpu_intr_enable();
 
