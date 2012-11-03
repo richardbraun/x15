@@ -13,21 +13,24 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Tiny CGA driver.
  */
 
-#ifndef _X86_VGA_H
-#define _X86_VGA_H
+#ifndef _X86_CGA_H
+#define _X86_CGA_H
 
 #include <kern/stdint.h>
 
 /*
- * Initialize the vga module.
+ * Initialize the cga module.
  */
-void vga_setup(void);
+void cga_setup(void);
 
 /*
  * Write a byte on the screen at current cursor position.
  */
-void vga_write_byte(uint8_t byte);
+void cga_write_byte(uint8_t byte);
 
-#endif /* _X86_VGA_H */
+#endif /* _X86_CGA_H */

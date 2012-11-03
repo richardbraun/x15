@@ -54,13 +54,13 @@
 #include <kern/string.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
+#include <machine/cga.h>
 #include <machine/cpu.h>
 #include <machine/multiboot.h>
 #include <machine/pic.h>
 #include <machine/pit.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
-#include <machine/vga.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
@@ -69,9 +69,9 @@
 /*
  * Macros used by the very early panic function.
  */
-#define INIT_VGAMEM     ((uint16_t *)0xb8000)
-#define INIT_VGACHARS   (80 * 25)
-#define INIT_VGACOLOR   0x7
+#define INIT_CGAMEM     ((uint16_t *)0xb8000)
+#define INIT_CGACHARS   (80 * 25)
+#define INIT_CGACOLOR   0x7
 
 char boot_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
 char boot_ap_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
@@ -96,21 +96,21 @@ boot_panic(const char *msg)
     uint16_t *ptr, *end;
     const char *s;
 
-    ptr = INIT_VGAMEM;
-    end = ptr + INIT_VGACHARS;
+    ptr = INIT_CGAMEM;
+    end = ptr + INIT_CGACHARS;
 
     s = (void *)BOOT_VTOP((unsigned long)"panic: ");
 
     while ((ptr < end) && (*s != '\0'))
-        *ptr++ = (INIT_VGACOLOR << 8) | *s++;
+        *ptr++ = (INIT_CGACOLOR << 8) | *s++;
 
     s = BOOT_VTOP(msg);
 
     while ((ptr < end) && (*s != '\0'))
-        *ptr++ = (INIT_VGACOLOR << 8) | *s++;
+        *ptr++ = (INIT_CGACOLOR << 8) | *s++;
 
     while (ptr < end)
-        *ptr++ = (INIT_VGACOLOR << 8) | ' ';
+        *ptr++ = (INIT_CGACOLOR << 8) | ' ';
 
     cpu_halt();
 
@@ -269,7 +269,7 @@ boot_main(void)
     trap_setup();
     cpu_setup();
     pmap_bootstrap();
-    vga_setup();
+    cga_setup();
     boot_show_version();
     cpu_check(cpu_current());
     cpu_info(cpu_current());

@@ -9,6 +9,8 @@ x86_FILES =                             \
 	arch/x86/machine/boot.c         \
 	arch/x86/machine/boot.h         \
 	arch/x86/machine/config.h       \
+	arch/x86/machine/cga.c          \
+	arch/x86/machine/cga.h          \
 	arch/x86/machine/cpu_asm.S      \
 	arch/x86/machine/cpu.c          \
 	arch/x86/machine/cpu.h          \
@@ -27,9 +29,7 @@ x86_FILES =                             \
 	arch/x86/machine/trap_asm.S     \
 	arch/x86/machine/trap.c         \
 	arch/x86/machine/trap.h         \
-	arch/x86/machine/types.h        \
-	arch/x86/machine/vga.c          \
-	arch/x86/machine/vga.h
+	arch/x86/machine/types.h
 
 EXTRA_DIST += arch/x86/x15.lds.S $(x86_FILES)
 
