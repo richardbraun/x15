@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011 Richard Braun.
+ * Copyright (c) 2012 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,21 +15,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _LIB_STDDEF_H
-#define _LIB_STDDEF_H
+#ifndef _KERN_STRING_H
+#define _KERN_STRING_H
 
-#define NULL ((void *)0)
+#include <kern/stddef.h>
 
-#define offsetof(type, member) __builtin_offsetof(type, member)
+void * memcpy(void *dest, const void *src, size_t n);
+void * memmove(void *dest, const void *src, size_t n);
+void * memset(void *s, int c, size_t n);
+int memcmp(const void *s1, const void *s2, size_t n);
+size_t strlen(const char *s);
+char * strcpy(char *dest, const char *src);
+int strcmp(const char *s1, const char *s2);
 
-#ifdef __LP64__
-typedef unsigned long size_t;
-typedef long ssize_t;
-typedef long ptrdiff_t;
-#else /* __LP64__ */
-typedef unsigned int size_t;
-typedef int ssize_t;
-typedef int ptrdiff_t;
-#endif /* __LP64__ */
-
-#endif /* _LIB_STDDEF_H */
+#endif /* _KERN_STRING_H */

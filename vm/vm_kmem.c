@@ -15,12 +15,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <kern/assert.h>
 #include <kern/init.h>
 #include <kern/panic.h>
 #include <kern/param.h>
+#include <kern/stddef.h>
 #include <kern/types.h>
-#include <lib/assert.h>
-#include <lib/stddef.h>
 #include <machine/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kmem.h>

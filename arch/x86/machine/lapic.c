@@ -16,11 +16,12 @@
  */
 
 #include <kern/init.h>
+#include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
-#include <lib/macros.h>
-#include <lib/stdint.h>
+#include <kern/stddef.h>
+#include <kern/stdint.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>
 #include <machine/pmap.h>

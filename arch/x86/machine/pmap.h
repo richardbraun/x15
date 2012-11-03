@@ -21,7 +21,7 @@
 #ifndef _X86_PMAP_H
 #define _X86_PMAP_H
 
-#include <lib/macros.h>
+#include <kern/macros.h>
 
 /*
  * Page table entry flags.
@@ -100,8 +100,8 @@
 
 #ifndef __ASSEMBLER__
 
+#include <kern/stdint.h>
 #include <kern/types.h>
-#include <lib/stdint.h>
 
 #ifdef X86_PAE
 typedef uint64_t pmap_pte_t;

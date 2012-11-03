@@ -29,17 +29,17 @@
  * The symmetric case is handled likewise.
  */
 
+#include <kern/assert.h>
 #include <kern/init.h>
+#include <kern/list.h>
+#include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
+#include <kern/sprintf.h>
+#include <kern/stddef.h>
+#include <kern/string.h>
 #include <kern/types.h>
-#include <lib/assert.h>
-#include <lib/list.h>
-#include <lib/macros.h>
-#include <lib/sprintf.h>
-#include <lib/stddef.h>
-#include <lib/string.h>
 #include <machine/cpu.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>

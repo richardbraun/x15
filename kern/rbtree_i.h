@@ -15,12 +15,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _LIB_RBTREE_I_H
-#define _LIB_RBTREE_I_H
+#ifndef _KERN_RBTREE_I_H
+#define _KERN_RBTREE_I_H
 
-#include <lib/assert.h>
-#include <lib/macros.h>
-#include <lib/stddef.h>
+#include <kern/assert.h>
+#include <kern/macros.h>
+#include <kern/stddef.h>
 
 /*
  * Red-black node structure.
@@ -184,4 +184,4 @@ struct rbtree_node * rbtree_postwalk_deepest(const struct rbtree *tree);
  */
 struct rbtree_node * rbtree_postwalk_unlink(struct rbtree_node *node);
 
-#endif /* _LIB_RBTREE_I_H */
+#endif /* _KERN_RBTREE_I_H */

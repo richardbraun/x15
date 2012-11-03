@@ -18,12 +18,12 @@
  * Red-black tree.
  */
 
-#ifndef _LIB_RBTREE_H
-#define _LIB_RBTREE_H
+#ifndef _KERN_RBTREE_H
+#define _KERN_RBTREE_H
 
-#include <lib/assert.h>
-#include <lib/macros.h>
-#include <lib/stddef.h>
+#include <kern/assert.h>
+#include <kern/macros.h>
+#include <kern/stddef.h>
 
 /*
  * Indexes of the left and right nodes in the children array of a node.
@@ -46,7 +46,7 @@ struct rbtree;
  */
 #define RBTREE_INITIALIZER { NULL }
 
-#include "rbtree_i.h"
+#include <kern/rbtree_i.h>
 
 /*
  * Initialize a tree.
@@ -296,4 +296,4 @@ for (node = rbtree_postwalk_deepest(tree),              \
      node != NULL;                                      \
      node = tmp, tmp = rbtree_postwalk_unlink(node))    \
 
-#endif /* _LIB_RBTREE_H */
+#endif /* _KERN_RBTREE_H */

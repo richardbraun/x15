@@ -17,7 +17,7 @@
 
 #include <kern/printk.h>
 #include <kern/spinlock.h>
-#include <lib/sprintf.h>
+#include <kern/sprintf.h>
 
 /*
  * Size of the static buffer.

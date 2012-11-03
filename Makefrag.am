@@ -1,6 +1,7 @@
 include arch/x86/Makefrag.am
 
 x15_SOURCES +=              \
+	kern/assert.h       \
 	kern/config.h       \
 	kern/error.h        \
 	kern/init.h         \
@@ -8,28 +9,25 @@ x15_SOURCES +=              \
 	kern/kernel.h       \
 	kern/kmem.c         \
 	kern/kmem.h         \
+	kern/limits.h       \
+	kern/list.h         \
+	kern/macros.h       \
 	kern/panic.c        \
 	kern/panic.h        \
 	kern/param.h        \
 	kern/printk.c       \
 	kern/printk.h       \
+	kern/rbtree.c       \
+	kern/rbtree.h       \
+	kern/rbtree_i.h     \
 	kern/spinlock.h     \
+	kern/sprintf.c      \
+	kern/sprintf.h      \
+	kern/stddef.h       \
+	kern/stdint.h       \
+	kern/string.c       \
+	kern/string.h       \
 	kern/types.h
-
-x15_SOURCES +=              \
-	lib/assert.h        \
-	lib/limits.h        \
-	lib/list.h          \
-	lib/macros.h        \
-	lib/rbtree.c        \
-	lib/rbtree.h        \
-	lib/rbtree_i.h      \
-	lib/sprintf.c       \
-	lib/sprintf.h       \
-	lib/stddef.h        \
-	lib/stdint.h        \
-	lib/string.c        \
-	lib/string.h
 
 x15_SOURCES +=              \
 	vm/vm_inherit.h     \

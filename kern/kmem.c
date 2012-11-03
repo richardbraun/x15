@@ -48,20 +48,20 @@
  * handled likewise.
  */
 
+#include <kern/assert.h>
 #include <kern/init.h>
+#include <kern/limits.h>
+#include <kern/list.h>
 #include <kern/kmem.h>
+#include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
-#include <lib/assert.h>
-#include <lib/limits.h>
-#include <lib/list.h>
-#include <lib/macros.h>
-#include <lib/rbtree.h>
-#include <lib/sprintf.h>
-#include <lib/stddef.h>
-#include <lib/stdint.h>
-#include <lib/string.h>
+#include <kern/rbtree.h>
+#include <kern/sprintf.h>
+#include <kern/stddef.h>
+#include <kern/stdint.h>
+#include <kern/string.h>
 #include <machine/cpu.h>
 #include <vm/vm_kmem.h>
 

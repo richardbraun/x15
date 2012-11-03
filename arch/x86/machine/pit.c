@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <kern/assert.h>
 #include <kern/init.h>
-#include <lib/assert.h>
 #include <machine/io.h>
 #include <machine/pit.h>
 

@@ -17,10 +17,10 @@
 
 #include <stdarg.h>
 
-#include <lib/limits.h>
-#include <lib/sprintf.h>
-#include <lib/stddef.h>
-#include <lib/stdint.h>
+#include <kern/limits.h>
+#include <kern/sprintf.h>
+#include <kern/stddef.h>
+#include <kern/stdint.h>
 
 /*
  * Formatting flags.

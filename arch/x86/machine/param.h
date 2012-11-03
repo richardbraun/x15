@@ -18,7 +18,7 @@
 #ifndef _X86_PARAM_H
 #define _X86_PARAM_H
 
-#include <lib/macros.h>
+#include <kern/macros.h>
 #include <machine/pmap.h>
 
 #define __LITTLE_ENDIAN__

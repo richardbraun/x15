@@ -18,8 +18,8 @@
 #ifndef _VM_VM_PAGE_H
 #define _VM_VM_PAGE_H
 
-#include <lib/list.h>
-#include <lib/macros.h>
+#include <kern/list.h>
+#include <kern/macros.h>
 #include <kern/param.h>
 #include <kern/types.h>
 

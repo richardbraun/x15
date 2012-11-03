@@ -18,7 +18,7 @@
 #ifndef _KERN_INIT_H
 #define _KERN_INIT_H
 
-#include <lib/macros.h>
+#include <kern/macros.h>
 
 /*
  * These sections should contain code and data which can be discarded once

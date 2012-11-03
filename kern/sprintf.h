@@ -25,12 +25,12 @@
  * The supported length modifiers are: hh h l ll z t
  */
 
-#ifndef _LIB_SPRINTF_H
-#define _LIB_SPRINTF_H
+#ifndef _KERN_SPRINTF_H
+#define _KERN_SPRINTF_H
 
 #include <stdarg.h>
 
-#include <lib/macros.h>
+#include <kern/macros.h>
 
 int sprintf(char *str, const char *format, ...) __format_printf(2, 3);
 int vsprintf(char *str, const char *format, va_list ap) __format_printf(2, 0);
@@ -40,4 +40,4 @@ int snprintf(char *str, size_t size, const char *format, ...)
 int vsnprintf(char *str, size_t size, const char *format, va_list ap)
     __format_printf(3, 0);
 
-#endif /* _LIB_SPRINTF_H */
+#endif /* _KERN_SPRINTF_H */

@@ -16,9 +16,9 @@
  */
 
 #include <kern/init.h>
-#include <lib/macros.h>
-#include <lib/stdint.h>
-#include <lib/string.h>
+#include <kern/macros.h>
+#include <kern/stdint.h>
+#include <kern/string.h>
 #include <machine/io.h>
 #include <machine/pmap.h>
 #include <machine/vga.h>

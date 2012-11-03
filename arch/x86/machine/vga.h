@@ -18,7 +18,7 @@
 #ifndef _X86_VGA_H
 #define _X86_VGA_H
 
-#include <lib/stdint.h>
+#include <kern/stdint.h>
 
 /*
  * Initialize the vga module.

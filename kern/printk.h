@@ -29,7 +29,7 @@
 
 #include <stdarg.h>
 
-#include <lib/macros.h>
+#include <kern/macros.h>
 
 int printk(const char *format, ...) __format_printf(1, 2);
 int vprintk(const char *format, va_list ap) __format_printf(1, 0);

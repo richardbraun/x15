@@ -15,16 +15,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <kern/assert.h>
 #include <kern/init.h>
+#include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
+#include <kern/stddef.h>
+#include <kern/stdint.h>
+#include <kern/string.h>
 #include <kern/types.h>
-#include <lib/assert.h>
-#include <lib/macros.h>
-#include <lib/stddef.h>
-#include <lib/stdint.h>
-#include <lib/string.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/multiboot.h>

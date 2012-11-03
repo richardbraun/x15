@@ -18,8 +18,8 @@
  * Trivial, portable implementations.
  */
 
-#include <lib/stddef.h>
-#include <lib/string.h>
+#include <kern/stddef.h>
+#include <kern/string.h>
 
 void *
 memcpy(void *dest, const void *src, size_t n)

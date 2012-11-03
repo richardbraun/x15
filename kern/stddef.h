@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Richard Braun.
+ * Copyright (c) 2010, 2011 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,9 +15,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _LIB_LIMITS_H
-#define _LIB_LIMITS_H
+#ifndef _KERN_STDDEF_H
+#define _KERN_STDDEF_H
 
-#define CHAR_BIT 8
+#define NULL ((void *)0)
 
-#endif /* _LIB_LIMITS_H */
+#define offsetof(type, member) __builtin_offsetof(type, member)
+
+#ifdef __LP64__
+typedef unsigned long size_t;
+typedef long ssize_t;
+typedef long ptrdiff_t;
+#else /* __LP64__ */
+typedef unsigned int size_t;
+typedef int ssize_t;
+typedef int ptrdiff_t;
+#endif /* __LP64__ */
+
+#endif /* _KERN_STDDEF_H */

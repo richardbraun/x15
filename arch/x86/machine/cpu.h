@@ -87,10 +87,10 @@
 
 #ifndef __ASSEMBLER__
 
+#include <kern/macros.h>
 #include <kern/param.h>
-#include <lib/macros.h>
-#include <lib/stddef.h>
-#include <lib/stdint.h>
+#include <kern/stddef.h>
+#include <kern/stdint.h>
 #include <machine/pit.h>
 
 #define CPU_VENDOR_ID_SIZE  13

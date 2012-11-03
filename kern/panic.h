@@ -18,7 +18,7 @@
 #ifndef _KERN_PANIC_H
 #define _KERN_PANIC_H
 
-#include <lib/macros.h>
+#include <kern/macros.h>
 
 /*
  * Print the given message and halt the system immediately.

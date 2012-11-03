@@ -18,11 +18,11 @@
  * Helper macros.
  */
 
-#ifndef _LIB_MACROS_H
-#define _LIB_MACROS_H
+#ifndef _KERN_MACROS_H
+#define _KERN_MACROS_H
 
 #ifndef __ASSEMBLER__
-#include <lib/stddef.h>
+#include <kern/stddef.h>
 #endif /* __ASSEMBLER__ */
 
 #define MACRO_BEGIN         ({
@@ -70,4 +70,4 @@
 #define __format_printf(fmt, args) \
     __attribute__((format(printf, fmt, args)))
 
-#endif /* _LIB_MACROS_H */
+#endif /* _KERN_MACROS_H */

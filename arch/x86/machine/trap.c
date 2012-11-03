@@ -15,11 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <kern/assert.h>
 #include <kern/init.h>
+#include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/printk.h>
-#include <lib/assert.h>
-#include <lib/macros.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>
 #include <machine/pic.h>

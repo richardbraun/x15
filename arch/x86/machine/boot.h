@@ -18,7 +18,7 @@
 #ifndef _X86_BOOT_H
 #define _X86_BOOT_H
 
-#include <lib/macros.h>
+#include <kern/macros.h>
 #include <machine/param.h>
 
 /*

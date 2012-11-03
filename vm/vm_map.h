@@ -21,9 +21,9 @@
 #ifndef _VM_VM_MAP_H
 #define _VM_VM_MAP_H
 
-#include <lib/list.h>
-#include <lib/rbtree.h>
-#include <lib/stdint.h>
+#include <kern/list.h>
+#include <kern/rbtree.h>
+#include <kern/stdint.h>
 #include <machine/pmap.h>
 
 /*

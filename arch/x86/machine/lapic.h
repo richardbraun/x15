@@ -18,7 +18,7 @@
 #ifndef _X86_LAPIC_H
 #define _X86_LAPIC_H
 
-#include <lib/stdint.h>
+#include <kern/stdint.h>
 #include <machine/trap.h>
 
 /*

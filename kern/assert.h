@@ -15,15 +15,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _LIB_ASSERT_H
-#define _LIB_ASSERT_H
+#ifndef _KERN_ASSERT_H
+#define _KERN_ASSERT_H
 
 #ifdef NDEBUG
 #define assert(expression) ((void)(expression))
 #else /* NDEBUG */
 
+#include <kern/macros.h>
 #include <kern/panic.h>
-#include <lib/macros.h>
 
 /*
  * Panic if the given expression is false.
@@ -37,4 +37,4 @@ MACRO_END
 
 #endif /* NDEBUG */
 
-#endif /* _LIB_ASSERT_H */
+#endif /* _KERN_ASSERT_H */

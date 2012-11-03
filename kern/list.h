@@ -18,11 +18,11 @@
  * Simple doubly-linked list.
  */
 
-#ifndef _LIB_LIST_H
-#define _LIB_LIST_H
+#ifndef _KERN_LIST_H
+#define _KERN_LIST_H
 
-#include <lib/macros.h>
-#include <lib/stddef.h>
+#include <kern/macros.h>
+#include <kern/stddef.h>
 
 /*
  * Structure used as both head and node.
@@ -361,4 +361,4 @@ for (entry = list_entry(list_last(list), typeof(*entry), member),   \
      entry = tmp, tmp = list_entry(list_prev(&entry->member),       \
                                    typeof(*entry), member))
 
-#endif /* _LIB_LIST_H */
+#endif /* _KERN_LIST_H */

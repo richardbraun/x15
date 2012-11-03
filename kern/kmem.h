@@ -21,10 +21,10 @@
 #ifndef _KERN_KMEM_H
 #define _KERN_KMEM_H
 
+#include <kern/list.h>
 #include <kern/param.h>
-#include <lib/list.h>
-#include <lib/rbtree.h>
-#include <lib/stddef.h>
+#include <kern/rbtree.h>
+#include <kern/stddef.h>
 
 /*
  * Per-processor cache of pre-constructed objects.

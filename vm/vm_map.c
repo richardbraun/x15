@@ -19,18 +19,18 @@
  * needed for kernel allocation.
  */
 
+#include <kern/assert.h>
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
+#include <kern/list.h>
+#include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
-#include <lib/assert.h>
-#include <lib/list.h>
-#include <lib/macros.h>
-#include <lib/rbtree.h>
-#include <lib/stddef.h>
-#include <lib/stdint.h>
+#include <kern/rbtree.h>
+#include <kern/stddef.h>
+#include <kern/stdint.h>
 #include <machine/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kmem.h>

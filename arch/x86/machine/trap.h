@@ -57,7 +57,7 @@
 
 #ifndef __ASSEMBLER__
 
-#include <lib/macros.h>
+#include <kern/macros.h>
 
 #ifdef __LP64__
 

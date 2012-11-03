@@ -45,12 +45,13 @@
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/kernel.h>
+#include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
-#include <lib/stddef.h>
-#include <lib/stdint.h>
-#include <lib/string.h>
+#include <kern/stddef.h>
+#include <kern/stdint.h>
+#include <kern/string.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
