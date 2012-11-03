@@ -179,24 +179,26 @@ extern struct cpu cpu_array[MAX_CPUS];
 /*
  * Macro to create functions that read/write control registers.
  */
-#define CPU_DECL_GETSET_CR(name)                                \
-static __always_inline unsigned long                            \
-cpu_get_ ## name(void)                                          \
-{                                                               \
-    unsigned long name;                                         \
-                                                                \
-    asm volatile("mov %%" __QUOTE(name) ", %0" : "=r" (name));  \
-    return name;                                                \
-}                                                               \
-                                                                \
-static __always_inline void                                     \
-cpu_set_ ## name(unsigned long value)                           \
-{                                                               \
-    asm volatile("mov %0, %%" __QUOTE(name) : : "r" (value));   \
+#define CPU_DECL_GETSET_CR(name)                                            \
+static __always_inline unsigned long                                        \
+cpu_get_ ## name(void)                                                      \
+{                                                                           \
+    unsigned long name;                                                     \
+                                                                            \
+    asm volatile("mov %%" __QUOTE(name) ", %0" : "=r" (name) : : "memory"); \
+    return name;                                                            \
+}                                                                           \
+                                                                            \
+static __always_inline void                                                 \
+cpu_set_ ## name(unsigned long value)                                       \
+{                                                                           \
+    asm volatile("mov %0, %%" __QUOTE(name) : : "r" (value) : "memory");    \
 }
 
 /*
  * Access to the processor control registers. CR1 is reserved.
+ *
+ * Implies a compiler barrier.
  */
 CPU_DECL_GETSET_CR(cr0)
 CPU_DECL_GETSET_CR(cr2)
@@ -205,6 +207,8 @@ CPU_DECL_GETSET_CR(cr4)
 
 /*
  * Flush the whole TLB.
+ *
+ * Implies a compiler barrier.
  */
 static __always_inline void
 cpu_tlb_flush(void)
@@ -216,6 +220,8 @@ cpu_tlb_flush(void)
  * Flush a single page table entry in the TLB. In some cases, the entire TLB
  * can be flushed by this instruction. The va parameter is a virtual
  * address in the page described by the PTE to flush.
+ *
+ * Implies a compiler barrier.
  */
 static __always_inline void
 cpu_tlb_flush_va(unsigned long va)
@@ -240,20 +246,24 @@ cpu_get_eflags(void)
 
 /*
  * Enable local interrupts.
+ *
+ * Implies a compiler barrier.
  */
 static __always_inline void
 cpu_intr_enable(void)
 {
-    asm volatile("sti");
+    asm volatile("sti" : : : "memory");
 }
 
 /*
  * Disable local interrupts.
+ *
+ * Implies a compiler barrier.
  */
 static __always_inline void
 cpu_intr_disable(void)
 {
-    asm volatile("cli");
+    asm volatile("cli" : : : "memory");
 }
 
 /*
@@ -296,20 +306,24 @@ cpu_intr_enabled(void)
 
 /*
  * Spin-wait loop hint.
+ *
+ * Implies a compiler barrier.
  */
 static __always_inline void
 cpu_pause(void)
 {
-    asm volatile("pause");
+    asm volatile("pause" : : : "memory");
 }
 
 /*
  * Make the CPU idle until the next interrupt.
+ *
+ * Implies a compiler barrier.
  */
 static __always_inline void
 cpu_idle(void)
 {
-    asm volatile("hlt");
+    asm volatile("hlt" : : : "memory");
 }
 
 /*
