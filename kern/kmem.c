@@ -578,7 +578,7 @@ kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
     cache->ctor = ctor;
     cache->slab_alloc_fn = slab_alloc_fn;
     cache->slab_free_fn = slab_free_fn;
-    strcpy(cache->name, name); /* TODO: strlcpy */
+    strlcpy(cache->name, name, sizeof(cache->name));
     cache->buftag_dist = 0;
     cache->redzone_pad = 0;
 

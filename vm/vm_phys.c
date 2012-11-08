@@ -478,7 +478,7 @@ vm_phys_load(const char *name, phys_addr_t start, phys_addr_t end,
     list_insert_tail(seg_list, &seg->node);
     seg->start = start;
     seg->end = end;
-    strcpy(seg->name, name); /* TODO: strlcpy */
+    strlcpy(seg->name, name, sizeof(seg->name));
     boot_seg->avail_start = avail_start;
     boot_seg->avail_end = avail_end;
 

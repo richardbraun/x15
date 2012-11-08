@@ -121,6 +121,24 @@ strcpy(char *dest, const char *src)
     return tmp;
 }
 
+size_t
+strlcpy(char *dest, const char *src, size_t n)
+{
+    size_t len;
+
+    len = strlen(src);
+
+    if (n == 0)
+        goto out;
+
+    n = (len < n) ? len : n - 1;
+    memcpy(dest, src, n);
+    dest[n] = '\0';
+
+out:
+    return len;
+}
+
 int
 strcmp(const char *s1, const char *s2)
 {
