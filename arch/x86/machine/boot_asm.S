@@ -290,6 +290,7 @@ ASM_DATA(boot_gdt)
  .quad 0x00209a0000000000   /* 64-bit code segment selector */
 #endif /* __LP64__ */
 ASM_END(boot_gdt)
+boot_gdt_end:
 
 ASM_DATA(boot_mp_trampoline_size)
  .long . - boot_mp_trampoline

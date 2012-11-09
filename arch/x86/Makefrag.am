@@ -37,6 +37,10 @@ EXTRA_DIST += arch/x86/x15.lds.S $(x86_FILES)
 
 if X86
 
+# Store unwind information in .debug_frame instead of .eh_frame. Unwind
+# tables aren't used at runtime, so using a debug section reduces the kernel
+# code size.
+AM_CFLAGS += -fno-asynchronous-unwind-tables
 x15_LDFLAGS += -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
 
 if I386

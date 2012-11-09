@@ -18,9 +18,11 @@
 #ifndef _X86_ASM_H
 #define _X86_ASM_H
 
-#include <machine/param.h>
+#ifndef __ASSEMBLER__
+#warning "asm.h included from a C file"
+#endif /* __ASSEMBLER__ */
 
-#ifdef __ASSEMBLER__
+#include <machine/param.h>
 
 #define ASM_ENTRY(x)    \
 .align TEXT_ALIGN;      \
@@ -35,15 +37,6 @@ x:
 x:
 
 #define ASM_END(x)  \
-.size x, . - x;     \
-x ## _end:
-
-#ifdef __LP64__
-#define ASM_IRET iretq
-#else /* __LP64__ */
-#define ASM_IRET iret
-#endif /* __LP64__ */
-
-#endif /* __ASSEMBLER__ */
+.size x, . - x
 
 #endif /* _X86_ASM_H */

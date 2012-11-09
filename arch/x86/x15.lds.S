@@ -25,7 +25,7 @@ SECTIONS
     . = BOOT_OFFSET;
     _init = .;
 
-    .init ALIGN(PAGE_SIZE): {
+    .init ALIGN(PAGE_SIZE) : {
         *(.init.hdr)
         *(.init.text)
         *(.init.data)
@@ -37,33 +37,41 @@ SECTIONS
     . += KERNEL_OFFSET;
     _text = .;
 
-    .text ALIGN(PAGE_SIZE): AT(BOOT_VTOP(ADDR(.text))) {
+    .text ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.text))) {
         *(.text)
     } : text
 
     . = ALIGN(PAGE_SIZE);
     _rodata = .;
 
-    .rodata ALIGN(PAGE_SIZE): AT(BOOT_VTOP(ADDR(.rodata))) {
+    .rodata ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.rodata))) {
         *(.rodata)
     } : rodata
 
-    .notes ALIGN(8): AT(BOOT_VTOP(ADDR(.notes))) {
+    .notes ALIGN(8) : AT(BOOT_VTOP(ADDR(.notes))) {
         *(.note.*)
     } : rodata
 
     . = ALIGN(PAGE_SIZE);
     _data = .;
 
-    .data ALIGN(PAGE_SIZE): AT(BOOT_VTOP(ADDR(.data))) {
+    .data ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.data))) {
         *(.data)
     } : data
 
-    .bss ALIGN(8): AT(BOOT_VTOP(ADDR(.bss))) {
+    .bss ALIGN(8) : AT(BOOT_VTOP(ADDR(.bss))) {
         *(.bss)
         *(COMMON)
     } : data
 
     . = ALIGN(PAGE_SIZE);
     _end = .;
+
+    /*
+     * A global offset section is created because of linking with libgcc.
+     * Is it safe to discard it ?
+     */
+    /DISCARD/ : {
+        *(.eh_frame)
+    }
 }
