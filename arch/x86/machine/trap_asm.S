@@ -20,127 +20,123 @@
 
 #ifdef __LP64__
 
-#define TRAP_PUSH_REGISTERS         \
- pushq %r15;                        \
- pushq %r14;                        \
- pushq %r13;                        \
- pushq %r12;                        \
- pushq %r11;                        \
- pushq %r10;                        \
- pushq %r9;                         \
- pushq %r8;                         \
- pushq %rdi;                        \
- pushq %rsi;                        \
- pushq %rbp;                        \
- pushq %rdx;                        \
- pushq %rcx;                        \
- pushq %rbx;                        \
+.macro TRAP_STORE_REGISTERS
+ pushq %r15
+ pushq %r14
+ pushq %r13
+ pushq %r12
+ pushq %r11
+ pushq %r10
+ pushq %r9
+ pushq %r8
+ pushq %rdi
+ pushq %rsi
+ pushq %rbp
+ pushq %rdx
+ pushq %rcx
+ pushq %rbx
  pushq %rax
+.endm
 
-#define TRAP_POP_REGISTERS          \
- popq %rax;                         \
- popq %rbx;                         \
- popq %rcx;                         \
- popq %rdx;                         \
- popq %rbp;                         \
- popq %rsi;                         \
- popq %rdi;                         \
- popq %r8;                          \
- popq %r9;                          \
- popq %r10;                         \
- popq %r11;                         \
- popq %r12;                         \
- popq %r13;                         \
- popq %r14;                         \
+.macro TRAP_LOAD_REGISTERS
+ popq %rax
+ popq %rbx
+ popq %rcx
+ popq %rdx
+ popq %rbp
+ popq %rsi
+ popq %rdi
+ popq %r8
+ popq %r9
+ popq %r10
+ popq %r11
+ popq %r12
+ popq %r13
+ popq %r14
  popq %r15
+ addq $16, %rsp /* skip vector and error */
+.endm
 
 #define TRAP(vector, name)          \
 ASM_ENTRY(trap_isr_ ## name)        \
  pushq $0;                          \
  pushq $(vector);                   \
- TRAP_PUSH_REGISTERS;               \
- movq %rsp, %rdi;                   \
- call trap_main;                    \
- TRAP_POP_REGISTERS;                \
- addq $16, %rsp;                    \
- iretq;                             \
+ jmp trap_common;                   \
 ASM_END(trap_isr_ ## name)
 
 #define TRAP_ERROR(vector, name)    \
 ASM_ENTRY(trap_isr_ ## name)        \
  pushq $(vector);                   \
- TRAP_PUSH_REGISTERS;               \
- movq %rsp, %rdi;                   \
- call trap_main;                    \
- TRAP_POP_REGISTERS;                \
- addq $16, %rsp;                    \
- iretq;                             \
+ jmp trap_common;                   \
 ASM_END(trap_isr_ ## name)
+
+ASM_ENTRY(trap_common)
+ TRAP_STORE_REGISTERS
+ movq %rsp, %rdi
+ call trap_main
+ TRAP_LOAD_REGISTERS
+ iretq
+ASM_END(trap_common)
 
 ASM_ENTRY(trap_load)
  movq %rdi, %rsp
- TRAP_POP_REGISTERS
- addq $16, %rsp
+ TRAP_LOAD_REGISTERS
  iretq
 ASM_END(trap_load)
 
 #else /* __LP64__ */
 
-#define TRAP_PUSH_REGISTERS         \
- pushl %gs;                         \
- pushl %fs;                         \
- pushl %es;                         \
- pushl %ds;                         \
- pushl %edi;                        \
- pushl %esi;                        \
- pushl %ebp;                        \
- pushl %edx;                        \
- pushl %ecx;                        \
- pushl %ebx;                        \
+.macro TRAP_STORE_REGISTERS
+ pushl %gs
+ pushl %fs
+ pushl %es
+ pushl %ds
+ pushl %edi
+ pushl %esi
+ pushl %ebp
+ pushl %edx
+ pushl %ecx
+ pushl %ebx
  pushl %eax
+.endm
 
-#define TRAP_POP_REGISTERS          \
- popl %eax;                         \
- popl %ebx;                         \
- popl %ecx;                         \
- popl %edx;                         \
- popl %ebp;                         \
- popl %esi;                         \
- popl %edi;                         \
- popl %ds;                          \
- popl %es;                          \
- popl %fs;                          \
- popl %gs
+/* XXX Don't load segment registers for now */
+.macro TRAP_LOAD_REGISTERS
+ popl %eax
+ popl %ebx
+ popl %ecx
+ popl %edx
+ popl %ebp
+ popl %esi
+ popl %edi
+ addl $24, %esp /* skip segment registers, vector and error */
+.endm
 
 #define TRAP(vector, name)          \
 ASM_ENTRY(trap_isr_ ## name)        \
  pushl $0;                          \
  pushl $(vector);                   \
- TRAP_PUSH_REGISTERS;               \
- pushl %esp;                        \
- call trap_main;                    \
- addl $4, %esp;                     \
- TRAP_POP_REGISTERS;                \
- addl $8, %esp;                     \
- iret;                              \
+ jmp trap_common;                   \
 ASM_END(trap_isr_ ## name)
 
 #define TRAP_ERROR(vector, name)    \
 ASM_ENTRY(trap_isr_ ## name)        \
  pushl $(vector);                   \
- TRAP_PUSH_REGISTERS;               \
- pushl %esp;                        \
- call trap_main;                    \
- addl $4, %esp;                     \
- TRAP_POP_REGISTERS;                \
- addl $8, %esp;                     \
- iret;                              \
+ jmp trap_common;                   \
 ASM_END(trap_isr_ ## name)
+
+ASM_ENTRY(trap_common)
+ TRAP_STORE_REGISTERS
+ pushl %esp
+ call trap_main
+ addl $4, %esp
+ TRAP_LOAD_REGISTERS
+ iret
+ASM_END(trap_common)
 
 ASM_ENTRY(trap_load)
  movl 4(%esp), %esp
- TRAP_POP_REGISTERS
- addl $8, %esp
+ TRAP_LOAD_REGISTERS
  iret
 ASM_END(trap_load)
 
