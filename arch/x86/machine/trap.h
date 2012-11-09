@@ -126,6 +126,13 @@ void trap_main(struct trap_frame *frame);
  */
 void trap_frame_show(struct trap_frame *frame);
 
+/*
+ * Load a context saved in a trap frame.
+ * 
+ * The caller context is lost.
+ */
+void __noreturn trap_load(struct trap_frame *frame);
+
 #endif /* __ASSEMBLER__ */
 
 #endif /* _X86_TRAP_H */

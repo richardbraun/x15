@@ -77,6 +77,13 @@ ASM_ENTRY(trap_isr_ ## name)        \
  iretq;                             \
 ASM_END(trap_isr_ ## name)
 
+ASM_ENTRY(trap_load)
+ movq %rdi, %rsp
+ TRAP_POP_REGISTERS
+ addq $16, %rsp
+ iretq
+ASM_END(trap_load)
+
 #else /* __LP64__ */
 
 #define TRAP_PUSH_REGISTERS         \
@@ -103,7 +110,7 @@ ASM_END(trap_isr_ ## name)
  popl %ds;                          \
  popl %es;                          \
  popl %fs;                          \
- popl %gs;                          \
+ popl %gs
 
 #define TRAP(vector, name)          \
 ASM_ENTRY(trap_isr_ ## name)        \
@@ -129,6 +136,13 @@ ASM_ENTRY(trap_isr_ ## name)        \
  addl $8, %esp;                     \
  iret;                              \
 ASM_END(trap_isr_ ## name)
+
+ASM_ENTRY(trap_load)
+ movl 4(%esp), %esp
+ TRAP_POP_REGISTERS
+ addl $8, %esp
+ iret
+ASM_END(trap_load)
 
 #endif /* __LP64__ */
 

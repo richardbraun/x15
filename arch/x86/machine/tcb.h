@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012 Richard Braun.
+ * Copyright (c) 2012 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,43 +13,46 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Thread control block.
  */
 
-#include <kern/init.h>
-#include <kern/kernel.h>
-#include <kern/panic.h>
-#include <kern/task.h>
-#include <kern/thread.h>
-#include <machine/cpu.h>
+#ifndef _X86_TCB_H
+#define _X86_TCB_H
 
-static void __init
-kernel_setup(void *arg)
-{
-    (void)arg;
+#include <kern/macros.h>
+#include <machine/trap.h>
 
-    cpu_mp_setup();
+/*
+ * Forward declaration.
+ */
+struct thread;
 
-    cpu_intr_enable();
+/*
+ * Architecture specific thread data.
+ */
+struct tcb {
+    struct trap_frame *frame;
+};
 
-    for (;;)
-        cpu_idle();
-}
+/*
+ * Set up the tcb module.
+ */
+void tcb_setup(void);
 
-void __init
-kernel_main(void)
-{
-    struct thread *thread;
-    int error;
+/*
+ * Create a TCB.
+ *
+ * Prepare the given stack for execution.
+ */
+int tcb_create(struct tcb **tcbp, void *stack, const struct thread *thread);
 
-    task_setup();
-    thread_setup();
+/*
+ * Load a TCB.
+ *
+ * The caller context is lost.
+ */
+void __noreturn tcb_load(struct tcb *tcb);
 
-    error = thread_create(&thread, "core", kernel_task, kernel_setup, NULL);
-
-    if (error)
-        panic("kernel: unable to create kernel thread");
-
-    thread_load(thread);
-
-    /* Never reached */
-}
+#endif /* _X86_TCB_H */

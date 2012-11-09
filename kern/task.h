@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012 Richard Braun.
+ * Copyright (c) 2012 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,41 +15,44 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <kern/init.h>
-#include <kern/kernel.h>
-#include <kern/panic.h>
-#include <kern/task.h>
-#include <kern/thread.h>
-#include <machine/cpu.h>
+#ifndef _KERN_TASK_H
+#define _KERN_TASK_H
 
-static void __init
-kernel_setup(void *arg)
-{
-    (void)arg;
+#include <kern/list.h>
 
-    cpu_mp_setup();
+/*
+ * Forward declaration.
+ */
+struct thread;
 
-    cpu_intr_enable();
+/*
+ * Task name buffer size.
+ */
+#define TASK_NAME_SIZE 32
 
-    for (;;)
-        cpu_idle();
-}
+/*
+ * Task structure.
+ */
+struct task {
+    struct list node;
+    struct list threads;
+    struct vm_map *map;
+    char name[TASK_NAME_SIZE];
+};
 
-void __init
-kernel_main(void)
-{
-    struct thread *thread;
-    int error;
+/*
+ * The kernel task.
+ */
+extern struct task *kernel_task;
 
-    task_setup();
-    thread_setup();
+/*
+ * Initialize the task module.
+ */
+void task_setup(void);
 
-    error = thread_create(&thread, "core", kernel_task, kernel_setup, NULL);
+/*
+ * Add a thread to a task.
+ */
+void task_add_thread(struct task *task, struct thread *thread);
 
-    if (error)
-        panic("kernel: unable to create kernel thread");
-
-    thread_load(thread);
-
-    /* Never reached */
-}
+#endif /* _KERN_TASK_H */

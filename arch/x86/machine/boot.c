@@ -280,7 +280,6 @@ boot_main(void)
     vm_phys_info();
     pic_setup();
     pit_setup();
-    cpu_mp_setup();
     kernel_main();
 
     /* Never reached */
