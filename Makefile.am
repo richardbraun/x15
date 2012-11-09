@@ -31,7 +31,7 @@ exec_boot_PROGRAMS = x15
 x15_DEPENDENCIES = arch/$(arch)/x15.lds
 MOSTLYCLEANFILES += arch/$(arch)/x15.lds
 x15_SOURCES =
-x15_LDFLAGS = -nostartfiles -nostdlib -T arch/$(arch)/x15.lds
+x15_LDFLAGS = -nostdlib -T arch/$(arch)/x15.lds
 x15_LDADD = -lgcc
 
 include Makefrag.am
