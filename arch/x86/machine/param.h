@@ -34,7 +34,12 @@
  * Code/data alignment.
  */
 #define TEXT_ALIGN  16
+
+#ifdef __LP64__
 #define DATA_ALIGN  8
+#else /* __LP64__ */
+#define DATA_ALIGN  4
+#endif /* __LP64__ */
 
 /*
  * System timer frequency.
