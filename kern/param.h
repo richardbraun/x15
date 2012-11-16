@@ -20,7 +20,4 @@
 
 #include <machine/param.h>
 
-#define PAGE_SIZE   (1 << PAGE_SHIFT)
-#define PAGE_MASK   (PAGE_SIZE - 1)
-
 #endif /* _KERN_PARAM_H */
