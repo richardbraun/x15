@@ -286,7 +286,7 @@ boot_main(void)
 }
 
 void __init
-boot_ap(void)
+boot_ap_main(void)
 {
     cpu_ap_setup();
     pmap_ap_bootstrap();

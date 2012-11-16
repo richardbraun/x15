@@ -113,7 +113,7 @@ void boot_main(void);
 /*
  * Entry point for APs.
  */
-void boot_ap(void);
+void boot_ap_main(void);
 
 #endif /* __ASSEMBLER__ */
 

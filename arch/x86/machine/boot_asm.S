@@ -238,7 +238,7 @@ ASM_ENTRY(boot_ap_start32)
  movl %esp, %ebp
 #endif /* __LP64__ */
 
- call boot_ap
+ call boot_ap_main
 
  /* Never reached */
 ASM_END(boot_ap_start32)
