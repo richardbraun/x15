@@ -55,6 +55,11 @@
 #define TRAP_LAPIC_ERROR    254
 #define TRAP_LAPIC_SPURIOUS 255
 
+/*
+ * Vector identifying an unhandled trap.
+ */
+#define TRAP_DEFAULT        256
+
 #ifndef __ASSEMBLER__
 
 #include <kern/macros.h>

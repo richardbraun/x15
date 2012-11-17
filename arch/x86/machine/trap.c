@@ -69,16 +69,22 @@ void trap_isr_lapic_spurious(void);
 /*
  * Array of trap handlers.
  *
- * Entries in this table match the content of the IDT.
+ * The additional entry is the default entry used for unhandled traps.
  */
-static struct trap_handler trap_handlers[CPU_IDT_SIZE];
+static struct trap_handler trap_handlers[CPU_IDT_SIZE + 1];
+
+static void __init
+trap_handler_init(struct trap_handler *handler, trap_handler_fn_t fn)
+{
+    handler->fn = fn;
+}
 
 static void __init
 trap_install(unsigned int vector, trap_isr_fn_t isr, trap_handler_fn_t fn)
 {
-    assert(vector < ARRAY_SIZE(trap_handlers));
+    assert(vector < CPU_IDT_SIZE);
 
-    trap_handlers[vector].fn = fn;
+    trap_handler_init(&trap_handlers[vector], fn);
     cpu_idt_set_gate(vector, isr);
 }
 
@@ -99,7 +105,7 @@ trap_setup(void)
 {
     size_t i;
 
-    for (i = 0; i < ARRAY_SIZE(trap_handlers); i++)
+    for (i = 0; i < CPU_IDT_SIZE; i++)
         trap_install(i, trap_isr_default, trap_default);
 
     /* Architecture defined traps */
@@ -131,15 +137,15 @@ trap_setup(void)
     trap_install(TRAP_LAPIC_ERROR, trap_isr_lapic_error, lapic_intr_error);
     trap_install(TRAP_LAPIC_SPURIOUS, trap_isr_lapic_spurious,
                  lapic_intr_spurious);
+
+    trap_handler_init(&trap_handlers[TRAP_DEFAULT], trap_default);
 }
 
 void
 trap_main(struct trap_frame *frame)
 {
-    if (frame->vector < ARRAY_SIZE(trap_handlers))
-        trap_handlers[frame->vector].fn(frame);
-    else
-        trap_default(frame);
+    assert(frame->vector < ARRAY_SIZE(trap_handlers));
+    trap_handlers[frame->vector].fn(frame);
 }
 
 #ifdef __LP64__

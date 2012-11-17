@@ -144,8 +144,6 @@ ASM_END(trap_load)
 
 .text
 
-TRAP(-1, default)
-
 /* Architecture defined traps */
 TRAP(TRAP_DE, divide_error)
 TRAP(TRAP_DB, debug)
@@ -174,3 +172,6 @@ TRAP(TRAP_PIC_BASE + 15, pic_int15)
 TRAP(TRAP_LAPIC_TIMER, lapic_timer)
 TRAP(TRAP_LAPIC_ERROR, lapic_error)
 TRAP(TRAP_LAPIC_SPURIOUS, lapic_spurious)
+
+/* Unhandled traps */
+TRAP(TRAP_DEFAULT, default)
