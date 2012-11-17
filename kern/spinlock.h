@@ -18,10 +18,7 @@
  * Spin lock.
  *
  * This implementation relies on the availability of hardware compare-and-swap
- * support. In addition, spin locks are reserved for the special cases where
- * a critical section must work in every context (thread, interrupt, or even
- * during early boot). As a result, interrupts are disabled when a spin lock
- * is acquired.
+ * support.
  */
 
 #ifndef _KERN_SPINLOCK_H
@@ -54,45 +51,28 @@ spinlock_init(struct spinlock *lock)
  * Return false if acquired, true if busy.
  */
 static inline int
-spinlock_trylock(struct spinlock *lock, unsigned long *flagsp)
+spinlock_trylock(struct spinlock *lock)
 {
-    unsigned long flags, locked;
-
-    flags = cpu_intr_save();
-    locked = atomic_cas(&lock->locked, 0, 1);
-
-    if (locked)
-        cpu_intr_restore(flags);
-    else
-        *flagsp = flags;
-
-    return locked;
+    return atomic_cas(&lock->locked, 0, 1);
 }
 
 /*
  * Acquire a spin lock.
  */
-static inline unsigned long
+static inline void
 spinlock_lock(struct spinlock *lock)
 {
-    unsigned long flags;
-
-    flags = cpu_intr_save();
-
     while (atomic_cas(&lock->locked, 0, 1))
         cpu_pause();
-
-    return flags;
 }
 
 /*
  * Release a spin lock.
  */
 static inline void
-spinlock_unlock(struct spinlock *lock, unsigned long flags)
+spinlock_unlock(struct spinlock *lock)
 {
     atomic_swap(&lock->locked, 0);
-    cpu_intr_restore(flags);
 }
 
 #endif /* _KERN_SPINLOCK_H */

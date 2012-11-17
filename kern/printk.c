@@ -18,6 +18,7 @@
 #include <kern/printk.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
+#include <machine/cpu.h>
 
 /*
  * Size of the static buffer.
@@ -52,14 +53,16 @@ vprintk(const char *format, va_list ap)
     int length;
     char *ptr;
 
-    flags = spinlock_lock(&printk_lock);
+    flags = cpu_intr_save();
+    spinlock_lock(&printk_lock);
 
     length = vsnprintf(printk_buffer, sizeof(printk_buffer), format, ap);
 
     for (ptr = printk_buffer; *ptr != '\0'; ptr++)
         console_write_byte(*ptr);
 
-    spinlock_unlock(&printk_lock, flags);
+    spinlock_unlock(&printk_lock);
+    cpu_intr_restore(flags);
 
     return length;
 }
