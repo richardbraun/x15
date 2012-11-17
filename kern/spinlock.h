@@ -24,6 +24,7 @@
 #ifndef _KERN_SPINLOCK_H
 #define _KERN_SPINLOCK_H
 
+#include <kern/assert.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 
@@ -43,6 +44,12 @@ static inline void
 spinlock_init(struct spinlock *lock)
 {
     lock->locked = 0;
+}
+
+static inline int
+spinlock_assert_locked(struct spinlock *lock)
+{
+    assert(lock->locked);
 }
 
 /*
