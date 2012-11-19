@@ -29,21 +29,22 @@
 #define THREAD_NAME_SIZE 32
 
 /*
- * Type for thread entry point.
+ * Thread flags.
  */
-typedef void (*thread_run_fn_t)(void *);
+#define THREAD_RESCHEDULE   0x1 /* Thread marked for reschedule */
 
 /*
  * Thread structure.
  */
 struct thread {
-    struct tcb *tcb;
+    struct tcb tcb;
+    int flags;
     struct list runq_node;
     struct list task_node;
     struct task *task;
     void *stack;
     char name[THREAD_NAME_SIZE];
-    thread_run_fn_t run_fn;
+    void (*fn)(void *);
     void *arg;
 };
 
@@ -58,19 +59,33 @@ void thread_setup(void);
  * If the given name is null, the task name is used instead.
  */
 int thread_create(struct thread **threadp, const char *name, struct task *task,
-                  thread_run_fn_t run_fn, void *arg);
+                  void (*fn)(void *), void *arg);
 
 /*
- * Transform into a thread.
+ * Start running threads on the local processor.
  *
- * This function is used during system initialization by code in "boot context"
- * when creating the first thread on their processor.
+ * Interrupts are implicitely enabled when the first thread is dispatched.
  */
-void __noreturn thread_load(struct thread *thread);
+void __noreturn thread_run(void);
 
 /*
- * Thread entry point.
+ * Invoke the scheduler.
  */
-void __noreturn thread_main(struct thread *thread);
+void thread_schedule(void);
+
+/*
+ * Invoke the scheduler if the current thread is marked for reschedule.
+ *
+ * Called from interrupt context.
+ */
+void thread_reschedule(void);
+
+/*
+ * Report a periodic timer interrupt on the thread currently running on
+ * the local processor.
+ *
+ * Called from interrupt context.
+ */
+void thread_tick(void);
 
 #endif /* _KERN_THREAD_H */

@@ -27,10 +27,6 @@ kernel_setup(void *arg)
 {
     (void)arg;
 
-    cpu_mp_setup();
-
-    cpu_intr_enable();
-
     for (;;)
         cpu_idle();
 }
@@ -43,13 +39,14 @@ kernel_main(void)
 
     task_setup();
     thread_setup();
+    cpu_mp_setup();
 
     error = thread_create(&thread, "core", kernel_task, kernel_setup, NULL);
 
     if (error)
         panic("kernel: unable to create kernel thread");
 
-    thread_load(thread);
+    thread_run();
 
     /* Never reached */
 }

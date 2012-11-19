@@ -28,20 +28,13 @@
 #include <machine/tcb.h>
 
 /*
- * Make sure thread stacks are properly aligned.
- */
-#define THREAD_STACK_ALIGN 8
-
-/*
  * Per processor run queue.
  */
 struct thread_runq {
+    struct thread *current;
     struct list threads;
 } __aligned(CPU_L1_SIZE);
 
-/*
- * Per-processor run queues.
- */
 static struct thread_runq thread_runqs[MAX_CPUS];
 
 /*
@@ -53,7 +46,35 @@ static struct kmem_cache thread_stack_cache;
 static void __init
 thread_runq_init(struct thread_runq *runq)
 {
+    runq->current = NULL;
     list_init(&runq->threads);
+}
+
+static void
+thread_runq_enqueue(struct thread_runq *runq, struct thread *thread)
+{
+    list_insert_tail(&runq->threads, &thread->runq_node);
+}
+
+static struct thread *
+thread_runq_dequeue(struct thread_runq *runq)
+{
+    struct thread *thread;
+
+    if (list_empty(&runq->threads))
+        thread = NULL;
+    else {
+        thread = list_first_entry(&runq->threads, struct thread, runq_node);
+        list_remove(&thread->runq_node);
+    }
+
+    return thread;
+}
+
+static inline struct thread_runq *
+thread_runq_local(void)
+{
+    return &thread_runqs[cpu_id()];
 }
 
 void __init
@@ -61,23 +82,38 @@ thread_setup(void)
 {
     size_t i;
 
-    tcb_setup();
-
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
-                    0, NULL, NULL, NULL, 0);
+                    CPU_L1_SIZE, NULL, NULL, NULL, 0);
     kmem_cache_init(&thread_stack_cache, "thread_stack", STACK_SIZE,
-                    THREAD_STACK_ALIGN, NULL, NULL, NULL, 0);
+                    CPU_L1_SIZE, NULL, NULL, NULL, 0);
 
     for (i = 0; i < ARRAY_SIZE(thread_runqs); i++)
         thread_runq_init(&thread_runqs[i]);
 }
 
+static void
+thread_main(void)
+{
+    struct thread_runq *runq;
+    struct thread *thread;
+
+    assert(!cpu_intr_enabled());
+
+    runq = thread_runq_local();
+    thread = runq->current;
+    cpu_intr_enable();
+
+    thread->fn(thread->arg);
+
+    for (;;)
+        cpu_idle();
+}
+
 int
 thread_create(struct thread **threadp, const char *name, struct task *task,
-              thread_run_fn_t run_fn, void *arg)
+              void (*fn)(void *), void *arg)
 {
     struct thread *thread;
-    struct tcb *tcb;
     void *stack;
     int error;
 
@@ -95,28 +131,25 @@ thread_create(struct thread **threadp, const char *name, struct task *task,
         goto error_stack;
     }
 
-    error = tcb_create(&tcb, stack, thread);
-
-    if (error)
-        goto error_tcb;
+    tcb_init(&thread->tcb, stack, thread_main);
 
     if (name == NULL)
         name = task->name;
 
-    /* XXX Assign all threads to the main processor for now */
-    thread->tcb = tcb;
-    list_insert_tail(&thread_runqs[0].threads, &thread->runq_node);
-    task_add_thread(task, thread);
+    thread->flags = 0;
     thread->task = task;
     thread->stack = stack;
     strlcpy(thread->name, name, sizeof(thread->name));
-    thread->run_fn = run_fn;
+    thread->fn = fn;
     thread->arg = arg;
+
+    /* XXX Assign all threads to the main processor for now */
+    thread_runq_enqueue(&thread_runqs[0], thread);
+    task_add_thread(task, thread);
+
     *threadp = thread;
     return 0;
 
-error_tcb:
-    kmem_cache_free(&thread_stack_cache, stack);
 error_stack:
     kmem_cache_free(&thread_cache, thread);
 error_thread:
@@ -124,16 +157,78 @@ error_thread:
 }
 
 void __init
-thread_load(struct thread *thread)
+thread_run(void)
 {
-    tcb_load(thread->tcb);
+    struct thread_runq *runq;
+    struct thread *thread;
+
+    runq = thread_runq_local();
+
+    thread = thread_runq_dequeue(runq);
+
+    /* TODO Idle thread */
+    assert(thread != NULL);
+
+    runq->current = thread;
+    tcb_load(&thread->tcb);
 }
 
 void
-thread_main(struct thread *thread)
+thread_schedule(void)
 {
-    thread->run_fn(thread->arg);
+    struct thread_runq *runq;
+    struct thread *prev, *next;
+    unsigned long flags;
 
-    for (;;)
-        cpu_idle();
+    flags = cpu_intr_save();
+
+    runq = thread_runq_local();
+    prev = runq->current;
+    thread_runq_enqueue(runq, prev);
+    next = thread_runq_dequeue(runq);
+
+    /* TODO Idle thread */
+    assert(next != NULL);
+
+    if (prev != next) {
+        runq->current = next;
+        tcb_switch(&prev->tcb, &next->tcb);
+    }
+
+    cpu_intr_restore(flags);
+}
+
+void
+thread_reschedule(void)
+{
+    struct thread_runq *runq;
+    struct thread *thread;
+
+    assert(!cpu_intr_enabled());
+
+    runq = thread_runq_local();
+    thread = runq->current;
+
+    /* TODO Idle thread */
+    assert(thread != NULL);
+
+    if (thread->flags & THREAD_RESCHEDULE)
+        thread_schedule();
+}
+
+void
+thread_tick(void)
+{
+    struct thread_runq *runq;
+    struct thread *thread;
+
+    assert(!cpu_intr_enabled());
+
+    runq = thread_runq_local();
+    thread = runq->current;
+
+    /* TODO Idle thread */
+    assert(thread != NULL);
+
+    thread->flags |= THREAD_RESCHEDULE;
 }

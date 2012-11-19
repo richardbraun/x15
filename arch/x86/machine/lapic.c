@@ -22,6 +22,7 @@
 #include <kern/printk.h>
 #include <kern/stddef.h>
 #include <kern/stdint.h>
+#include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>
 #include <machine/pmap.h>
@@ -320,6 +321,8 @@ void
 lapic_intr_timer(struct trap_frame *frame)
 {
     (void)frame;
+
+    thread_tick();
     lapic_eoi();
 }
 

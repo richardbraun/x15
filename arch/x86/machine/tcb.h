@@ -25,28 +25,20 @@
 #include <machine/trap.h>
 
 /*
- * Forward declaration.
- */
-struct thread;
-
-/*
  * Architecture specific thread data.
  */
 struct tcb {
-    struct trap_frame *frame;
+    unsigned long sp;
+    unsigned long ip;
 };
 
 /*
- * Set up the tcb module.
- */
-void tcb_setup(void);
-
-/*
- * Create a TCB.
+ * Initialize a TCB.
  *
- * Prepare the given stack for execution.
+ * Prepare the given stack for execution. The context is defined so that it
+ * will call fn() with interrupts disabled when loaded.
  */
-int tcb_create(struct tcb **tcbp, void *stack, const struct thread *thread);
+void tcb_init(struct tcb *tcb, void *stack, void (*fn)(void));
 
 /*
  * Load a TCB.
@@ -54,5 +46,12 @@ int tcb_create(struct tcb **tcbp, void *stack, const struct thread *thread);
  * The caller context is lost.
  */
 void __noreturn tcb_load(struct tcb *tcb);
+
+/*
+ * Context switch.
+ *
+ * Called with interrupts disabled.
+ */
+void tcb_switch(struct tcb *prev, struct tcb *next);
 
 #endif /* _X86_TCB_H */

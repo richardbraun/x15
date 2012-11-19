@@ -20,6 +20,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/printk.h>
+#include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>
 #include <machine/pic.h>
@@ -146,6 +147,7 @@ trap_main(struct trap_frame *frame)
 {
     assert(frame->vector < ARRAY_SIZE(trap_handlers));
     trap_handlers[frame->vector].fn(frame);
+    thread_reschedule();
 }
 
 #ifdef __LP64__
