@@ -75,8 +75,6 @@ struct pmap_pt_level {
 static struct pmap kernel_pmap_store;
 struct pmap *kernel_pmap = &kernel_pmap_store;
 
-unsigned long pmap_klimit;
-
 #ifdef X86_PAE
 /*
  * "Hidden" root page table for PAE mode.
@@ -89,6 +87,11 @@ static pmap_pte_t pmap_pdpt[PMAP_NR_RPTPS] __aligned(32);
  * Physical address of the page table root, used during bootstrap.
  */
 static pmap_pte_t *pmap_boot_root_pt __initdata;
+
+/*
+ * Maximum mappable kernel address.
+ */
+static unsigned long pmap_kernel_limit;
 
 /*
  * Table of page translation properties.
@@ -339,7 +342,7 @@ pmap_bootstrap(void)
 
     cpu_tlb_flush();
 
-    pmap_klimit = VM_MIN_KERNEL_ADDRESS;
+    pmap_kernel_limit = VM_MIN_KERNEL_ADDRESS;
 }
 
 void __init
@@ -367,6 +370,12 @@ pmap_bootalloc(unsigned int nr_pages)
     return page;
 }
 
+unsigned long
+pmap_klimit(void)
+{
+    return pmap_kernel_limit;
+}
+
 void
 pmap_growkernel(unsigned long va)
 {
@@ -377,7 +386,7 @@ pmap_growkernel(unsigned long va)
     pmap_pte_t *pte;
     phys_addr_t pa;
 
-    start = pmap_klimit;
+    start = pmap_kernel_limit;
     va = P2END(va, 1 << PMAP_L2_SHIFT) - 1;
     assert(start < va);
 
@@ -408,7 +417,7 @@ pmap_growkernel(unsigned long va)
         }
     }
 
-    pmap_klimit = va + 1;
+    pmap_kernel_limit = va + 1;
 }
 
 void

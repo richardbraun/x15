@@ -435,7 +435,7 @@ vm_map_insert(struct vm_map *map, struct vm_map_entry *entry,
     vm_map_link(map, entry, NULL, request->next);
     map->size += request->size;
 
-    if ((map == kernel_map) && (pmap_klimit < entry->end))
+    if ((map == kernel_map) && (pmap_klimit() < entry->end))
         pmap_growkernel(entry->end);
 
     return 0;

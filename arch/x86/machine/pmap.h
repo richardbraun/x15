@@ -122,12 +122,6 @@ struct pmap {
 extern struct pmap *kernel_pmap;
 
 /*
- * Address below which using the low level kernel pmap functions is safe.
- * Its value is adjusted by calling pmap_growkernel().
- */
-extern unsigned long pmap_klimit;
-
-/*
  * Early initialization of the MMU.
  *
  * This function is called before paging is enabled by the boot module. It
@@ -159,6 +153,13 @@ void pmap_ap_bootstrap(void);
  * be created before the VM system is available.
  */
 unsigned long pmap_bootalloc(unsigned int nr_pages);
+
+/*
+ * Return the address below which using the kernel pmap functions is safe.
+ *
+ * Its value is adjusted by calling pmap_growkernel().
+ */
+unsigned long pmap_klimit(void);
 
 /*
  * Preallocate resources so that addresses up to va can be mapped safely in
