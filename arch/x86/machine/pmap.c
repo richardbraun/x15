@@ -136,11 +136,6 @@ static pmap_pte_t pmap_prot_table[8];
  */
 static unsigned long pmap_zero_va;
 
-/*
- * This variable is set to PMAP_PTE_G if global pages are available.
- */
-static pmap_pte_t pmap_pte_global;
-
 static void __init
 pmap_boot_enter(pmap_pte_t *root_pt, unsigned long va, phys_addr_t pa)
 {
@@ -304,7 +299,6 @@ pmap_setup_global_pages(void)
     }
 
     pmap_pt_levels[0].mask |= PMAP_PTE_G;
-    pmap_pte_global = PMAP_PTE_G;
     cpu_enable_global_pages();
 }
 
@@ -413,7 +407,7 @@ pmap_growkernel(unsigned long va)
                 }
 
                 pmap_zero_page(pa);
-                *pte = (pa | pmap_pte_global | PMAP_PTE_RW | PMAP_PTE_P)
+                *pte = (pa | PMAP_PTE_G | PMAP_PTE_RW | PMAP_PTE_P)
                        & pt_level->mask;
             }
         }
@@ -428,7 +422,7 @@ pmap_kenter(unsigned long va, phys_addr_t pa)
     pmap_pte_t *pte;
 
     pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L1_SHIFT);
-    *pte = ((pa & PMAP_PA_MASK) | pmap_pte_global | PMAP_PTE_RW | PMAP_PTE_P)
+    *pte = ((pa & PMAP_PA_MASK) | PMAP_PTE_G | PMAP_PTE_RW | PMAP_PTE_P)
            & pmap_pt_levels[0].mask;
     cpu_tlb_flush_va(va);
 }
