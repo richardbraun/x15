@@ -72,9 +72,6 @@ struct pmap_pt_level {
     pmap_pte_t mask;
 };
 
-static struct pmap kernel_pmap_store;
-struct pmap *kernel_pmap = &kernel_pmap_store;
-
 #ifdef X86_PAE
 /*
  * "Hidden" root page table for PAE mode.
@@ -87,6 +84,11 @@ static pmap_pte_t pmap_pdpt[PMAP_NR_RPTPS] __aligned(32);
  * Physical address of the page table root, used during bootstrap.
  */
 static pmap_pte_t *pmap_boot_root_pt __initdata;
+
+/*
+ * Physical address of the kernel page table root.
+ */
+static phys_addr_t pmap_kroot_pt;
 
 /*
  * Maximum mappable kernel address.
@@ -314,10 +316,10 @@ pmap_bootstrap(void)
 #ifdef X86_PAE
     memcpy(pmap_pdpt, pmap_boot_pdpt, sizeof(pmap_pdpt));
     pmap_boot_root_pt = (void *)BOOT_VTOP((unsigned long)pmap_pdpt);
-    kernel_pmap->root_pt = (unsigned long)pmap_boot_root_pt;
-    cpu_set_cr3(kernel_pmap->root_pt);
+    pmap_kroot_pt = (unsigned long)pmap_boot_root_pt;
+    cpu_set_cr3(pmap_kroot_pt);
 #else /* X86_PAE */
-    kernel_pmap->root_pt = (unsigned long)pmap_boot_root_pt;
+    pmap_kroot_pt = (unsigned long)pmap_boot_root_pt;
 #endif /* X86_PAE */
 
     pmap_prot_table[VM_PROT_NONE] = 0;

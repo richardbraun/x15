@@ -113,13 +113,8 @@ typedef unsigned long pmap_pte_t;
  * Physical address map.
  */
 struct pmap {
-    phys_addr_t root_pt;    /* Root page table physical address */
+    int __dummy;
 };
-
-/*
- * The kernel pmap.
- */
-extern struct pmap *kernel_pmap;
 
 /*
  * Early initialization of the MMU.
