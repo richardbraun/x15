@@ -544,7 +544,7 @@ vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end)
     vm_map_reset_find_cache(map);
 }
 
-void
+static void
 vm_map_init(struct vm_map *map, struct pmap *pmap, unsigned long start,
             unsigned long end)
 {

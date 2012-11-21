@@ -115,12 +115,6 @@ int vm_map_enter(struct vm_map *map, struct vm_object *object, uint64_t offset,
 void vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end);
 
 /*
- * Initialize a VM map.
- */
-void vm_map_init(struct vm_map *map, struct pmap *pmap, unsigned long start,
-                 unsigned long end);
-
-/*
  * Early initialization of the vm_map module.
  *
  * This function creates the kernel map and the kentry cache, making it
