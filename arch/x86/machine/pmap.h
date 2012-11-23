@@ -172,11 +172,6 @@ void pmap_kremove(unsigned long start, unsigned long end);
 void pmap_kprotect(unsigned long start, unsigned long end, int prot);
 phys_addr_t pmap_kextract(unsigned long va);
 
-/*
- * Zero a page at the given physical address.
- */
-void pmap_zero_page(phys_addr_t pa);
-
 #endif /* __ASSEMBLER__ */
 
 #endif /* _X86_PMAP_H */

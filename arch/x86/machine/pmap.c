@@ -372,6 +372,14 @@ pmap_klimit(void)
     return pmap_kernel_limit;
 }
 
+static void
+pmap_zero_page(phys_addr_t pa)
+{
+    pmap_kenter(pmap_zero_va, pa);
+    memset((void *)pmap_zero_va, 0, PAGE_SIZE);
+    pmap_kremove(pmap_zero_va, pmap_zero_va + PAGE_SIZE);
+}
+
 void
 pmap_growkernel(unsigned long va)
 {
@@ -471,12 +479,4 @@ pmap_kextract(unsigned long va)
     }
 
     return *pte & PMAP_PA_MASK;
-}
-
-void
-pmap_zero_page(phys_addr_t pa)
-{
-    pmap_kenter(pmap_zero_va, pa);
-    memset((void *)pmap_zero_va, 0, PAGE_SIZE);
-    pmap_kremove(pmap_zero_va, pmap_zero_va + PAGE_SIZE);
 }
