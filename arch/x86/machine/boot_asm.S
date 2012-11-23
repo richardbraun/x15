@@ -223,7 +223,7 @@ ASM_ENTRY(boot_ap_start32)
  ljmp $8, $1f
 
 1:
-#endif /* __LP64__
+#endif /* __LP64__ */
 
  /* Switch to the boot stack preallocated for this AP by the BSP */
 #ifdef __LP64__
