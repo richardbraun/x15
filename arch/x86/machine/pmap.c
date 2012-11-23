@@ -263,39 +263,33 @@ pmap_ap_setup_paging(void)
     return pmap_boot_root_pt;
 }
 
-static pmap_pte_t * __init
-pmap_kpte(unsigned long va)
-{
-    const struct pmap_pt_level *pt_level;
-    unsigned int level;
-    pmap_pte_t *pte;
-
-    for (level = PMAP_NR_LEVELS; level > 0; level--) {
-        pt_level = &pmap_pt_levels[level - 1];
-        pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(va, pt_level->shift)];
-
-        if (!(*pte & PMAP_PTE_P))
-            return NULL;
-    }
-
-    return pte;
-}
-
 static void __init
 pmap_setup_global_pages(void)
 {
+    const struct pmap_pt_level *pt_level;
     unsigned long va;
+    unsigned int level;
     pmap_pte_t *pte;
 
-    for (va = VM_MAX_KERNEL_ADDRESS;
-         va >= VM_MAX_KERNEL_ADDRESS;
-         va += PAGE_SIZE) {
-        pte = pmap_kpte(va);
+    va = VM_MAX_KERNEL_ADDRESS;
+
+    while (va >= VM_MAX_KERNEL_ADDRESS) {
+        for (level = PMAP_NR_LEVELS; level > 0; level--) {
+            pt_level = &pmap_pt_levels[level - 1];
+            pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(va, pt_level->shift)];
+
+            if (!(*pte & PMAP_PTE_P)) {
+                pte = NULL;
+                va = P2END(va, 1UL << pt_level->shift);
+                break;
+            }
+        }
 
         if (pte == NULL)
             continue;
 
         *pte |= PMAP_PTE_G;
+        va += PAGE_SIZE;
     }
 
     pmap_pt_levels[0].mask |= PMAP_PTE_G;
