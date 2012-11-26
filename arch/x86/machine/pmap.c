@@ -176,19 +176,20 @@ pmap_boot_enter(pmap_pte_t *root_pt, unsigned long va, phys_addr_t pa)
 }
 
 static void __init
-pmap_setup_recursive_mapping(pmap_pte_t *root_pt)
+pmap_setup_ptemap(pmap_pte_t *root_pt)
 {
     const struct pmap_pt_level *pt_level;
-    unsigned long addr;
+    phys_addr_t pa;
+    unsigned long va;
     unsigned int i, index;
 
     pt_level = &pmap_boot_pt_levels[PMAP_NR_LEVELS - 1];
 
     for (i = 0; i < PMAP_NR_RPTPS; i++) {
-        addr = VM_PMAP_PTEMAP_ADDRESS + (i * (1 << pt_level->shift));
-        index = (addr >> pt_level->shift) & ((1 << pt_level->bits) - 1);
-        addr = (unsigned long)root_pt + (i * PAGE_SIZE);
-        root_pt[index] = (addr | PMAP_PTE_RW | PMAP_PTE_P) & pt_level->mask;
+        va = VM_PMAP_PTEMAP_ADDRESS + (i * (1 << pt_level->shift));
+        index = (va >> pt_level->shift) & ((1 << pt_level->bits) - 1);
+        pa = (unsigned long)root_pt + (i * PAGE_SIZE);
+        root_pt[index] = (pa | PMAP_PTE_RW | PMAP_PTE_P) & pt_level->mask;
     }
 }
 
@@ -237,7 +238,7 @@ pmap_setup_paging(void)
         va += PAGE_SIZE;
     }
 
-    pmap_setup_recursive_mapping(root_pt);
+    pmap_setup_ptemap(root_pt);
 
 #ifdef X86_PAE
     for (i = 0; i < PMAP_NR_RPTPS; i++)
