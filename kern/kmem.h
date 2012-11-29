@@ -252,6 +252,12 @@ void kmem_cache_init(struct kmem_cache *cache, const char *name,
                      kmem_slab_alloc_fn_t slab_alloc_fn,
                      kmem_slab_free_fn_t slab_free_fn, int flags);
 
+static inline size_t
+kmem_cache_slab_size(struct kmem_cache *cache)
+{
+    return cache->slab_size;
+}
+
 /*
  * Allocate an object from a cache.
  */
