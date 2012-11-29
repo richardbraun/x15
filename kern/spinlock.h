@@ -46,7 +46,7 @@ spinlock_init(struct spinlock *lock)
     lock->locked = 0;
 }
 
-static inline int
+static inline void
 spinlock_assert_locked(struct spinlock *lock)
 {
     assert(lock->locked);
