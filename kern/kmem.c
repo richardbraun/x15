@@ -40,7 +40,7 @@
  * requests, avoiding many accesses to the slab layer, it is considered an
  * acceptable tradeoff.
  *
- * This implementation uses per-cpu pools of objects, which service most
+ * This implementation uses per-CPU pools of objects, which service most
  * allocation requests. These pools act as caches (but are named differently
  * to avoid confusion with CPU caches) that reduce contention on multiprocessor
  * systems. When a pool is empty and cannot provide an object, it is filled by

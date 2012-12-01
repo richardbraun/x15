@@ -234,7 +234,7 @@ struct kmem_cache {
 /*
  * Cache creation flags.
  */
-#define KMEM_CACHE_NOCPUPOOL    0x1 /* Don't use the per-cpu pools */
+#define KMEM_CACHE_NOCPUPOOL    0x1 /* Don't use the per-CPU pools */
 #define KMEM_CACHE_NOOFFSLAB    0x2 /* Don't allocate external slab data */
 #define KMEM_CACHE_VERIFY       0x4 /* Use debugging facilities */
 

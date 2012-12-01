@@ -21,7 +21,7 @@
  * - "Dynamic Storage Allocation: A Survey and Critical Review",
  *    by Paul R. Wilson, Mark S. Johnstone, Michael Neely, and David Boles.
  *
- * In addition, this allocator uses per-cpu pools of pages for order 0
+ * In addition, this allocator uses per-CPU pools of pages for order 0
  * (i.e. single page) allocations. These pools act as caches (but are named
  * differently to avoid confusion with CPU caches) that reduce contention on
  * multiprocessor systems. When a pool is empty and cannot provide a page,

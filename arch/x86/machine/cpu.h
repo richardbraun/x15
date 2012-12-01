@@ -148,7 +148,7 @@ struct cpu_seg_desc {
 #define CPU_STATE_ON    1
 
 /*
- * The fs segment register is used to store the address of the per-cpu data.
+ * The fs segment register is used to store the address of the per-CPU data.
  * As a result, they must be at least 16-bytes aligned.
  */
 #define CPU_ALIGN (MAX(16, CPU_L1_SIZE))
