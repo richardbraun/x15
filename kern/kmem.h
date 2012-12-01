@@ -182,11 +182,10 @@ typedef void (*kmem_slab_free_fn_t)(unsigned long, size_t);
  *
  * The flags don't change once set and can be tested without locking.
  */
-#define KMEM_CF_NO_CPU_POOL     0x01    /* CPU pool layer disabled */
-#define KMEM_CF_SLAB_EXTERNAL   0x02    /* Slab data is off slab */
-#define KMEM_CF_NO_RECLAIM      0x04    /* Slabs are not reclaimable */
-#define KMEM_CF_VERIFY          0x08    /* Debugging facilities enabled */
-#define KMEM_CF_DIRECT          0x10    /* No buf-to-slab tree lookup */
+#define KMEM_CF_NO_CPU_POOL     0x1 /* CPU pool layer disabled */
+#define KMEM_CF_SLAB_EXTERNAL   0x2 /* Slab data is off slab */
+#define KMEM_CF_VERIFY          0x4 /* Debugging facilities enabled */
+#define KMEM_CF_DIRECT          0x8 /* No buf-to-slab tree lookup */
 
 /*
  * Cache of objects.
@@ -237,15 +236,13 @@ struct kmem_cache {
  */
 #define KMEM_CACHE_NOCPUPOOL    0x1 /* Don't use the per-cpu pools */
 #define KMEM_CACHE_NOOFFSLAB    0x2 /* Don't allocate external slab data */
-#define KMEM_CACHE_NORECLAIM    0x4 /* Never give slabs back to their source,
-                                       implies KMEM_CACHE_NOOFFSLAB */
-#define KMEM_CACHE_VERIFY       0x8 /* Use debugging facilities */
+#define KMEM_CACHE_VERIFY       0x4 /* Use debugging facilities */
 
 /*
  * Initialize a cache.
  *
  * If a slab allocation/free function pointer is NULL, the default backend
- * (vm_kmem on the kmem map) is used for the allocation/free action.
+ * (vm_kmem on the kernel map) is used for the allocation/free action.
  */
 void kmem_cache_init(struct kmem_cache *cache, const char *name,
                      size_t obj_size, size_t align, kmem_cache_ctor_t ctor,

@@ -270,7 +270,6 @@ kmem_slab_create(struct kmem_cache *cache, size_t color)
         return NULL;
 
     if (cache->flags & KMEM_CF_SLAB_EXTERNAL) {
-        assert(!(cache->flags & KMEM_CF_NO_RECLAIM));
         slab = kmem_cache_alloc(&kmem_slab_cache);
 
         if (slab == NULL) {
@@ -542,12 +541,6 @@ kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
 
     if (flags & KMEM_CACHE_NOCPUPOOL)
         cache->flags |= KMEM_CF_NO_CPU_POOL;
-
-    if (flags & KMEM_CACHE_NORECLAIM) {
-        assert(slab_free_fn == NULL);
-        flags |= KMEM_CACHE_NOOFFSLAB;
-        cache->flags |= KMEM_CF_NO_RECLAIM;
-    }
 
     if (flags & KMEM_CACHE_VERIFY)
         cache->flags |= KMEM_CF_VERIFY;
@@ -1257,7 +1250,6 @@ kmem_info(void)
 {
     struct kmem_cache *cache, *cache_stats;
     size_t mem_usage, mem_reclaimable;
-    int not_reclaimable;
 
     cache_stats = kmem_alloc(sizeof(*cache_stats));
 
@@ -1275,7 +1267,6 @@ kmem_info(void)
 
     list_for_each_entry(&kmem_cache_list, cache, node) {
         /* mutex_lock(&cache->mutex); */
-        not_reclaimable = cache->flags & KMEM_CF_NO_RECLAIM;
         cache_stats->obj_size = cache->obj_size;
         cache_stats->slab_size = cache->slab_size;
         cache_stats->bufs_per_slab = cache->bufs_per_slab;
@@ -1287,12 +1278,8 @@ kmem_info(void)
         /* mutex_unlock(&cache->mutex); */
 
         mem_usage = (cache_stats->nr_slabs * cache_stats->slab_size) >> 10;
-
-        if (not_reclaimable)
-            mem_reclaimable = 0;
-        else
-            mem_reclaimable =
-                (cache_stats->nr_free_slabs * cache_stats->slab_size) >> 10;
+        mem_reclaimable =
+            (cache_stats->nr_free_slabs * cache_stats->slab_size) >> 10;
 
         printk("kmem: %-19s %6zu %3zuk  %4lu %6lu %6lu %7zuk %10zuk\n",
                cache_stats->name, cache_stats->obj_size,
