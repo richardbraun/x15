@@ -727,7 +727,7 @@ vm_map_init(struct vm_map *map, struct pmap *pmap, unsigned long start,
 }
 
 void __init
-vm_map_bootstrap(void)
+vm_map_setup(void)
 {
     struct vm_map_request request;
     unsigned long start, end;
@@ -753,11 +753,7 @@ vm_map_bootstrap(void)
     assert(!error);
 
     vm_map_kentry_setup();
-}
 
-void __init
-vm_map_setup(void)
-{
     kmem_cache_init(&vm_map_entry_cache, "vm_map_entry",
                     sizeof(struct vm_map_entry), 0, NULL, NULL, NULL, 0);
 }

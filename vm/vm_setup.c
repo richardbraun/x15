@@ -27,6 +27,5 @@ vm_setup(void)
     vm_kmem_setup();
     vm_phys_setup();
     kmem_setup();
-    vm_map_bootstrap();
     vm_map_setup();
 }
