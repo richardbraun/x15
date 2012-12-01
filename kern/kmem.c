@@ -1027,7 +1027,6 @@ slab_free:
 void
 kmem_cache_info(struct kmem_cache *cache)
 {
-    struct kmem_cache *cache_stats;
     char flags_str[64];
 
     if (cache == NULL) {
@@ -1041,55 +1040,36 @@ kmem_cache_info(struct kmem_cache *cache)
         return;
     }
 
-    cache_stats = kmem_alloc(sizeof(*cache_stats));
-
-    if (cache_stats == NULL) {
-        printk("kmem: unable to allocate memory for cache stats\n");
-        return;
-    }
+    snprintf(flags_str, sizeof(flags_str), "%s%s%s",
+        (cache->flags & KMEM_CF_DIRECT) ? " DIRECT" : "",
+        (cache->flags & KMEM_CF_SLAB_EXTERNAL) ? " SLAB_EXTERNAL" : "",
+        (cache->flags & KMEM_CF_VERIFY) ? " VERIFY" : "");
 
     /* mutex_lock(&cache->mutex); */
-    cache_stats->flags = cache->flags;
-    cache_stats->obj_size = cache->obj_size;
-    cache_stats->align = cache->align;
-    cache_stats->buf_size = cache->buf_size;
-    cache_stats->bufctl_dist = cache->bufctl_dist;
-    cache_stats->slab_size = cache->slab_size;
-    cache_stats->color_max = cache->color_max;
-    cache_stats->bufs_per_slab = cache->bufs_per_slab;
-    cache_stats->nr_objs = cache->nr_objs;
-    cache_stats->nr_bufs = cache->nr_bufs;
-    cache_stats->nr_slabs = cache->nr_slabs;
-    cache_stats->nr_free_slabs = cache->nr_free_slabs;
-    strcpy(cache_stats->name, cache->name);
-    cache_stats->buftag_dist = cache->buftag_dist;
-    cache_stats->redzone_pad = cache->redzone_pad;
-    cache_stats->cpu_pool_type = cache->cpu_pool_type;
+
+    printk("kmem: name: %s\n"
+           "kmem: flags: 0x%x%s\n"
+           "kmem: obj_size: %zu\n"
+           "kmem: align: %zu\n"
+           "kmem: buf_size: %zu\n"
+           "kmem: bufctl_dist: %zu\n"
+           "kmem: slab_size: %zu\n"
+           "kmem: color_max: %zu\n"
+           "kmem: bufs_per_slab: %lu\n"
+           "kmem: nr_objs: %lu\n"
+           "kmem: nr_bufs: %lu\n"
+           "kmem: nr_slabs: %lu\n"
+           "kmem: nr_free_slabs: %lu\n"
+           "kmem: buftag_dist: %zu\n"
+           "kmem: redzone_pad: %zu\n"
+           "kmem: cpu_pool_size: %d\n", cache->name, cache->flags, flags_str,
+           cache->obj_size, cache->align, cache->buf_size, cache->bufctl_dist,
+           cache->slab_size, cache->color_max, cache->bufs_per_slab,
+           cache->nr_objs, cache->nr_bufs, cache->nr_slabs,
+           cache->nr_free_slabs, cache->buftag_dist, cache->redzone_pad,
+           cache->cpu_pool_type->array_size);
+
     /* mutex_unlock(&cache->mutex); */
-
-    snprintf(flags_str, sizeof(flags_str), "%s%s%s",
-        (cache_stats->flags & KMEM_CF_DIRECT) ? " DIRECT" : "",
-        (cache_stats->flags & KMEM_CF_SLAB_EXTERNAL) ? " SLAB_EXTERNAL" : "",
-        (cache_stats->flags & KMEM_CF_VERIFY) ? " VERIFY" : "");
-
-    printk("kmem: name: %s\n", cache_stats->name);
-    printk("kmem: flags: 0x%x%s\n", cache_stats->flags, flags_str);
-    printk("kmem: obj_size: %zu\n", cache_stats->obj_size);
-    printk("kmem: align: %zu\n", cache_stats->align);
-    printk("kmem: buf_size: %zu\n", cache_stats->buf_size);
-    printk("kmem: bufctl_dist: %zu\n", cache_stats->bufctl_dist);
-    printk("kmem: slab_size: %zu\n", cache_stats->slab_size);
-    printk("kmem: color_max: %zu\n", cache_stats->color_max);
-    printk("kmem: bufs_per_slab: %lu\n", cache_stats->bufs_per_slab);
-    printk("kmem: nr_objs: %lu\n", cache_stats->nr_objs);
-    printk("kmem: nr_bufs: %lu\n", cache_stats->nr_bufs);
-    printk("kmem: nr_slabs: %lu\n", cache_stats->nr_slabs);
-    printk("kmem: nr_free_slabs: %lu\n", cache_stats->nr_free_slabs);
-    printk("kmem: buftag_dist: %zu\n", cache_stats->buftag_dist);
-    printk("kmem: redzone_pad: %zu\n", cache_stats->redzone_pad);
-    printk("kmem: cpu_pool_size: %d\n", cache_stats->cpu_pool_type->array_size);
-
-    kmem_free(cache_stats, sizeof(*cache_stats));
 }
 
 void __init
@@ -1248,47 +1228,29 @@ kmem_free(void *ptr, size_t size)
 void
 kmem_info(void)
 {
-    struct kmem_cache *cache, *cache_stats;
+    struct kmem_cache *cache;
     size_t mem_usage, mem_reclaimable;
 
-    cache_stats = kmem_alloc(sizeof(*cache_stats));
-
-    if (cache_stats == NULL) {
-        printk("kmem: unable to allocate memory for cache stats\n");
-        return;
-    }
-
     printk("kmem: cache                  obj slab  bufs   objs   bufs "
-           "   total reclaimable\n");
-    printk("kmem: name                  size size /slab  usage  count "
+           "   total reclaimable\n"
+           "kmem: name                  size size /slab  usage  count "
            "  memory      memory\n");
 
     /* mutex_lock(&kmem_cache_list_mutex); */
 
     list_for_each_entry(&kmem_cache_list, cache, node) {
         /* mutex_lock(&cache->mutex); */
-        cache_stats->obj_size = cache->obj_size;
-        cache_stats->slab_size = cache->slab_size;
-        cache_stats->bufs_per_slab = cache->bufs_per_slab;
-        cache_stats->nr_objs = cache->nr_objs;
-        cache_stats->nr_bufs = cache->nr_bufs;
-        cache_stats->nr_slabs = cache->nr_slabs;
-        cache_stats->nr_free_slabs = cache->nr_free_slabs;
-        strcpy(cache_stats->name, cache->name);
-        /* mutex_unlock(&cache->mutex); */
 
-        mem_usage = (cache_stats->nr_slabs * cache_stats->slab_size) >> 10;
-        mem_reclaimable =
-            (cache_stats->nr_free_slabs * cache_stats->slab_size) >> 10;
+        mem_usage = (cache->nr_slabs * cache->slab_size) >> 10;
+        mem_reclaimable = (cache->nr_free_slabs * cache->slab_size) >> 10;
 
         printk("kmem: %-19s %6zu %3zuk  %4lu %6lu %6lu %7zuk %10zuk\n",
-               cache_stats->name, cache_stats->obj_size,
-               cache_stats->slab_size >> 10, cache_stats->bufs_per_slab,
-               cache_stats->nr_objs, cache_stats->nr_bufs, mem_usage,
-               mem_reclaimable);
+               cache->name, cache->obj_size, cache->slab_size >> 10,
+               cache->bufs_per_slab, cache->nr_objs, cache->nr_bufs,
+               mem_usage, mem_reclaimable);
+
+        /* mutex_unlock(&cache->mutex); */
     }
 
     /* mutex_unlock(&kmem_cache_list_mutex); */
-
-    kmem_free(cache_stats, sizeof(*cache_stats));
 }
