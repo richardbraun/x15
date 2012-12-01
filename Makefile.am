@@ -11,6 +11,7 @@ AM_CPPFLAGS = \
 AM_CFLAGS = \
 	-Wall \
 	-Wextra \
+	-Wshadow \
 	-Wmissing-prototypes \
 	-Wstrict-prototypes \
 	-fsigned-char \
