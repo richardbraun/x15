@@ -273,14 +273,11 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj);
 void kmem_cache_info(struct kmem_cache *cache);
 
 /*
- * Early initialization of the kernel memory allocator.
- *
- * Once this function returns, caches can be initialized.
- */
-void kmem_bootstrap(void);
-
-/*
  * Set up the kernel memory allocator module.
+ *
+ * This function should only be called by the VM system. Once it returns,
+ * caches can be initialized, but those using the default backend can only
+ * operate once the VM system is sufficiently ready.
  */
 void kmem_setup(void);
 

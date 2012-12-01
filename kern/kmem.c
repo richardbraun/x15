@@ -1073,21 +1073,17 @@ kmem_cache_info(struct kmem_cache *cache)
 }
 
 void __init
-kmem_bootstrap(void)
-{
-    /* Make sure a bufctl can always be stored in a buffer */
-    assert(sizeof(union kmem_bufctl) <= KMEM_ALIGN_MIN);
-
-    list_init(&kmem_cache_list);
-    /* mutex_init(&kmem_cache_list_mutex); */
-}
-
-void __init
 kmem_setup(void)
 {
     struct kmem_cpu_pool_type *cpu_pool_type;
     char name[KMEM_NAME_SIZE];
     size_t i, size;
+
+    /* Make sure a bufctl can always be stored in a buffer */
+    assert(sizeof(union kmem_bufctl) <= KMEM_ALIGN_MIN);
+
+    list_init(&kmem_cache_list);
+    /* mutex_init(&kmem_cache_list_mutex); */
 
     for (i = 0; i < ARRAY_SIZE(kmem_cpu_pool_types); i++) {
         cpu_pool_type = &kmem_cpu_pool_types[i];
