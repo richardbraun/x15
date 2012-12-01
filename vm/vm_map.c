@@ -769,8 +769,9 @@ vm_map_info(struct vm_map *map)
     else
         name = "map";
 
-    printk("vm_map: %s: %08lx-%08lx\n", name, map->start, map->end);
-    printk("vm_map:  start    end        size    offset   flags    type\n");
+    printk("vm_map: %s: %016lx-%016lx\n"
+           "vm_map:      start             end          "
+           "size     offset   flags    type\n", name, map->start, map->end);
 
     list_for_each_entry(&map->entry_list, entry, list_node) {
         if (entry->object == NULL)
@@ -778,7 +779,7 @@ vm_map_info(struct vm_map *map)
         else
             type = "object";
 
-        printk("vm_map: %08lx %08lx %8luk %08llx %08x %s\n", entry->start,
+        printk("vm_map: %016lx %016lx %8luk %08llx %08x %s\n", entry->start,
                entry->end, (entry->end - entry->start) >> 10, entry->offset,
                entry->flags, type);
     }
