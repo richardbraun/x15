@@ -160,12 +160,12 @@ boot_save_memory(uint32_t addr, size_t size)
     src = vm_kmem_map_pa(addr, size, &map_addr, &map_size);
 
     if (src == NULL)
-        panic("unable to map boot data in kernel map");
+        panic("boot: unable to map boot data in kernel map");
 
     copy = kmem_alloc(size);
 
     if (copy == NULL)
-        panic("unable to allocate memory for boot data copy");
+        panic("boot: unable to allocate memory for boot data copy");
 
     memcpy(copy, src, size);
     vm_kmem_unmap_pa(map_addr, map_size);
@@ -223,13 +223,13 @@ boot_save_mods(void)
     src = vm_kmem_map_pa(boot_raw_mbi.mods_addr, size, &map_addr, &map_size);
 
     if (src == NULL)
-        panic("unable to map module table in kernel map");
+        panic("boot: unable to map module table in kernel map");
 
     size = boot_raw_mbi.mods_count * sizeof(struct multiboot_module);
     dest = kmem_alloc(size);
 
     if (dest == NULL)
-        panic("unable to allocate memory for the module table");
+        panic("boot: unable to allocate memory for the module table");
 
     for (i = 0; i < boot_raw_mbi.mods_count; i++)
         boot_save_mod(&dest[i], &src[i]);

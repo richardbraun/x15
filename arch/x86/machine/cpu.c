@@ -397,7 +397,7 @@ cpu_mp_start_aps(void)
         cpu->boot_stack = vm_kmem_alloc(BOOT_STACK_SIZE);
 
         if (cpu->boot_stack == 0)
-            panic("unable to allocate boot stack for cpu%u", i);
+            panic("cpu: unable to allocate boot stack for cpu%u", i);
 
         boot_ap_id = i;
         boot_ap_stack_addr = cpu->boot_stack;

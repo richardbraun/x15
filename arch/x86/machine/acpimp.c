@@ -338,7 +338,7 @@ acpimp_copy_table(uint32_t addr)
     table = vm_kmem_map_pa(addr, sizeof(*table), &map_addr, &map_size);
 
     if (table == NULL)
-        panic("unable to map acpi data in kernel map");
+        panic("acpimp: unable to map acpi data in kernel map");
 
     if (!acpimp_table_required(table)) {
         copy = NULL;
@@ -351,7 +351,7 @@ acpimp_copy_table(uint32_t addr)
     table = vm_kmem_map_pa(addr, size, &map_addr, &map_size);
 
     if (table == NULL)
-        panic("unable to map acpi data in kernel map");
+        panic("acpimp: unable to map acpi data in kernel map");
 
     checksum = acpimp_checksum(table, size);
 
@@ -367,7 +367,7 @@ acpimp_copy_table(uint32_t addr)
     copy = kmem_alloc(size);
 
     if (copy == NULL)
-        panic("unable to allocate memory for acpi data copy");
+        panic("acpimp: unable to allocate memory for acpi data copy");
 
     memcpy(copy, table, size);
 
