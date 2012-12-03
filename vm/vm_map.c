@@ -525,6 +525,32 @@ retry:
     }
 }
 
+static inline struct vm_map_entry *
+vm_map_prev(struct vm_map *map, struct vm_map_entry *entry)
+{
+    struct list *node;
+
+    node = list_prev(&entry->list_node);
+
+    if (list_end(&map->entry_list, node))
+        return NULL;
+    else
+        return list_entry(node, struct vm_map_entry, list_node);
+}
+
+static inline struct vm_map_entry *
+vm_map_next(struct vm_map *map, struct vm_map_entry *entry)
+{
+    struct list *node;
+
+    node = list_next(&entry->list_node);
+
+    if (list_end(&map->entry_list, node))
+        return NULL;
+    else
+        return list_entry(node, struct vm_map_entry, list_node);
+}
+
 static void
 vm_map_link(struct vm_map *map, struct vm_map_entry *entry,
             struct vm_map_entry *prev, struct vm_map_entry *next)
@@ -578,6 +604,135 @@ vm_map_prepare(struct vm_map *map, struct vm_object *object, unsigned long offse
 }
 
 /*
+ * Merging functions.
+ *
+ * There is room for optimization (e.g. not reinserting entries when it is
+ * known the tree doesn't need to be adjusted), but focus on correctness for
+ * now.
+ */
+
+static inline int
+vm_map_try_merge_compatible(int flags1, int flags2)
+{
+    return (flags1 & VM_MAP_ENTRY_MASK) == (flags2 & VM_MAP_ENTRY_MASK);
+}
+
+static struct vm_map_entry *
+vm_map_try_merge_prev(struct vm_map *map, const struct vm_map_request *request,
+                      struct vm_map_entry *entry)
+{
+    struct vm_map_entry *prev, *next;
+
+    assert(entry != NULL);
+
+    if (!vm_map_try_merge_compatible(entry->flags, request->flags))
+        return NULL;
+
+    if (entry->end != request->start)
+        return NULL;
+
+    prev = vm_map_prev(map, entry);
+    next = vm_map_next(map, entry);
+    vm_map_unlink(map, entry);
+    entry->end += request->size;
+    vm_map_link(map, entry, prev, next);
+    return entry;
+}
+
+static struct vm_map_entry *
+vm_map_try_merge_next(struct vm_map *map, const struct vm_map_request *request,
+                      struct vm_map_entry *entry)
+{
+    struct vm_map_entry *prev, *next;
+    unsigned long end;
+
+    assert(entry != NULL);
+
+    if (!vm_map_try_merge_compatible(entry->flags, request->flags))
+        return NULL;
+
+    end = request->start + request->size;
+
+    if (end != entry->start)
+        return NULL;
+
+    prev = vm_map_prev(map, entry);
+    next = vm_map_next(map, entry);
+    vm_map_unlink(map, entry);
+    entry->start = request->start;
+    vm_map_link(map, entry, prev, next);
+    return entry;
+}
+
+static struct vm_map_entry *
+vm_map_try_merge_near(struct vm_map *map, const struct vm_map_request *request,
+                      struct vm_map_entry *first, struct vm_map_entry *second)
+{
+    struct vm_map_entry *entry;
+
+    assert(first != NULL);
+    assert(second != NULL);
+
+    if ((first->end == request->start)
+        && ((request->start + request->size) == second->start)
+        && vm_map_try_merge_compatible(first->flags, request->flags)
+        && vm_map_try_merge_compatible(request->flags, second->flags)) {
+        struct vm_map_entry *prev, *next;
+
+        prev = vm_map_prev(map, first);
+        next = vm_map_next(map, second);
+        vm_map_unlink(map, first);
+        vm_map_unlink(map, second);
+        first->end = second->end;
+        vm_map_entry_destroy(second, map);
+        vm_map_link(map, first, prev, next);
+        return first;
+    }
+
+    entry = vm_map_try_merge_prev(map, request, first);
+
+    if (entry != NULL)
+        return entry;
+
+    return vm_map_try_merge_next(map, request, second);
+}
+
+static struct vm_map_entry *
+vm_map_try_merge(struct vm_map *map, const struct vm_map_request *request)
+{
+    struct vm_map_entry *entry, *prev;
+    struct list *node;
+
+    assert(!(request->flags & VM_MAP_NOMERGE));
+
+    /* Only merge special kernel mappings for now */
+    if (request->object != NULL)
+        return NULL;
+
+    if (request->next == NULL) {
+        node = list_last(&map->entry_list);
+
+        if (list_end(&map->entry_list, node))
+            entry = NULL;
+        else {
+            prev = list_entry(node, struct vm_map_entry, list_node);
+            entry = vm_map_try_merge_prev(map, request, prev);
+        }
+    } else {
+        node = list_prev(&request->next->list_node);
+
+        if (list_end(&map->entry_list, node))
+            entry = vm_map_try_merge_next(map, request, request->next);
+        else {
+            prev = list_entry(node, struct vm_map_entry, list_node);
+            entry = vm_map_try_merge_near(map, request, prev, request->next);
+        }
+    }
+
+    return entry;
+}
+
+/*
  * Convert a prepared mapping request into an entry in the given map.
  *
  * if entry is NULL, a map entry is allocated for the mapping.
@@ -586,10 +741,14 @@ static int
 vm_map_insert(struct vm_map *map, struct vm_map_entry *entry,
               const struct vm_map_request *request)
 {
-    /* TODO: merge/extend request with neighbors */
+    if (entry == NULL) {
+        entry = vm_map_try_merge(map, request);
 
-    if (entry == NULL)
+        if (entry != NULL)
+            goto out;
+
         entry = vm_map_entry_create(map);
+    }
 
     entry->start = request->start;
     entry->end = request->start + request->size;
@@ -597,6 +756,8 @@ vm_map_insert(struct vm_map *map, struct vm_map_entry *entry,
     entry->offset = request->offset;
     entry->flags = request->flags & VM_MAP_ENTRY_MASK;
     vm_map_link(map, entry, NULL, request->next);
+
+out:
     map->size += request->size;
 
     if ((map == kernel_map) && (pmap_klimit() < entry->end))
