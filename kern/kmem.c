@@ -979,11 +979,11 @@ kmem_cache_free(struct kmem_cache *cache, void *obj)
 
     cpu_pool = kmem_cpu_pool_get(cache);
 
-    if (cpu_pool->flags & KMEM_CF_NO_CPU_POOL)
-        goto slab_free;
-
     if (cpu_pool->flags & KMEM_CF_VERIFY)
         kmem_cache_free_verify(cache, obj);
+
+    if (cpu_pool->flags & KMEM_CF_NO_CPU_POOL)
+        goto slab_free;
 
     /* mutex_lock(&cpu_pool->mutex); */
 
