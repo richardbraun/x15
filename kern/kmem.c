@@ -911,6 +911,10 @@ kmem_cache_free_verify(struct kmem_cache *cache, void *buf)
         kmem_cache_error(cache, buf, KMEM_ERR_INVALID, NULL);
 
     slab = page->slab_priv;
+
+    if (slab == NULL)
+        kmem_cache_error(cache, buf, KMEM_ERR_INVALID, NULL);
+
     slabend = P2ALIGN((unsigned long)slab->addr + cache->slab_size, PAGE_SIZE);
 
     if ((unsigned long)buf >= slabend)
