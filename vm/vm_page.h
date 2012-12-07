@@ -42,6 +42,7 @@ struct vm_page {
     unsigned short seg_index;
     unsigned short order;
     phys_addr_t phys_addr;
+    void *slab_priv;
 };
 
 static inline phys_addr_t

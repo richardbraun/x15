@@ -80,6 +80,19 @@ vm_kmem_boot_space(unsigned long *start, unsigned long *end)
     *end = vm_kmem_boot_start;
 }
 
+struct vm_page *
+vm_kmem_lookup_page(unsigned long va)
+{
+    phys_addr_t pa;
+
+    pa = pmap_kextract(va);
+
+    if (pa == 0)
+        return NULL;
+
+    return vm_phys_lookup_page(pa);
+}
+
 static int
 vm_kmem_alloc_check(size_t size)
 {

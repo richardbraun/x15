@@ -24,21 +24,15 @@
  * differences are outlined below.
  *
  * The per-cache self-scaling hash table for buffer-to-bufctl conversion,
- * described in 3.2.3 "Slab Layout for Large Objects", has been replaced by
- * a red-black tree storing slabs, sorted by address. The use of a
- * self-balancing tree for buffer-to-slab conversions provides a few advantages
- * over a hash table. Unlike a hash table, a BST provides a "lookup nearest"
- * operation, so obtaining the slab data (whether it is embedded in the slab or
- * off slab) from a buffer address simply consists of a "lookup nearest towards
- * 0" tree search. Storing slabs instead of buffers also considerably reduces
- * the number of elements to retain. Finally, a self-balancing tree is a true
- * self-scaling data structure, whereas a hash table requires periodic
- * maintenance and complete resizing, which is expensive. The only drawback is
- * that releasing a buffer to the slab layer takes logarithmic time instead of
- * constant time. But as the data set size is kept reasonable (because slabs
- * are stored instead of buffers) and because the CPU pool layer services most
- * requests, avoiding many accesses to the slab layer, it is considered an
- * acceptable tradeoff.
+ * described in 3.2.3 "Slab Layout for Large Objects", has been replaced with
+ * a constant time buffer-to-slab lookup that relies on the VM system. When
+ * slabs are created, their backing virtual pages are mapped to physical pages
+ * that are never aliased by other virtual addresses (unless explicitely by
+ * other kernel code). The lookup operation provides the associated physical
+ * page descriptor which can store data private to this allocator. The main
+ * drawback of this method is that it needs to walk the low level page tables,
+ * but it's expected that these have already been cached by the CPU due to
+ * prior access by the allocator user, depending on the hardware properties.
  *
  * This implementation uses per-CPU pools of objects, which service most
  * allocation requests. These pools act as caches (but are named differently
@@ -57,13 +51,13 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
-#include <kern/rbtree.h>
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <kern/string.h>
 #include <machine/cpu.h>
 #include <vm/vm_kmem.h>
+#include <vm/vm_page.h>
 
 /*
  * Minimum required alignment.
@@ -284,8 +278,7 @@ kmem_slab_create(struct kmem_cache *cache, size_t color)
         slab = (struct kmem_slab *)(slab_buf + cache->slab_size) - 1;
     }
 
-    list_node_init(&slab->list_node);
-    rbtree_node_init(&slab->tree_node);
+    list_node_init(&slab->node);
     slab->nr_refs = 0;
     slab->first_free = NULL;
     slab->addr = slab_buf + color;
@@ -305,34 +298,34 @@ kmem_slab_create(struct kmem_cache *cache, size_t color)
     return slab;
 }
 
+static inline unsigned long
+kmem_slab_buf(const struct kmem_slab *slab)
+{
+    return P2ALIGN((unsigned long)slab->addr, PAGE_SIZE);
+}
+
+static void
+kmem_slab_vmref(struct kmem_slab *slab, size_t size)
+{
+    struct vm_page *page;
+    unsigned long va, end;
+
+    va = kmem_slab_buf(slab);
+    end = va + size;
+
+    do {
+        page = vm_kmem_lookup_page(va);
+        assert(page != NULL);
+        assert(page->slab_priv == NULL);
+        page->slab_priv = slab;
+        va += PAGE_SIZE;
+    } while (va < end);
+}
+
 static inline int
-kmem_slab_use_tree(int flags)
+kmem_slab_lookup_needed(int flags)
 {
     return !(flags & KMEM_CF_DIRECT) || (flags & KMEM_CF_VERIFY);
-}
-
-static inline int
-kmem_slab_cmp_lookup(const void *addr, const struct rbtree_node *node)
-{
-    struct kmem_slab *slab;
-
-    slab = rbtree_entry(node, struct kmem_slab, tree_node);
-
-    if (addr == slab->addr)
-        return 0;
-    else if (addr < slab->addr)
-        return -1;
-    else
-        return 1;
-}
-
-static inline int
-kmem_slab_cmp_insert(const struct rbtree_node *a, const struct rbtree_node *b)
-{
-    struct kmem_slab *slab;
-
-    slab = rbtree_entry(a, struct kmem_slab, tree_node);
-    return kmem_slab_cmp_lookup(slab->addr, b);
 }
 
 static void
@@ -558,7 +551,6 @@ kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
     list_node_init(&cache->node);
     list_init(&cache->partial_slabs);
     list_init(&cache->free_slabs);
-    rbtree_init(&cache->active_slabs);
     cache->obj_size = obj_size;
     cache->align = align;
     cache->buf_size = buf_size;
@@ -633,10 +625,13 @@ kmem_cache_grow(struct kmem_cache *cache)
     /* mutex_lock(&cache->mutex); */
 
     if (slab != NULL) {
-        list_insert_tail(&cache->free_slabs, &slab->list_node);
+        list_insert_tail(&cache->free_slabs, &slab->node);
         cache->nr_bufs += cache->bufs_per_slab;
         cache->nr_slabs++;
         cache->nr_free_slabs++;
+
+        if (kmem_slab_lookup_needed(cache->flags))
+            kmem_slab_vmref(slab, cache->slab_size);
     }
 
     /*
@@ -662,10 +657,9 @@ kmem_cache_alloc_from_slab(struct kmem_cache *cache)
     union kmem_bufctl *bufctl;
 
     if (!list_empty(&cache->partial_slabs))
-        slab = list_first_entry(&cache->partial_slabs, struct kmem_slab,
-                                list_node);
+        slab = list_first_entry(&cache->partial_slabs, struct kmem_slab, node);
     else if (!list_empty(&cache->free_slabs))
-        slab = list_first_entry(&cache->free_slabs, struct kmem_slab, list_node);
+        slab = list_first_entry(&cache->free_slabs, struct kmem_slab, node);
     else
         return NULL;
 
@@ -679,7 +673,7 @@ kmem_cache_alloc_from_slab(struct kmem_cache *cache)
      * The slab has become complete.
      */
     if (slab->nr_refs == cache->bufs_per_slab) {
-        list_remove(&slab->list_node);
+        list_remove(&slab->node);
 
         if (slab->nr_refs == 1)
             cache->nr_free_slabs--;
@@ -687,8 +681,8 @@ kmem_cache_alloc_from_slab(struct kmem_cache *cache)
         /*
          * The slab has become partial.
          */
-        list_remove(&slab->list_node);
-        list_insert_tail(&cache->partial_slabs, &slab->list_node);
+        list_remove(&slab->node);
+        list_insert_tail(&cache->partial_slabs, &slab->node);
         cache->nr_free_slabs--;
     } else if (!list_singular(&cache->partial_slabs)) {
         struct list *node;
@@ -701,10 +695,10 @@ kmem_cache_alloc_from_slab(struct kmem_cache *cache)
 
         assert(slab->nr_refs > 1);
 
-        for (node = list_prev(&slab->list_node);
+        for (node = list_prev(&slab->node);
              !list_end(&cache->partial_slabs, node);
              node = list_prev(node)) {
-            tmp = list_entry(node, struct kmem_slab, list_node);
+            tmp = list_entry(node, struct kmem_slab, node);
 
             if (tmp->nr_refs >= slab->nr_refs)
                 break;
@@ -714,15 +708,11 @@ kmem_cache_alloc_from_slab(struct kmem_cache *cache)
          * If the direct neighbor was found, the list is already sorted.
          * If no slab was found, the slab is inserted at the head of the list.
          */
-        if (node != list_prev(&slab->list_node)) {
-            list_remove(&slab->list_node);
-            list_insert_after(node, &slab->list_node);
+        if (node != list_prev(&slab->node)) {
+            list_remove(&slab->node);
+            list_insert_after(node, &slab->node);
         }
     }
-
-    if ((slab->nr_refs == 1) && kmem_slab_use_tree(cache->flags))
-        rbtree_insert(&cache->active_slabs, &slab->tree_node,
-                      kmem_slab_cmp_insert);
 
     return kmem_bufctl_to_buf(bufctl, cache);
 }
@@ -743,14 +733,14 @@ kmem_cache_free_to_slab(struct kmem_cache *cache, void *buf)
         slab = (struct kmem_slab *)P2END((unsigned long)buf, cache->slab_size)
                - 1;
     } else {
-        struct rbtree_node *node;
+        struct vm_page *page;
 
-        node = rbtree_lookup_nearest(&cache->active_slabs, buf,
-                                     kmem_slab_cmp_lookup, RBTREE_LEFT);
-        assert(node != NULL);
-        slab = rbtree_entry(node, struct kmem_slab, tree_node);
-        assert((unsigned long)buf < (P2ALIGN((unsigned long)slab->addr
-                                             + cache->slab_size, PAGE_SIZE)));
+        page = vm_kmem_lookup_page((unsigned long)buf);
+        assert(page != NULL);
+        slab = page->slab_priv;
+        assert(slab != NULL);
+        assert((unsigned long)buf >= kmem_slab_buf(slab));
+        assert((unsigned long)buf < (kmem_slab_buf(slab) + cache->slab_size));
     }
 
     assert(slab->nr_refs >= 1);
@@ -765,22 +755,19 @@ kmem_cache_free_to_slab(struct kmem_cache *cache, void *buf)
      * The slab has become free.
      */
     if (slab->nr_refs == 0) {
-        if (kmem_slab_use_tree(cache->flags))
-            rbtree_remove(&cache->active_slabs, &slab->tree_node);
-
         /*
          * The slab was partial.
          */
         if (cache->bufs_per_slab > 1)
-            list_remove(&slab->list_node);
+            list_remove(&slab->node);
 
-        list_insert_tail(&cache->free_slabs, &slab->list_node);
+        list_insert_tail(&cache->free_slabs, &slab->node);
         cache->nr_free_slabs++;
     } else if (slab->nr_refs == (cache->bufs_per_slab - 1)) {
         /*
          * The slab has become partial.
          */
-        list_insert(&cache->partial_slabs, &slab->list_node);
+        list_insert(&cache->partial_slabs, &slab->node);
     } else if (!list_singular(&cache->partial_slabs)) {
         struct list *node;
         struct kmem_slab *tmp;
@@ -792,10 +779,10 @@ kmem_cache_free_to_slab(struct kmem_cache *cache, void *buf)
 
         assert(slab->nr_refs > 0);
 
-        for (node = list_next(&slab->list_node);
+        for (node = list_next(&slab->node);
              !list_end(&cache->partial_slabs, node);
              node = list_next(node)) {
-            tmp = list_entry(node, struct kmem_slab, list_node);
+            tmp = list_entry(node, struct kmem_slab, node);
 
             if (tmp->nr_refs <= slab->nr_refs)
                 break;
@@ -805,9 +792,9 @@ kmem_cache_free_to_slab(struct kmem_cache *cache, void *buf)
          * If the direct neighbor was found, the list is already sorted.
          * If no slab was found, the slab is inserted at the tail of the list.
          */
-        if (node != list_next(&slab->list_node)) {
-            list_remove(&slab->list_node);
-            list_insert_before(node, &slab->list_node);
+        if (node != list_next(&slab->node)) {
+            list_remove(&slab->node);
+            list_insert_before(node, &slab->node);
         }
     }
 }
@@ -911,22 +898,19 @@ slab_alloc:
 static void
 kmem_cache_free_verify(struct kmem_cache *cache, void *buf)
 {
-    struct rbtree_node *node;
     struct kmem_buftag *buftag;
     struct kmem_slab *slab;
     union kmem_bufctl *bufctl;
+    struct vm_page *page;
     unsigned char *redzone_byte;
     unsigned long slabend;
 
-    /* mutex_lock(&cache->mutex); */
-    node = rbtree_lookup_nearest(&cache->active_slabs, buf,
-                                 kmem_slab_cmp_lookup, RBTREE_LEFT);
-    /* mutex_unlock(&cache->mutex); */
+    page = vm_kmem_lookup_page((unsigned long)buf);
 
-    if (node == NULL)
+    if (page == NULL)
         kmem_cache_error(cache, buf, KMEM_ERR_INVALID, NULL);
 
-    slab = rbtree_entry(node, struct kmem_slab, tree_node);
+    slab = page->slab_priv;
     slabend = P2ALIGN((unsigned long)slab->addr + cache->slab_size, PAGE_SIZE);
 
     if ((unsigned long)buf >= slabend)

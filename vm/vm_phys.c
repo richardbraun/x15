@@ -155,6 +155,7 @@ vm_phys_init_page(struct vm_page *page, unsigned short seg_index,
     page->seg_index = seg_index;
     page->order = order;
     page->phys_addr = pa;
+    page->slab_priv = NULL;
 }
 
 static void __init

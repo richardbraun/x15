@@ -52,6 +52,12 @@ unsigned long vm_kmem_bootalloc(size_t size);
 void vm_kmem_boot_space(unsigned long *start, unsigned long *end);
 
 /*
+ * Return the page descriptor for the physical page mapped at va in kernel
+ * space. The given address must be mapped and valid.
+ */
+struct vm_page * vm_kmem_lookup_page(unsigned long va);
+
+/*
  * Allocate memory from the kernel map.
  */
 unsigned long vm_kmem_alloc(size_t size);

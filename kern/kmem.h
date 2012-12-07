@@ -23,7 +23,6 @@
 
 #include <kern/list.h>
 #include <kern/param.h>
-#include <kern/rbtree.h>
 #include <kern/stddef.h>
 
 /*
@@ -145,8 +144,7 @@ struct kmem_buftag {
  * it describes.
  */
 struct kmem_slab {
-    struct list list_node;
-    struct rbtree_node tree_node;
+    struct list node;
     unsigned long nr_refs;
     union kmem_bufctl *first_free;
     void *addr;
@@ -185,7 +183,7 @@ typedef void (*kmem_slab_free_fn_t)(unsigned long, size_t);
 #define KMEM_CF_NO_CPU_POOL     0x1 /* CPU pool layer disabled */
 #define KMEM_CF_SLAB_EXTERNAL   0x2 /* Slab data is off slab */
 #define KMEM_CF_VERIFY          0x4 /* Debugging facilities enabled */
-#define KMEM_CF_DIRECT          0x8 /* No buf-to-slab tree lookup */
+#define KMEM_CF_DIRECT          0x8 /* Quick buf-to-slab lookup */
 
 /*
  * Cache of objects.
@@ -209,7 +207,6 @@ struct kmem_cache {
     struct list node;   /* Cache list linkage */
     struct list partial_slabs;
     struct list free_slabs;
-    struct rbtree active_slabs;
     int flags;
     size_t obj_size;    /* User-provided size */
     size_t align;
