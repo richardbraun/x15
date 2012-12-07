@@ -450,7 +450,7 @@ vm_map_find_avail(struct vm_map *map, struct vm_map_request *request)
     struct vm_map_entry *next;
     struct list *node;
     unsigned long base, start;
-    size_t size, space;
+    size_t size, align, space;
     int error;
 
     /* If there is a hint, try there */
@@ -462,6 +462,7 @@ vm_map_find_avail(struct vm_map *map, struct vm_map_request *request)
     }
 
     size = request->size;
+    align = request->align;
 
     if (size > map->find_cache_threshold)
         base = map->find_cache;
@@ -482,6 +483,9 @@ retry:
 
     for (;;) {
         assert(start <= map->end);
+
+        if (align != 0)
+            start = P2ROUND(start, align);
 
         /*
          * The end of the map has been reached, and no space could be found.
