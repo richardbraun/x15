@@ -69,7 +69,7 @@ struct cpu cpu_array[MAX_CPUS];
 /*
  * Number of configured processors.
  */
-static unsigned int cpu_array_size;
+unsigned int cpu_array_size;
 
 /*
  * Interrupt descriptor table.

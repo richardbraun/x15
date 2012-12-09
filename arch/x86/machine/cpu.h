@@ -356,6 +356,14 @@ cpu_id(void)
     return cpu_current()->id;
 }
 
+static __always_inline unsigned int
+cpu_count(void)
+{
+    extern unsigned int cpu_array_size;
+
+    return cpu_array_size;
+}
+
 static __always_inline void
 cpu_enable_pae(void)
 {
