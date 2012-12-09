@@ -31,6 +31,12 @@
 struct thread_runq thread_runqs[MAX_CPUS];
 
 /*
+ * Statically allocated thread which prevents initialization code from
+ * crashing when implicitely using preemption control operations.
+ */
+static struct thread thread_dummy __initdata;
+
+/*
  * Caches for allocated threads and their stacks.
  */
 static struct kmem_cache thread_cache;
@@ -39,7 +45,7 @@ static struct kmem_cache thread_stack_cache;
 static void __init
 thread_runq_init(struct thread_runq *runq)
 {
-    runq->current = NULL;
+    runq->current = &thread_dummy;
     list_init(&runq->threads);
 }
 
@@ -65,17 +71,24 @@ thread_runq_dequeue(struct thread_runq *runq)
 }
 
 void __init
-thread_setup(void)
+thread_bootstrap(void)
 {
     size_t i;
 
+    thread_dummy.flags = 0;
+    thread_dummy.preempt = 0;
+
+    for (i = 0; i < ARRAY_SIZE(thread_runqs); i++)
+        thread_runq_init(&thread_runqs[i]);
+}
+
+void __init
+thread_setup(void)
+{
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
                     CPU_L1_SIZE, NULL, NULL, NULL, 0);
     kmem_cache_init(&thread_stack_cache, "thread_stack", STACK_SIZE,
                     CPU_L1_SIZE, NULL, NULL, NULL, 0);
-
-    for (i = 0; i < ARRAY_SIZE(thread_runqs); i++)
-        thread_runq_init(&thread_runqs[i]);
 }
 
 static void

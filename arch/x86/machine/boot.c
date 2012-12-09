@@ -52,6 +52,7 @@
 #include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <kern/string.h>
+#include <kern/thread.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cga.h>
@@ -268,6 +269,7 @@ boot_main(void)
 {
     trap_setup();
     cpu_setup();
+    thread_bootstrap();
     pmap_bootstrap();
     cga_setup();
     boot_show_version();

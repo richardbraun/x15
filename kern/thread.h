@@ -63,6 +63,14 @@ struct thread_runq {
 extern struct thread_runq thread_runqs[MAX_CPUS];
 
 /*
+ * Early initialization of the thread module.
+ *
+ * This function makes it possible to use preemption control operations while
+ * the system is initializing itself.
+ */
+void thread_bootstrap(void);
+
+/*
  * Initialize the thread module.
  */
 void thread_setup(void);

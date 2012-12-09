@@ -25,6 +25,7 @@
 #define _KERN_SPINLOCK_H
 
 #include <kern/assert.h>
+#include <kern/thread.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 
@@ -55,12 +56,21 @@ spinlock_assert_locked(struct spinlock *lock)
 /*
  * Attempt to acquire a spin lock.
  *
- * Return false if acquired, true if busy.
+ * Return true if acquired, false if busy.
  */
 static inline int
 spinlock_trylock(struct spinlock *lock)
 {
-    return atomic_cas(&lock->locked, 0, 1);
+    unsigned long busy;
+
+    thread_preempt_disable();
+    busy = atomic_cas(&lock->locked, 0, 1);
+
+    if (!busy)
+        return 1;
+
+    thread_preempt_enable();
+    return 0;
 }
 
 /*
@@ -69,6 +79,8 @@ spinlock_trylock(struct spinlock *lock)
 static inline void
 spinlock_lock(struct spinlock *lock)
 {
+    thread_preempt_disable();
+
     while (atomic_cas(&lock->locked, 0, 1))
         cpu_pause();
 }
@@ -80,6 +92,7 @@ static inline void
 spinlock_unlock(struct spinlock *lock)
 {
     atomic_swap(&lock->locked, 0);
+    thread_preempt_enable();
 }
 
 #endif /* _KERN_SPINLOCK_H */
