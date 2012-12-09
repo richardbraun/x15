@@ -17,6 +17,7 @@
 
 #include <kern/init.h>
 #include <kern/macros.h>
+#include <kern/param.h>
 #include <kern/stdint.h>
 #include <kern/string.h>
 #include <machine/io.h>
@@ -107,6 +108,7 @@ cga_setup(void)
 
     va = pmap_bootalloc(1);
     pmap_kenter(va, CGA_MEMORY);
+    pmap_kupdate(va, va + PAGE_SIZE);
     cga_memory = (uint8_t *)va;
 
     /*

@@ -198,6 +198,7 @@ vm_map_kentry_alloc(size_t slab_size)
         pmap_kenter(va + i, vm_page_to_pa(page));
     }
 
+    pmap_kupdate(va, va + slab_size);
     return va;
 }
 
@@ -222,6 +223,7 @@ vm_map_kentry_free(unsigned long va, size_t slab_size)
     }
 
     pmap_kremove(va, va + slab_size);
+    pmap_kupdate(va, va + slab_size);
     vm_map_kentry_free_va(va, slab_size);
 }
 
@@ -272,6 +274,8 @@ vm_map_kentry_setup(void)
 
         pmap_kenter(table_va + (i * PAGE_SIZE), vm_page_to_pa(page));
     }
+
+    pmap_kupdate(table_va, table_va + (nr_pages * PAGE_SIZE));
 
     slabs = (struct vm_map_kentry_slab *)table_va;
     vm_map_kentry_free_slabs = &slabs[nr_slabs - 1];

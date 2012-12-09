@@ -102,6 +102,7 @@
 
 #include <kern/stdint.h>
 #include <kern/types.h>
+#include <machine/trap.h>
 
 #ifdef X86_PAE
 typedef uint64_t pmap_pte_t;
@@ -165,12 +166,24 @@ void pmap_growkernel(unsigned long va);
 /*
  * Kernel specific mapping functions.
  *
- * Resources for the new mappings must be preallocated.
+ * Resources for the new mappings must be preallocated. The only function
+ * which actually flushes the TLB is pmap_kupdate.
  */
 void pmap_kenter(unsigned long va, phys_addr_t pa);
 void pmap_kremove(unsigned long start, unsigned long end);
 void pmap_kprotect(unsigned long start, unsigned long end, int prot);
+void pmap_kupdate(unsigned long start, unsigned long end);
 phys_addr_t pmap_kextract(unsigned long va);
+
+/*
+ * Prepare the pmap module for a multiprocessor environment.
+ */
+void pmap_mp_setup(void);
+
+/*
+ * Interrupt handler for inter-processor update requests.
+ */
+void pmap_update_intr(struct trap_frame *frame);
 
 #endif /* __ASSEMBLER__ */
 

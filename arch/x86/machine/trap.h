@@ -50,7 +50,10 @@
 
 /*
  * System defined traps.
+ *
+ * The local APIC assigns one priority every 16 vectors.
  */
+#define TRAP_PMAP_UPDATE    240
 #define TRAP_LAPIC_TIMER    253
 #define TRAP_LAPIC_ERROR    254
 #define TRAP_LAPIC_SPURIOUS 255

@@ -13,6 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * TODO Check TLB flushes on the recursive mapping.
  */
 
 #include <kern/assert.h>
@@ -23,10 +26,14 @@
 #include <kern/stddef.h>
 #include <kern/string.h>
 #include <kern/types.h>
+#include <machine/atomic.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
+#include <machine/lapic.h>
+#include <machine/mb.h>
 #include <machine/pmap.h>
+#include <machine/trap.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 #include <vm/vm_prot.h>
@@ -135,6 +142,24 @@ static pmap_pte_t pmap_prot_table[8];
  * Special addresses for temporary mappings.
  */
 static unsigned long pmap_zero_va;
+
+/*
+ * True if running on multiple processors (TLB flushes must be propagated).
+ */
+static int pmap_mp_mode;
+
+/*
+ * Shared variables used by the inter-processor update functions.
+ */
+static unsigned long pmap_update_start;
+static unsigned long pmap_update_end;
+
+/*
+ * There is strong bouncing on this counter so give it its own cache line.
+ */
+static struct {
+    volatile unsigned long count __aligned(CPU_L1_SIZE);
+} pmap_nr_updates;
 
 static void __init
 pmap_boot_enter(pmap_pte_t *root_pt, unsigned long va, phys_addr_t pa)
@@ -371,8 +396,10 @@ static void
 pmap_zero_page(phys_addr_t pa)
 {
     pmap_kenter(pmap_zero_va, pa);
+    cpu_tlb_flush_va(pmap_zero_va);
     memset((void *)pmap_zero_va, 0, PAGE_SIZE);
     pmap_kremove(pmap_zero_va, pmap_zero_va + PAGE_SIZE);
+    cpu_tlb_flush_va(pmap_zero_va);
 }
 
 void
@@ -427,7 +454,6 @@ pmap_kenter(unsigned long va, phys_addr_t pa)
     pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L1_SHIFT);
     *pte = ((pa & PMAP_PA_MASK) | PMAP_PTE_G | PMAP_PTE_RW | PMAP_PTE_P)
            & pmap_pt_levels[0].mask;
-    cpu_tlb_flush_va(va);
 }
 
 void
@@ -438,7 +464,6 @@ pmap_kremove(unsigned long start, unsigned long end)
     while (start < end) {
         pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L1_SHIFT);
         *pte = 0;
-        cpu_tlb_flush_va(start);
         start += PAGE_SIZE;
     }
 }
@@ -453,9 +478,48 @@ pmap_kprotect(unsigned long start, unsigned long end, int prot)
     while (start < end) {
         pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L1_SHIFT);
         *pte = (*pte & ~PMAP_PTE_PROT_MASK) | flags;
+        start += PAGE_SIZE;
+    }
+}
+
+static void
+pmap_kupdate_local(unsigned long start, unsigned long end)
+{
+    while (start < end) {
         cpu_tlb_flush_va(start);
         start += PAGE_SIZE;
     }
+}
+
+void
+pmap_kupdate(unsigned long start, unsigned long end)
+{
+    unsigned int nr_cpus;
+
+    if (pmap_mp_mode)
+        nr_cpus = cpu_count();
+    else
+        nr_cpus = 1;
+
+    if (nr_cpus == 1) {
+        pmap_kupdate_local(start, end);
+        return;
+    }
+
+    pmap_update_start = start;
+    pmap_update_end = end;
+    pmap_nr_updates.count = nr_cpus - 1;
+    mb_store();
+    lapic_ipi_broadcast(TRAP_PMAP_UPDATE);
+
+    /*
+     * Perform the local update now so that some time is given to the other
+     * processors, which slightly reduces contention on the update counter.
+     */
+    pmap_kupdate_local(start, end);
+
+    while (pmap_nr_updates.count != 0)
+        cpu_pause();
 }
 
 phys_addr_t
@@ -474,4 +538,22 @@ pmap_kextract(unsigned long va)
     }
 
     return *pte & PMAP_PA_MASK;
+}
+
+void
+pmap_mp_setup(void)
+{
+    pmap_mp_mode = 1;
+}
+
+void
+pmap_update_intr(struct trap_frame *frame)
+{
+    (void)frame;
+
+    lapic_eoi();
+
+    /* Interrupts are serializing events, no memory barrier required */
+    pmap_kupdate_local(pmap_update_start, pmap_update_end);
+    atomic_add(&pmap_nr_updates.count, -1);
 }

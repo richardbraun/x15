@@ -30,6 +30,7 @@
 #include <machine/cpu.h>
 #include <machine/io.h>
 #include <machine/lapic.h>
+#include <machine/pmap.h>
 #include <machine/trap.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
@@ -427,6 +428,7 @@ cpu_mp_setup(void)
 {
     acpimp_setup();
     cpu_mp_start_aps();
+    pmap_mp_setup();
     cpu_mp_info();
 }
 

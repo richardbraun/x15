@@ -24,6 +24,7 @@
 #include <machine/cpu.h>
 #include <machine/lapic.h>
 #include <machine/pic.h>
+#include <machine/pmap.h>
 #include <machine/trap.h>
 
 /*
@@ -63,6 +64,7 @@ void trap_isr_machine_check(void);
 void trap_isr_simd_fp_exception(void);
 void trap_isr_pic_int7(void);
 void trap_isr_pic_int15(void);
+void trap_isr_pmap_update(void);
 void trap_isr_lapic_timer(void);
 void trap_isr_lapic_error(void);
 void trap_isr_lapic_spurious(void);
@@ -134,6 +136,7 @@ trap_setup(void)
     trap_install(TRAP_PIC_BASE + 15, trap_isr_pic_int15, pic_intr_spurious);
 
     /* System defined traps */
+    trap_install(TRAP_PMAP_UPDATE, trap_isr_pmap_update, pmap_update_intr);
     trap_install(TRAP_LAPIC_TIMER, trap_isr_lapic_timer, lapic_intr_timer);
     trap_install(TRAP_LAPIC_ERROR, trap_isr_lapic_error, lapic_intr_error);
     trap_install(TRAP_LAPIC_SPURIOUS, trap_isr_lapic_spurious,
@@ -147,7 +150,10 @@ trap_main(struct trap_frame *frame)
 {
     assert(frame->vector < ARRAY_SIZE(trap_handlers));
     trap_handlers[frame->vector].fn(frame);
+
+#if 0
     thread_reschedule();
+#endif
 }
 
 #ifdef __LP64__

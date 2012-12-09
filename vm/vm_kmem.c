@@ -70,6 +70,7 @@ vm_kmem_bootalloc(size_t size)
         pmap_kenter(va, pa);
     }
 
+    pmap_kupdate(start, vm_kmem_boot_start);
     return start;
 }
 
@@ -137,6 +138,7 @@ vm_kmem_free_va(unsigned long addr, size_t size)
 
     end = addr + vm_page_round(size);
     pmap_kremove(addr, end);
+    pmap_kupdate(addr, end);
     vm_map_remove(kernel_map, addr, end);
 }
 
@@ -162,6 +164,7 @@ vm_kmem_alloc(size_t size)
         pmap_kenter(start, vm_page_to_pa(page));
     }
 
+    pmap_kupdate(start, end);
     return va;
 
 error_page:
@@ -214,6 +217,8 @@ vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
 
     for (offset = 0; offset < map_size; offset += PAGE_SIZE)
         pmap_kenter(map_addr + offset, start + offset);
+
+    pmap_kupdate(map_addr, map_addr + map_size);
 
     if (map_addrp != NULL)
         *map_addrp = map_addr;
