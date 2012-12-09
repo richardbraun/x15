@@ -559,8 +559,6 @@ static void
 vm_map_link(struct vm_map *map, struct vm_map_entry *entry,
             struct vm_map_entry *prev, struct vm_map_entry *next)
 {
-    assert((prev == NULL) || (next == NULL));
-
     if ((prev == NULL) && (next == NULL))
         list_insert_tail(&map->entry_list, &entry->list_node);
     else if (prev == NULL)
