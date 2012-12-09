@@ -28,15 +28,7 @@
 #include <machine/cpu.h>
 #include <machine/tcb.h>
 
-/*
- * Per processor run queue.
- */
-struct thread_runq {
-    struct thread *current;
-    struct list threads;
-} __aligned(CPU_L1_SIZE);
-
-static struct thread_runq thread_runqs[MAX_CPUS];
+struct thread_runq thread_runqs[MAX_CPUS];
 
 /*
  * Caches for allocated threads and their stacks.
@@ -70,12 +62,6 @@ thread_runq_dequeue(struct thread_runq *runq)
     }
 
     return thread;
-}
-
-static inline struct thread_runq *
-thread_runq_local(void)
-{
-    return &thread_runqs[cpu_id()];
 }
 
 void __init
@@ -138,6 +124,7 @@ thread_create(struct thread **threadp, const char *name, struct task *task,
         name = task->name;
 
     thread->flags = 0;
+    thread->preempt = 0;
     thread->task = task;
     thread->stack = stack;
     strlcpy(thread->name, name, sizeof(thread->name));

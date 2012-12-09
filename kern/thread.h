@@ -18,9 +18,12 @@
 #ifndef _KERN_THREAD_H
 #define _KERN_THREAD_H
 
+#include <kern/assert.h>
 #include <kern/list.h>
 #include <kern/macros.h>
+#include <kern/param.h>
 #include <kern/task.h>
+#include <machine/cpu.h>
 #include <machine/tcb.h>
 
 /*
@@ -38,7 +41,8 @@
  */
 struct thread {
     struct tcb tcb;
-    int flags;
+    short flags;
+    unsigned short preempt;
     struct list runq_node;
     struct list task_node;
     struct task *task;
@@ -47,6 +51,16 @@ struct thread {
     void (*fn)(void *);
     void *arg;
 };
+
+/*
+ * Per processor run queue.
+ */
+struct thread_runq {
+    struct thread *current;
+    struct list threads;
+} __aligned(CPU_L1_SIZE);
+
+extern struct thread_runq thread_runqs[MAX_CPUS];
 
 /*
  * Initialize the thread module.
@@ -87,5 +101,60 @@ void thread_reschedule(void);
  * Called from interrupt context.
  */
 void thread_tick(void);
+
+static inline struct thread_runq *
+thread_runq_local(void)
+{
+    return &thread_runqs[cpu_id()];
+}
+
+static inline struct thread *
+thread_current(void)
+{
+    return thread_runq_local()->current;
+}
+
+/*
+ * Preemption control functions.
+ */
+
+static inline int
+thread_preempt_enabled(void)
+{
+    return (thread_current()->preempt == 0);
+}
+
+static inline void
+thread_preempt_enable_no_resched(void)
+{
+    struct thread *thread;
+
+    thread = thread_current();
+    assert(thread->preempt != 0);
+    thread->preempt--;
+}
+
+static inline void
+thread_preempt_enable(void)
+{
+    struct thread *thread;
+
+    thread = thread_current();
+    assert(thread->preempt != 0);
+    thread->preempt--;
+
+    if ((thread->preempt == 0) && (thread->flags & THREAD_RESCHEDULE))
+        thread_schedule();
+}
+
+static inline void
+thread_preempt_disable(void)
+{
+    struct thread *thread;
+
+    thread = thread_current();
+    thread->preempt++;
+    assert(thread->preempt != 0);
+}
 
 #endif /* _KERN_THREAD_H */
