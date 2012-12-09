@@ -13,6 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * TODO Review waits/EOIs.
  */
 
 #include <kern/init.h>
@@ -215,7 +218,7 @@ lapic_setup_timer(void)
     lapic_write(&lapic_map->timer_icr, lapic_bus_freq / HZ);
 }
 
-static void
+void
 lapic_eoi(void)
 {
     lapic_write(&lapic_map->eoi, 0);
@@ -315,6 +318,21 @@ lapic_ipi_startup(uint32_t dest, uint32_t vector)
     lapic_ipi(dest, LAPIC_ICR_DELIVERY_STARTUP
                     | (vector & LAPIC_ICR_VECTOR_MASK));
     lapic_ipi_wait();
+}
+
+void
+lapic_ipi_send(uint32_t dest, uint32_t vector)
+{
+    lapic_ipi_wait();
+    lapic_ipi(dest, vector & LAPIC_ICR_VECTOR_MASK);
+}
+
+void
+lapic_ipi_broadcast(uint32_t vector)
+{
+    lapic_ipi_wait();
+    lapic_ipi(0, LAPIC_ICR_DEST_ALL_EXCEPT_SELF
+                 | (vector & LAPIC_ICR_VECTOR_MASK));
 }
 
 void
