@@ -16,9 +16,6 @@
  *
  *
  * Atomic operations.
- *
- * Note that it cannot be assumed these operations imply a compiler or a
- * memory barrier.
  */
 
 #ifndef _X86_ATOMIC_H
@@ -48,6 +45,9 @@ atomic_or(volatile unsigned long *ptr, unsigned long bits)
                  : "r" (bits));
 }
 
+/*
+ * Implies a full memory barrier.
+ */
 static inline unsigned long
 atomic_swap(volatile unsigned long *ptr, unsigned long newval)
 {
@@ -56,11 +56,15 @@ atomic_swap(volatile unsigned long *ptr, unsigned long newval)
     /* The xchg instruction doesn't need a lock prefix */
     asm volatile("xchg %1, %0"
                  : "+m" (*ptr), "=r" (prev)
-                 : "1" (newval));
+                 : "1" (newval)
+                 : "memory");
 
     return prev;
 }
 
+/*
+ * Implies a full memory barrier.
+ */
 static inline unsigned long
 atomic_cas(volatile unsigned long *ptr, unsigned long oldval,
            unsigned long newval)
@@ -69,7 +73,8 @@ atomic_cas(volatile unsigned long *ptr, unsigned long oldval,
 
     asm volatile("lock cmpxchg %3, %0"
                  : "+m" (*ptr), "=a" (prev)
-                 : "1" (oldval), "r" (newval));
+                 : "1" (oldval), "r" (newval)
+                 : "memory");
 
     return prev;
 }
