@@ -124,6 +124,8 @@ thread_current(void)
 
 /*
  * Preemption control functions.
+ *
+ * Functions that change the preemption state are implicit compiler barriers.
  */
 
 static inline int
@@ -137,6 +139,7 @@ thread_preempt_enable_no_resched(void)
 {
     struct thread *thread;
 
+    barrier();
     thread = thread_current();
     assert(thread->preempt != 0);
     thread->preempt--;
@@ -147,6 +150,7 @@ thread_preempt_enable(void)
 {
     struct thread *thread;
 
+    barrier();
     thread = thread_current();
     assert(thread->preempt != 0);
     thread->preempt--;
@@ -163,6 +167,7 @@ thread_preempt_disable(void)
     thread = thread_current();
     thread->preempt++;
     assert(thread->preempt != 0);
+    barrier();
 }
 
 #endif /* _KERN_THREAD_H */
