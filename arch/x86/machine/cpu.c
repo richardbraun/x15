@@ -391,14 +391,21 @@ cpu_mp_start_aps(void)
     io_write_byte(CPU_MP_CMOS_PORT_REG, CPU_MP_CMOS_REG_RESET);
     io_write_byte(CPU_MP_CMOS_PORT_DATA, CPU_MP_CMOS_DATA_RESET_WARM);
 
-    /* Perform the "Universal Start-up Algorithm" */
+    /*
+     * Preallocate stacks now, as the kernel mappings shouldn't change while
+     * the APs are bootstrapping.
+     */
     for (i = 1; i < cpu_array_size; i++) {
         cpu = &cpu_array[i];
-
         cpu->boot_stack = vm_kmem_alloc(BOOT_STACK_SIZE);
 
         if (cpu->boot_stack == 0)
             panic("cpu: unable to allocate boot stack for cpu%u", i);
+    }
+
+    /* Perform the "Universal Start-up Algorithm" */
+    for (i = 1; i < cpu_array_size; i++) {
+        cpu = &cpu_array[i];
 
         boot_ap_id = i;
         boot_ap_stack_addr = cpu->boot_stack;

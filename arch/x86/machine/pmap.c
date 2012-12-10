@@ -146,7 +146,7 @@ static unsigned long pmap_zero_va;
 /*
  * True if running on multiple processors (TLB flushes must be propagated).
  */
-static int pmap_mp_mode;
+static volatile int pmap_mp_mode;
 
 /*
  * Shared variables used by the inter-processor update functions.
@@ -366,6 +366,9 @@ pmap_ap_bootstrap(void)
 {
     if (cpu_has_global_pages())
         cpu_enable_global_pages();
+
+    while (!pmap_mp_mode)
+        cpu_pause();
 }
 
 unsigned long __init
