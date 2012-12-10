@@ -18,7 +18,9 @@
  * Spin lock.
  *
  * This implementation relies on the availability of hardware compare-and-swap
- * support.
+ * support. It also means that almost all spinlock operations imply a full
+ * memory barrier. While this can be optimized by relying on architecture
+ * specific properties, focus on correctness for the time being.
  */
 
 #ifndef _KERN_SPINLOCK_H
