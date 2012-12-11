@@ -23,6 +23,7 @@
 
 #include <kern/list.h>
 #include <kern/param.h>
+#include <kern/spinlock.h>
 #include <kern/stddef.h>
 
 /*
@@ -31,7 +32,7 @@
  * The flags member is a read-only CPU-local copy of the parent cache flags.
  */
 struct kmem_cpu_pool {
-    /* struct mutex mutex; */
+    struct spinlock lock;
     int flags;
     int size;
     int transfer_size;
@@ -203,7 +204,7 @@ struct kmem_cache {
     struct kmem_cpu_pool_type *cpu_pool_type;
 
     /* Slab layer */
-    /* struct mutex mutex; */
+    struct spinlock lock;
     struct list node;   /* Cache list linkage */
     struct list partial_slabs;
     struct list free_slabs;
