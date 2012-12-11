@@ -292,11 +292,7 @@ boot_ap_main(void)
 {
     cpu_ap_setup();
     pmap_ap_bootstrap();
-
-    cpu_intr_enable();
-
-    for (;;)
-        cpu_idle();
+    kernel_ap_main();
 
     /* Never reached */
 }

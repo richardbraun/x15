@@ -435,6 +435,7 @@ cpu_mp_setup(void)
 {
     acpimp_setup();
     cpu_mp_start_aps();
+    cpu_intr_enable();
     pmap_mp_setup();
     cpu_mp_info();
 }
@@ -445,4 +446,5 @@ cpu_ap_setup(void)
     cpu_init(&cpu_array[boot_ap_id]);
     cpu_check(cpu_current());
     lapic_ap_setup();
+    cpu_intr_enable();
 }

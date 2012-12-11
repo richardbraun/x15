@@ -546,6 +546,8 @@ pmap_kextract(unsigned long va)
 void
 pmap_mp_setup(void)
 {
+    assert(cpu_intr_enabled());
+
     pmap_mp_mode = 1;
 }
 

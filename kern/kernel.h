@@ -29,4 +29,11 @@
  */
 void kernel_main(void);
 
+/*
+ * Entry point for APs.
+ *
+ * Interrupts must be enabled when calling this function.
+ */
+void kernel_ap_main(void);
+
 #endif /* _KERN_KERNEL_H */

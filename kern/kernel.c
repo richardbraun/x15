@@ -37,6 +37,8 @@ kernel_main(void)
     struct thread *thread;
     int error;
 
+    assert(!cpu_intr_enabled());
+
     task_setup();
     thread_setup();
     cpu_mp_setup();
@@ -47,6 +49,17 @@ kernel_main(void)
         panic("kernel: unable to create kernel thread");
 
     thread_run();
+
+    /* Never reached */
+}
+
+void __init
+kernel_ap_main(void)
+{
+    assert(cpu_intr_enabled());
+
+    for (;;)
+        cpu_idle();
 
     /* Never reached */
 }

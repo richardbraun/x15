@@ -177,6 +177,8 @@ phys_addr_t pmap_kextract(unsigned long va);
 
 /*
  * Prepare the pmap module for a multiprocessor environment.
+ *
+ * Interrupts must be enabled when calling this function.
  */
 void pmap_mp_setup(void);
 

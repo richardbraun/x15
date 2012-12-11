@@ -436,11 +436,15 @@ void cpu_mp_register_lapic(unsigned int apic_id, int is_bsp);
 
 /*
  * Probe application processors and start them.
+ *
+ * This function enables interrupts.
  */
 void cpu_mp_setup(void);
 
 /*
- * AP-specific functions.
+ * CPU initialization on APs.
+ *
+ * This function enables interrupts.
  */
 void cpu_ap_setup(void);
 
