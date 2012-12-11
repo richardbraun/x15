@@ -83,7 +83,7 @@ spinlock_lock(struct spinlock *lock)
 {
     thread_preempt_disable();
 
-    while (atomic_cas(&lock->locked, 0, 1))
+    while (atomic_cas(&lock->locked, 0, 1) != 0)
         cpu_pause();
 }
 
@@ -93,7 +93,10 @@ spinlock_lock(struct spinlock *lock)
 static inline void
 spinlock_unlock(struct spinlock *lock)
 {
-    atomic_swap(&lock->locked, 0);
+    unsigned long locked;
+
+    locked = atomic_swap(&lock->locked, 0);
+    assert(locked);
     thread_preempt_enable();
 }
 
