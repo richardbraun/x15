@@ -36,6 +36,7 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
+#include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
@@ -71,7 +72,7 @@
  * Per-processor cache of pages.
  */
 struct vm_phys_cpu_pool {
-    /* struct mutex mutex; */
+    struct spinlock lock;
     int size;
     int transfer_size;
     int nr_pages;
@@ -109,7 +110,7 @@ struct vm_phys_seg {
     phys_addr_t end;
     struct vm_page *pages;
     struct vm_page *pages_end;
-    /* struct mutex mutex; */
+    struct spinlock lock;
     struct vm_phys_free_list free_lists[VM_PHYS_NR_FREE_LISTS];
     unsigned long nr_free_pages;
     char name[VM_PHYS_NAME_SIZE];
@@ -305,7 +306,7 @@ vm_phys_cpu_pool_fill(struct vm_phys_cpu_pool *cpu_pool,
 
     assert(cpu_pool->nr_pages == 0);
 
-    /* mutex_lock(&seg->mutex); */
+    spinlock_lock(&seg->lock);
 
     for (i = 0; i < cpu_pool->transfer_size; i++) {
         page = vm_phys_seg_alloc_from_buddy(seg, 0);
@@ -316,7 +317,7 @@ vm_phys_cpu_pool_fill(struct vm_phys_cpu_pool *cpu_pool,
         vm_phys_cpu_pool_push(cpu_pool, page);
     }
 
-    /* mutex_unlock(&seg->mutex); */
+    spinlock_unlock(&seg->lock);
 
     return i;
 }
@@ -330,14 +331,14 @@ vm_phys_cpu_pool_drain(struct vm_phys_cpu_pool *cpu_pool,
 
     assert(cpu_pool->nr_pages == cpu_pool->size);
 
-    /* mutex_lock(&seg->mutex); */
+    spinlock_lock(&seg->lock);
 
     for (i = cpu_pool->transfer_size; i > 0; i--) {
         page = vm_phys_cpu_pool_pop(cpu_pool);
         vm_phys_seg_free_to_buddy(seg, page, 0);
     }
 
-    /* mutex_unlock(&seg->mutex); */
+    spinlock_unlock(&seg->lock);
 }
 
 static inline phys_addr_t __init
@@ -375,7 +376,7 @@ vm_phys_seg_init(struct vm_phys_seg *seg, struct vm_page *pages)
 
     seg->pages = pages;
     seg->pages_end = pages + vm_page_atop(vm_phys_seg_size(seg));
-    /* mutex_init(&seg->mutex); */
+    spinlock_init(&seg->lock);
 
     for (i = 0; i < ARRAY_SIZE(seg->free_lists); i++)
         vm_phys_free_list_init(&seg->free_lists[i]);
@@ -400,23 +401,23 @@ vm_phys_seg_alloc(struct vm_phys_seg *seg, unsigned int order)
     if (order == 0) {
         cpu_pool = vm_phys_cpu_pool_get(seg);
 
-        /* mutex_lock(&cpu_pool->mutex); */
+        spinlock_lock(&cpu_pool->lock);
 
         if (cpu_pool->nr_pages == 0) {
             filled = vm_phys_cpu_pool_fill(cpu_pool, seg);
 
             if (!filled) {
-                /* mutex_unlock(&cpu_pool->mutex); */
+                spinlock_unlock(&cpu_pool->lock);
                 return NULL;
             }
         }
 
         page = vm_phys_cpu_pool_pop(cpu_pool);
-        /* mutex_unlock(&cpu_pool->mutex); */
+        spinlock_unlock(&cpu_pool->lock);
     } else {
-        /* mutex_lock(&seg->mutex); */
+        spinlock_lock(&seg->lock);
         page = vm_phys_seg_alloc_from_buddy(seg, order);
-        /* mutex_unlock(&seg->mutex); */
+        spinlock_unlock(&seg->lock);
     }
 
     return page;
@@ -433,17 +434,17 @@ vm_phys_seg_free(struct vm_phys_seg *seg, struct vm_page *page,
     if (order == 0) {
         cpu_pool = vm_phys_cpu_pool_get(seg);
 
-        /* mutex_lock(&cpu_pool->mutex); */
+        spinlock_lock(&cpu_pool->lock);
 
         if (cpu_pool->nr_pages == cpu_pool->size)
             vm_phys_cpu_pool_drain(cpu_pool, seg);
 
         vm_phys_cpu_pool_push(cpu_pool, page);
-        /* mutex_unlock(&cpu_pool->mutex); */
+        spinlock_unlock(&cpu_pool->lock);
     } else {
-        /* mutex_lock(&seg->mutex); */
+        spinlock_lock(&seg->lock);
         vm_phys_seg_free_to_buddy(seg, page, order);
-        /* mutex_unlock(&seg->mutex); */
+        spinlock_unlock(&seg->lock);
     }
 }
 
