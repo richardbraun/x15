@@ -164,7 +164,7 @@ vm_kmem_alloc(size_t size)
         pmap_kenter(start, vm_page_to_pa(page));
     }
 
-    pmap_kupdate(start, end);
+    pmap_kupdate(va, end);
     return va;
 
 error_page:
