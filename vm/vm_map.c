@@ -40,6 +40,7 @@
 #include <kern/param.h>
 #include <kern/printk.h>
 #include <kern/rbtree.h>
+#include <kern/spinlock.h>
 #include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <machine/pmap.h>
@@ -779,6 +780,8 @@ vm_map_enter(struct vm_map *map, struct vm_object *object, uint64_t offset,
     struct vm_map_request request;
     int error;
 
+    spinlock_lock(&map->lock);
+
     error = vm_map_prepare(map, object, offset, *startp, size, align, flags,
                            &request);
 
@@ -790,11 +793,14 @@ vm_map_enter(struct vm_map *map, struct vm_object *object, uint64_t offset,
     if (error)
         goto error_enter;
 
+    spinlock_unlock(&map->lock);
+
     *startp = request.start;
     return 0;
 
 error_enter:
     vm_map_reset_find_cache(map);
+    spinlock_unlock(&map->lock);
     return error;
 }
 
@@ -855,10 +861,12 @@ vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end)
     assert(end <= map->end);
     assert(start < end);
 
+    spinlock_lock(&map->lock);
+
     entry = vm_map_lookup_nearest(map, start);
 
     if (entry == NULL)
-        return;
+        goto out;
 
     vm_map_clip_start(map, entry, start);
 
@@ -873,6 +881,9 @@ vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end)
     }
 
     vm_map_reset_find_cache(map);
+
+out:
+    spinlock_unlock(&map->lock);
 }
 
 static void
@@ -882,6 +893,7 @@ vm_map_init(struct vm_map *map, struct pmap *pmap, unsigned long start,
     assert(vm_page_aligned(start));
     assert(vm_page_aligned(end));
 
+    spinlock_init(&map->lock);
     list_init(&map->entry_list);
     rbtree_init(&map->entry_tree);
     map->nr_entries = 0;

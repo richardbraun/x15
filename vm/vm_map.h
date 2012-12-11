@@ -23,6 +23,7 @@
 
 #include <kern/list.h>
 #include <kern/rbtree.h>
+#include <kern/spinlock.h>
 #include <kern/stdint.h>
 #include <machine/pmap.h>
 
@@ -91,6 +92,7 @@ struct vm_map_entry {
  * Memory map.
  */
 struct vm_map {
+    struct spinlock lock;
     struct list entry_list;
     struct rbtree entry_tree;
     unsigned int nr_entries;
