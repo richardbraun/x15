@@ -31,10 +31,11 @@
 struct thread_runq thread_runqs[MAX_CPUS];
 
 /*
- * Statically allocated thread which prevents initialization code from
- * crashing when implicitely using preemption control operations.
+ * Statically allocating the idle thread structures enables their use as
+ * "current" threads during system bootstrap, which prevents preemption
+ * control functions from crashing.
  */
-static struct thread thread_dummy __initdata;
+static struct thread thread_idles[MAX_CPUS] __initdata;
 
 /*
  * Caches for allocated threads and their stacks.
@@ -43,9 +44,12 @@ static struct kmem_cache thread_cache;
 static struct kmem_cache thread_stack_cache;
 
 static void __init
-thread_runq_init(struct thread_runq *runq)
+thread_runq_init(struct thread_runq *runq, struct thread *idle)
 {
-    runq->current = &thread_dummy;
+    /* Consider preemption disabled during initialization */
+    idle->flags = 0;
+    idle->preempt = 1;
+    runq->current = idle;
     list_init(&runq->threads);
 }
 
@@ -75,11 +79,8 @@ thread_bootstrap(void)
 {
     size_t i;
 
-    thread_dummy.flags = 0;
-    thread_dummy.preempt = 0;
-
     for (i = 0; i < ARRAY_SIZE(thread_runqs); i++)
-        thread_runq_init(&thread_runqs[i]);
+        thread_runq_init(&thread_runqs[i], &thread_idles[i]);
 }
 
 void __init

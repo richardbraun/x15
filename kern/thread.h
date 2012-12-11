@@ -50,7 +50,7 @@ struct thread {
     char name[THREAD_NAME_SIZE];
     void (*fn)(void *);
     void *arg;
-};
+} __aligned(CPU_L1_SIZE);
 
 /*
  * Per processor run queue.
