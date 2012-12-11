@@ -23,6 +23,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
+#include <kern/spinlock.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
 #include <kern/types.h>
@@ -140,8 +141,11 @@ static pmap_pte_t pmap_prot_table[8];
 
 /*
  * Special addresses for temporary mappings.
+ *
+ * TODO Per-CPU mappings.
  */
 static unsigned long pmap_zero_va;
+static struct spinlock pmap_zero_va_lock;
 
 /*
  * True if running on multiple processors (TLB flushes must be propagated).
@@ -153,6 +157,7 @@ static volatile int pmap_mp_mode;
  */
 static unsigned long pmap_update_start;
 static unsigned long pmap_update_end;
+static struct spinlock pmap_update_lock;
 
 /*
  * There is strong bouncing on this counter so give it its own cache line.
@@ -348,6 +353,7 @@ pmap_bootstrap(void)
     pmap_boot_heap = (unsigned long)&_end;
     pmap_boot_heap_end = pmap_boot_heap + (PMAP_RESERVED_PAGES * PAGE_SIZE);
     pmap_zero_va = pmap_bootalloc(1);
+    spinlock_init(&pmap_zero_va_lock);
 
     pmap_kprotect((unsigned long)&_text, (unsigned long)&_rodata,
                   VM_PROT_READ | VM_PROT_EXECUTE);
@@ -398,11 +404,13 @@ pmap_klimit(void)
 static void
 pmap_zero_page(phys_addr_t pa)
 {
+    spinlock_lock(&pmap_zero_va_lock);
     pmap_kenter(pmap_zero_va, pa);
     cpu_tlb_flush_va(pmap_zero_va);
     memset((void *)pmap_zero_va, 0, PAGE_SIZE);
     pmap_kremove(pmap_zero_va, pmap_zero_va + PAGE_SIZE);
     cpu_tlb_flush_va(pmap_zero_va);
+    spinlock_unlock(&pmap_zero_va_lock);
 }
 
 void
@@ -509,6 +517,8 @@ pmap_kupdate(unsigned long start, unsigned long end)
         return;
     }
 
+    spinlock_lock(&pmap_update_lock);
+
     pmap_update_start = start;
     pmap_update_end = end;
     pmap_nr_updates.count = nr_cpus - 1;
@@ -523,6 +533,8 @@ pmap_kupdate(unsigned long start, unsigned long end)
 
     while (pmap_nr_updates.count != 0)
         cpu_pause();
+
+    spinlock_unlock(&pmap_update_lock);
 }
 
 phys_addr_t
@@ -548,6 +560,7 @@ pmap_mp_setup(void)
 {
     assert(cpu_intr_enabled());
 
+    spinlock_init(&pmap_update_lock);
     pmap_mp_mode = 1;
 }
 
