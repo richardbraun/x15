@@ -148,11 +148,6 @@ static unsigned long pmap_zero_va;
 static struct spinlock pmap_zero_va_lock;
 
 /*
- * True if running on multiple processors (TLB flushes must be propagated).
- */
-static volatile int pmap_mp_mode;
-
-/*
  * Shared variables used by the inter-processor update functions.
  */
 static unsigned long pmap_update_start;
@@ -364,6 +359,7 @@ pmap_bootstrap(void)
 
     cpu_tlb_flush();
 
+    spinlock_init(&pmap_update_lock);
     pmap_kernel_limit = VM_MIN_KERNEL_ADDRESS;
 }
 
@@ -372,9 +368,6 @@ pmap_ap_bootstrap(void)
 {
     if (cpu_has_global_pages())
         cpu_enable_global_pages();
-
-    while (!pmap_mp_mode)
-        cpu_pause();
 }
 
 unsigned long __init
@@ -507,10 +500,7 @@ pmap_kupdate(unsigned long start, unsigned long end)
 {
     unsigned int nr_cpus;
 
-    if (pmap_mp_mode)
-        nr_cpus = cpu_count();
-    else
-        nr_cpus = 1;
+    nr_cpus = cpu_count();
 
     if (nr_cpus == 1) {
         pmap_kupdate_local(start, end);
@@ -553,15 +543,6 @@ pmap_kextract(unsigned long va)
     }
 
     return *pte & PMAP_PA_MASK;
-}
-
-void
-pmap_mp_setup(void)
-{
-    assert(cpu_intr_enabled());
-
-    spinlock_init(&pmap_update_lock);
-    pmap_mp_mode = 1;
 }
 
 void

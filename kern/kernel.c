@@ -30,7 +30,7 @@ kernel_main(void)
     task_setup();
     thread_setup();
 
-    /* Interrupts are enabled by this call */
+    cpu_intr_enable();
     cpu_mp_setup();
 
     thread_run();
@@ -41,7 +41,10 @@ kernel_main(void)
 void __init
 kernel_ap_main(void)
 {
-    assert(cpu_intr_enabled());
+    assert(!cpu_intr_enabled());
+
+    cpu_intr_enable();
+    cpu_ap_sync();
 
     thread_run();
 

@@ -436,17 +436,24 @@ void cpu_mp_register_lapic(unsigned int apic_id, int is_bsp);
 
 /*
  * Probe application processors and start them.
- *
- * This function enables interrupts.
  */
 void cpu_mp_setup(void);
 
 /*
  * CPU initialization on APs.
- *
- * This function enables interrupts.
  */
 void cpu_ap_setup(void);
+
+/*
+ * Synchronize processors on kernel entry.
+ *
+ * Wait for all processors to reach a proper state when entering the kernel,
+ * so that memory allocations can proceed and thread scheduling started.
+ *
+ * Once this function returns, cpu_count can be used reliably to know if there
+ * are more than one processors, and how many.
+ */
+void cpu_ap_sync(void);
 
 #endif /* __ASSEMBLER__ */
 

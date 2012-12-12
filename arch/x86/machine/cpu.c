@@ -70,7 +70,12 @@ struct cpu cpu_array[MAX_CPUS];
 
 /*
  * Number of configured processors.
+ *
+ * The boot version is used until all processors are configured, since some
+ * modules depend on cpu_count() to adjust their behaviour when several
+ * processors are present.
  */
+static unsigned int cpu_boot_array_size;
 unsigned int cpu_array_size;
 
 /*
@@ -298,6 +303,7 @@ cpu_setup(void)
         cpu_array[i].state = CPU_STATE_OFF;
     }
 
+    cpu_boot_array_size = 1;
     cpu_array_size = 1;
     cpu_init(&cpu_array[0]);
 }
@@ -341,13 +347,13 @@ cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
         return;
     }
 
-    if (cpu_array_size == ARRAY_SIZE(cpu_array)) {
+    if (cpu_boot_array_size == ARRAY_SIZE(cpu_array)) {
         printk("cpu: ignoring processor beyond id %u\n", MAX_CPUS - 1);
         return;
     }
 
-    cpu_array[cpu_array_size].apic_id = apic_id;
-    cpu_array_size++;
+    cpu_array[cpu_boot_array_size].apic_id = apic_id;
+    cpu_boot_array_size++;
 }
 
 static void __init
@@ -360,7 +366,7 @@ cpu_mp_start_aps(void)
     size_t map_size;
     unsigned int i;
 
-    if (cpu_array_size == 1)
+    if (cpu_boot_array_size == 1)
         return;
 
     assert(BOOT_MP_TRAMPOLINE_ADDR < BIOSMEM_BASE);
@@ -396,7 +402,7 @@ cpu_mp_start_aps(void)
      * Preallocate stacks now, as the kernel mappings shouldn't change while
      * the APs are bootstrapping.
      */
-    for (i = 1; i < cpu_array_size; i++) {
+    for (i = 1; i < cpu_boot_array_size; i++) {
         cpu = &cpu_array[i];
         cpu->boot_stack = vm_kmem_alloc(BOOT_STACK_SIZE);
 
@@ -405,7 +411,7 @@ cpu_mp_start_aps(void)
     }
 
     /* Perform the "Universal Start-up Algorithm" */
-    for (i = 1; i < cpu_array_size; i++) {
+    for (i = 1; i < cpu_boot_array_size; i++) {
         cpu = &cpu_array[i];
 
         boot_ap_id = i;
@@ -424,6 +430,8 @@ cpu_mp_start_aps(void)
         while (cpu->state == CPU_STATE_OFF)
             cpu_pause();
     }
+
+    cpu_array_size = cpu_boot_array_size;
 }
 
 static void __init
@@ -437,8 +445,6 @@ cpu_mp_setup(void)
 {
     acpimp_setup();
     cpu_mp_start_aps();
-    cpu_intr_enable();
-    pmap_mp_setup();
     cpu_mp_info();
 }
 
@@ -448,5 +454,11 @@ cpu_ap_setup(void)
     cpu_init(&cpu_array[boot_ap_id]);
     cpu_check(cpu_current());
     lapic_ap_setup();
-    cpu_intr_enable();
+}
+
+void __init
+cpu_ap_sync(void)
+{
+    while (cpu_count() == 1)
+        cpu_pause();
 }

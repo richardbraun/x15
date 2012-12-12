@@ -176,13 +176,6 @@ void pmap_kupdate(unsigned long start, unsigned long end);
 phys_addr_t pmap_kextract(unsigned long va);
 
 /*
- * Prepare the pmap module for a multiprocessor environment.
- *
- * Interrupts must be enabled when calling this function.
- */
-void pmap_mp_setup(void);
-
-/*
  * Interrupt handler for inter-processor update requests.
  */
 void pmap_update_intr(struct trap_frame *frame);
