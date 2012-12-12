@@ -57,6 +57,7 @@ struct thread {
  */
 struct thread_runq {
     struct thread *current;
+    struct thread *idle;
     struct list threads;
 } __aligned(CPU_L1_SIZE);
 
@@ -80,13 +81,13 @@ void thread_setup(void);
  *
  * If the given name is null, the task name is used instead.
  */
-int thread_create(struct thread **threadp, const char *name, struct task *task,
+int thread_create(struct thread **threadp, struct task *task, const char *name,
                   void (*fn)(void *), void *arg);
 
 /*
  * Start running threads on the local processor.
  *
- * Interrupts are implicitely enabled when the first thread is dispatched.
+ * Interrupts must be enabled when calling this function.
  */
 void __noreturn thread_run(void);
 

@@ -22,31 +22,16 @@
 #include <kern/thread.h>
 #include <machine/cpu.h>
 
-static void __init
-kernel_setup(void *arg)
-{
-    (void)arg;
-
-    for (;;)
-        cpu_idle();
-}
-
 void __init
 kernel_main(void)
 {
-    struct thread *thread;
-    int error;
-
     assert(!cpu_intr_enabled());
 
     task_setup();
     thread_setup();
+
+    /* Interrupts are enabled by this call */
     cpu_mp_setup();
-
-    error = thread_create(&thread, "core", kernel_task, kernel_setup, NULL);
-
-    if (error)
-        panic("kernel: unable to create kernel thread");
 
     thread_run();
 
@@ -58,8 +43,7 @@ kernel_ap_main(void)
 {
     assert(cpu_intr_enabled());
 
-    for (;;)
-        cpu_idle();
+    thread_run();
 
     /* Never reached */
 }

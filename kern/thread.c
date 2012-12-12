@@ -22,8 +22,10 @@
 #include <kern/list.h>
 #include <kern/macros.h>
 #include <kern/param.h>
+#include <kern/sprintf.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
+#include <kern/task.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/tcb.h>
@@ -50,12 +52,14 @@ thread_runq_init(struct thread_runq *runq, struct thread *idle)
     idle->flags = 0;
     idle->preempt = 1;
     runq->current = idle;
+    runq->idle = idle;
     list_init(&runq->threads);
 }
 
 static void
 thread_runq_enqueue(struct thread_runq *runq, struct thread *thread)
 {
+    assert(!cpu_intr_enabled());
     list_insert_tail(&runq->threads, &thread->runq_node);
 }
 
@@ -63,6 +67,8 @@ static struct thread *
 thread_runq_dequeue(struct thread_runq *runq)
 {
     struct thread *thread;
+
+    assert(!cpu_intr_enabled());
 
     if (list_empty(&runq->threads))
         thread = NULL;
@@ -106,15 +112,36 @@ thread_main(void)
 
     thread->fn(thread->arg);
 
+    /* TODO Thread destruction */
     for (;;)
         cpu_idle();
 }
 
+static void
+thread_init(struct thread *thread, struct task *task, void *stack,
+            const char *name, void (*fn)(void *), void *arg)
+{
+    tcb_init(&thread->tcb, stack, thread_main);
+
+    if (name == NULL)
+        name = task->name;
+
+    thread->flags = 0;
+    thread->preempt = 0;
+    thread->task = task;
+    thread->stack = stack;
+    strlcpy(thread->name, name, sizeof(thread->name));
+    thread->fn = fn;
+    thread->arg = arg;
+    task_add_thread(task, thread);
+}
+
 int
-thread_create(struct thread **threadp, const char *name, struct task *task,
+thread_create(struct thread **threadp, struct task *task, const char *name,
               void (*fn)(void *), void *arg)
 {
     struct thread *thread;
+    unsigned long flags;
     void *stack;
     int error;
 
@@ -132,22 +159,11 @@ thread_create(struct thread **threadp, const char *name, struct task *task,
         goto error_stack;
     }
 
-    tcb_init(&thread->tcb, stack, thread_main);
+    thread_init(thread, task, stack, name, fn, arg);
 
-    if (name == NULL)
-        name = task->name;
-
-    thread->flags = 0;
-    thread->preempt = 0;
-    thread->task = task;
-    thread->stack = stack;
-    strlcpy(thread->name, name, sizeof(thread->name));
-    thread->fn = fn;
-    thread->arg = arg;
-
-    /* XXX Assign all threads to the main processor for now */
-    thread_runq_enqueue(&thread_runqs[0], thread);
-    task_add_thread(task, thread);
+    flags = cpu_intr_save();
+    thread_runq_enqueue(&thread_runqs[cpu_id()], thread);
+    cpu_intr_restore(flags);
 
     *threadp = thread;
     return 0;
@@ -158,18 +174,48 @@ error_thread:
     return error;
 }
 
+static void
+thread_idle(void *arg)
+{
+    (void)arg;
+
+    for (;;)
+        cpu_idle();
+}
+
+static void __init
+thread_setup_idle(void)
+{
+    char name[THREAD_NAME_SIZE];
+    struct thread_runq *runq;
+    void *stack;
+
+    stack = kmem_cache_alloc(&thread_stack_cache);
+
+    if (stack == NULL)
+        panic("thread: unable to allocate idle thread stack");
+
+    snprintf(name, sizeof(name), "idle%u", cpu_id());
+    runq = thread_runq_local();
+    thread_init(runq->idle, kernel_task, stack, name, thread_idle, NULL);
+}
+
 void __init
 thread_run(void)
 {
     struct thread_runq *runq;
     struct thread *thread;
 
-    runq = thread_runq_local();
+    assert(cpu_intr_enabled());
 
+    thread_setup_idle();
+
+    cpu_intr_disable();
+    runq = thread_runq_local();
     thread = thread_runq_dequeue(runq);
 
-    /* TODO Idle thread */
-    assert(thread != NULL);
+    if (thread == NULL)
+        thread = runq->idle;
 
     runq->current = thread;
     tcb_load(&thread->tcb);
@@ -182,20 +228,24 @@ thread_schedule(void)
     struct thread *prev, *next;
     unsigned long flags;
 
+    assert(thread_preempt_enabled());
+
     flags = cpu_intr_save();
 
     runq = thread_runq_local();
     prev = runq->current;
-    thread_runq_enqueue(runq, prev);
+    assert(prev != NULL);
+
+    if (prev != runq->idle)
+        thread_runq_enqueue(runq, prev);
+
     next = thread_runq_dequeue(runq);
 
-    /* TODO Idle thread */
-    assert(next != NULL);
+    if (next == NULL)
+        next = runq->idle;
 
-    if (prev != next) {
-        runq->current = next;
+    if (prev != next)
         tcb_switch(&prev->tcb, &next->tcb);
-    }
 
     cpu_intr_restore(flags);
 }
@@ -210,11 +260,9 @@ thread_reschedule(void)
 
     runq = thread_runq_local();
     thread = runq->current;
-
-    /* TODO Idle thread */
     assert(thread != NULL);
 
-    if (thread->flags & THREAD_RESCHEDULE)
+    if ((thread->preempt == 0) && (thread->flags & THREAD_RESCHEDULE))
         thread_schedule();
 }
 
@@ -228,9 +276,6 @@ thread_tick(void)
 
     runq = thread_runq_local();
     thread = runq->current;
-
-    /* TODO Idle thread */
     assert(thread != NULL);
-
     thread->flags |= THREAD_RESCHEDULE;
 }
