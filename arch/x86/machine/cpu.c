@@ -30,6 +30,7 @@
 #include <machine/cpu.h>
 #include <machine/io.h>
 #include <machine/lapic.h>
+#include <machine/mb.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
 #include <vm/vm_kmem.h>
@@ -409,6 +410,7 @@ cpu_mp_start_aps(void)
 
         boot_ap_id = i;
         boot_ap_stack_addr = cpu->boot_stack;
+        mb_store();
 
         lapic_ipi_init_assert(cpu->apic_id);
         cpu_delay(200);
