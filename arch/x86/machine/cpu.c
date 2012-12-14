@@ -179,6 +179,12 @@ cpu_init_gdt(struct cpu *cpu)
 }
 
 static void __init
+cpu_init_ldt(void)
+{
+    asm volatile("lldt %w0" : : "q" (CPU_GDT_SEL_NULL));
+}
+
+static void __init
 cpu_init_tss(struct cpu *cpu)
 {
     struct cpu_tss *tss;
@@ -245,6 +251,7 @@ cpu_init(struct cpu *cpu)
     cpu_set_cr0(CPU_CR0_PG | CPU_CR0_AM | CPU_CR0_WP | CPU_CR0_NE | CPU_CR0_ET
                 | CPU_CR0_TS | CPU_CR0_MP | CPU_CR0_PE);
     cpu_init_gdt(cpu);
+    cpu_init_ldt();
     cpu_init_tss(cpu);
     cpu_load_idt();
 
