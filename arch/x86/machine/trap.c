@@ -150,7 +150,7 @@ trap_main(struct trap_frame *frame)
 {
     assert(frame->vector < ARRAY_SIZE(trap_handlers));
     trap_handlers[frame->vector].fn(frame);
-    thread_reschedule();
+    thread_intr_schedule();
 }
 
 #ifdef __LP64__

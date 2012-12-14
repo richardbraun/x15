@@ -251,7 +251,7 @@ thread_schedule(void)
 }
 
 void
-thread_reschedule(void)
+thread_intr_schedule(void)
 {
     struct thread_runq *runq;
     struct thread *thread;
@@ -264,6 +264,22 @@ thread_reschedule(void)
 
     if ((thread->preempt == 0) && (thread->flags & THREAD_RESCHEDULE))
         thread_schedule();
+}
+
+void
+thread_preempt_schedule(void)
+{
+    struct thread_runq *runq;
+    struct thread *thread;
+
+    runq = thread_runq_local();
+    thread = runq->current;
+    assert(thread != NULL);
+
+    if ((thread->preempt == 0)) {
+        assert(!cpu_intr_enabled());
+        thread_schedule();
+    }
 }
 
 void
