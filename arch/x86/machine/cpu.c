@@ -136,6 +136,29 @@ cpu_seg_set_data(char *table, unsigned int selector, uint32_t base)
 #endif /* __LP64__ */
 }
 
+static void
+cpu_seg_set_tss(char *table, unsigned int selector, struct cpu_tss *tss)
+{
+    struct cpu_sysseg_desc *desc;
+    unsigned long base, limit;
+
+    desc = (struct cpu_sysseg_desc *)(table + selector);
+    base = (unsigned long)tss;
+    limit = base + sizeof(*tss);
+
+#ifdef __LP64__
+    desc->word4 = 0;
+    desc->word3 = (base >> 32);
+#endif /* __LP64__ */
+
+    desc->word2 = (base & CPU_DESC_SEG_BASE_HIGH_MASK)
+                  | (limit & CPU_DESC_SEG_LIMIT_HIGH_MASK)
+                  | CPU_DESC_PRESENT | CPU_DESC_TYPE_TSS
+                  | ((base & CPU_DESC_SEG_BASE_MID_MASK) >> 16);
+    desc->word1 = ((base & CPU_DESC_SEG_BASE_LOW_MASK) << 16)
+                 | (limit & CPU_DESC_SEG_LIMIT_LOW_MASK);
+}
+
 static void __init
 cpu_init_gdt(struct cpu *cpu)
 {
@@ -144,6 +167,7 @@ cpu_init_gdt(struct cpu *cpu)
     cpu_seg_set_null(cpu->gdt, CPU_GDT_SEL_NULL);
     cpu_seg_set_code(cpu->gdt, CPU_GDT_SEL_CODE);
     cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_DATA, 0);
+    cpu_seg_set_tss(cpu->gdt, CPU_GDT_SEL_TSS, &cpu->tss);
 
 #ifndef __LP64__
     cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_CPU, (unsigned long)cpu);
@@ -152,6 +176,16 @@ cpu_init_gdt(struct cpu *cpu)
     gdtr.address = (unsigned long)cpu->gdt;
     gdtr.limit = sizeof(cpu->gdt) - 1;
     cpu_load_gdt(cpu, &gdtr);
+}
+
+static void __init
+cpu_init_tss(struct cpu *cpu)
+{
+    struct cpu_tss *tss;
+
+    tss = &cpu->tss;
+    memset(tss, 0, sizeof(*tss));
+    asm volatile("ltr %w0" : : "q" (CPU_GDT_SEL_TSS));
 }
 
 void
@@ -211,6 +245,7 @@ cpu_init(struct cpu *cpu)
     cpu_set_cr0(CPU_CR0_PG | CPU_CR0_AM | CPU_CR0_WP | CPU_CR0_NE | CPU_CR0_ET
                 | CPU_CR0_TS | CPU_CR0_MP | CPU_CR0_PE);
     cpu_init_gdt(cpu);
+    cpu_init_tss(cpu);
     cpu_load_idt();
 
     eax = 0;

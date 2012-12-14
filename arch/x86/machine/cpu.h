@@ -24,12 +24,13 @@
 #define CPU_GDT_SEL_NULL    0
 #define CPU_GDT_SEL_CODE    8
 #define CPU_GDT_SEL_DATA    16
+#define CPU_GDT_SEL_TSS     24
 
 #ifdef __LP64__
-#define CPU_GDT_SIZE        24
+#define CPU_GDT_SIZE        40
 #else /* __LP64__ */
-#define CPU_GDT_SEL_CPU     24
-#define CPU_GDT_SIZE        32
+#define CPU_GDT_SEL_CPU     32
+#define CPU_GDT_SIZE        40
 #endif /* __LP64__ */
 
 #define CPU_IDT_SIZE 256
@@ -105,6 +106,7 @@ struct cpu_pseudo_desc {
  * Gate/segment descriptor bits and masks.
  */
 #define CPU_DESC_TYPE_DATA              0x00000200
+#define CPU_DESC_TYPE_TSS               0x00000900
 #define CPU_DESC_TYPE_CODE              0x00000a00
 #define CPU_DESC_TYPE_GATE_INTR         0x00000e00
 #define CPU_DESC_S                      0x00001000
@@ -142,6 +144,59 @@ struct cpu_seg_desc {
 } __packed;
 
 /*
+ * LDT or TSS system segment descriptor.
+ */
+struct cpu_sysseg_desc {
+    uint32_t word1;
+    uint32_t word2;
+#ifdef __LP64__
+    uint32_t word3;
+    uint32_t word4;
+#endif /* __LP64__ */
+} __packed;
+
+struct cpu_tss {
+#ifdef __LP64__
+    uint32_t reserved0;
+    uint64_t rsp0;
+    uint64_t rsp1;
+    uint64_t rsp2;
+    uint64_t reserved1;
+    uint64_t ist[7];
+    uint64_t reserved2;
+    uint16_t reserved3;
+#else /* __LP64__ */
+    uint32_t link;
+    uint32_t esp0;
+    uint32_t ss0;
+    uint32_t esp1;
+    uint32_t ss1;
+    uint32_t esp2;
+    uint32_t ss2;
+    uint32_t cr3;
+    uint32_t eip;
+    uint32_t eflags;
+    uint32_t eax;
+    uint32_t ecx;
+    uint32_t edx;
+    uint32_t ebx;
+    uint32_t esp;
+    uint32_t ebp;
+    uint32_t esi;
+    uint32_t edi;
+    uint32_t es;
+    uint32_t cs;
+    uint32_t ss;
+    uint32_t ds;
+    uint32_t fs;
+    uint32_t gs;
+    uint32_t ldt;
+    uint16_t trap_bit;
+#endif /* __LP64__ */
+    uint16_t iobp_base;
+} __packed;
+
+/*
  * CPU states.
  */
 #define CPU_STATE_OFF   0
@@ -170,6 +225,7 @@ struct cpu {
     unsigned int features3;
     unsigned int features4;
     char gdt[CPU_GDT_SIZE] __aligned(8);
+    struct cpu_tss tss;
     volatile int state;
     unsigned long boot_stack;
 } __aligned(CPU_ALIGN);
