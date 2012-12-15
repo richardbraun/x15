@@ -92,6 +92,52 @@ trap_install(unsigned int vector, trap_isr_fn_t isr, trap_handler_fn_t fn)
 }
 
 static void
+trap_double_fault(struct trap_frame *frame)
+{
+#ifndef __LP64__
+    struct trap_frame frame_store;
+    struct cpu *cpu;
+
+    /*
+     * Double faults are catched through a task gate, which makes the given
+     * frame useless. The interrupted state is automatically saved in the
+     * main TSS by the processor. Build a proper trap frame from there.
+     */
+    frame = &frame_store;
+    cpu = cpu_current();
+    frame->eax = cpu->tss.eax;
+    frame->ebx = cpu->tss.ebx;
+    frame->ecx = cpu->tss.ecx;
+    frame->edx = cpu->tss.edx;
+    frame->ebp = cpu->tss.ebp;
+    frame->esi = cpu->tss.esi;
+    frame->edi = cpu->tss.edi;
+    frame->ds = cpu->tss.ds;
+    frame->es = cpu->tss.es;
+    frame->fs = cpu->tss.fs;
+    frame->gs = cpu->tss.gs;
+    frame->vector = TRAP_DF;
+    frame->error = 0;
+    frame->eip = cpu->tss.eip;
+    frame->cs = cpu->tss.cs;
+    frame->eflags = cpu->tss.eflags;
+    frame->esp = cpu->tss.esp;
+    frame->ss = cpu->tss.ss;
+#endif /* __LP64__ */
+
+    printk("trap: double fault:\n");
+    trap_frame_show(frame);
+    cpu_halt();
+}
+
+static void __init
+trap_install_double_fault(void)
+{
+    trap_handler_init(&trap_handlers[TRAP_DF], trap_double_fault);
+    cpu_idt_set_double_fault(trap_isr_double_fault);
+}
+
+static void
 trap_default(struct trap_frame *frame)
 {
     printk("trap: unhandled interrupt or exception:\n");
@@ -120,7 +166,7 @@ trap_setup(void)
     trap_install(TRAP_BR, trap_isr_bound_range, trap_default);
     trap_install(TRAP_UD, trap_isr_invalid_opcode, trap_default);
     trap_install(TRAP_NM, trap_isr_device_not_available, trap_default);
-    trap_install(TRAP_DF, trap_isr_double_fault, trap_default);
+    trap_install_double_fault();
     trap_install(TRAP_TS, trap_isr_invalid_tss, trap_default);
     trap_install(TRAP_NP, trap_isr_segment_not_present, trap_default);
     trap_install(TRAP_SS, trap_isr_stack_segment_fault, trap_default);
@@ -204,7 +250,8 @@ trap_frame_show(struct trap_frame *frame)
     printk("trap:     cs: %#010lx\n", frame->cs);
     printk("trap: eflags: %#010lx\n", frame->eflags);
 
-    if (frame->cs & CPU_PL_USER) {
+    if ((frame->cs & CPU_PL_USER)
+        || (frame->vector == TRAP_DF)) {
         printk("trap:    esp: %#010lx\n", frame->esp);
         printk("trap:     ss: %#010lx\n", frame->ss);
     }

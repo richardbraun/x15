@@ -66,6 +66,7 @@
 #ifndef __ASSEMBLER__
 
 #include <kern/macros.h>
+#include <kern/printk.h>
 
 #ifdef __LP64__
 
@@ -118,6 +119,13 @@ struct trap_frame {
 } __packed;
 
 #endif /* __LP64__ */
+
+static inline void
+trap_test_double_fault(void)
+{
+    printk("trap: double fault test\n");
+    asm volatile("movl $0x1234, %esp; push $0");
+}
 
 /*
  * Set up the trap module.

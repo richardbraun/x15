@@ -83,6 +83,12 @@ unsigned int cpu_array_size;
  */
 static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8);
 
+/*
+ * Double fault handler, and stack for the main processor.
+ */
+static unsigned long cpu_double_fault_handler;
+static char cpu_double_fault_stack[STACK_SIZE] __aligned(DATA_ALIGN);
+
 static void
 cpu_seg_set_null(char *table, unsigned int selector)
 {
@@ -170,6 +176,7 @@ cpu_init_gdt(struct cpu *cpu)
     cpu_seg_set_tss(cpu->gdt, CPU_GDT_SEL_TSS, &cpu->tss);
 
 #ifndef __LP64__
+    cpu_seg_set_tss(cpu->gdt, CPU_GDT_SEL_DF_TSS, &cpu->double_fault_tss);
     cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_CPU, (unsigned long)cpu);
 #endif /* __LP64__ */
 
@@ -191,8 +198,38 @@ cpu_init_tss(struct cpu *cpu)
 
     tss = &cpu->tss;
     memset(tss, 0, sizeof(*tss));
+
+#ifdef __LP64__
+    assert(cpu->double_fault_stack != 0);
+    tss->ist[CPU_TSS_IST_DF] = cpu->double_fault_stack;
+#endif /* __LP64__ */
+
     asm volatile("ltr %w0" : : "q" (CPU_GDT_SEL_TSS));
 }
+
+#ifndef __LP64__
+static void __init
+cpu_init_double_fault_tss(struct cpu *cpu)
+{
+    struct cpu_tss *tss;
+
+    assert(cpu_double_fault_handler != 0);
+    assert(cpu->double_fault_stack != 0);
+
+    tss = &cpu->double_fault_tss;
+    memset(tss, 0, sizeof(*tss));
+    tss->cr3 = cpu_get_cr3();
+    tss->eip = cpu_double_fault_handler;
+    tss->eflags = CPU_EFL_ONE;
+    tss->ebp = cpu->double_fault_stack + STACK_SIZE;
+    tss->esp = tss->ebp;
+    tss->es = CPU_GDT_SEL_DATA;
+    tss->cs = CPU_GDT_SEL_CODE;
+    tss->ss = CPU_GDT_SEL_DATA;
+    tss->ds = CPU_GDT_SEL_DATA;
+    tss->fs = CPU_GDT_SEL_CPU;
+}
+#endif /* __LP64__ */
 
 void
 cpu_idt_set_gate(unsigned int vector, void (*isr)(void))
@@ -213,6 +250,24 @@ cpu_idt_set_gate(unsigned int vector, void (*isr)(void))
                   | CPU_DESC_PRESENT | CPU_DESC_TYPE_GATE_INTR;
     desc->word1 = (CPU_GDT_SEL_CODE << 16)
                   | ((unsigned long)isr & CPU_DESC_GATE_OFFSET_LOW_MASK);
+}
+
+void
+cpu_idt_set_double_fault(void (*isr)(void))
+{
+    struct cpu_gate_desc *desc;
+
+    cpu_double_fault_handler = (unsigned long)isr;
+
+#ifdef __LP64__
+    cpu_idt_set_gate(TRAP_DF, isr);
+    desc = &cpu_idt[TRAP_DF];
+    desc->word2 |= CPU_TSS_IST_DF & CPU_DESC_SEG_IST_MASK;
+#else /* __LP64__ */
+    desc = &cpu_idt[TRAP_DF];
+    desc->word2 = CPU_DESC_PRESENT | CPU_DESC_TYPE_GATE_TASK;
+    desc->word1 = CPU_GDT_SEL_DF_TSS << 16;
+#endif /* __LP64__ */
 }
 
 static void
@@ -253,6 +308,9 @@ cpu_init(struct cpu *cpu)
     cpu_init_gdt(cpu);
     cpu_init_ldt();
     cpu_init_tss(cpu);
+#ifndef __LP64__
+    cpu_init_double_fault_tss(cpu);
+#endif /* __LP64__ */
     cpu_load_idt();
 
     eax = 0;
@@ -347,6 +405,7 @@ cpu_setup(void)
 
     cpu_boot_array_size = 1;
     cpu_array_size = 1;
+    cpu_array[0].double_fault_stack = (unsigned long)cpu_double_fault_stack;
     cpu_init(&cpu_array[0]);
 }
 
@@ -450,6 +509,11 @@ cpu_mp_start_aps(void)
 
         if (cpu->boot_stack == 0)
             panic("cpu: unable to allocate boot stack for cpu%u", i);
+
+        cpu->double_fault_stack = vm_kmem_alloc(STACK_SIZE);
+
+        if (cpu->double_fault_stack == 0)
+            panic("cpu: unable to allocate double fault stack for cpu%u", i);
     }
 
     /* Perform the "Universal Start-up Algorithm" */

@@ -29,8 +29,9 @@
 #ifdef __LP64__
 #define CPU_GDT_SIZE        40
 #else /* __LP64__ */
-#define CPU_GDT_SEL_CPU     32
-#define CPU_GDT_SIZE        40
+#define CPU_GDT_SEL_DF_TSS  32
+#define CPU_GDT_SEL_CPU     40
+#define CPU_GDT_SIZE        48
 #endif /* __LP64__ */
 
 #define CPU_IDT_SIZE 256
@@ -106,9 +107,10 @@ struct cpu_pseudo_desc {
  * Gate/segment descriptor bits and masks.
  */
 #define CPU_DESC_TYPE_DATA              0x00000200
-#define CPU_DESC_TYPE_TSS               0x00000900
 #define CPU_DESC_TYPE_CODE              0x00000a00
+#define CPU_DESC_TYPE_TSS               0x00000900
 #define CPU_DESC_TYPE_GATE_INTR         0x00000e00
+#define CPU_DESC_TYPE_GATE_TASK         0x00000500
 #define CPU_DESC_S                      0x00001000
 #define CPU_DESC_PRESENT                0x00008000
 #define CPU_DESC_LONG                   0x00200000
@@ -117,6 +119,7 @@ struct cpu_pseudo_desc {
 
 #define CPU_DESC_GATE_OFFSET_LOW_MASK   0x0000ffff
 #define CPU_DESC_GATE_OFFSET_HIGH_MASK  0xffff0000
+#define CPU_DESC_SEG_IST_MASK           0x00000007
 #define CPU_DESC_SEG_BASE_LOW_MASK      0x0000ffff
 #define CPU_DESC_SEG_BASE_MID_MASK      0x00ff0000
 #define CPU_DESC_SEG_BASE_HIGH_MASK     0xff000000
@@ -155,16 +158,20 @@ struct cpu_sysseg_desc {
 #endif /* __LP64__ */
 } __packed;
 
+/*
+ * IST indexes (0 is reserved).
+ */
+#define CPU_TSS_IST_DF 1
+
 struct cpu_tss {
 #ifdef __LP64__
     uint32_t reserved0;
     uint64_t rsp0;
     uint64_t rsp1;
     uint64_t rsp2;
+    uint64_t ist[8];
     uint64_t reserved1;
-    uint64_t ist[7];
-    uint64_t reserved2;
-    uint16_t reserved3;
+    uint16_t reserved2;
 #else /* __LP64__ */
     uint32_t link;
     uint32_t esp0;
@@ -226,8 +233,14 @@ struct cpu {
     unsigned int features4;
     char gdt[CPU_GDT_SIZE] __aligned(8);
     struct cpu_tss tss;
+#ifndef __LP64__
+    struct cpu_tss double_fault_tss;
+#endif /* __LP64__ */
     volatile int state;
+
+    /* The following members have special initialization paths */
     unsigned long boot_stack;
+    unsigned long double_fault_stack;
 } __aligned(CPU_ALIGN);
 
 extern struct cpu cpu_array[MAX_CPUS];
@@ -469,6 +482,7 @@ void cpu_load_gdt(struct cpu *cpu, struct cpu_pseudo_desc *gdtr);
  * Install an interrupt handler in the IDT.
  */
 void cpu_idt_set_gate(unsigned int vector, void (*isr)(void));
+void cpu_idt_set_double_fault(void (*isr)(void));
 
 /*
  * Set up the cpu module.
