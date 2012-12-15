@@ -144,7 +144,7 @@ cpu_seg_set_tss(char *table, unsigned int selector, struct cpu_tss *tss)
 
     desc = (struct cpu_sysseg_desc *)(table + selector);
     base = (unsigned long)tss;
-    limit = base + sizeof(*tss);
+    limit = base + sizeof(*tss) - 1;
 
 #ifdef __LP64__
     desc->word4 = 0;
