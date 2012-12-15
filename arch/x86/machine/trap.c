@@ -204,28 +204,19 @@ trap_main(struct trap_frame *frame)
 void
 trap_frame_show(struct trap_frame *frame)
 {
-    printk("trap:    rax: %#018lx\n", frame->rax);
-    printk("trap:    rbx: %#018lx\n", frame->rbx);
-    printk("trap:    rcx: %#018lx\n", frame->rcx);
-    printk("trap:    rdx: %#018lx\n", frame->rdx);
-    printk("trap:    rbp: %#018lx\n", frame->rbp);
-    printk("trap:    rsi: %#018lx\n", frame->rsi);
-    printk("trap:    rdi: %#018lx\n", frame->rdi);
-    printk("trap:     r8: %#018lx\n", frame->r8);
-    printk("trap:     r9: %#018lx\n", frame->r9);
-    printk("trap:    r10: %#018lx\n", frame->r10);
-    printk("trap:    r11: %#018lx\n", frame->r11);
-    printk("trap:    r12: %#018lx\n", frame->r12);
-    printk("trap:    r13: %#018lx\n", frame->r13);
-    printk("trap:    r14: %#018lx\n", frame->r14);
-    printk("trap:    r15: %#018lx\n", frame->r15);
-    printk("trap: vector: %lu\n", frame->vector);
-    printk("trap:  error: %#018lx\n", frame->error);
-    printk("trap:    rip: %#018lx\n", frame->rip);
-    printk("trap:     cs: %#018lx\n", frame->cs);
-    printk("trap: rflags: %#018lx\n", frame->rflags);
-    printk("trap:    rsp: %#018lx\n", frame->rsp);
-    printk("trap:     ss: %#018lx\n", frame->ss);
+    printk("trap: rax: %016lx rbx: %016lx rcx: %016lx\n"
+           "trap: rdx: %016lx rbp: %016lx rsi: %016lx\n"
+           "trap: rdi: %016lx  r8: %016lx  r9: %016lx\n"
+           "trap: r10: %016lx r11: %016lx r12: %016lx\n"
+           "trap: r13: %016lx r14: %016lx r15: %016lx\n"
+           "trap: vector: %lu error: %08lx\n"
+           "trap: rip: %016lx cs: %lu rflags: %016lx\n"
+           "trap: rsp: %016lx ss: %lu\n",
+           frame->rax, frame->rbx, frame->rcx, frame->rdx, frame->rbp,
+           frame->rsi, frame->rdi, frame->r8, frame->r9, frame->r10,
+           frame->r11, frame->r12, frame->r13, frame->r14, frame->r15,
+           frame->vector, frame->error, frame->rip, frame->cs, frame->rflags,
+           frame->rsp, frame->ss);
 }
 
 #else /* __LP64__ */
@@ -233,28 +224,26 @@ trap_frame_show(struct trap_frame *frame)
 void
 trap_frame_show(struct trap_frame *frame)
 {
-    printk("trap:    eax: %#010lx\n", frame->eax);
-    printk("trap:    ebx: %#010lx\n", frame->ebx);
-    printk("trap:    ecx: %#010lx\n", frame->ecx);
-    printk("trap:    edx: %#010lx\n", frame->edx);
-    printk("trap:    ebp: %#010lx\n", frame->ebp);
-    printk("trap:    esi: %#010lx\n", frame->esi);
-    printk("trap:    edi: %#010lx\n", frame->edi);
-    printk("trap:     ds: %#010lx\n", frame->ds);
-    printk("trap:     es: %#010lx\n", frame->es);
-    printk("trap:     fs: %#010lx\n", frame->fs);
-    printk("trap:     gs: %#010lx\n", frame->gs);
-    printk("trap: vector: %lu\n", frame->vector);
-    printk("trap:  error: %#010lx\n", frame->error);
-    printk("trap:    eip: %#010lx\n", frame->eip);
-    printk("trap:     cs: %#010lx\n", frame->cs);
-    printk("trap: eflags: %#010lx\n", frame->eflags);
+    unsigned long esp, ss;
 
-    if ((frame->cs & CPU_PL_USER)
-        || (frame->vector == TRAP_DF)) {
-        printk("trap:    esp: %#010lx\n", frame->esp);
-        printk("trap:     ss: %#010lx\n", frame->ss);
+    if ((frame->cs & CPU_PL_USER) || (frame->vector == TRAP_DF)) {
+        esp = frame->esp;
+        ss = frame->ss;
+    } else {
+        esp = 0;
+        ss = 0;
     }
+
+    printk("trap: eax: %08lx ebx: %08lx ecx: %08lx edx: %08lx\n"
+           "trap: ebp: %08lx esi: %08lx edi: %08lx\n"
+           "trap: ds: %lu es: %lu fs: %lu gs: %lu\n"
+           "trap: vector: %lu error: %08lx\n"
+           "trap: eip: %08lx cs: %lu eflags: %08lx\n"
+           "trap: esp: %08lx ss: %lu\n",
+           frame->eax, frame->ebx, frame->ecx, frame->edx, frame->ebp,
+           frame->esi, frame->edi, frame->ds, frame->es, frame->fs, frame->gs,
+           frame->vector, frame->error, frame->eip, frame->cs, frame->eflags,
+           esp, ss);
 }
 
 #endif /* __LP64__ */
