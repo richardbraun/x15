@@ -84,7 +84,6 @@ struct pmap_pt_level {
 /*
  * "Hidden" root page table for PAE mode.
  */
-static pmap_pte_t pmap_boot_pdpt[PMAP_NR_RPTPS] __aligned(32) __initdata;
 static pmap_pte_t pmap_pdpt[PMAP_NR_RPTPS] __aligned(32);
 #endif /* X86_PAE */
 
@@ -266,11 +265,12 @@ pmap_setup_paging(void)
     pmap_setup_ptemap(root_pt);
 
 #ifdef X86_PAE
-    for (i = 0; i < PMAP_NR_RPTPS; i++)
-        pmap_boot_pdpt[i] = ((unsigned long)root_pt + (i * PAGE_SIZE))
-                            | PMAP_PTE_P;
+    pmap_boot_root_pt = (void *)BOOT_VTOP((unsigned long)pmap_pdpt);
 
-    pmap_boot_root_pt = pmap_boot_pdpt;
+    for (i = 0; i < PMAP_NR_RPTPS; i++)
+        pmap_boot_root_pt[i] = ((unsigned long)root_pt + (i * PAGE_SIZE))
+                               | PMAP_PTE_P;
+
     cpu_enable_pae();
 #else /* X86_PAE */
     pmap_boot_root_pt = root_pt;
@@ -327,14 +327,7 @@ pmap_bootstrap(void)
 {
     memcpy(pmap_pt_levels, pmap_boot_pt_levels, sizeof(pmap_pt_levels));
 
-#ifdef X86_PAE
-    memcpy(pmap_pdpt, pmap_boot_pdpt, sizeof(pmap_pdpt));
-    pmap_boot_root_pt = (void *)BOOT_VTOP((unsigned long)pmap_pdpt);
     pmap_kroot_pt = (unsigned long)pmap_boot_root_pt;
-    cpu_set_cr3(pmap_kroot_pt);
-#else /* X86_PAE */
-    pmap_kroot_pt = (unsigned long)pmap_boot_root_pt;
-#endif /* X86_PAE */
 
     pmap_prot_table[VM_PROT_NONE] = 0;
     pmap_prot_table[VM_PROT_READ] = 0;
