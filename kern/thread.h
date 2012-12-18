@@ -22,9 +22,13 @@
 #include <kern/list.h>
 #include <kern/macros.h>
 #include <kern/param.h>
-#include <kern/task.h>
 #include <machine/cpu.h>
 #include <machine/tcb.h>
+
+/*
+ * Forward declaration.
+ */
+struct task;
 
 /*
  * Thread name buffer size.

@@ -19,11 +19,8 @@
 #define _KERN_TASK_H
 
 #include <kern/list.h>
-
-/*
- * Forward declaration.
- */
-struct thread;
+#include <kern/spinlock.h>
+#include <kern/thread.h>
 
 /*
  * Task name buffer size.
@@ -34,6 +31,7 @@ struct thread;
  * Task structure.
  */
 struct task {
+    struct spinlock lock;
     struct list node;
     struct list threads;
     struct vm_map *map;
@@ -51,8 +49,20 @@ extern struct task *kernel_task;
 void task_setup(void);
 
 /*
+ * Create a task.
+ */
+int task_create(struct task **taskp, const char *name);
+
+/*
  * Add a thread to a task.
  */
 void task_add_thread(struct task *task, struct thread *thread);
+
+/*
+ * Display task information.
+ *
+ * If task is NULL, this function displays all tasks.
+ */
+void task_info(struct task *task);
 
 #endif /* _KERN_TASK_H */
