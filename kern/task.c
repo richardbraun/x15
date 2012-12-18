@@ -25,6 +25,7 @@
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <vm/vm_kmem.h>
+#include <vm/vm_map.h>
 
 /*
  * Kernel task and storage.
@@ -66,15 +67,23 @@ task_setup(void)
 int
 task_create(struct task **taskp, const char *name)
 {
+    struct vm_map *map;
     struct task *task;
+    int error;
 
     task = kmem_cache_alloc(&task_cache);
 
-    if (task == NULL)
-        return ERROR_NOMEM;
+    if (task == NULL) {
+        error = ERROR_NOMEM;
+        goto error_task;
+    }
 
-    /* TODO VM map */
-    task_init(task, name, NULL);
+    error = vm_map_create(&map);
+
+    if (error)
+        goto error_map;
+
+    task_init(task, name, map);
 
     spinlock_lock(&task_list_lock);
     list_insert(&task_list, &kernel_task->node);
@@ -82,6 +91,11 @@ task_create(struct task **taskp, const char *name)
 
     *taskp = task;
     return 0;
+
+error_map:
+    kmem_cache_free(&task_cache, task);
+error_task:
+    return error;
 }
 
 void
