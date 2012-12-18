@@ -276,10 +276,8 @@ thread_preempt_schedule(void)
     thread = runq->current;
     assert(thread != NULL);
 
-    if ((thread->preempt == 0)) {
-        assert(!cpu_intr_enabled());
+    if ((thread->preempt == 0))
         thread_schedule();
-    }
 }
 
 void
