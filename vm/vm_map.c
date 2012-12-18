@@ -118,9 +118,10 @@ static size_t vm_map_kentry_slab_size;
 static struct kmem_cache vm_map_kentry_cache;
 
 /*
- * Cache for normal map entries.
+ * Caches for normal map entries and maps.
  */
 static struct kmem_cache vm_map_entry_cache;
+static struct kmem_cache vm_map_cache;
 
 static struct vm_map_kentry_slab *
 vm_map_kentry_alloc_slab(void)
@@ -935,6 +936,24 @@ vm_map_setup(void)
 
     kmem_cache_init(&vm_map_entry_cache, "vm_map_entry",
                     sizeof(struct vm_map_entry), 0, NULL, NULL, NULL, 0);
+    kmem_cache_init(&vm_map_cache, "vm_map", sizeof(struct vm_map),
+                    0, NULL, NULL, NULL, 0);
+}
+
+int
+vm_map_create(struct vm_map **mapp)
+{
+    struct vm_map *map;
+
+    map = kmem_cache_alloc(&vm_map_cache);
+
+    if (map == NULL)
+        return ERROR_NOMEM;
+
+    /* TODO Create pmap */
+    vm_map_init(map, NULL, VM_MIN_ADDRESS, VM_MAX_ADDRESS);
+    *mapp = map;
+    return 0;
 }
 
 void

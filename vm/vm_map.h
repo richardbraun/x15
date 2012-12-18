@@ -122,6 +122,11 @@ void vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end);
 void vm_map_setup(void);
 
 /*
+ * Create a VM map.
+ */
+int vm_map_create(struct vm_map **mapp);
+
+/*
  * Display information about a memory map.
  */
 void vm_map_info(struct vm_map *map);
