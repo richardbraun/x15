@@ -400,7 +400,7 @@ pmap_zero_page(phys_addr_t pa)
 }
 
 void
-pmap_growkernel(unsigned long va)
+pmap_kgrow(unsigned long va)
 {
     const struct pmap_pt_level *pt_level;
     struct vm_page *page;

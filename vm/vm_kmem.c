@@ -63,7 +63,7 @@ vm_kmem_bootalloc(size_t size)
     vm_kmem_boot_start += size;
 
     if (pmap_klimit() < vm_kmem_boot_start)
-        pmap_growkernel(vm_kmem_boot_start);
+        pmap_kgrow(vm_kmem_boot_start);
 
     for (va = start; va < vm_kmem_boot_start; va += PAGE_SIZE) {
         pa = vm_phys_bootalloc();

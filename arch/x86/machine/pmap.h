@@ -153,7 +153,7 @@ unsigned long pmap_bootalloc(unsigned int nr_pages);
 /*
  * Return the address below which using the kernel pmap functions is safe.
  *
- * Its value is adjusted by calling pmap_growkernel().
+ * Its value is adjusted by calling pmap_kgrow().
  */
 unsigned long pmap_klimit(void);
 
@@ -164,15 +164,15 @@ unsigned long pmap_klimit(void);
  * This function should only be called by the VM system, which makes sure it's
  * not called concurrently.
  */
-void pmap_growkernel(unsigned long va);
+void pmap_kgrow(unsigned long va);
 
 /*
  * Kernel pmap functions.
  *
  * These functions assume the caller owns the addresses and don't grab any
- * lock. Resources for the new mappings must be preallocated with
- * pmap_growkernel(). The TLB isn't flushed, the caller must use pmap_kupdate()
- * to explicitely require TLB flushing.
+ * lock. Resources for the new mappings must be preallocated with pmap_kgrow().
+ * The TLB isn't flushed, the caller must use pmap_kupdate() to explicitely
+ * require TLB flushing.
  */
 void pmap_kenter(unsigned long va, phys_addr_t pa);
 void pmap_kremove(unsigned long start, unsigned long end);

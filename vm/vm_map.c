@@ -769,7 +769,7 @@ out:
     map->size += request->size;
 
     if ((map == kernel_map) && (pmap_klimit() < entry->end))
-        pmap_growkernel(entry->end);
+        pmap_kgrow(entry->end);
 
     return 0;
 }
