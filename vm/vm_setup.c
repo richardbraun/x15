@@ -16,6 +16,7 @@
  */
 
 #include <kern/kmem.h>
+#include <machine/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_phys.h>
@@ -28,4 +29,5 @@ vm_setup(void)
     vm_phys_setup();
     kmem_setup();
     vm_map_setup();
+    pmap_setup();
 }

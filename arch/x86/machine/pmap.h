@@ -47,7 +47,7 @@
                          | PMAP_PTE_P)
 
 #ifdef __LP64__
-#define PMAP_NR_RPTPS   1
+#define PMAP_RPTP_ORDER 0
 #define PMAP_NR_LEVELS  4
 #define PMAP_L1_BITS    9
 #define PMAP_L2_BITS    9
@@ -59,14 +59,14 @@
 #define PMAP_L4_MASK    PMAP_L2_MASK
 #else /* __LP64__ */
 #ifdef X86_PAE
-#define PMAP_NR_RPTPS   4   /* Assume two levels with a 4-page root table */
+#define PMAP_RPTP_ORDER 2   /* Assume two levels with a 4-page root table */
 #define PMAP_NR_LEVELS  2
 #define PMAP_L1_BITS    9
 #define PMAP_L2_BITS    11
 #define PMAP_VA_MASK    DECL_CONST(0xffffffff, UL)
 #define PMAP_PA_MASK    DECL_CONST(0x000ffffffffff000, ULL)
 #else /* X86_PAE */
-#define PMAP_NR_RPTPS   1
+#define PMAP_RPTP_ORDER 0
 #define PMAP_NR_LEVELS  2
 #define PMAP_L1_BITS    10
 #define PMAP_L2_BITS    10
@@ -85,8 +85,12 @@
 #define PMAP_L3_NR_PTES (1 << PMAP_L3_BITS)
 #define PMAP_L4_NR_PTES (1 << PMAP_L4_BITS)
 
+#define PMAP_NR_RPTPS   (1 << PMAP_RPTP_ORDER)
+
 #ifndef __ASSEMBLER__
 
+#include <kern/list.h>
+#include <kern/spinlock.h>
 #include <kern/stdint.h>
 #include <kern/types.h>
 #include <machine/trap.h>
@@ -101,7 +105,13 @@ typedef unsigned long pmap_pte_t;
  * Physical address map.
  */
 struct pmap {
-    int __dummy;
+    struct spinlock lock;
+    struct list node;
+    phys_addr_t root_pt;
+#ifdef X86_PAE
+    pmap_pte_t *pdpt;
+    phys_addr_t pdpt_pa;
+#endif /* X86_PAE */
 };
 
 /*
@@ -175,6 +185,24 @@ void pmap_kupdate(unsigned long start, unsigned long end);
  * Interrupt handler for inter-processor update requests.
  */
 void pmap_update_intr(struct trap_frame *frame);
+
+/*
+ * Set up the pmap module.
+ *
+ * This function should only be called by the VM system, once kernel
+ * allocations can be performed safely.
+ */
+void pmap_setup(void);
+
+/*
+ * Create a pmap for a user task.
+ */
+int pmap_create(struct pmap **pmapp);
+
+/*
+ * Load the given pmap on the current processor.
+ */
+void pmap_load(struct pmap *pmap);
 
 #endif /* __ASSEMBLER__ */
 

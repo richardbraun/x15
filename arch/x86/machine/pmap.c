@@ -19,7 +19,10 @@
  */
 
 #include <kern/assert.h>
+#include <kern/error.h>
 #include <kern/init.h>
+#include <kern/kmem.h>
+#include <kern/list.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
@@ -68,7 +71,7 @@
  * This pool of pure virtual memory can be used to reserve virtual addresses
  * before the VM system is initialized.
  */
-#define PMAP_RESERVED_PAGES 2
+#define PMAP_RESERVED_PAGES (2 + PMAP_NR_RPTPS)
 
 /*
  * Properties of a page translation level.
@@ -77,14 +80,18 @@ struct pmap_pt_level {
     unsigned int bits;
     unsigned int shift;
     pmap_pte_t *ptes;   /* PTEs in the recursive mapping */
+    unsigned int nr_ptes;
     pmap_pte_t mask;
 };
 
 #ifdef X86_PAE
+
+#define PMAP_PDPT_ALIGN 32
+
 /*
  * "Hidden" root page table for PAE mode.
  */
-static pmap_pte_t pmap_pdpt[PMAP_NR_RPTPS] __aligned(32);
+static pmap_pte_t pmap_pdpt[PMAP_NR_RPTPS] __aligned(PMAP_PDPT_ALIGN);
 #endif /* X86_PAE */
 
 /*
@@ -108,12 +115,12 @@ static unsigned long pmap_kernel_limit;
  * This table is only used before paging is enabled.
  */
 static struct pmap_pt_level pmap_boot_pt_levels[] __initdata = {
-    { PMAP_L1_BITS, PMAP_L1_SHIFT, PMAP_PTEMAP_BASE, PMAP_L1_MASK },
-    { PMAP_L2_BITS, PMAP_L2_SHIFT, PMAP_L2_PTEMAP, PMAP_L2_MASK },
+    { PMAP_L1_BITS, PMAP_L1_SHIFT, PMAP_PTEMAP_BASE, PMAP_L2_NR_PTES, PMAP_L1_MASK },
+    { PMAP_L2_BITS, PMAP_L2_SHIFT, PMAP_L2_PTEMAP,   PMAP_L2_NR_PTES, PMAP_L2_MASK },
 #if PMAP_NR_LEVELS > 2
-    { PMAP_L3_BITS, PMAP_L3_SHIFT, PMAP_L3_PTEMAP, PMAP_L3_MASK },
+    { PMAP_L3_BITS, PMAP_L3_SHIFT, PMAP_L3_PTEMAP,   PMAP_L3_NR_PTES, PMAP_L3_MASK },
 #if PMAP_NR_LEVELS > 3
-    { PMAP_L4_BITS, PMAP_L4_SHIFT, PMAP_L4_PTEMAP, PMAP_L4_MASK }
+    { PMAP_L4_BITS, PMAP_L4_SHIFT, PMAP_L4_PTEMAP,   PMAP_L4_NR_PTES, PMAP_L4_MASK }
 #endif /* PMAP_NR_LEVELS > 3 */
 #endif /* PMAP_NR_LEVELS > 2 */
 };
@@ -145,6 +152,8 @@ static pmap_pte_t pmap_prot_table[8];
  */
 static unsigned long pmap_zero_va;
 static struct spinlock pmap_zero_va_lock;
+static unsigned long pmap_pt_va;
+static struct spinlock pmap_pt_va_lock;
 
 /*
  * Shared variables used by the inter-processor update functions.
@@ -159,6 +168,18 @@ static struct spinlock pmap_update_lock;
 static struct {
     volatile unsigned long count __aligned(CPU_L1_SIZE);
 } pmap_nr_updates;
+
+static struct kmem_cache pmap_cache;
+
+#ifdef X86_PAE
+static struct kmem_cache pmap_pdpt_cache;
+#endif /* X86_PAE */
+
+/*
+ * Global list of physical maps.
+ */
+static struct list pmap_list;
+static struct spinlock pmap_list_lock;
 
 static void __init
 pmap_boot_enter(pmap_pte_t *root_pt, unsigned long va, phys_addr_t pa)
@@ -342,6 +363,8 @@ pmap_bootstrap(void)
     pmap_boot_heap_end = pmap_boot_heap + (PMAP_RESERVED_PAGES * PAGE_SIZE);
     pmap_zero_va = pmap_bootalloc(1);
     spinlock_init(&pmap_zero_va_lock);
+    pmap_pt_va = pmap_bootalloc(PMAP_NR_RPTPS);
+    spinlock_init(&pmap_pt_va_lock);
 
     pmap_kprotect((unsigned long)&_text, (unsigned long)&_rodata,
                   VM_PROT_READ | VM_PROT_EXECUTE);
@@ -548,4 +571,175 @@ pmap_update_intr(struct trap_frame *frame)
     /* Interrupts are serializing events, no memory barrier required */
     pmap_kupdate_local(pmap_update_start, pmap_update_end);
     atomic_add(&pmap_nr_updates.count, -1);
+}
+
+#ifdef X86_PAE
+static unsigned long
+pmap_pdpt_alloc(size_t slab_size)
+{
+    struct vm_page *page;
+    unsigned long va, start, end;
+
+    va = vm_kmem_alloc_va(slab_size);
+
+    if (va == 0)
+        return 0;
+
+    for (start = va, end = va + slab_size; start < end; start += PAGE_SIZE) {
+        page = vm_phys_alloc_seg(0, VM_PHYS_SEG_NORMAL);
+
+        if (page == NULL)
+            goto error_page;
+
+        pmap_kenter(start, vm_page_to_pa(page));
+    }
+
+    pmap_kupdate(va, end);
+    return va;
+
+error_page:
+    vm_kmem_free(va, slab_size);
+    return 0;
+}
+#endif /* X86_PAE */
+
+void
+pmap_setup(void)
+{
+    kmem_cache_init(&pmap_cache, "pmap", sizeof(struct pmap),
+                    0, NULL, NULL, NULL, 0);
+
+#ifdef X86_PAE
+    kmem_cache_init(&pmap_pdpt_cache, "pmap_pdpt",
+                    PMAP_NR_RPTPS * sizeof(pmap_pte_t), PMAP_PDPT_ALIGN,
+                    NULL, pmap_pdpt_alloc, NULL, 0);
+#endif /* X86_PAE */
+
+    list_init(&pmap_list);
+    spinlock_init(&pmap_list_lock);
+}
+
+static void
+pmap_map_pt(phys_addr_t pa)
+{
+    unsigned long va;
+    unsigned int i, offset;
+
+    spinlock_lock(&pmap_pt_va_lock);
+
+    for (i = 0; i < PMAP_NR_RPTPS; i++) {
+        offset = i * PAGE_SIZE;
+        va = pmap_pt_va + offset;
+        pmap_kenter(va, pa + offset);
+        cpu_tlb_flush_va(va);
+    }
+}
+
+static void
+pmap_unmap_pt(void)
+{
+    unsigned int i;
+
+    pmap_kremove(pmap_pt_va, pmap_pt_va + (PMAP_NR_RPTPS * PAGE_SIZE));
+
+    for (i = 0; i < PMAP_NR_RPTPS; i++)
+        cpu_tlb_flush_va(pmap_pt_va + (i * PAGE_SIZE));
+
+    spinlock_unlock(&pmap_pt_va_lock);
+}
+
+int
+pmap_create(struct pmap **pmapp)
+{
+    const struct pmap_pt_level *pt_level;
+    struct vm_page *root_pages;
+    struct pmap *pmap;
+    pmap_pte_t *pt, *kpt;
+    phys_addr_t pa;
+    unsigned long va;
+    unsigned int i, index;
+    int error;
+
+    pmap = kmem_cache_alloc(&pmap_cache);
+
+    if (pmap == NULL) {
+        error = ERROR_NOMEM;
+        goto error_pmap;
+    }
+
+    root_pages = vm_phys_alloc(PMAP_RPTP_ORDER);
+
+    if (root_pages == NULL) {
+        error = ERROR_NOMEM;
+        goto error_pages;
+    }
+
+    pmap->root_pt = vm_page_to_pa(root_pages);
+
+#ifdef X86_PAE
+    pmap->pdpt = kmem_cache_alloc(&pmap_pdpt_cache);
+
+    if (pmap->pdpt == NULL) {
+        error = ERROR_NOMEM;
+        goto error_pdpt;
+    }
+
+    va = (unsigned long)pmap->pdpt;
+    assert(P2ALIGNED(va, PMAP_PDPT_ALIGN));
+
+    for (i = 0; i < PMAP_NR_RPTPS; i++)
+        pmap->pdpt[i] = (pmap->root_pt + (i * PAGE_SIZE)) | PMAP_PTE_P;
+
+    pmap->pdpt_pa = pmap_kextract(va) + (va & PAGE_MASK);
+    assert(pmap->pdpt_pa < VM_PHYS_NORMAL_LIMIT);
+#endif /* X86_PAE */
+
+    pt_level = &pmap_pt_levels[PMAP_NR_LEVELS - 1];
+    pt = (pmap_pte_t *)pmap_pt_va;
+    kpt = pt_level->ptes;
+    index = PMAP_PTEMAP_INDEX(VM_PMAP_PTEMAP_ADDRESS, pt_level->shift);
+
+    pmap_map_pt(pmap->root_pt);
+
+    memset(pt, 0, index * sizeof(pmap_pte_t));
+    index += PMAP_NR_RPTPS;
+    memcpy(&pt[index], &kpt[index], (pt_level->nr_ptes - index)
+                                    * sizeof(pmap_pte_t));
+
+    for (i = 0; i < PMAP_NR_RPTPS; i++) {
+        va = VM_PMAP_PTEMAP_ADDRESS + (i * (1 << pt_level->shift));
+        index = (va >> pt_level->shift) & ((1 << pt_level->bits) - 1);
+        pa = pmap->root_pt + (i * PAGE_SIZE);
+        pt[index] = (pa | PMAP_PTE_RW | PMAP_PTE_P) & pt_level->mask;
+    }
+
+    pmap_unmap_pt();
+
+    spinlock_init(&pmap->lock);
+
+    spinlock_lock(&pmap_list_lock);
+    list_insert_tail(&pmap_list, &pmap->node);
+    spinlock_unlock(&pmap_list_lock);
+
+    *pmapp = pmap;
+    return 0;
+
+#ifdef X86_PAE
+error_pdpt:
+    vm_phys_free(root_pages, PMAP_RPTP_ORDER);
+#endif /* X86_PAE */
+error_pages:
+    kmem_cache_free(&pmap_cache, pmap);
+error_pmap:
+    return error;
+}
+
+void
+pmap_load(struct pmap *pmap)
+{
+#ifdef X86_PAE
+    cpu_set_cr3(pmap->pdpt_pa);
+#else /* X86_PAE */
+    cpu_set_cr3(pmap->root_pt);
+#endif /* X86_PAE */
 }
