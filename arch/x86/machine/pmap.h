@@ -158,22 +158,31 @@ unsigned long pmap_bootalloc(unsigned int nr_pages);
 unsigned long pmap_klimit(void);
 
 /*
- * Preallocate resources so that addresses up to va can be mapped safely in
- * the kernel pmap.
+ * Preallocate resources so that addresses up to va can be mapped safely with
+ * the kernel pmap functions.
+ *
+ * This function should only be called by the VM system, which makes sure it's
+ * not called concurrently.
  */
 void pmap_growkernel(unsigned long va);
 
 /*
- * Kernel specific mapping functions.
+ * Kernel pmap functions.
  *
- * Resources for the new mappings must be preallocated. The only function
- * which actually flushes the TLB is pmap_kupdate.
+ * These functions assume the caller owns the addresses and don't grab any
+ * lock. Resources for the new mappings must be preallocated with
+ * pmap_growkernel(). The TLB isn't flushed, the caller must use pmap_kupdate()
+ * to explicitely require TLB flushing.
  */
 void pmap_kenter(unsigned long va, phys_addr_t pa);
 void pmap_kremove(unsigned long start, unsigned long end);
 void pmap_kprotect(unsigned long start, unsigned long end, int prot);
-void pmap_kupdate(unsigned long start, unsigned long end);
 phys_addr_t pmap_kextract(unsigned long va);
+
+/*
+ * Flush the TLB for the given range of kernel addresses.
+ */
+void pmap_kupdate(unsigned long start, unsigned long end);
 
 /*
  * Interrupt handler for inter-processor update requests.

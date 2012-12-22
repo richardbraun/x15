@@ -479,6 +479,24 @@ pmap_kprotect(unsigned long start, unsigned long end, int prot)
     }
 }
 
+phys_addr_t
+pmap_kextract(unsigned long va)
+{
+    const struct pmap_pt_level *pt_level;
+    unsigned int level;
+    pmap_pte_t *pte;
+
+    for (level = PMAP_NR_LEVELS; level > 0; level--) {
+        pt_level = &pmap_pt_levels[level - 1];
+        pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(va, pt_level->shift)];
+
+        if (!(*pte & PMAP_PTE_P))
+            return 0;
+    }
+
+    return *pte & PMAP_PA_MASK;
+}
+
 static void
 pmap_kupdate_local(unsigned long start, unsigned long end)
 {
@@ -518,24 +536,6 @@ pmap_kupdate(unsigned long start, unsigned long end)
         cpu_pause();
 
     spinlock_unlock(&pmap_update_lock);
-}
-
-phys_addr_t
-pmap_kextract(unsigned long va)
-{
-    const struct pmap_pt_level *pt_level;
-    unsigned int level;
-    pmap_pte_t *pte;
-
-    for (level = PMAP_NR_LEVELS; level > 0; level--) {
-        pt_level = &pmap_pt_levels[level - 1];
-        pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(va, pt_level->shift)];
-
-        if (!(*pte & PMAP_PTE_P))
-            return 0;
-    }
-
-    return *pte & PMAP_PA_MASK;
 }
 
 void
