@@ -112,11 +112,13 @@ vm_kmem_free_check(unsigned long addr, size_t size)
     return vm_kmem_alloc_check(size);
 }
 
-static unsigned long
+unsigned long
 vm_kmem_alloc_va(size_t size)
 {
     unsigned long va;
     int error, flags;
+
+    assert(vm_kmem_alloc_check(size) == 0);
 
     size = vm_page_round(size);
 
@@ -131,10 +133,12 @@ vm_kmem_alloc_va(size_t size)
     return va;
 }
 
-static void
+void
 vm_kmem_free_va(unsigned long addr, size_t size)
 {
     unsigned long end;
+
+    assert(vm_kmem_free_check(addr, size) == 0);
 
     end = addr + vm_page_round(size);
     pmap_kremove(addr, end);
@@ -147,8 +151,6 @@ vm_kmem_alloc(size_t size)
 {
     struct vm_page *page;
     unsigned long va, start, end;
-
-    assert(vm_kmem_alloc_check(size) == 0);
 
     va = vm_kmem_alloc_va(size);
 
@@ -179,8 +181,6 @@ vm_kmem_free(unsigned long addr, size_t size)
     unsigned long va, end;
     phys_addr_t pa;
 
-    assert(vm_kmem_free_check(addr, size) == 0);
-
     size = vm_page_round(size);
     end = addr + size;
 
@@ -206,8 +206,6 @@ vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
     size_t map_size;
     phys_addr_t start;
 
-    assert(vm_kmem_alloc_check(size) == 0);
-
     start = vm_page_trunc(addr);
     map_size = vm_page_round(addr + size) - start;
     map_addr = vm_kmem_alloc_va(map_size);
@@ -232,6 +230,5 @@ vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
 void
 vm_kmem_unmap_pa(unsigned long map_addr, size_t map_size)
 {
-    assert(vm_kmem_free_check(map_addr, map_size) == 0);
     vm_kmem_free_va(map_addr, map_size);
 }

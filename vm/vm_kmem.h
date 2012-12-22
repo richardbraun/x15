@@ -58,12 +58,26 @@ void vm_kmem_boot_space(unsigned long *start, unsigned long *end);
 struct vm_page * vm_kmem_lookup_page(unsigned long va);
 
 /*
- * Allocate memory from the kernel map.
+ * Allocate pure virtual kernel pages.
+ *
+ * The caller is reponsible for taking care of the underlying physical memory.
+ */
+unsigned long vm_kmem_alloc_va(size_t size);
+
+/*
+ * Free virtual kernel pages.
+ *
+ * The caller is reponsible for taking care of the underlying physical memory.
+ */
+void vm_kmem_free_va(unsigned long addr, size_t size);
+
+/*
+ * Allocate kernel pages.
  */
 unsigned long vm_kmem_alloc(size_t size);
 
 /*
- * Release memory back to the kernel map.
+ * Free kernel pages.
  */
 void vm_kmem_free(unsigned long addr, size_t size);
 
