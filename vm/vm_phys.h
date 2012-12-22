@@ -38,7 +38,7 @@ extern int vm_phys_ready;
  */
 void vm_phys_load(const char *name, phys_addr_t start, phys_addr_t end,
                   phys_addr_t avail_start, phys_addr_t avail_end,
-                  unsigned int seglist_prio);
+                  unsigned int seg_index, unsigned int seglist_prio);
 
 /*
  * Allocate one physical page.
@@ -73,6 +73,13 @@ struct vm_page * vm_phys_lookup_page(phys_addr_t pa);
  * Allocate a block of 2^order physical pages.
  */
 struct vm_page * vm_phys_alloc(unsigned int order);
+
+/*
+ * Allocate physical pages from a specific segment.
+ *
+ * This function shouldn't only be called by architecture specific functions.
+ */
+struct vm_page * vm_phys_alloc_seg(unsigned int order, unsigned int seg_index);
 
 /*
  * Release a block of 2^order physical pages.

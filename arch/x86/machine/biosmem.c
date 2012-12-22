@@ -547,7 +547,8 @@ biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
 static void __init
 biosmem_load_segment(const char *name, phys_addr_t phys_start,
                      phys_addr_t phys_end, phys_addr_t avail_start,
-                     phys_addr_t avail_end, unsigned int seglist_prio)
+                     phys_addr_t avail_end, unsigned int seg_index,
+                     unsigned int seglist_prio)
 {
     if ((avail_start < phys_start) || (avail_start > phys_end))
         avail_start = phys_start;
@@ -556,7 +557,7 @@ biosmem_load_segment(const char *name, phys_addr_t phys_start,
         avail_end = phys_end;
 
     vm_phys_load(name, phys_start, phys_end, avail_start, avail_end,
-                 seglist_prio);
+                 seg_index, seglist_prio);
 }
 
 void __init
@@ -575,7 +576,7 @@ biosmem_setup(void)
     if (!error)
         biosmem_load_segment("normal", phys_start, phys_end,
                              biosmem_heap_free, biosmem_heap_end,
-                             VM_PHYS_SEGLIST_NORMAL);
+                             VM_PHYS_SEG_NORMAL, VM_PHYS_SEGLIST_NORMAL);
 
 #ifdef VM_PHYS_HIGHMEM_LIMIT
     phys_start = VM_PHYS_NORMAL_LIMIT;
@@ -584,7 +585,8 @@ biosmem_setup(void)
 
     if (!error)
         biosmem_load_segment("highmem", phys_start, phys_end,
-                             phys_start, phys_end, VM_PHYS_SEGLIST_HIGHMEM);
+                             phys_start, phys_end,
+                             VM_PHYS_SEG_HIGHMEM, VM_PHYS_SEGLIST_HIGHMEM);
 #endif /* VM_PHYS_HIGHMEM_LIMIT */
 }
 

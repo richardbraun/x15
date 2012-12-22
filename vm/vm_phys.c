@@ -127,8 +127,7 @@ struct vm_phys_boot_seg {
 int vm_phys_ready;
 
 /*
- * Segment lists, ordered by priority (higher priority lists have lower
- * numerical priorities).
+ * Segment lists, ordered by priority.
  */
 static struct list vm_phys_seg_lists[VM_NR_PHYS_SEGLIST];
 
@@ -451,7 +450,7 @@ vm_phys_seg_free(struct vm_phys_seg *seg, struct vm_page *page,
 void __init
 vm_phys_load(const char *name, phys_addr_t start, phys_addr_t end,
              phys_addr_t avail_start, phys_addr_t avail_end,
-             unsigned int seglist_prio)
+             unsigned int seg_index, unsigned int seglist_prio)
 {
     struct vm_phys_boot_seg *boot_seg;
     struct vm_phys_seg *seg;
@@ -460,6 +459,7 @@ vm_phys_load(const char *name, phys_addr_t start, phys_addr_t end,
 
     assert(name != NULL);
     assert(start < end);
+    assert(seg_index < ARRAY_SIZE(vm_phys_segs));
     assert(seglist_prio < ARRAY_SIZE(vm_phys_seg_lists));
 
     if (!vm_phys_load_initialized) {
@@ -470,12 +470,11 @@ vm_phys_load(const char *name, phys_addr_t start, phys_addr_t end,
         vm_phys_load_initialized = 1;
     }
 
-    if (vm_phys_segs_size >= ARRAY_SIZE(vm_phys_segs))
-        panic("vm_phys: too many physical segments");
+    assert(vm_phys_segs_size < ARRAY_SIZE(vm_phys_segs));
 
+    boot_seg = &vm_phys_boot_segs[seg_index];
+    seg = &vm_phys_segs[seg_index];
     seg_list = &vm_phys_seg_lists[seglist_prio];
-    seg = &vm_phys_segs[vm_phys_segs_size];
-    boot_seg = &vm_phys_boot_segs[vm_phys_segs_size];
 
     list_insert_tail(seg_list, &seg->node);
     seg->start = start;
@@ -600,6 +599,14 @@ vm_phys_alloc(unsigned int order)
         }
 
     return NULL;
+}
+
+struct vm_page *
+vm_phys_alloc_seg(unsigned int order, unsigned int seg_index)
+{
+    assert(seg_index < vm_phys_segs_size);
+
+    return vm_phys_seg_alloc(&vm_phys_segs[seg_index], order);
 }
 
 void

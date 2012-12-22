@@ -62,6 +62,10 @@
 #define STACK_SIZE PAGE_SIZE
 
 /*
+ * Virtual memory properties.
+ */
+
+/*
  * User space boundaries.
  */
 #define VM_MIN_ADDRESS  DECL_CONST(0, UL)
@@ -110,8 +114,14 @@
 #endif /* __LP64__ */
 
 /*
+ * Virtual space reserved for kernel map entries.
+ */
+#define VM_MAP_KENTRY_SIZE DECL_CONST(0x800000, UL)
+
+/*
  * Physical memory properties.
  */
+
 #ifdef __LP64__
 #define VM_MAX_PHYS_SEG 2
 #define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0x100000000, UL)
@@ -128,6 +138,12 @@
 #endif /* __LP64__ */
 
 /*
+ * Physical segment indexes.
+ */
+#define VM_PHYS_SEG_NORMAL      0
+#define VM_PHYS_SEG_HIGHMEM     1
+
+/*
  * Number of physical segment lists.
  */
 #define VM_NR_PHYS_SEGLIST VM_MAX_PHYS_SEG
@@ -135,12 +151,7 @@
 /*
  * Segment list priorities.
  */
-#define VM_PHYS_SEGLIST_HIGHMEM 1
 #define VM_PHYS_SEGLIST_NORMAL  0
-
-/*
- * Virtual space reserved for kernel map entries.
- */
-#define VM_MAP_KENTRY_SIZE DECL_CONST(0x800000, UL)
+#define VM_PHYS_SEGLIST_HIGHMEM 1
 
 #endif /* _X86_PARAM_H */
