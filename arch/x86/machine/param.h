@@ -13,13 +13,16 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * This file is a top header in the inclusion hierarchy, and shouldn't include
+ * other headers that may cause circular dependencies.
  */
 
 #ifndef _X86_PARAM_H
 #define _X86_PARAM_H
 
 #include <kern/macros.h>
-#include <machine/pmap.h>
 
 #define __LITTLE_ENDIAN__
 
@@ -70,6 +73,21 @@
 #endif/* __LP64__ */
 
 /*
+ * Size of the recursive mapping of PTEs.
+ *
+ * See the pmap module for more information.
+ */
+#ifdef __LP64__
+#define VM_PMAP_PTEMAP_SIZE DECL_CONST(0x8000000000, UL)
+#else /* __LP64__ */
+#ifdef X86_PAE
+#define VM_PMAP_PTEMAP_SIZE DECL_CONST(0x800000, UL)
+#else /* X86_PAE */
+#define VM_PMAP_PTEMAP_SIZE DECL_CONST(0x400000, UL)
+#endif /* X86_PAE */
+#endif /* __LP64__ */
+
+/*
  * Location of the recursive mapping of PTEs.
  *
  * See the pmap module for more information.
@@ -83,7 +101,7 @@
 /*
  * Kernel space boundaries.
  */
-#define VM_MIN_KERNEL_ADDRESS   (VM_PMAP_PTEMAP_ADDRESS + PMAP_PTEMAP_SIZE)
+#define VM_MIN_KERNEL_ADDRESS   (VM_PMAP_PTEMAP_ADDRESS + VM_PMAP_PTEMAP_SIZE)
 
 #ifdef __LP64__
 #define VM_MAX_KERNEL_ADDRESS   DECL_CONST(0xffffffff80000000, UL)

@@ -85,19 +85,6 @@
 #define PMAP_L3_NR_PTES (1 << PMAP_L3_BITS)
 #define PMAP_L4_NR_PTES (1 << PMAP_L4_BITS)
 
-/*
- * Size of the recursive mapping of PTEs.
- */
-#ifdef __LP64__
-#define PMAP_PTEMAP_SIZE DECL_CONST(0x8000000000, UL)
-#else /* __LP64__ */
-#ifdef X86_PAE
-#define PMAP_PTEMAP_SIZE DECL_CONST(0x800000, UL)
-#else /* X86_PAE */
-#define PMAP_PTEMAP_SIZE DECL_CONST(0x400000, UL)
-#endif /* X86_PAE */
-#endif /* __LP64__ */
-
 #ifndef __ASSEMBLER__
 
 #include <kern/stdint.h>
