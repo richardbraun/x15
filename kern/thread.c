@@ -37,7 +37,7 @@ struct thread_runq thread_runqs[MAX_CPUS];
  * "current" threads during system bootstrap, which prevents preemption
  * control functions from crashing.
  */
-static struct thread thread_idles[MAX_CPUS] __initdata;
+static struct thread thread_idles[MAX_CPUS];
 
 /*
  * Caches for allocated threads and their stacks.
