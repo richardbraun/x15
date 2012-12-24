@@ -944,16 +944,29 @@ int
 vm_map_create(struct vm_map **mapp)
 {
     struct vm_map *map;
+    struct pmap *pmap;
+    int error;
 
     map = kmem_cache_alloc(&vm_map_cache);
 
-    if (map == NULL)
-        return ERROR_NOMEM;
+    if (map == NULL) {
+        error = ERROR_NOMEM;
+        goto error_map;
+    }
 
-    /* TODO Create pmap */
-    vm_map_init(map, NULL, VM_MIN_ADDRESS, VM_MAX_ADDRESS);
+    error = pmap_create(&pmap);
+
+    if (error)
+        goto error_pmap;
+
+    vm_map_init(map, pmap, VM_MIN_ADDRESS, VM_MAX_ADDRESS);
     *mapp = map;
     return 0;
+
+error_pmap:
+    kmem_cache_free(&vm_map_cache, map);
+error_map:
+    return error;
 }
 
 void
