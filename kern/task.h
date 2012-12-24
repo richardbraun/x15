@@ -21,6 +21,7 @@
 #include <kern/list.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
+#include <vm/vm_map.h>
 
 /*
  * Task name buffer size.
