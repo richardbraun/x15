@@ -244,7 +244,7 @@ ASM_ENTRY(boot_ap_start32)
 ASM_END(boot_ap_start32)
 
 /*
- * This section, including the GDT, is the MP trampoline code run by APs
+ * This part, including the GDT, is the MP trampoline code run by APs
  * on startup. It is copied at a fixed location in the first segment and
  * must enable protected mode to jump back into the kernel.
  */
