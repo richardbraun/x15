@@ -75,7 +75,7 @@ struct cpu cpu_array[MAX_CPUS];
  * modules depend on cpu_count() to adjust their behaviour when several
  * processors are present.
  */
-static unsigned int cpu_boot_array_size;
+static unsigned int cpu_boot_array_size __initdata;
 unsigned int cpu_array_size;
 
 /*
