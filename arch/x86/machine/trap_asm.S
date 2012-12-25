@@ -18,6 +18,8 @@
 #include <machine/asm.h>
 #include <machine/trap.h>
 
+.text
+
 #ifdef __LP64__
 
 .macro TRAP_STORE_REGISTERS
@@ -141,8 +143,6 @@ ASM_ENTRY(trap_load)
 ASM_END(trap_load)
 
 #endif /* __LP64__ */
-
-.text
 
 /* Architecture defined traps */
 TRAP(TRAP_DE, divide_error)
