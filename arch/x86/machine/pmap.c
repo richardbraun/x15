@@ -97,7 +97,7 @@ static pmap_pte_t pmap_pdpt[PMAP_NR_RPTPS] __aligned(PMAP_PDPT_ALIGN);
 /*
  * Physical address of the page table root, used during bootstrap.
  */
-static pmap_pte_t *pmap_boot_root_pt __initdata;
+static pmap_pte_t *pmap_boot_root_pt __bootdata;
 
 /*
  * Physical address of the kernel page table root.
@@ -114,7 +114,7 @@ static unsigned long pmap_kernel_limit;
  *
  * This table is only used before paging is enabled.
  */
-static struct pmap_pt_level pmap_boot_pt_levels[] __initdata = {
+static struct pmap_pt_level pmap_boot_pt_levels[] __bootdata = {
     { PMAP_L1_BITS, PMAP_L1_SHIFT, PMAP_PTEMAP_BASE, PMAP_L2_NR_PTES, PMAP_L1_MASK },
     { PMAP_L2_BITS, PMAP_L2_SHIFT, PMAP_L2_PTEMAP,   PMAP_L2_NR_PTES, PMAP_L2_MASK },
 #if PMAP_NR_LEVELS > 2
@@ -181,7 +181,7 @@ static struct kmem_cache pmap_pdpt_cache;
 static struct list pmap_list;
 static struct spinlock pmap_list_lock;
 
-static void __init
+static void __boot
 pmap_boot_enter(pmap_pte_t *root_pt, unsigned long va, phys_addr_t pa)
 {
     const struct pmap_pt_level *pt_level;
@@ -220,7 +220,7 @@ pmap_boot_enter(pmap_pte_t *root_pt, unsigned long va, phys_addr_t pa)
     *pte = (pa & PMAP_PA_MASK) | PMAP_PTE_RW | PMAP_PTE_P;
 }
 
-static void __init
+static void __boot
 pmap_setup_ptemap(pmap_pte_t *root_pt)
 {
     const struct pmap_pt_level *pt_level;
@@ -238,7 +238,7 @@ pmap_setup_ptemap(pmap_pte_t *root_pt)
     }
 }
 
-pmap_pte_t * __init
+pmap_pte_t * __boot
 pmap_setup_paging(void)
 {
     pmap_pte_t *root_pt;
@@ -247,10 +247,10 @@ pmap_setup_paging(void)
     size_t i, size;
 
     /*
-     * Create the kernel mappings. The first two are for the .init section and
-     * the persistent kernel code and data at high addresses respectively. The
-     * .init section mapping also acts as the mandatory identity mapping.
-     * The third is the recursive mapping of PTEs.
+     * Create the kernel mappings. The first two are for the .boot section and
+     * the kernel code and data at high addresses respectively. The .boot
+     * section mapping also acts as the mandatory identity mapping. The third
+     * is the recursive mapping of PTEs.
      *
      * Any page table required for the virtual addresses that are reserved by
      * this module is also allocated.
@@ -258,9 +258,9 @@ pmap_setup_paging(void)
 
     root_pt = biosmem_bootalloc(PMAP_NR_RPTPS);
 
-    va = vm_page_trunc((unsigned long)&_init);
+    va = vm_page_trunc((unsigned long)&_boot);
     pa = va;
-    size = vm_page_round((unsigned long)&_einit) - va;
+    size = vm_page_round((unsigned long)&_eboot) - va;
 
     for (i = 0; i < size; i += PAGE_SIZE) {
         pmap_boot_enter(root_pt, va, pa);
@@ -268,7 +268,7 @@ pmap_setup_paging(void)
         pa += PAGE_SIZE;
     }
 
-    va = vm_page_trunc((unsigned long)&_text);
+    va = vm_page_trunc((unsigned long)&_init);
     pa = BOOT_VTOP(va);
     size = vm_page_round((unsigned long)&_end) - va;
 
@@ -300,7 +300,7 @@ pmap_setup_paging(void)
     return pmap_boot_root_pt;
 }
 
-pmap_pte_t * __init
+pmap_pte_t * __boot
 pmap_ap_setup_paging(void)
 {
 #ifdef X86_PAE

@@ -25,7 +25,7 @@
  * in protected mode, paging is disabled, and some boot data are availabe
  * outside the kernel. This module first sets up a basic physical memory
  * allocator so that it can allocate page tables without corrupting the
- * boot data. The .init section is linked at physical addresses, so that
+ * boot data. The .boot section is linked at physical addresses, so that
  * it can run with and without paging enabled. The page tables must properly
  * configure an identity mapping so that this remains true as long as
  * initialization code and data are used. Once the VM system is available,
@@ -74,24 +74,24 @@
 #define INIT_CGACHARS   (80 * 25)
 #define INIT_CGACOLOR   0x7
 
-char boot_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
-char boot_ap_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
-unsigned long boot_ap_id __initdata;
-unsigned long boot_ap_stack_addr __initdata;
+char boot_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __bootdata;
+char boot_ap_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __bootdata;
+unsigned long boot_ap_id __bootdata;
+unsigned long boot_ap_stack_addr __bootdata;
 
 #ifdef __LP64__
-pmap_pte_t boot_pml4[PMAP_L4_NR_PTES] __aligned(PAGE_SIZE) __initdata;
-pmap_pte_t boot_pdpt[PMAP_L3_NR_PTES] __aligned(PAGE_SIZE) __initdata;
-pmap_pte_t boot_pdir[4 * PMAP_L2_NR_PTES] __aligned(PAGE_SIZE) __initdata;
+pmap_pte_t boot_pml4[PMAP_L4_NR_PTES] __aligned(PAGE_SIZE) __bootdata;
+pmap_pte_t boot_pdpt[PMAP_L3_NR_PTES] __aligned(PAGE_SIZE) __bootdata;
+pmap_pte_t boot_pdir[4 * PMAP_L2_NR_PTES] __aligned(PAGE_SIZE) __bootdata;
 #endif /* __LP64__ */
 
 /*
  * Copies of the multiboot data passed by the boot loader.
  */
-static struct multiboot_raw_info boot_raw_mbi __initdata;
+static struct multiboot_raw_info boot_raw_mbi __bootdata;
 static struct multiboot_info boot_mbi __initdata;
 
-void __init
+void __boot
 boot_panic(const char *msg)
 {
     uint16_t *ptr, *end;
@@ -118,7 +118,7 @@ boot_panic(const char *msg)
     /* Never reached */
 }
 
-pmap_pte_t * __init
+pmap_pte_t * __boot
 boot_setup_paging(const struct multiboot_raw_info *mbi, unsigned long eax)
 {
     if (eax != MULTIBOOT_LOADER_MAGIC)

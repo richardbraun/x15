@@ -23,7 +23,7 @@
 
 /*
  * The kernel is physically loaded at BOOT_OFFSET by the boot loader. It
- * is divided in two parts: the .init section which uses physical addresses
+ * is divided in two parts: the .boot section which uses physical addresses
  * and the main kernel code and data at KERNEL_OFFSET.
  *
  * See the linker script for more information.
@@ -53,6 +53,20 @@
 
 #include <machine/multiboot.h>
 #include <machine/pmap.h>
+
+/*
+ * Functions and data used before paging is enabled must be part of the .boot
+ * and .bootdata sections respectively, so that they use physical addresses.
+ * Once paging is enabled, their access relies on the kernel identity mapping.
+ */
+#define __boot __section(".boot.text")
+#define __bootdata __section(".boot.data")
+
+/*
+ * Boundaries of the .boot section.
+ */
+extern char _boot;
+extern char _eboot;
 
 /*
  * Stack used to bootstrap the kernel.

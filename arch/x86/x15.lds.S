@@ -14,6 +14,7 @@ ENTRY(_start)
 PHDRS
 {
     /* Flags are actually similar to classic Unix permissions */
+    boot    PT_LOAD FLAGS(7);
     init    PT_LOAD FLAGS(7);
     text    PT_LOAD FLAGS(5);
     rodata  PT_LOAD FLAGS(4);
@@ -23,18 +24,27 @@ PHDRS
 SECTIONS
 {
     . = BOOT_OFFSET;
+    _boot = .;
+
+    .boot ALIGN(PAGE_SIZE) : {
+        *(.boot.hdr)
+        *(.boot.text)
+        *(.boot.data)
+    } : boot
+
+    . = ALIGN(PAGE_SIZE);
+    _eboot = .;
+
+    . += KERNEL_OFFSET;
     _init = .;
 
-    .init ALIGN(PAGE_SIZE) : {
-        *(.init.hdr)
+    .init ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.init))) {
         *(.init.text)
         *(.init.data)
     } : init
 
     . = ALIGN(PAGE_SIZE);
     _einit = .;
-
-    . += KERNEL_OFFSET;
     _text = .;
 
     .text ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.text))) {
@@ -48,7 +58,7 @@ SECTIONS
         *(.rodata)
     } : rodata
 
-    .notes ALIGN(8) : AT(BOOT_VTOP(ADDR(.notes))) {
+    .notes ALIGN(DATA_ALIGN) : AT(BOOT_VTOP(ADDR(.notes))) {
         *(.note.*)
     } : rodata
 
@@ -59,7 +69,7 @@ SECTIONS
         *(.data)
     } : data
 
-    .bss ALIGN(8) : AT(BOOT_VTOP(ADDR(.bss))) {
+    .bss ALIGN(DATA_ALIGN) : AT(BOOT_VTOP(ADDR(.bss))) {
         *(.bss)
         *(COMMON)
     } : data
@@ -68,7 +78,7 @@ SECTIONS
     _end = .;
 
     /*
-     * A global offset section is created because of linking with libgcc.
+     * XXX A global offset section is created because of linking with libgcc.
      * Is it safe to discard it ?
      */
     /DISCARD/ : {

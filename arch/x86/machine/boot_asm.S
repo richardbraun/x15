@@ -29,7 +29,7 @@
 #define BOOT_MP_ADDR_PTOT(addr) (BOOT_MP_TRAMPOLINE_ADDR + (addr) \
                                  - boot_mp_trampoline)
 
-.section .init.hdr, "awx"
+.section .boot.hdr, "awx"
 .code32
 
  /*
