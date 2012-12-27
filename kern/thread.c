@@ -48,8 +48,9 @@ static struct kmem_cache thread_stack_cache;
 static void __init
 thread_runq_init(struct thread_runq *runq, struct thread *idle)
 {
-    /* Consider preemption disabled during initialization */
+    /* Consider migration and preemption disabled during initialization */
     idle->flags = 0;
+    idle->pinned = 1;
     idle->preempt = 1;
     runq->current = idle;
     runq->idle = idle;

@@ -46,6 +46,7 @@ struct task;
 struct thread {
     struct tcb tcb;
     short flags;
+    unsigned short pinned;
     unsigned short preempt;
     struct list runq_node;
     struct list task_node;
@@ -128,6 +129,42 @@ static inline struct thread *
 thread_current(void)
 {
     return thread_runq_local()->current;
+}
+
+/*
+ * Migration control functions.
+ *
+ * Functions that change the migration state are implicit compiler barriers.
+ *
+ * TODO Make thread_current migration-safe.
+ */
+
+static inline int
+thread_pinned(void)
+{
+    return (thread_current()->pinned != 0);
+}
+
+static inline void
+thread_pin(void)
+{
+    struct thread *thread;
+
+    thread = thread_current();
+    thread->pinned++;
+    assert(thread->pinned != 0);
+    barrier();
+}
+
+static inline void
+thread_unpin(void)
+{
+    struct thread *thread;
+
+    barrier();
+    thread = thread_current();
+    assert(thread->pinned != 0);
+    thread->pinned--;
 }
 
 /*
