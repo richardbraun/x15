@@ -26,6 +26,7 @@
 #include <kern/spinlock.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
+#include <kern/thread.h>
 #include <kern/types.h>
 #include <machine/atomic.h>
 #include <machine/biosmem.h>
@@ -67,8 +68,13 @@
  *
  * This pool of pure virtual memory can be used to reserve virtual addresses
  * before the VM system is initialized.
+ *
+ * List of users :
+ *  - pmap_zero_va (1 page)
+ *  - pmap_pt_va (up to PMAP_NR_RPTPS, 1 per CPU)
+ *  - CGA video memory (1 page)
  */
-#define PMAP_RESERVED_PAGES (2 + PMAP_NR_RPTPS)
+#define PMAP_RESERVED_PAGES (1 + (PMAP_NR_RPTPS * MAX_CPUS) + 1)
 
 /*
  * Properties of a page translation level.
@@ -144,13 +150,14 @@ static pmap_pte_t pmap_prot_table[8];
 
 /*
  * Special addresses for temporary mappings.
- *
- * TODO Per-CPU mappings.
  */
-static unsigned long pmap_zero_va;
 static struct spinlock pmap_zero_va_lock;
-static unsigned long pmap_pt_va;
-static struct spinlock pmap_pt_va_lock;
+static unsigned long pmap_zero_va;
+
+static struct {
+    struct spinlock lock;
+    unsigned long va;
+} pmap_pt_vas[MAX_CPUS];
 
 /*
  * Shared variables used by the inter-processor update functions.
@@ -343,6 +350,8 @@ pmap_setup_global_pages(void)
 void __init
 pmap_bootstrap(void)
 {
+    unsigned int i;
+
     memcpy(pmap_pt_levels, pmap_boot_pt_levels, sizeof(pmap_pt_levels));
 
     pmap_kroot_pt = (unsigned long)pmap_boot_root_pt;
@@ -358,10 +367,13 @@ pmap_bootstrap(void)
 
     pmap_boot_heap = (unsigned long)&_end;
     pmap_boot_heap_end = pmap_boot_heap + (PMAP_RESERVED_PAGES * PAGE_SIZE);
-    pmap_zero_va = pmap_bootalloc(1);
     spinlock_init(&pmap_zero_va_lock);
-    pmap_pt_va = pmap_bootalloc(PMAP_NR_RPTPS);
-    spinlock_init(&pmap_pt_va_lock);
+    pmap_zero_va = pmap_bootalloc(1);
+
+    for (i = 0; i < MAX_CPUS; i++) {
+        spinlock_init(&pmap_pt_vas[i].lock);
+        pmap_pt_vas[i].va = pmap_bootalloc(PMAP_NR_RPTPS);
+    }
 
     pmap_kprotect((unsigned long)&_text, (unsigned long)&_rodata,
                   VM_PROT_READ | VM_PROT_EXECUTE);
@@ -410,13 +422,19 @@ pmap_klimit(void)
 static void
 pmap_zero_page(phys_addr_t pa)
 {
+    /*
+     * This function is currently only used by pmap_kgrow, which is already
+     * protected from concurrent execution. Grab a lock for safety. Disable
+     * migration to remove the need to globally flush the TLB.
+     */
+
+    thread_pin();
     spinlock_lock(&pmap_zero_va_lock);
     pmap_kenter(pmap_zero_va, pa);
     cpu_tlb_flush_va(pmap_zero_va);
     memset((void *)pmap_zero_va, 0, PAGE_SIZE);
-    pmap_kremove(pmap_zero_va, pmap_zero_va + PAGE_SIZE);
-    cpu_tlb_flush_va(pmap_zero_va);
     spinlock_unlock(&pmap_zero_va_lock);
+    thread_unpin();
 }
 
 void
@@ -621,33 +639,44 @@ pmap_setup(void)
     spinlock_init(&pmap_list_lock);
 }
 
-static void
+static unsigned long
 pmap_map_pt(phys_addr_t pa)
 {
-    unsigned long va;
-    unsigned int i, offset;
+    unsigned long va, base;
+    unsigned int i, cpu, offset;
 
-    spinlock_lock(&pmap_pt_va_lock);
+    thread_pin();
+    cpu = cpu_id();
+    base = pmap_pt_vas[cpu].va;
+    spinlock_lock(&pmap_pt_vas[cpu].lock);
 
     for (i = 0; i < PMAP_NR_RPTPS; i++) {
         offset = i * PAGE_SIZE;
-        va = pmap_pt_va + offset;
+        va = base + offset;
         pmap_kenter(va, pa + offset);
         cpu_tlb_flush_va(va);
     }
+
+    return base;
 }
 
 static void
 pmap_unmap_pt(void)
 {
-    unsigned int i;
+    unsigned long base;
+    unsigned int i, cpu;
 
-    pmap_kremove(pmap_pt_va, pmap_pt_va + (PMAP_NR_RPTPS * PAGE_SIZE));
+    assert(thread_pinned());
+
+    cpu = cpu_id();
+    base = pmap_pt_vas[cpu].va;
+    pmap_kremove(base, base + (PMAP_NR_RPTPS * PAGE_SIZE));
 
     for (i = 0; i < PMAP_NR_RPTPS; i++)
-        cpu_tlb_flush_va(pmap_pt_va + (i * PAGE_SIZE));
+        cpu_tlb_flush_va(base + (i * PAGE_SIZE));
 
-    spinlock_unlock(&pmap_pt_va_lock);
+    spinlock_unlock(&pmap_pt_vas[cpu].lock);
+    thread_unpin();
 }
 
 int
@@ -697,11 +726,10 @@ pmap_create(struct pmap **pmapp)
 #endif /* X86_PAE */
 
     pt_level = &pmap_pt_levels[PMAP_NR_LEVELS - 1];
-    pt = (pmap_pte_t *)pmap_pt_va;
     kpt = pt_level->ptes;
     index = PMAP_PTEMAP_INDEX(VM_PMAP_PTEMAP_ADDRESS, pt_level->shift);
 
-    pmap_map_pt(pmap->root_pt);
+    pt = (pmap_pte_t *)pmap_map_pt(pmap->root_pt);
 
     memset(pt, 0, index * sizeof(pmap_pte_t));
     index += PMAP_NR_RPTPS;
