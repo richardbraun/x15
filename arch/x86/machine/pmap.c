@@ -199,7 +199,7 @@ pmap_boot_enter(pmap_pte_t *root_pt, unsigned long va, phys_addr_t pa)
 
     for (level = PMAP_NR_LEVELS; level > 1; level--) {
         pt_level = &pmap_boot_pt_levels[level - 1];
-        index = (va >> pt_level->shift) & ((1 << pt_level->bits) - 1);
+        index = (va >> pt_level->shift) & ((1UL << pt_level->bits) - 1);
         pte = &pt[index];
 
         if (*pte & PMAP_PTE_P)
@@ -220,7 +220,7 @@ pmap_boot_enter(pmap_pte_t *root_pt, unsigned long va, phys_addr_t pa)
     if (pa == 0)
         return;
 
-    pte = &pt[(va >> PMAP_L1_SHIFT) & ((1 << PMAP_L1_BITS) - 1)];
+    pte = &pt[(va >> PMAP_L1_SHIFT) & ((1UL << PMAP_L1_BITS) - 1)];
     *pte = (pa & PMAP_PA_MASK) | PMAP_PTE_RW | PMAP_PTE_P;
 }
 
@@ -235,8 +235,8 @@ pmap_setup_ptemap(pmap_pte_t *root_pt)
     pt_level = &pmap_boot_pt_levels[PMAP_NR_LEVELS - 1];
 
     for (i = 0; i < PMAP_NR_RPTPS; i++) {
-        va = VM_PMAP_PTEMAP_ADDRESS + (i * (1 << pt_level->shift));
-        index = (va >> pt_level->shift) & ((1 << pt_level->bits) - 1);
+        va = VM_PMAP_PTEMAP_ADDRESS + (i * (1UL << pt_level->shift));
+        index = (va >> pt_level->shift) & ((1UL << pt_level->bits) - 1);
         pa = (unsigned long)root_pt + (i * PAGE_SIZE);
         root_pt[index] = (pa | PMAP_PTE_RW | PMAP_PTE_P) & pt_level->mask;
     }
@@ -448,13 +448,13 @@ pmap_kgrow(unsigned long end)
     phys_addr_t pa;
 
     start = pmap_kernel_limit;
-    end = P2END(end, 1 << PMAP_L2_SHIFT) - 1;
+    end = P2END(end, 1UL << PMAP_L2_SHIFT) - 1;
     assert(start < end);
 
     for (level = PMAP_NR_LEVELS; level > 1; level--) {
         pt_level = &pmap_pt_levels[level - 1];
         pt_lower_level = &pmap_pt_levels[level - 2];
-        offset = 1 << pt_level->shift;
+        offset = 1UL << pt_level->shift;
 
         for (va = start; va <= end; va += offset) {
             index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
@@ -737,8 +737,8 @@ pmap_create(struct pmap **pmapp)
                                     * sizeof(pmap_pte_t));
 
     for (i = 0; i < PMAP_NR_RPTPS; i++) {
-        va = VM_PMAP_PTEMAP_ADDRESS + (i * (1 << pt_level->shift));
-        index = (va >> pt_level->shift) & ((1 << pt_level->bits) - 1);
+        va = VM_PMAP_PTEMAP_ADDRESS + (i * (1UL << pt_level->shift));
+        index = (va >> pt_level->shift) & ((1UL << pt_level->bits) - 1);
         pa = pmap->root_pt + (i * PAGE_SIZE);
         pt[index] = (pa | PMAP_PTE_RW | PMAP_PTE_P) & pt_level->mask;
     }
