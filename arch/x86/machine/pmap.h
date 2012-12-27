@@ -155,8 +155,8 @@ unsigned long pmap_bootalloc(unsigned int nr_pages);
 unsigned long pmap_klimit(void);
 
 /*
- * Preallocate resources so that addresses up to va can be mapped safely with
- * the kernel pmap functions.
+ * Preallocate page tables so that addresses up to the given one can be mapped
+ * safely with the kernel pmap functions.
  *
  * This function should only be called by the VM system, which makes sure it's
  * not called concurrently.
@@ -167,9 +167,9 @@ void pmap_kgrow(unsigned long end);
  * Kernel pmap functions.
  *
  * These functions assume the caller owns the addresses and don't grab any
- * lock. Resources for the new mappings must be preallocated with pmap_kgrow().
- * The TLB isn't flushed, the caller must use pmap_kupdate() to explicitely
- * require TLB flushing.
+ * lock. Page tables for the new mappings must be preallocated with
+ * pmap_kgrow(). The TLB isn't flushed, the caller must use pmap_kupdate()
+ * to explicitely request TLB flushing.
  */
 void pmap_kenter(unsigned long va, phys_addr_t pa);
 void pmap_kremove(unsigned long start, unsigned long end);
