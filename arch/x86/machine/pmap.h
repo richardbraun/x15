@@ -161,7 +161,7 @@ unsigned long pmap_klimit(void);
  * This function should only be called by the VM system, which makes sure it's
  * not called concurrently.
  */
-void pmap_kgrow(unsigned long va);
+void pmap_kgrow(unsigned long end);
 
 /*
  * Kernel pmap functions.

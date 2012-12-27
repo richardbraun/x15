@@ -13,9 +13,6 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- *
- * TODO Check TLB flushes on the recursive mapping.
  */
 
 #include <kern/assert.h>
@@ -423,26 +420,27 @@ pmap_zero_page(phys_addr_t pa)
 }
 
 void
-pmap_kgrow(unsigned long va)
+pmap_kgrow(unsigned long end)
 {
-    const struct pmap_pt_level *pt_level;
+    const struct pmap_pt_level *pt_level, *pt_lower_level;
     struct vm_page *page;
-    unsigned long start;
-    unsigned int level, i, i_start, i_va;
-    pmap_pte_t *pte;
+    unsigned long start, va, lower_pt_va, offset;
+    unsigned int level, index, lower_index;
+    pmap_pte_t *pte, *lower_pt;
     phys_addr_t pa;
 
     start = pmap_kernel_limit;
-    va = P2END(va, 1 << PMAP_L2_SHIFT) - 1;
-    assert(start < va);
+    end = P2END(end, 1 << PMAP_L2_SHIFT) - 1;
+    assert(start < end);
 
     for (level = PMAP_NR_LEVELS; level > 1; level--) {
         pt_level = &pmap_pt_levels[level - 1];
-        i_start = PMAP_PTEMAP_INDEX(start, pt_level->shift);
-        i_va = PMAP_PTEMAP_INDEX(va, pt_level->shift);
+        pt_lower_level = &pmap_pt_levels[level - 2];
+        offset = 1 << pt_level->shift;
 
-        for (i = i_start; i <= i_va; i++) {
-            pte = &pt_level->ptes[i];
+        for (va = start; va <= end; va += offset) {
+            index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
+            pte = &pt_level->ptes[index];
 
             if (!(*pte & PMAP_PTE_P)) {
                 if (!vm_phys_ready)
@@ -459,11 +457,15 @@ pmap_kgrow(unsigned long va)
                 pmap_zero_page(pa);
                 *pte = (pa | PMAP_PTE_G | PMAP_PTE_RW | PMAP_PTE_P)
                        & pt_level->mask;
+                lower_index = PMAP_PTEMAP_INDEX(va, pt_lower_level->shift);
+                lower_pt = &pt_lower_level->ptes[lower_index];
+                lower_pt_va = (unsigned long)lower_pt;
+                pmap_kupdate(lower_pt_va, lower_pt_va + PAGE_SIZE);
             }
         }
     }
 
-    pmap_kernel_limit = va + 1;
+    pmap_kernel_limit = end + 1;
 }
 
 void
