@@ -231,24 +231,29 @@ thread_schedule(void)
 
     assert(thread_preempt_enabled());
 
-    flags = cpu_intr_save();
+    do {
+        thread_preempt_disable();
+        flags = cpu_intr_save();
 
-    runq = thread_runq_local();
-    prev = runq->current;
-    assert(prev != NULL);
+        runq = thread_runq_local();
+        prev = runq->current;
+        assert(prev != NULL);
 
-    if (prev != runq->idle)
-        thread_runq_enqueue(runq, prev);
+        if (prev != runq->idle)
+            thread_runq_enqueue(runq, prev);
 
-    next = thread_runq_dequeue(runq);
+        prev->flags &= ~THREAD_RESCHEDULE;
+        next = thread_runq_dequeue(runq);
 
-    if (next == NULL)
-        next = runq->idle;
+        if (next == NULL)
+            next = runq->idle;
 
-    if (prev != next)
-        tcb_switch(&prev->tcb, &next->tcb);
+        if (prev != next)
+            tcb_switch(&prev->tcb, &next->tcb);
 
-    cpu_intr_restore(flags);
+        cpu_intr_restore(flags);
+        thread_preempt_enable_no_resched();
+    } while (prev->flags & THREAD_RESCHEDULE);
 }
 
 void
