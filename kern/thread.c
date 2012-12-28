@@ -34,8 +34,8 @@ struct thread_runq thread_runqs[MAX_CPUS];
 
 /*
  * Statically allocating the idle thread structures enables their use as
- * "current" threads during system bootstrap, which prevents preemption
- * control functions from crashing.
+ * "current" threads during system bootstrap, which prevents migration and
+ * preemption control functions from crashing.
  */
 static struct thread thread_idles[MAX_CPUS];
 
