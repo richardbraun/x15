@@ -21,6 +21,7 @@
 #include <kern/kmem.h>
 #include <kern/list.h>
 #include <kern/macros.h>
+#include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
@@ -30,7 +31,15 @@
 #include <machine/cpu.h>
 #include <machine/tcb.h>
 
-struct thread_runq thread_runqs[MAX_CPUS];
+/*
+ * Per processor run queue.
+ */
+struct thread_runq {
+    struct thread *idle;
+    struct list threads;
+} __aligned(CPU_L1_SIZE);
+
+static struct thread_runq thread_runqs[MAX_CPUS];
 
 /*
  * Statically allocating the idle thread structures enables their use as
@@ -52,7 +61,6 @@ thread_runq_init(struct thread_runq *runq, struct thread *idle)
     idle->flags = 0;
     idle->pinned = 1;
     idle->preempt = 1;
-    runq->current = idle;
     runq->idle = idle;
     list_init(&runq->threads);
 }
@@ -81,6 +89,12 @@ thread_runq_dequeue(struct thread_runq *runq)
     return thread;
 }
 
+static inline struct thread_runq *
+thread_runq_local(void)
+{
+    return &thread_runqs[cpu_id()];
+}
+
 void __init
 thread_bootstrap(void)
 {
@@ -88,6 +102,14 @@ thread_bootstrap(void)
 
     for (i = 0; i < ARRAY_SIZE(thread_runqs); i++)
         thread_runq_init(&thread_runqs[i], &thread_idles[i]);
+
+    tcb_set_current(&thread_idles[0].tcb);
+}
+
+void __init
+thread_ap_bootstrap(void)
+{
+    tcb_set_current(&thread_idles[cpu_id()].tcb);
 }
 
 void __init
@@ -102,13 +124,11 @@ thread_setup(void)
 static void
 thread_main(void)
 {
-    struct thread_runq *runq;
     struct thread *thread;
 
     assert(!cpu_intr_enabled());
 
-    runq = thread_runq_local();
-    thread = runq->current;
+    thread = thread_current();
     cpu_intr_enable();
 
     thread->fn(thread->arg);
@@ -218,7 +238,6 @@ thread_run(void)
     if (thread == NULL)
         thread = runq->idle;
 
-    runq->current = thread;
     tcb_load(&thread->tcb);
 }
 
@@ -236,7 +255,7 @@ thread_schedule(void)
         flags = cpu_intr_save();
 
         runq = thread_runq_local();
-        prev = runq->current;
+        prev = thread_current();
         assert(prev != NULL);
 
         if (prev != runq->idle)
@@ -259,13 +278,11 @@ thread_schedule(void)
 void
 thread_intr_schedule(void)
 {
-    struct thread_runq *runq;
     struct thread *thread;
 
     assert(!cpu_intr_enabled());
 
-    runq = thread_runq_local();
-    thread = runq->current;
+    thread = thread_current();
     assert(thread != NULL);
 
     if ((thread->preempt == 0) && (thread->flags & THREAD_RESCHEDULE))
@@ -275,11 +292,9 @@ thread_intr_schedule(void)
 void
 thread_preempt_schedule(void)
 {
-    struct thread_runq *runq;
     struct thread *thread;
 
-    runq = thread_runq_local();
-    thread = runq->current;
+    thread = thread_current();
     assert(thread != NULL);
 
     if ((thread->preempt == 0))
@@ -289,13 +304,11 @@ thread_preempt_schedule(void)
 void
 thread_tick(void)
 {
-    struct thread_runq *runq;
     struct thread *thread;
 
     assert(!cpu_intr_enabled());
 
-    runq = thread_runq_local();
-    thread = runq->current;
+    thread = thread_current();
     assert(thread != NULL);
     thread->flags |= THREAD_RESCHEDULE;
 }

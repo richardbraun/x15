@@ -291,6 +291,7 @@ void __init
 boot_ap_main(void)
 {
     cpu_ap_setup();
+    thread_ap_bootstrap();
     pmap_ap_bootstrap();
     kernel_ap_main();
 

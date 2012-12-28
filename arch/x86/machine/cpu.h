@@ -204,6 +204,11 @@ struct cpu_tss {
 } __packed;
 
 /*
+ * Forward declaration.
+ */
+struct tcb;
+
+/*
  * CPU states.
  */
 #define CPU_STATE_OFF   0
@@ -217,6 +222,7 @@ struct cpu_tss {
 
 struct cpu {
     struct cpu *self;
+    struct tcb *tcb;
     unsigned int id;
     unsigned int apic_id;
     char vendor_id[CPU_VENDOR_ID_SIZE];
@@ -417,6 +423,28 @@ cpu_current(void)
                  : "m" (*(struct cpu *)offsetof(struct cpu, self)));
 
     return cpu;
+}
+
+/*
+ * The current TCB must be obtained and updated in a migration-safe way.
+ */
+static __always_inline struct tcb *
+cpu_tcb(void)
+{
+    struct tcb *tcb;
+
+    asm volatile("mov %%fs:%1, %0"
+                 : "=r" (tcb)
+                 : "m" (*(char *)offsetof(struct cpu, tcb)));
+
+    return tcb;
+}
+
+static __always_inline void
+cpu_set_tcb(struct tcb *tcb)
+{
+    asm volatile("mov %0, %%fs:%1"
+                 : : "r" (tcb), "m" (*(char *)offsetof(struct cpu, tcb)));
 }
 
 static __always_inline unsigned int

@@ -21,7 +21,9 @@
 #ifndef _X86_TCB_H
 #define _X86_TCB_H
 
+#include <kern/assert.h>
 #include <kern/macros.h>
+#include <machine/cpu.h>
 #include <machine/trap.h>
 
 /*
@@ -41,17 +43,49 @@ struct tcb {
 void tcb_init(struct tcb *tcb, void *stack, void (*fn)(void));
 
 /*
+ * Low level context load/switch functions.
+ */
+void __noreturn tcb_context_load(struct tcb *tcb);
+void tcb_context_switch(struct tcb *prev, struct tcb *next);
+
+static inline struct tcb *
+tcb_current(void)
+{
+    return cpu_tcb();
+}
+
+static inline void
+tcb_set_current(struct tcb *tcb)
+{
+    cpu_set_tcb(tcb);
+}
+
+/*
  * Load a TCB.
  *
- * The caller context is lost.
+ * Called with interrupts disabled. The caller context is lost.
  */
-void __noreturn tcb_load(struct tcb *tcb);
+static inline void __noreturn
+tcb_load(struct tcb *tcb)
+{
+    assert(!cpu_intr_enabled());
+
+    tcb_set_current(tcb);
+    tcb_context_load(tcb);
+}
 
 /*
  * Context switch.
  *
  * Called with interrupts disabled.
  */
-void tcb_switch(struct tcb *prev, struct tcb *next);
+static inline void
+tcb_switch(struct tcb *prev, struct tcb *next)
+{
+    assert(!cpu_intr_enabled());
+
+    tcb_set_current(next);
+    tcb_context_switch(prev, next);
+}
 
 #endif /* _X86_TCB_H */

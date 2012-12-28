@@ -22,14 +22,14 @@
 
 #ifdef __LP64__
 
-ASM_ENTRY(tcb_load)
+ASM_ENTRY(tcb_context_load)
  movq 8(%rdi), %rax
  movq (%rdi), %rsp
  pushq %rax
  pushq $CPU_EFL_ONE
  popfq
  ret
-ASM_END(tcb_load)
+ASM_END(tcb_context_load)
 
 ASM_ENTRY(tcb_context_switch)
  pushfq
@@ -58,7 +58,7 @@ ASM_END(tcb_context_switch)
 
 #else /* __LP64__ */
 
-ASM_ENTRY(tcb_load)
+ASM_ENTRY(tcb_context_load)
  movl 4(%esp), %eax
  movl 4(%eax), %ecx
  movl (%eax), %esp
@@ -66,7 +66,7 @@ ASM_ENTRY(tcb_load)
  pushl $CPU_EFL_ONE
  popfl
  ret
-ASM_END(tcb_load)
+ASM_END(tcb_context_load)
 
 ASM_ENTRY(tcb_context_switch)
  movl 4(%esp), %eax

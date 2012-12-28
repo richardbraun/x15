@@ -58,23 +58,17 @@ struct thread {
 } __aligned(CPU_L1_SIZE);
 
 /*
- * Per processor run queue.
- */
-struct thread_runq {
-    struct thread *current;
-    struct thread *idle;
-    struct list threads;
-} __aligned(CPU_L1_SIZE);
-
-extern struct thread_runq thread_runqs[MAX_CPUS];
-
-/*
  * Early initialization of the thread module.
  *
  * This function makes it possible to use migration and preemption control
  * operations while the system is initializing itself.
  */
 void thread_bootstrap(void);
+
+/*
+ * Early initialization of the TCB on APs.
+ */
+void thread_ap_bootstrap(void);
 
 /*
  * Initialize the thread module.
@@ -119,16 +113,10 @@ void thread_preempt_schedule(void);
  */
 void thread_tick(void);
 
-static inline struct thread_runq *
-thread_runq_local(void)
-{
-    return &thread_runqs[cpu_id()];
-}
-
 static inline struct thread *
 thread_current(void)
 {
-    return thread_runq_local()->current;
+    return structof(tcb_current(), struct thread, tcb);
 }
 
 /*
