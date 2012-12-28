@@ -87,25 +87,26 @@ struct pmap_pt_level {
     pmap_pte_t mask;
 };
 
-#ifdef X86_PAE
+static struct pmap kernel_pmap_store;
+struct pmap *kernel_pmap = &kernel_pmap_store;
 
+/*
+ * Reserved pages of virtual memory available for early allocation.
+ */
+static unsigned long pmap_boot_heap __initdata;
+static unsigned long pmap_boot_heap_end __initdata;
+
+#ifdef X86_PAE
+/*
+ * Alignment required on page directory pointer tables.
+ */
 #define PMAP_PDPT_ALIGN 32
 
 /*
- * "Hidden" root page table for PAE mode.
+ * "Hidden" kernel root page table for PAE mode.
  */
-static pmap_pte_t pmap_pdpt[PMAP_NR_RPTPS] __aligned(PMAP_PDPT_ALIGN);
+static pmap_pte_t pmap_kpdpt[PMAP_NR_RPTPS] __aligned(PMAP_PDPT_ALIGN);
 #endif /* X86_PAE */
-
-/*
- * Physical address of the page table root, used during bootstrap.
- */
-static pmap_pte_t *pmap_boot_root_pt __bootdata;
-
-/*
- * Physical address of the kernel page table root.
- */
-static phys_addr_t pmap_kroot_pt;
 
 /*
  * Maximum mappable kernel address.
@@ -114,10 +115,8 @@ static unsigned long pmap_kernel_limit;
 
 /*
  * Table of page translation properties.
- *
- * This table is only used before paging is enabled.
  */
-static struct pmap_pt_level pmap_boot_pt_levels[] __bootdata = {
+static struct pmap_pt_level pmap_pt_levels[] = {
     { PMAP_L1_BITS, PMAP_L1_SHIFT, PMAP_PTEMAP_BASE, PMAP_L2_NR_PTES, PMAP_L1_MASK },
     { PMAP_L2_BITS, PMAP_L2_SHIFT, PMAP_L2_PTEMAP,   PMAP_L2_NR_PTES, PMAP_L2_MASK },
 #if PMAP_NR_LEVELS > 2
@@ -129,22 +128,8 @@ static struct pmap_pt_level pmap_boot_pt_levels[] __bootdata = {
 };
 
 /*
- * Reserved pages of virtual memory available for early allocation.
- */
-static unsigned long pmap_boot_heap __initdata;
-static unsigned long pmap_boot_heap_end __initdata;
-
-/*
- * Table of page translation properties.
- *
- * Located at high virtual addresses, it is filled during initialization from
- * the content of its bootstrap version.
- */
-static struct pmap_pt_level pmap_pt_levels[ARRAY_SIZE(pmap_boot_pt_levels)];
-
-/*
- * Table used to convert machine-independent protection flags to
- * machine-dependent PTE bits.
+ * Table used to convert machine independent protection flags to architecture
+ * specific PTE bits.
  */
 static pmap_pte_t pmap_prot_table[8];
 
@@ -173,32 +158,33 @@ static struct {
     volatile unsigned long count __aligned(CPU_L1_SIZE);
 } pmap_nr_updates;
 
+/*
+ * Global list of physical maps.
+ */
+static struct spinlock pmap_list_lock;
+static struct list pmap_list;
+
 static struct kmem_cache pmap_cache;
 
 #ifdef X86_PAE
 static struct kmem_cache pmap_pdpt_cache;
 #endif /* X86_PAE */
 
-/*
- * Global list of physical maps.
- */
-static struct list pmap_list;
-static struct spinlock pmap_list_lock;
-
 static void __boot
 pmap_boot_enter(pmap_pte_t *root_pt, unsigned long va, phys_addr_t pa)
 {
-    const struct pmap_pt_level *pt_level;
+    const struct pmap_pt_level *pt_level, *pt_levels;
     unsigned int level, index;
     pmap_pte_t *pt, *ptp, *pte;
 
     if (pa != (pa & PMAP_PA_MASK))
         boot_panic("pmap: invalid physical address");
 
+    pt_levels = (void *)BOOT_VTOP((unsigned long)pmap_pt_levels);
     pt = root_pt;
 
     for (level = PMAP_NR_LEVELS; level > 1; level--) {
-        pt_level = &pmap_boot_pt_levels[level - 1];
+        pt_level = &pt_levels[level - 1];
         index = (va >> pt_level->shift) & ((1UL << pt_level->bits) - 1);
         pte = &pt[index];
 
@@ -227,12 +213,13 @@ pmap_boot_enter(pmap_pte_t *root_pt, unsigned long va, phys_addr_t pa)
 static void __boot
 pmap_setup_ptemap(pmap_pte_t *root_pt)
 {
-    const struct pmap_pt_level *pt_level;
+    const struct pmap_pt_level *pt_level, *pt_levels;
     phys_addr_t pa;
     unsigned long va;
     unsigned int i, index;
 
-    pt_level = &pmap_boot_pt_levels[PMAP_NR_LEVELS - 1];
+    pt_levels = (void *)BOOT_VTOP((unsigned long)pmap_pt_levels);
+    pt_level = &pt_levels[PMAP_NR_LEVELS - 1];
 
     for (i = 0; i < PMAP_NR_RPTPS; i++) {
         va = VM_PMAP_PTEMAP_ADDRESS + (i * (1UL << pt_level->shift));
@@ -245,6 +232,7 @@ pmap_setup_ptemap(pmap_pte_t *root_pt)
 pmap_pte_t * __boot
 pmap_setup_paging(void)
 {
+    struct pmap *pmap;
     pmap_pte_t *root_pt;
     unsigned long va;
     phys_addr_t pa;
@@ -289,29 +277,39 @@ pmap_setup_paging(void)
 
     pmap_setup_ptemap(root_pt);
 
+    pmap = (void *)BOOT_VTOP((unsigned long)&kernel_pmap_store);
+    pmap->root_pt = (unsigned long)root_pt;
+
 #ifdef X86_PAE
-    pmap_boot_root_pt = (void *)BOOT_VTOP((unsigned long)pmap_pdpt);
+    pmap->pdpt = pmap_kpdpt;
+    pmap->pdpt_pa = BOOT_VTOP((unsigned long)pmap_kpdpt);
+    root_pt = (void *)pmap->pdpt_pa;
 
     for (i = 0; i < PMAP_NR_RPTPS; i++)
-        pmap_boot_root_pt[i] = ((unsigned long)root_pt + (i * PAGE_SIZE))
-                               | PMAP_PTE_P;
+        root_pt[i] = (pmap->root_pt + (i * PAGE_SIZE)) | PMAP_PTE_P;
 
     cpu_enable_pae();
-#else /* X86_PAE */
-    pmap_boot_root_pt = root_pt;
 #endif /* X86_PAE */
 
-    return pmap_boot_root_pt;
+    return root_pt;
 }
 
 pmap_pte_t * __boot
 pmap_ap_setup_paging(void)
 {
+    struct pmap *pmap;
+    pmap_pte_t *root_pt;
+
+    pmap = (void *)BOOT_VTOP((unsigned long)&kernel_pmap_store);
+
 #ifdef X86_PAE
+    root_pt = (void *)pmap->pdpt_pa;
     cpu_enable_pae();
+#else /* X86_PAE */
+    root_pt = (void *)pmap->root_pt;
 #endif /* X86_PAE */
 
-    return pmap_boot_root_pt;
+    return root_pt;
 }
 
 static void __init
@@ -352,9 +350,12 @@ pmap_bootstrap(void)
 {
     unsigned int i;
 
-    memcpy(pmap_pt_levels, pmap_boot_pt_levels, sizeof(pmap_pt_levels));
+    spinlock_init(&kernel_pmap->lock);
 
-    pmap_kroot_pt = (unsigned long)pmap_boot_root_pt;
+    pmap_boot_heap = (unsigned long)&_end;
+    pmap_boot_heap_end = pmap_boot_heap + (PMAP_RESERVED_PAGES * PAGE_SIZE);
+
+    pmap_kernel_limit = VM_MIN_KERNEL_ADDRESS;
 
     pmap_prot_table[VM_PROT_NONE] = 0;
     pmap_prot_table[VM_PROT_READ] = 0;
@@ -365,8 +366,6 @@ pmap_bootstrap(void)
     pmap_prot_table[VM_PROT_EXECUTE | VM_PROT_WRITE] = PMAP_PTE_RW;
     pmap_prot_table[VM_PROT_ALL] = PMAP_PTE_RW;
 
-    pmap_boot_heap = (unsigned long)&_end;
-    pmap_boot_heap_end = pmap_boot_heap + (PMAP_RESERVED_PAGES * PAGE_SIZE);
     spinlock_init(&pmap_zero_va_lock);
     pmap_zero_va = pmap_bootalloc(1);
 
@@ -374,6 +373,11 @@ pmap_bootstrap(void)
         spinlock_init(&pmap_pt_vas[i].lock);
         pmap_pt_vas[i].va = pmap_bootalloc(PMAP_NR_RPTPS);
     }
+
+    spinlock_init(&pmap_update_lock);
+
+    spinlock_init(&pmap_list_lock);
+    list_init(&pmap_list);
 
     pmap_kprotect((unsigned long)&_text, (unsigned long)&_rodata,
                   VM_PROT_READ | VM_PROT_EXECUTE);
@@ -383,9 +387,6 @@ pmap_bootstrap(void)
         pmap_setup_global_pages();
 
     cpu_tlb_flush();
-
-    spinlock_init(&pmap_update_lock);
-    pmap_kernel_limit = VM_MIN_KERNEL_ADDRESS;
 }
 
 void __init
@@ -634,9 +635,6 @@ pmap_setup(void)
                     PMAP_NR_RPTPS * sizeof(pmap_pte_t), PMAP_PDPT_ALIGN,
                     NULL, pmap_pdpt_alloc, NULL, 0);
 #endif /* X86_PAE */
-
-    list_init(&pmap_list);
-    spinlock_init(&pmap_list_lock);
 }
 
 static unsigned long
@@ -721,8 +719,9 @@ pmap_create(struct pmap **pmapp)
     for (i = 0; i < PMAP_NR_RPTPS; i++)
         pmap->pdpt[i] = (pmap->root_pt + (i * PAGE_SIZE)) | PMAP_PTE_P;
 
-    pmap->pdpt_pa = pmap_kextract(va) + (va & PAGE_MASK);
-    assert(pmap->pdpt_pa < VM_PHYS_NORMAL_LIMIT);
+    pa = pmap_kextract(va) + (va & PAGE_MASK);
+    assert(pa < VM_PHYS_NORMAL_LIMIT);
+    pmap->pdpt_pa = (unsigned long)pa;
 #endif /* X86_PAE */
 
     pt_level = &pmap_pt_levels[PMAP_NR_LEVELS - 1];

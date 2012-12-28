@@ -913,7 +913,7 @@ vm_map_setup(void)
     unsigned long start, end;
     int error, flags;
 
-    vm_map_init(kernel_map, NULL, VM_MIN_KERNEL_ADDRESS,
+    vm_map_init(kernel_map, kernel_pmap, VM_MIN_KERNEL_ADDRESS,
                 VM_MAX_KERNEL_ADDRESS);
 
     /*

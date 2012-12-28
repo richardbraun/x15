@@ -107,12 +107,17 @@ typedef unsigned long pmap_pte_t;
 struct pmap {
     struct spinlock lock;
     struct list node;
-    phys_addr_t root_pt;
+    unsigned long root_pt;
 #ifdef X86_PAE
     pmap_pte_t *pdpt;
-    phys_addr_t pdpt_pa;
+    unsigned long pdpt_pa;
 #endif /* X86_PAE */
 };
+
+/*
+ * The kernel pmap.
+ */
+extern struct pmap *kernel_pmap;
 
 /*
  * Early initialization of the MMU.
