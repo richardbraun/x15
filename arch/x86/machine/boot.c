@@ -74,7 +74,8 @@
 #define INIT_CGACHARS   (80 * 25)
 #define INIT_CGACOLOR   0x7
 
-char boot_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __bootdata;
+char boot_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
+
 char boot_ap_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __bootdata;
 unsigned long boot_ap_id __bootdata;
 unsigned long boot_ap_stack_addr __bootdata;

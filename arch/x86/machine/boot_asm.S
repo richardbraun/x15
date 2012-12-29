@@ -58,7 +58,7 @@ ASM_ENTRY(_start)
  ljmp $8, $1f
 
 1:
- movl $(boot_stack + BOOT_STACK_SIZE), %esp
+ movl $(boot_stack - KERNEL_OFFSET + BOOT_STACK_SIZE), %esp
  movl %esp, %ebp
 
 #ifdef __LP64__
@@ -84,13 +84,20 @@ ASM_ENTRY(_start)
  call boot_setup_paging
  movl %eax, %cr3
 
-#ifndef __LP64__
+#ifdef __LP64__
+ .code64
+ movq $(boot_stack + BOOT_STACK_SIZE), %rsp
+ movq %rsp, %rbp
+ .code32
+#else /* __LP64__ */
  movl %cr0, %eax
  orl $CPU_CR0_PG, %eax
  movl %eax, %cr0
  ljmp $8, $1f
 
 1:
+ movl $(boot_stack + BOOT_STACK_SIZE), %esp
+ movl %esp, %ebp
 #endif /* __LP64__ */
 
  call boot_main
