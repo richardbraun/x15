@@ -93,6 +93,7 @@
 #include <kern/spinlock.h>
 #include <kern/stdint.h>
 #include <kern/types.h>
+#include <machine/cpu.h>
 #include <machine/trap.h>
 
 #ifdef X86_PAE
@@ -208,6 +209,12 @@ int pmap_create(struct pmap **pmapp);
  * Load the given pmap on the current processor.
  */
 void pmap_load(struct pmap *pmap);
+
+static inline struct pmap *
+pmap_current(void)
+{
+    return cpu_percpu_get_pmap();
+}
 
 #endif /* __ASSEMBLER__ */
 

@@ -29,7 +29,9 @@
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
+#include <machine/pmap.h>
 #include <machine/tcb.h>
+#include <vm/vm_map.h>
 
 /*
  * Per processor run queue.
@@ -241,7 +243,19 @@ thread_run(void)
     if (thread == NULL)
         thread = runq->idle;
 
+    if (thread->task != kernel_task)
+        pmap_load(thread->task->map->pmap);
+
     tcb_load(&thread->tcb);
+}
+
+static inline void
+thread_switch(struct thread *prev, struct thread *next)
+{
+    if ((prev->task != next->task) && (next->task != kernel_task))
+        pmap_load(next->task->map->pmap);
+
+    tcb_switch(&prev->tcb, &next->tcb);
 }
 
 void
@@ -271,7 +285,7 @@ thread_schedule(void)
             next = runq->idle;
 
         if (prev != next)
-            tcb_switch(&prev->tcb, &next->tcb);
+            thread_switch(prev, next);
 
         cpu_intr_restore(flags);
         thread_preempt_enable_no_resched();

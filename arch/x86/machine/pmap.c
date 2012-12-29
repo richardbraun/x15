@@ -351,6 +351,7 @@ pmap_bootstrap(void)
     unsigned int i;
 
     spinlock_init(&kernel_pmap->lock);
+    cpu_percpu_set_pmap(kernel_pmap);
 
     pmap_boot_heap = (unsigned long)&_end;
     pmap_boot_heap_end = pmap_boot_heap + (PMAP_RESERVED_PAGES * PAGE_SIZE);
@@ -392,6 +393,8 @@ pmap_bootstrap(void)
 void __init
 pmap_ap_bootstrap(void)
 {
+    cpu_percpu_set_pmap(kernel_pmap);
+
     if (cpu_has_global_pages())
         cpu_enable_global_pages();
 }
@@ -765,6 +768,8 @@ error_pmap:
 void
 pmap_load(struct pmap *pmap)
 {
+    cpu_percpu_set_pmap(pmap);
+
 #ifdef X86_PAE
     cpu_set_cr3(pmap->pdpt_pa);
 #else /* X86_PAE */

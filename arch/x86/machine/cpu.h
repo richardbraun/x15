@@ -204,9 +204,10 @@ struct cpu_tss {
 } __packed;
 
 /*
- * Forward declaration.
+ * Forward declarations.
  */
 struct tcb;
+struct pmap;
 
 /*
  * CPU states.
@@ -223,6 +224,7 @@ struct tcb;
 struct cpu {
     struct cpu *self;
     struct tcb *tcb;
+    struct pmap *pmap;
     unsigned int id;
     unsigned int apic_id;
     char vendor_id[CPU_VENDOR_ID_SIZE];
@@ -445,6 +447,7 @@ cpu_percpu_set_ ## member(type *ptr)                                \
 
 CPU_DECL_PERCPU(struct cpu, self)
 CPU_DECL_PERCPU(struct tcb, tcb)
+CPU_DECL_PERCPU(struct pmap, pmap)
 
 static __always_inline struct cpu *
 cpu_current(void)
