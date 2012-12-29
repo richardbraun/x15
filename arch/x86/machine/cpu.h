@@ -413,44 +413,56 @@ cpu_halt(void)
         cpu_idle();
 }
 
+/*
+ * Macros to create access functions for per-CPU pointers.
+ *
+ * Changing such a pointer should only be done by low level scheduling
+ * functions (e.g. context switching). Getting it is then migration-safe.
+ */
+#ifdef __LP64__
+#define CPU_ASM_MOV "movq"
+#else /* __LP64__ */
+#define CPU_ASM_MOV "movl"
+#endif /* __LP64__ */
+
+#define CPU_DECL_PERCPU(type, member)                               \
+static __always_inline type *                                       \
+cpu_percpu_get_ ## member(void)                                     \
+{                                                                   \
+    type *ptr;                                                      \
+                                                                    \
+    asm volatile(CPU_ASM_MOV " %%fs:%1, %0"                         \
+                 : "=r" (ptr)                                       \
+                 : "m" (*(type **)offsetof(struct cpu, member)));   \
+    return ptr;                                                     \
+}                                                                   \
+                                                                    \
+static __always_inline void                                         \
+cpu_percpu_set_ ## member(type *ptr)                                \
+{                                                                   \
+    asm volatile(CPU_ASM_MOV " %0, %%fs:%1"                         \
+                 : : "ri" (ptr),                                    \
+                     "m" (*(type **)offsetof(struct cpu, member))); \
+}
+
+CPU_DECL_PERCPU(struct cpu, self)
+CPU_DECL_PERCPU(struct tcb, tcb)
+
 static __always_inline struct cpu *
 cpu_current(void)
 {
-    struct cpu *cpu;
-
-    asm volatile("mov %%fs:%1, %0"
-                 : "=r" (cpu)
-                 : "m" (*(struct cpu *)offsetof(struct cpu, self)));
-
-    return cpu;
-}
-
-/*
- * The current TCB must be obtained and updated in a migration-safe way.
- */
-static __always_inline struct tcb *
-cpu_tcb(void)
-{
-    struct tcb *tcb;
-
-    asm volatile("mov %%fs:%1, %0"
-                 : "=r" (tcb)
-                 : "m" (*(char *)offsetof(struct cpu, tcb)));
-
-    return tcb;
-}
-
-static __always_inline void
-cpu_set_tcb(struct tcb *tcb)
-{
-    asm volatile("mov %0, %%fs:%1"
-                 : : "r" (tcb), "m" (*(char *)offsetof(struct cpu, tcb)));
+    return cpu_percpu_get_self();
 }
 
 static __always_inline unsigned int
 cpu_id(void)
 {
-    return cpu_current()->id;
+    unsigned int id;
+
+    asm volatile("movl %%fs:%1, %0"
+                 : "=r" (id)
+                 : "m" (*(unsigned int *)offsetof(struct cpu, id)));
+    return id;
 }
 
 static __always_inline unsigned int

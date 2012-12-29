@@ -51,13 +51,13 @@ void tcb_context_switch(struct tcb *prev, struct tcb *next);
 static inline struct tcb *
 tcb_current(void)
 {
-    return cpu_tcb();
+    return cpu_percpu_get_tcb();
 }
 
 static inline void
 tcb_set_current(struct tcb *tcb)
 {
-    cpu_set_tcb(tcb);
+    cpu_percpu_set_tcb(tcb);
 }
 
 /*
