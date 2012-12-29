@@ -249,8 +249,6 @@ struct cpu {
     unsigned long double_fault_stack;
 } __aligned(CPU_ALIGN);
 
-extern struct cpu cpu_array[MAX_CPUS];
-
 /*
  * Macro to create functions that read/write control registers.
  */

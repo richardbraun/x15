@@ -66,7 +66,7 @@
 #define CPU_MP_CMOS_DATA_RESET_WARM 0x0a
 #define CPU_MP_CMOS_RESET_VECTOR    0x467
 
-struct cpu cpu_array[MAX_CPUS];
+static struct cpu cpu_array[MAX_CPUS];
 
 /*
  * Number of configured processors.
