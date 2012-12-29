@@ -127,9 +127,11 @@ thread_main(void)
     struct thread *thread;
 
     assert(!cpu_intr_enabled());
+    assert(!thread_preempt_enabled());
 
     thread = thread_current();
     cpu_intr_enable();
+    thread_preempt_enable();
 
     thread->fn(thread->arg);
 
@@ -148,7 +150,8 @@ thread_init(struct thread *thread, struct task *task, void *stack,
         name = task->name;
 
     thread->flags = 0;
-    thread->preempt = 0;
+    thread->pinned = 0;
+    thread->preempt = 1;
     thread->task = task;
     thread->stack = stack;
     strlcpy(thread->name, name, sizeof(thread->name));
