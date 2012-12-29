@@ -443,7 +443,7 @@ pmap_kgrow(unsigned long end)
 {
     const struct pmap_pt_level *pt_level, *pt_lower_level;
     struct vm_page *page;
-    unsigned long start, va, lower_pt_va, offset;
+    unsigned long start, va, lower_pt_va;
     unsigned int level, index, lower_index;
     pmap_pte_t *pte, *lower_pt;
     phys_addr_t pa;
@@ -455,9 +455,8 @@ pmap_kgrow(unsigned long end)
     for (level = PMAP_NR_LEVELS; level > 1; level--) {
         pt_level = &pmap_pt_levels[level - 1];
         pt_lower_level = &pmap_pt_levels[level - 2];
-        offset = 1UL << pt_level->shift;
 
-        for (va = start; va <= end; va += offset) {
+        for (va = start; va <= end; va = P2END(va, 1UL << pt_level->shift)) {
             index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
             pte = &pt_level->ptes[index];
 
