@@ -379,6 +379,7 @@ pmap_bootstrap(void)
 
     spinlock_init(&pmap_list_lock);
     list_init(&pmap_list);
+    list_insert_tail(&pmap_list, &kernel_pmap->node);
 
     pmap_kprotect((unsigned long)&_text, (unsigned long)&_rodata,
                   VM_PROT_READ | VM_PROT_EXECUTE);
@@ -441,6 +442,70 @@ pmap_zero_page(phys_addr_t pa)
     thread_unpin();
 }
 
+static unsigned long
+pmap_map_pt(phys_addr_t pa)
+{
+    unsigned long va, base;
+    unsigned int i, cpu, offset;
+
+    thread_pin();
+    cpu = cpu_id();
+    base = pmap_pt_vas[cpu].va;
+    spinlock_lock(&pmap_pt_vas[cpu].lock);
+
+    for (i = 0; i < PMAP_NR_RPTPS; i++) {
+        offset = i * PAGE_SIZE;
+        va = base + offset;
+        pmap_kenter(va, pa + offset);
+        cpu_tlb_flush_va(va);
+    }
+
+    return base;
+}
+
+static void
+pmap_unmap_pt(void)
+{
+    unsigned long base;
+    unsigned int i, cpu;
+
+    assert(thread_pinned());
+
+    cpu = cpu_id();
+    base = pmap_pt_vas[cpu].va;
+    pmap_kremove(base, base + (PMAP_NR_RPTPS * PAGE_SIZE));
+
+    for (i = 0; i < PMAP_NR_RPTPS; i++)
+        cpu_tlb_flush_va(base + (i * PAGE_SIZE));
+
+    spinlock_unlock(&pmap_pt_vas[cpu].lock);
+    thread_unpin();
+}
+
+static void
+pmap_kgrow_update_pmaps(unsigned int index)
+{
+    const struct pmap_pt_level *pt_level;
+    struct pmap *pmap, *current;
+    pmap_pte_t *root_pt;
+
+    pt_level = &pmap_pt_levels[PMAP_NR_LEVELS - 1];
+    current = pmap_current();
+
+    spinlock_lock(&pmap_list_lock);
+
+    list_for_each_entry(&pmap_list, pmap, node) {
+        if (pmap == current)
+            continue;
+
+        root_pt = (pmap_pte_t *)pmap_map_pt(pmap->root_pt);
+        root_pt[index] = pt_level->ptes[index];
+        pmap_unmap_pt();
+    }
+
+    spinlock_unlock(&pmap_list_lock);
+}
+
 void
 pmap_kgrow(unsigned long end)
 {
@@ -478,6 +543,10 @@ pmap_kgrow(unsigned long end)
                 pmap_zero_page(pa);
                 *pte = (pa | PMAP_PTE_G | PMAP_PTE_RW | PMAP_PTE_P)
                        & pt_level->mask;
+
+                if (level == PMAP_NR_LEVELS)
+                    pmap_kgrow_update_pmaps(index);
+
                 lower_index = PMAP_PTEMAP_INDEX(va, pt_lower_level->shift);
                 lower_pt = &pt_lower_level->ptes[lower_index];
                 lower_pt_va = (unsigned long)lower_pt;
@@ -637,46 +706,6 @@ pmap_setup(void)
                     PMAP_NR_RPTPS * sizeof(pmap_pte_t), PMAP_PDPT_ALIGN,
                     NULL, pmap_pdpt_alloc, NULL, 0);
 #endif /* X86_PAE */
-}
-
-static unsigned long
-pmap_map_pt(phys_addr_t pa)
-{
-    unsigned long va, base;
-    unsigned int i, cpu, offset;
-
-    thread_pin();
-    cpu = cpu_id();
-    base = pmap_pt_vas[cpu].va;
-    spinlock_lock(&pmap_pt_vas[cpu].lock);
-
-    for (i = 0; i < PMAP_NR_RPTPS; i++) {
-        offset = i * PAGE_SIZE;
-        va = base + offset;
-        pmap_kenter(va, pa + offset);
-        cpu_tlb_flush_va(va);
-    }
-
-    return base;
-}
-
-static void
-pmap_unmap_pt(void)
-{
-    unsigned long base;
-    unsigned int i, cpu;
-
-    assert(thread_pinned());
-
-    cpu = cpu_id();
-    base = pmap_pt_vas[cpu].va;
-    pmap_kremove(base, base + (PMAP_NR_RPTPS * PAGE_SIZE));
-
-    for (i = 0; i < PMAP_NR_RPTPS; i++)
-        cpu_tlb_flush_va(base + (i * PAGE_SIZE));
-
-    spinlock_unlock(&pmap_pt_vas[cpu].lock);
-    thread_unpin();
 }
 
 int
