@@ -95,6 +95,11 @@
 #include <kern/stdint.h>
 #include <machine/pit.h>
 
+/*
+ * Forward declaration.
+ */
+struct trap_frame;
+
 #define CPU_VENDOR_ID_SIZE  13
 #define CPU_MODEL_NAME_SIZE 49
 
@@ -403,6 +408,8 @@ cpu_idle(void)
 
 /*
  * Halt the CPU.
+ *
+ * Implies a compiler barrier.
  */
 static __noreturn __always_inline void
 cpu_halt(void)
@@ -412,6 +419,16 @@ cpu_halt(void)
     for (;;)
         cpu_idle();
 }
+
+/*
+ * Halt all other processors.
+ */
+void cpu_halt_broadcast(void);
+
+/*
+ * Interrupt handler for inter-processor halt requests.
+ */
+void cpu_halt_intr(struct trap_frame *frame);
 
 /*
  * Macros to create access functions for per-CPU pointers.

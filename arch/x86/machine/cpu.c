@@ -25,6 +25,7 @@
 #include <kern/stdint.h>
 #include <kern/string.h>
 #include <machine/acpimp.h>
+#include <machine/atomic.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
@@ -88,6 +89,8 @@ static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8);
  */
 static unsigned long cpu_double_fault_handler;
 static char cpu_double_fault_stack[STACK_SIZE] __aligned(DATA_ALIGN);
+
+static volatile unsigned long cpu_nr_halts;
 
 static void
 cpu_seg_set_null(char *table, unsigned int selector)
@@ -567,4 +570,39 @@ cpu_ap_sync(void)
 {
     while (cpu_count() == 1)
         cpu_pause();
+}
+
+void
+cpu_halt_broadcast(void)
+{
+    unsigned long nr_halts;
+    unsigned int nr_cpus;
+
+    nr_cpus = cpu_count();
+
+    if (nr_cpus == 1)
+        return;
+
+    nr_halts = atomic_cas(&cpu_nr_halts, 0, nr_cpus - 1);
+
+    /* Another CPU has started a halt, wait for the IPI */
+    if (nr_halts != 0)
+        for (;;)
+            cpu_idle();
+
+    lapic_ipi_broadcast(TRAP_CPU_HALT);
+
+    while (cpu_nr_halts != 0)
+        cpu_pause();
+}
+
+void
+cpu_halt_intr(struct trap_frame *frame)
+{
+    (void)frame;
+
+    lapic_eoi();
+
+    atomic_add(&cpu_nr_halts, -1);
+    cpu_halt();
 }

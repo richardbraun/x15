@@ -24,17 +24,18 @@
 void
 panic(const char *format, ...)
 {
-  va_list list;
+    va_list list;
 
-  cpu_intr_disable();
+    cpu_intr_disable();
+    cpu_halt_broadcast();
 
-  printk("\nkernel panic: ");
-  va_start(list, format);
-  vprintk(format, list);
+    printk("\nkernel panic: ");
+    va_start(list, format);
+    vprintk(format, list);
 
-  cpu_halt();
+    cpu_halt();
 
-  /*
-   * Never reached.
-   */
+    /*
+     * Never reached.
+     */
 }

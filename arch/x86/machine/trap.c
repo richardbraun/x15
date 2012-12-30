@@ -65,6 +65,7 @@ void trap_isr_simd_fp_exception(void);
 void trap_isr_pic_int7(void);
 void trap_isr_pic_int15(void);
 void trap_isr_pmap_update(void);
+void trap_isr_cpu_halt(void);
 void trap_isr_lapic_timer(void);
 void trap_isr_lapic_error(void);
 void trap_isr_lapic_spurious(void);
@@ -183,6 +184,7 @@ trap_setup(void)
 
     /* System defined traps */
     trap_install(TRAP_PMAP_UPDATE, trap_isr_pmap_update, pmap_update_intr);
+    trap_install(TRAP_CPU_HALT, trap_isr_cpu_halt, cpu_halt_intr);
     trap_install(TRAP_LAPIC_TIMER, trap_isr_lapic_timer, lapic_intr_timer);
     trap_install(TRAP_LAPIC_ERROR, trap_isr_lapic_error, lapic_intr_error);
     trap_install(TRAP_LAPIC_SPURIOUS, trap_isr_lapic_spurious,
