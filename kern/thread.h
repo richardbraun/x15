@@ -123,8 +123,6 @@ thread_current(void)
  * Migration control functions.
  *
  * Functions that change the migration state are implicit compiler barriers.
- *
- * TODO Make thread_current migration-safe.
  */
 
 static inline int
