@@ -26,6 +26,8 @@ x86_FILES =                             \
 	arch/x86/machine/pit.h          \
 	arch/x86/machine/pmap.c         \
 	arch/x86/machine/pmap.h         \
+	arch/x86/machine/strace.c       \
+	arch/x86/machine/strace.h       \
 	arch/x86/machine/tcb_asm.S      \
 	arch/x86/machine/tcb.c          \
 	arch/x86/machine/tcb.h          \
@@ -42,6 +44,9 @@ if X86
 # tables aren't used at runtime, so using a debug section reduces the kernel
 # code size.
 AM_CFLAGS += -fno-asynchronous-unwind-tables
+
+# For now, use frame pointers for convenient stack tracing.
+AM_CFLAGS += -fno-omit-frame-pointer
 
 # Never generate instructions that are unhandled in kernel mode.
 AM_CFLAGS += -mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-avx
