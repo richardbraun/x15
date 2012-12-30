@@ -120,7 +120,7 @@ thread_setup(void)
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
                     CPU_L1_SIZE, NULL, NULL, NULL, 0);
     kmem_cache_init(&thread_stack_cache, "thread_stack", STACK_SIZE,
-                    CPU_L1_SIZE, NULL, NULL, NULL, 0);
+                    DATA_ALIGN, NULL, NULL, NULL, 0);
 }
 
 static void
