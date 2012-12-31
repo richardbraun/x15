@@ -18,19 +18,26 @@
 #ifndef _KERN_INIT_H
 #define _KERN_INIT_H
 
-#include <kern/macros.h>
-
 /*
  * These sections should contain code and data which can be discarded once
  * kernel initialization is done.
  */
-#define __init __section(".init.text")
-#define __initdata __section(".init.data")
+#define INIT_SECTION        .init.text
+#define INIT_DATA_SECTION   .init.data
+
+#ifndef __ASSEMBLER__
+
+#include <kern/macros.h>
+
+#define __init __section(QUOTE(INIT_SECTION))
+#define __initdata __section(QUOTE(INIT_DATA_SECTION))
 
 /*
  * Boundaries of the .init section.
  */
 extern char _init;
 extern char _einit;
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* _KERN_INIT_H */
