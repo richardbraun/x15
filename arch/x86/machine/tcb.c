@@ -15,12 +15,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <kern/init.h>
+#include <kern/macros.h>
 #include <kern/param.h>
+#include <machine/cpu.h>
 #include <machine/tcb.h>
+
+/*
+ * Low level functions.
+ */
+void __noreturn tcb_context_load(struct tcb *tcb);
+void __noreturn tcb_start(void);
 
 void
 tcb_init(struct tcb *tcb, void *stack, void (*fn)(void))
 {
-    tcb->sp = (unsigned long)stack + STACK_SIZE;
-    tcb->ip = (unsigned long)fn;
+    void **ptr;
+
+    tcb->sp = (unsigned long)stack + STACK_SIZE - sizeof(unsigned long);
+    tcb->ip = (unsigned long)tcb_start;
+
+    ptr = (void **)tcb->sp;
+    *ptr = fn;
+}
+
+void __init
+tcb_load(struct tcb *tcb)
+{
+    assert(!cpu_intr_enabled());
+
+    tcb_set_current(tcb);
+    tcb_context_load(tcb);
 }

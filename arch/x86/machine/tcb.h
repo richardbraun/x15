@@ -43,9 +43,8 @@ struct tcb {
 void tcb_init(struct tcb *tcb, void *stack, void (*fn)(void));
 
 /*
- * Low level context load/switch functions.
+ * Low level context switch function.
  */
-void __noreturn tcb_context_load(struct tcb *tcb);
 void tcb_context_switch(struct tcb *prev, struct tcb *next);
 
 static inline struct tcb *
@@ -65,14 +64,7 @@ tcb_set_current(struct tcb *tcb)
  *
  * Called with interrupts disabled. The caller context is lost.
  */
-static inline void __noreturn
-tcb_load(struct tcb *tcb)
-{
-    assert(!cpu_intr_enabled());
-
-    tcb_set_current(tcb);
-    tcb_context_load(tcb);
-}
+void __noreturn tcb_load(struct tcb *tcb);
 
 /*
  * Context switch.

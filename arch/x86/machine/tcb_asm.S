@@ -15,21 +15,47 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <kern/init.h>
 #include <machine/asm.h>
 #include <machine/cpu.h>
 
-.text
+.section INIT_SECTION
 
 #ifdef __LP64__
 
 ASM_ENTRY(tcb_context_load)
  movq 8(%rdi), %rax
  movq (%rdi), %rsp
- pushq %rax
  pushq $CPU_EFL_ONE
  popfq
- ret
+ jmp *%rax
 ASM_END(tcb_context_load)
+
+#else /* __LP64__ */
+
+ASM_ENTRY(tcb_context_load)
+ movl 4(%esp), %eax
+ movl 4(%eax), %ecx
+ movl (%eax), %esp
+ pushl $CPU_EFL_ONE
+ popfl
+ jmp *%ecx
+ASM_END(tcb_context_load)
+
+#endif /* __LP64__ */
+
+.text
+
+#ifdef __LP64__
+
+ASM_ENTRY(tcb_start)
+ popq %rax
+ xorq %rbp, %rbp
+ call *%rax
+
+ /* Never reached */
+ nop
+ASM_END(tcb_start)
 
 ASM_ENTRY(tcb_context_switch)
  pushfq
@@ -58,15 +84,14 @@ ASM_END(tcb_context_switch)
 
 #else /* __LP64__ */
 
-ASM_ENTRY(tcb_context_load)
- movl 4(%esp), %eax
- movl 4(%eax), %ecx
- movl (%eax), %esp
- pushl %ecx
- pushl $CPU_EFL_ONE
- popfl
- ret
-ASM_END(tcb_context_load)
+ASM_ENTRY(tcb_start)
+ popl %eax
+ xorl %ebp, %ebp
+ call *%eax
+
+ /* Never reached */
+ nop
+ASM_END(tcb_start)
 
 ASM_ENTRY(tcb_context_switch)
  movl 4(%esp), %eax
