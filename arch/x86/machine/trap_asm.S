@@ -80,12 +80,6 @@ ASM_ENTRY(trap_common)
  iretq
 ASM_END(trap_common)
 
-ASM_ENTRY(trap_load)
- movq %rdi, %rsp
- TRAP_LOAD_REGISTERS
- iretq
-ASM_END(trap_load)
-
 #else /* __LP64__ */
 
 .macro TRAP_STORE_REGISTERS
@@ -135,12 +129,6 @@ ASM_ENTRY(trap_common)
  TRAP_LOAD_REGISTERS
  iret
 ASM_END(trap_common)
-
-ASM_ENTRY(trap_load)
- movl 4(%esp), %esp
- TRAP_LOAD_REGISTERS
- iret
-ASM_END(trap_load)
 
 #endif /* __LP64__ */
 
