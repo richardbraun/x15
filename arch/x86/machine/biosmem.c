@@ -27,6 +27,7 @@
 #include <kern/types.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
+#include <machine/elf.h>
 #include <machine/multiboot.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
@@ -143,6 +144,8 @@ biosmem_find_boot_data_update(uint32_t min, uint32_t *start, uint32_t *end,
  *  - the module table
  *  - the modules
  *  - the modules command lines
+ *  - the ELF section header table
+ *  - the ELF .shstrtab, .symtab and .strtab sections
  *
  * If no boot data was found, 0 is returned, and the end address isn't set.
  */
@@ -151,6 +154,7 @@ biosmem_find_boot_data(const struct multiboot_raw_info *mbi, uint32_t min,
                        uint32_t max, uint32_t *endp)
 {
     struct multiboot_raw_module *mod;
+    struct elf_shdr *shdr;
     uint32_t i, start, end = end;
     unsigned long tmp;
 
@@ -177,6 +181,24 @@ biosmem_find_boot_data(const struct multiboot_raw_info *mbi, uint32_t min,
             if (mod->string != 0)
                 biosmem_find_boot_data_update(min, &start, &end, mod->string,
                                               mod->string + mod->reserved);
+        }
+    }
+
+    if (mbi->flags & MULTIBOOT_LOADER_SHDR) {
+        tmp = mbi->shdr_num * mbi->shdr_size;
+        biosmem_find_boot_data_update(min, &start, &end, mbi->shdr_addr,
+                                      mbi->shdr_addr + tmp);
+        tmp = mbi->shdr_addr;
+
+        for (i = 0; i < mbi->shdr_num; i++) {
+            shdr = (struct elf_shdr *)(tmp + (i * mbi->shdr_size));
+
+            if ((shdr->type != ELF_SHT_SYMTAB)
+                && (shdr->type != ELF_SHT_STRTAB))
+                continue;
+
+            biosmem_find_boot_data_update(min, &start, &end, shdr->addr,
+                                          shdr->addr + shdr->size);
         }
     }
 

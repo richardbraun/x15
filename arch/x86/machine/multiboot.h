@@ -41,6 +41,7 @@
 #define MULTIBOOT_LOADER_MEMORY     0x01
 #define MULTIBOOT_LOADER_CMDLINE    0x04
 #define MULTIBOOT_LOADER_MODULES    0x08
+#define MULTIBOOT_LOADER_SHDR       0x20
 #define MULTIBOOT_LOADER_MMAP       0x40
 
 #ifndef __ASSEMBLER__
@@ -79,10 +80,13 @@ struct multiboot_raw_info {
     uint32_t cmdline;
     uint32_t mods_count;
     uint32_t mods_addr;
-    uint32_t unused1[4];
+    uint32_t shdr_num;
+    uint32_t shdr_size;
+    uint32_t shdr_addr;
+    uint32_t shdr_strndx;
     uint32_t mmap_length;
     uint32_t mmap_addr;
-    uint32_t unused2[9];
+    uint32_t unused1[9];
 } __packed;
 
 /*

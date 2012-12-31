@@ -61,6 +61,7 @@
 #include <machine/pic.h>
 #include <machine/pit.h>
 #include <machine/pmap.h>
+#include <machine/strace.h>
 #include <machine/trap.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
@@ -246,10 +247,9 @@ boot_save_mods(void)
  * Copy boot data in kernel allocated memory.
  *
  * At this point, the only required boot data are the modules and the command
- * line strings. Once the boot data are managed as kernel buffers, their
+ * line strings. Optionally, the kernel can use the symbol table, if passed by
+ * the boot loader. Once the boot data are managed as kernel buffers, their
  * backing pages can be freed.
- *
- * TODO Handle more boot data such as debugging symbols.
  */
 static void __init
 boot_save_data(void)
@@ -263,6 +263,7 @@ boot_save_data(void)
         boot_mbi.cmdline = NULL;
 
     boot_save_mods();
+    strace_setup(&boot_raw_mbi);
 }
 
 void __init

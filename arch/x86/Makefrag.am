@@ -14,6 +14,7 @@ x86_FILES =                             \
 	arch/x86/machine/cpu_asm.S      \
 	arch/x86/machine/cpu.c          \
 	arch/x86/machine/cpu.h          \
+	arch/x86/machine/elf.h          \
 	arch/x86/machine/io.h           \
 	arch/x86/machine/lapic.c        \
 	arch/x86/machine/lapic.h        \

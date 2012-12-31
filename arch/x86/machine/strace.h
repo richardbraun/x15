@@ -44,4 +44,11 @@ strace_dump(void)
     strace_show(ip, (unsigned long)__builtin_frame_address(0));
 }
 
+/*
+ * Setup the stack tracing module.
+ *
+ * If available, the symbol table is extracted from the boot data.
+ */
+void strace_setup(const struct multiboot_raw_info *mbi);
+
 #endif /* _X86_STRACE_H */
