@@ -144,6 +144,11 @@ void trap_main(struct trap_frame *frame);
 void trap_frame_show(struct trap_frame *frame);
 
 /*
+ * Display the call trace interrupted by the trap of the given frame.
+ */
+void trap_stack_show(struct trap_frame *frame);
+
+/*
  * Load a context saved in a trap frame.
  * 
  * The caller context is lost.

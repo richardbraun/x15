@@ -25,6 +25,7 @@
 #include <machine/lapic.h>
 #include <machine/pic.h>
 #include <machine/pmap.h>
+#include <machine/strace.h>
 #include <machine/trap.h>
 
 /*
@@ -128,6 +129,7 @@ trap_double_fault(struct trap_frame *frame)
 
     printk("trap: double fault:\n");
     trap_frame_show(frame);
+    trap_stack_show(frame);
     cpu_halt();
 }
 
@@ -143,6 +145,7 @@ trap_default(struct trap_frame *frame)
 {
     printk("trap: unhandled interrupt or exception:\n");
     trap_frame_show(frame);
+    trap_stack_show(frame);
 
     cpu_intr_disable();
 
@@ -249,3 +252,13 @@ trap_frame_show(struct trap_frame *frame)
 }
 
 #endif /* __LP64__ */
+
+void
+trap_stack_show(struct trap_frame *frame)
+{
+#ifdef __LP64__
+    strace_show(frame->rip, frame->rbp);
+#else /* __LP64__ */
+    strace_show(frame->eip, frame->ebp);
+#endif /* __LP64__ */
+}
