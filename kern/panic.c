@@ -20,6 +20,7 @@
 #include <kern/panic.h>
 #include <kern/printk.h>
 #include <machine/cpu.h>
+#include <machine/strace.h>
 
 void
 panic(const char *format, ...)
@@ -32,6 +33,8 @@ panic(const char *format, ...)
     printk("\nkernel panic: ");
     va_start(list, format);
     vprintk(format, list);
+    printk("\n");
+    strace_dump();
 
     cpu_halt();
 
