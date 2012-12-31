@@ -59,7 +59,6 @@ ASM_ENTRY(_start)
 
 1:
  movl $(boot_stack - KERNEL_OFFSET + BOOT_STACK_SIZE), %esp
- movl %esp, %ebp
 
 #ifdef __LP64__
  call boot_check_long_mode
@@ -87,7 +86,7 @@ ASM_ENTRY(_start)
 #ifdef __LP64__
  .code64
  movq $(boot_stack + BOOT_STACK_SIZE), %rsp
- movq %rsp, %rbp
+ xorq %rbp, %rbp
  .code32
 #else /* __LP64__ */
  movl %cr0, %eax
@@ -97,12 +96,13 @@ ASM_ENTRY(_start)
 
 1:
  movl $(boot_stack + BOOT_STACK_SIZE), %esp
- movl %esp, %ebp
+ xorl %ebp, %ebp
 #endif /* __LP64__ */
 
  call boot_main
 
  /* Never reached */
+ nop
 ASM_END(_start)
 
 ASM_DATA(boot_gdtr)
@@ -209,7 +209,6 @@ ASM_ENTRY(boot_ap_start32)
 
 1:
  movl $(boot_ap_stack + BOOT_STACK_SIZE), %esp
- movl %esp, %ebp
 
 #ifdef __LP64__
  call boot_setup_long_mode
@@ -237,17 +236,18 @@ ASM_ENTRY(boot_ap_start32)
  .code64
  movq boot_ap_stack_addr, %rsp
  addq $BOOT_STACK_SIZE, %rsp
- movq %rsp, %rbp
+ xorq %rbp, %rbp
  .code32
 #else /* __LP64__ */
  movl boot_ap_stack_addr, %esp
  addl $BOOT_STACK_SIZE, %esp
- movl %esp, %ebp
+ xorl %ebp, %ebp
 #endif /* __LP64__ */
 
  call boot_ap_main
 
  /* Never reached */
+ nop
 ASM_END(boot_ap_start32)
 
 /*
