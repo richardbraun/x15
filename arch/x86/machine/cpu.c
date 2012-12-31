@@ -578,6 +578,8 @@ cpu_halt_broadcast(void)
     unsigned long nr_halts;
     unsigned int nr_cpus;
 
+    assert(!cpu_intr_enabled());
+
     nr_cpus = cpu_count();
 
     if (nr_cpus == 1)
@@ -585,10 +587,11 @@ cpu_halt_broadcast(void)
 
     nr_halts = atomic_cas(&cpu_nr_halts, 0, nr_cpus - 1);
 
-    /* Another CPU has started a halt, wait for the IPI */
-    if (nr_halts != 0)
-        for (;;)
-            cpu_idle();
+    /* Another CPU has started a halt, emulate the IPI handler */
+    if (nr_halts != 0) {
+        atomic_add(&cpu_nr_halts, -1);
+        cpu_halt();
+    }
 
     lapic_ipi_broadcast(TRAP_CPU_HALT);
 

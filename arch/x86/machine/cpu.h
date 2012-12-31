@@ -422,6 +422,8 @@ cpu_halt(void)
 
 /*
  * Halt all other processors.
+ *
+ * Interrupts must be disabled when calling this function.
  */
 void cpu_halt_broadcast(void);
 
