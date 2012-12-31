@@ -96,6 +96,8 @@ trap_install(unsigned int vector, trap_isr_fn_t isr, trap_handler_fn_t fn)
 static void
 trap_double_fault(struct trap_frame *frame)
 {
+    cpu_halt_broadcast();
+
 #ifndef __LP64__
     struct trap_frame frame_store;
     struct cpu *cpu;
@@ -143,14 +145,11 @@ trap_install_double_fault(void)
 static void
 trap_default(struct trap_frame *frame)
 {
+    cpu_halt_broadcast();
     printk("trap: unhandled interrupt or exception:\n");
     trap_frame_show(frame);
     trap_stack_show(frame);
-
-    cpu_intr_disable();
-
-    for (;;)
-        cpu_idle();
+    cpu_halt();
 }
 
 void __init
