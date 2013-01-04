@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * This allocator is based on the "The Slab Allocator: An Object-Caching
+ * This allocator is based on the paper "The Slab Allocator: An Object-Caching
  * Kernel Memory Allocator" by Jeff Bonwick.
  *
  * It allows the allocation of objects (i.e. fixed-size typed buffers) from
