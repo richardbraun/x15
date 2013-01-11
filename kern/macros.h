@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2010 Richard Braun.
+ * Copyright (c) 2009, 2010, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,6 +43,8 @@
 
 #define MIN(a, b)           ((a) < (b) ? (a) : (b))
 #define MAX(a, b)           ((a) > (b) ? (a) : (b))
+
+#define DIV_CEIL(n, d)      (((n) + (d) - 1) / (d))
 
 #define P2ALIGNED(x, a)     (((x) & ((a) - 1)) == 0)
 #define ISP2(x)             P2ALIGNED(x, x)
