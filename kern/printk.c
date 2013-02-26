@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2010, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,16 +53,14 @@ vprintk(const char *format, va_list ap)
     int length;
     char *ptr;
 
-    flags = cpu_intr_save();
-    spinlock_lock(&printk_lock);
+    spinlock_lock_intr_save(&printk_lock, &flags);
 
     length = vsnprintf(printk_buffer, sizeof(printk_buffer), format, ap);
 
     for (ptr = printk_buffer; *ptr != '\0'; ptr++)
         console_write_byte(*ptr);
 
-    spinlock_unlock(&printk_lock);
-    cpu_intr_restore(flags);
+    spinlock_unlock_intr_restore(&printk_lock, flags);
 
     return length;
 }
