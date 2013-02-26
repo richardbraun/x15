@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,10 +17,7 @@
  *
  * Spin lock.
  *
- * This implementation relies on the availability of hardware compare-and-swap
- * support. It also means that almost all spinlock operations imply a full
- * memory barrier. While this can be optimized by relying on architecture
- * specific properties, focus on correctness for the time being.
+ * Critical sections built with spin locks run with preemption disabled.
  */
 
 #ifndef _KERN_SPINLOCK_H
@@ -28,21 +25,13 @@
 
 #include <kern/assert.h>
 #include <kern/thread.h>
-#include <machine/atomic.h>
+#include <kern/spinlock_i.h>
 #include <machine/cpu.h>
 
-struct spinlock {
-    unsigned long locked;
-};
+struct spinlock;
 
-/*
- * Static spin lock initializer.
- */
 #define SPINLOCK_INITIALIZER { 0 }
 
-/*
- * Initialize a spin lock.
- */
 static inline void
 spinlock_init(struct spinlock *lock)
 {
@@ -56,47 +45,71 @@ spinlock_assert_locked(struct spinlock *lock)
 }
 
 /*
- * Attempt to acquire a spin lock.
- *
  * Return true if acquired, false if busy.
  */
 static inline int
 spinlock_trylock(struct spinlock *lock)
 {
-    unsigned long busy;
+    int acquired;
 
     thread_preempt_disable();
-    busy = atomic_cas(&lock->locked, 0, 1);
+    acquired = spinlock_tryacquire(lock);
 
-    if (!busy)
-        return 1;
+    if (!acquired)
+        thread_preempt_enable();
 
-    thread_preempt_enable();
-    return 0;
+    return acquired;
 }
 
-/*
- * Acquire a spin lock.
- */
 static inline void
 spinlock_lock(struct spinlock *lock)
 {
     thread_preempt_disable();
-
-    while (atomic_cas(&lock->locked, 0, 1) != 0)
-        cpu_pause();
+    spinlock_acquire(lock);
 }
 
-/*
- * Release a spin lock.
- */
 static inline void
 spinlock_unlock(struct spinlock *lock)
 {
-    unsigned long locked;
+    spinlock_release(lock);
+    thread_preempt_enable();
+}
 
-    locked = atomic_swap(&lock->locked, 0);
-    assert(locked);
+/*
+ * Versions of the spinlock functions that also disable interrupts during
+ * critical sections.
+ */
+
+static inline int
+spinlock_trylock_intr_save(struct spinlock *lock, unsigned long *flags)
+{
+    int acquired;
+
+    thread_preempt_disable();
+    *flags = cpu_intr_save();
+    acquired = spinlock_tryacquire(lock);
+
+    if (!acquired) {
+        cpu_intr_restore(*flags);
+        thread_preempt_enable();
+    }
+
+    return acquired;
+}
+
+static inline void
+spinlock_lock_intr_save(struct spinlock *lock, unsigned long *flags)
+{
+    thread_preempt_disable();
+    *flags = cpu_intr_save();
+    spinlock_acquire(lock);
+}
+
+static inline void
+spinlock_unlock_intr_restore(struct spinlock *lock, unsigned long flags)
+{
+    spinlock_release(lock);
+    cpu_intr_restore(flags);
     thread_preempt_enable();
 }
 
