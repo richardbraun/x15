@@ -311,6 +311,8 @@ cpu_tlb_flush_va(unsigned long va)
 
 /*
  * Return the content of the EFLAGS register.
+ *
+ * Implies a compiler barrier.
  */
 static __always_inline unsigned long
 cpu_get_eflags(void)
@@ -319,7 +321,8 @@ cpu_get_eflags(void)
 
     asm volatile("pushf\n"
                  "pop %0\n"
-                 : "=r" (eflags));
+                 : "=r" (eflags)
+                 : : "memory");
 
     return eflags;
 }
@@ -348,18 +351,23 @@ cpu_intr_disable(void)
 
 /*
  * Restore the content of the EFLAGS register, possibly enabling interrupts.
+ *
+ * Implies a compiler barrier.
  */
 static __always_inline void
 cpu_intr_restore(unsigned long eflags)
 {
     asm volatile("push %0\n"
                  "popf\n"
-                 : : "r" (eflags));
+                 : : "r" (eflags)
+                 : "memory");
 }
 
 /*
  * Disable local interrupts, returning the previous content of the EFLAGS
  * register.
+ *
+ * Implies a compiler barrier.
  */
 static __always_inline unsigned long
 cpu_intr_save(void)
@@ -374,6 +382,8 @@ cpu_intr_save(void)
 
 /*
  * Return true if interrupts are enabled.
+ *
+ * Implies a compiler barrier.
  */
 static __always_inline int
 cpu_intr_enabled(void)
