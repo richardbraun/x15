@@ -537,12 +537,19 @@ thread_sched_ts_get_next(struct thread_runq *runq)
 static void
 thread_sched_ts_reset(struct thread_ts_runq *ts_runq)
 {
+    static int unfair;
     struct thread_ts_group *group;
 
     ts_runq->work = 0;
 
     list_for_each_entry(&ts_runq->groups, group, node) {
-        assert(group->work == group->weight);
+        if (likely(!unfair))
+            if (unlikely(group->work != group->weight)) {
+                unfair = 1;
+                printk("thread: warning: preemption disabled too long is "
+                       "causing scheduling unfairness\n");
+            }
+
         group->work = 0;
     }
 }
