@@ -682,7 +682,7 @@ thread_main(void)
     assert(!cpu_intr_enabled());
     assert(!thread_preempt_enabled());
 
-    thread = thread_current();
+    thread = thread_self();
     cpu_intr_enable();
     thread_preempt_enable();
 
@@ -711,7 +711,7 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     if (attr == NULL)
         attr = &thread_default_attr;
 
-    task = (attr->task == NULL) ? thread_current()->task : attr->task;
+    task = (attr->task == NULL) ? thread_self()->task : attr->task;
     assert(task != NULL);
     name = (attr->name == NULL) ? task->name : attr->name;
     assert(name != NULL);
@@ -854,7 +854,7 @@ thread_schedule(void)
         flags = cpu_intr_save();
 
         runq = thread_runq_local();
-        prev = thread_current();
+        prev = thread_self();
         prev->flags &= ~THREAD_RESCHEDULE;
         thread_runq_put_prev(runq, prev);
         next = thread_runq_get_next(runq);
@@ -874,7 +874,7 @@ thread_intr_schedule(void)
 
     assert(!cpu_intr_enabled());
 
-    thread = thread_current();
+    thread = thread_self();
     assert(thread != NULL);
 
     if ((thread->preempt == 0) && (thread->flags & THREAD_RESCHEDULE))
@@ -886,7 +886,7 @@ thread_preempt_schedule(void)
 {
     struct thread *thread;
 
-    thread = thread_current();
+    thread = thread_self();
     assert(thread != NULL);
 
     if ((thread->preempt == 0))
@@ -900,7 +900,7 @@ thread_tick(void)
 
     assert(!cpu_intr_enabled());
 
-    thread = thread_current();
+    thread = thread_self();
     thread_preempt_disable();
     thread_sched_ops[thread->sched_class].tick(thread_runq_local(), thread);
     thread_preempt_enable_no_resched();

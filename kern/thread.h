@@ -191,7 +191,7 @@ void thread_preempt_schedule(void);
 void thread_tick(void);
 
 static inline struct thread *
-thread_current(void)
+thread_self(void)
 {
     return structof(tcb_current(), struct thread, tcb);
 }
@@ -205,7 +205,7 @@ thread_current(void)
 static inline int
 thread_pinned(void)
 {
-    return (thread_current()->pinned != 0);
+    return (thread_self()->pinned != 0);
 }
 
 static inline void
@@ -213,7 +213,7 @@ thread_pin(void)
 {
     struct thread *thread;
 
-    thread = thread_current();
+    thread = thread_self();
     thread->pinned++;
     assert(thread->pinned != 0);
     barrier();
@@ -225,7 +225,7 @@ thread_unpin(void)
     struct thread *thread;
 
     barrier();
-    thread = thread_current();
+    thread = thread_self();
     assert(thread->pinned != 0);
     thread->pinned--;
 }
@@ -239,7 +239,7 @@ thread_unpin(void)
 static inline int
 thread_preempt_enabled(void)
 {
-    return (thread_current()->preempt == 0);
+    return (thread_self()->preempt == 0);
 }
 
 static inline void
@@ -248,7 +248,7 @@ thread_preempt_enable_no_resched(void)
     struct thread *thread;
 
     barrier();
-    thread = thread_current();
+    thread = thread_self();
     assert(thread->preempt != 0);
     thread->preempt--;
 }
@@ -259,7 +259,7 @@ thread_preempt_enable(void)
     struct thread *thread;
 
     barrier();
-    thread = thread_current();
+    thread = thread_self();
     assert(thread->preempt != 0);
     thread->preempt--;
 
@@ -272,7 +272,7 @@ thread_preempt_disable(void)
 {
     struct thread *thread;
 
-    thread = thread_current();
+    thread = thread_self();
     thread->preempt++;
     assert(thread->preempt != 0);
     barrier();
