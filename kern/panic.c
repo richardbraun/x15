@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Richard Braun.
+ * Copyright (c) 2010, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ panic(const char *format, ...)
     cpu_intr_disable();
     cpu_halt_broadcast();
 
-    printk("\nkernel panic: ");
+    printk("\npanic: ");
     va_start(list, format);
     vprintk(format, list);
     printk("\n");
