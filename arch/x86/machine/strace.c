@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ strace_lookup(unsigned long addr, unsigned long *offset, unsigned long *size)
     for (sym = strace_symtab; sym < strace_symtab_end; sym++) {
         if ((sym->size != 0)
             && (addr >= sym->value)
-            && (addr < (sym->value + sym->size)))
+            && (addr <= (sym->value + sym->size)))
             break;
     }
 
