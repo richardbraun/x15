@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,6 +13,10 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * XXX Many traps have not been tested. Some, such as NMIs, are known to need
+ * additional configuration and resources to be properly handled.
  */
 
 #include <kern/assert.h>
@@ -35,9 +39,15 @@ typedef void (*trap_isr_fn_t)(void);
 typedef void (*trap_handler_fn_t)(struct trap_frame *);
 
 /*
+ * Trap handler flags.
+ */
+#define TRAP_HF_NOPREEMPT 0x1   /* Disable preemption on execution */
+
+/*
  * Properties of a trap handler.
  */
 struct trap_handler {
+    int flags;
     trap_handler_fn_t fn;
 };
 
@@ -79,17 +89,19 @@ void trap_isr_lapic_spurious(void);
 static struct trap_handler trap_handlers[CPU_IDT_SIZE + 1];
 
 static void __init
-trap_handler_init(struct trap_handler *handler, trap_handler_fn_t fn)
+trap_handler_init(struct trap_handler *handler, int flags, trap_handler_fn_t fn)
 {
+    handler->flags = flags;
     handler->fn = fn;
 }
 
 static void __init
-trap_install(unsigned int vector, trap_isr_fn_t isr, trap_handler_fn_t fn)
+trap_install(unsigned int vector, int flags, trap_isr_fn_t isr,
+             trap_handler_fn_t fn)
 {
     assert(vector < CPU_IDT_SIZE);
 
-    trap_handler_init(&trap_handlers[vector], fn);
+    trap_handler_init(&trap_handlers[vector], flags, fn);
     cpu_idt_set_gate(vector, isr);
 }
 
@@ -138,7 +150,8 @@ trap_double_fault(struct trap_frame *frame)
 static void __init
 trap_install_double_fault(void)
 {
-    trap_handler_init(&trap_handlers[TRAP_DF], trap_double_fault);
+    trap_handler_init(&trap_handlers[TRAP_DF], TRAP_HF_NOPREEMPT,
+                      trap_double_fault);
     cpu_idt_set_double_fault(trap_isr_double_fault);
 }
 
@@ -158,48 +171,73 @@ trap_setup(void)
     size_t i;
 
     for (i = 0; i < CPU_IDT_SIZE; i++)
-        trap_install(i, trap_isr_default, trap_default);
+        trap_install(i, TRAP_HF_NOPREEMPT, trap_isr_default, trap_default);
 
     /* Architecture defined traps */
-    trap_install(TRAP_DE, trap_isr_divide_error, trap_default);
-    trap_install(TRAP_DB, trap_isr_debug, trap_default);
-    trap_install(TRAP_NMI, trap_isr_nmi, trap_default);
-    trap_install(TRAP_BP, trap_isr_breakpoint, trap_default);
-    trap_install(TRAP_OF, trap_isr_overflow, trap_default);
-    trap_install(TRAP_BR, trap_isr_bound_range, trap_default);
-    trap_install(TRAP_UD, trap_isr_invalid_opcode, trap_default);
-    trap_install(TRAP_NM, trap_isr_device_not_available, trap_default);
+    trap_install(TRAP_DE, 0, trap_isr_divide_error, trap_default);
+    trap_install(TRAP_DB, 0, trap_isr_debug, trap_default);
+    trap_install(TRAP_NMI, TRAP_HF_NOPREEMPT, trap_isr_nmi, trap_default);
+    trap_install(TRAP_BP, 0, trap_isr_breakpoint, trap_default);
+    trap_install(TRAP_OF, 0, trap_isr_overflow, trap_default);
+    trap_install(TRAP_BR, 0, trap_isr_bound_range, trap_default);
+    trap_install(TRAP_UD, 0, trap_isr_invalid_opcode, trap_default);
+    trap_install(TRAP_NM, 0, trap_isr_device_not_available, trap_default);
     trap_install_double_fault();
-    trap_install(TRAP_TS, trap_isr_invalid_tss, trap_default);
-    trap_install(TRAP_NP, trap_isr_segment_not_present, trap_default);
-    trap_install(TRAP_SS, trap_isr_stack_segment_fault, trap_default);
-    trap_install(TRAP_GP, trap_isr_general_protection, trap_default);
-    trap_install(TRAP_PF, trap_isr_page_fault, trap_default);
-    trap_install(TRAP_MF, trap_isr_math_fault, trap_default);
-    trap_install(TRAP_AC, trap_isr_alignment_check, trap_default);
-    trap_install(TRAP_MC, trap_isr_machine_check, trap_default);
-    trap_install(TRAP_XM, trap_isr_simd_fp_exception, trap_default);
+    trap_install(TRAP_TS, 0, trap_isr_invalid_tss, trap_default);
+    trap_install(TRAP_NP, 0, trap_isr_segment_not_present, trap_default);
+    trap_install(TRAP_SS, 0, trap_isr_stack_segment_fault, trap_default);
+    trap_install(TRAP_GP, 0, trap_isr_general_protection, trap_default);
+    trap_install(TRAP_PF, 0, trap_isr_page_fault, trap_default);
+    trap_install(TRAP_MF, 0, trap_isr_math_fault, trap_default);
+    trap_install(TRAP_AC, 0, trap_isr_alignment_check, trap_default);
+    trap_install(TRAP_MC, TRAP_HF_NOPREEMPT,
+                 trap_isr_machine_check, trap_default);
+    trap_install(TRAP_XM, 0, trap_isr_simd_fp_exception, trap_default);
 
     /* Basic PIC support */
-    trap_install(TRAP_PIC_BASE + 7, trap_isr_pic_int7, pic_intr_spurious);
-    trap_install(TRAP_PIC_BASE + 15, trap_isr_pic_int15, pic_intr_spurious);
+    trap_install(TRAP_PIC_BASE + 7, TRAP_HF_NOPREEMPT,
+                 trap_isr_pic_int7, pic_intr_spurious);
+    trap_install(TRAP_PIC_BASE + 15, TRAP_HF_NOPREEMPT,
+                 trap_isr_pic_int15, pic_intr_spurious);
 
     /* System defined traps */
-    trap_install(TRAP_PMAP_UPDATE, trap_isr_pmap_update, pmap_update_intr);
-    trap_install(TRAP_CPU_HALT, trap_isr_cpu_halt, cpu_halt_intr);
-    trap_install(TRAP_LAPIC_TIMER, trap_isr_lapic_timer, lapic_intr_timer);
-    trap_install(TRAP_LAPIC_ERROR, trap_isr_lapic_error, lapic_intr_error);
-    trap_install(TRAP_LAPIC_SPURIOUS, trap_isr_lapic_spurious,
-                 lapic_intr_spurious);
+    trap_install(TRAP_PMAP_UPDATE, TRAP_HF_NOPREEMPT,
+                 trap_isr_pmap_update, pmap_update_intr);
+    trap_install(TRAP_CPU_HALT, TRAP_HF_NOPREEMPT,
+                 trap_isr_cpu_halt, cpu_halt_intr);
+    trap_install(TRAP_LAPIC_TIMER, TRAP_HF_NOPREEMPT,
+                 trap_isr_lapic_timer, lapic_intr_timer);
+    trap_install(TRAP_LAPIC_ERROR, TRAP_HF_NOPREEMPT,
+                 trap_isr_lapic_error, lapic_intr_error);
+    trap_install(TRAP_LAPIC_SPURIOUS, TRAP_HF_NOPREEMPT,
+                 trap_isr_lapic_spurious, lapic_intr_spurious);
 
-    trap_handler_init(&trap_handlers[TRAP_DEFAULT], trap_default);
+    trap_handler_init(&trap_handlers[TRAP_DEFAULT], TRAP_HF_NOPREEMPT,
+                      trap_default);
 }
 
 void
 trap_main(struct trap_frame *frame)
 {
+    struct trap_handler *handler;
+
     assert(frame->vector < ARRAY_SIZE(trap_handlers));
-    trap_handlers[frame->vector].fn(frame);
+
+    handler = &trap_handlers[frame->vector];
+
+    /*
+     * Some traps are related to the current thread, some aren't. For the
+     * latter (usually device interrupts), disable preemption to make sure
+     * there won't be any context switch while handling them.
+     */
+    if (handler->flags & TRAP_HF_NOPREEMPT)
+        thread_preempt_disable();
+
+    handler->fn(frame);
+
+    if (handler->flags & TRAP_HF_NOPREEMPT)
+        thread_preempt_enable_no_resched();
+
     thread_intr_schedule();
 }
 
