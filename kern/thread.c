@@ -23,6 +23,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
+#include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
@@ -71,6 +72,7 @@ struct thread_ts_runq {
  * Per processor run queue.
  */
 struct thread_runq {
+    struct spinlock lock;
     struct thread_rt_runq rt_runq;
     struct thread_ts_runq ts_runq;
     struct thread *idle;
@@ -174,6 +176,7 @@ thread_runq_init_idle(struct thread_runq *runq)
 static void __init
 thread_runq_init(struct thread_runq *runq)
 {
+    spinlock_init(&runq->lock);
     thread_runq_init_rt(runq);
     thread_runq_init_ts(runq);
     thread_runq_init_idle(runq);
@@ -183,6 +186,7 @@ static int
 thread_runq_add(struct thread_runq *runq, struct thread *thread)
 {
     assert(!cpu_intr_enabled());
+    spinlock_assert_locked(&runq->lock);
 
     return thread_sched_ops[thread->sched_class].add(runq, thread);
 }
@@ -191,6 +195,7 @@ static void
 thread_runq_put_prev(struct thread_runq *runq, struct thread *thread)
 {
     assert(!cpu_intr_enabled());
+    spinlock_assert_locked(&runq->lock);
 
     thread_sched_ops[thread->sched_class].put_prev(runq, thread);
 }
@@ -202,6 +207,7 @@ thread_runq_get_next(struct thread_runq *runq)
     unsigned int i;
 
     assert(!cpu_intr_enabled());
+    spinlock_assert_locked(&runq->lock);
 
     for (i = 0; i < ARRAY_SIZE(thread_sched_ops); i++) {
         thread = thread_sched_ops[i].get_next(runq);
@@ -217,6 +223,7 @@ thread_runq_get_next(struct thread_runq *runq)
 static inline struct thread_runq *
 thread_runq_local(void)
 {
+    assert(!thread_preempt_enabled() || thread_pinned());
     return &thread_runqs[cpu_id()];
 }
 
@@ -689,10 +696,11 @@ thread_main(void)
     assert(!cpu_intr_enabled());
     assert(!thread_preempt_enabled());
 
-    thread = thread_self();
+    spinlock_unlock(&thread_runq_local()->lock);
     cpu_intr_enable();
     thread_preempt_enable();
 
+    thread = thread_self();
     thread->fn(thread->arg);
 
     /* TODO Thread destruction */
@@ -724,9 +732,19 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     assert(name != NULL);
     assert(attr->sched_policy < THREAD_NR_SCHED_POLICIES);
 
+    /*
+     * The expected interrupt, preemption and run queue lock state when
+     * dispatching a thread is :
+     *  - interrupts disabled
+     *  - preemption disabled
+     *  - run queue locked
+     *
+     * Locking the run queue increases the preemption counter once more,
+     * making its value 2.
+     */
     thread->flags = 0;
     thread->pinned = 0;
-    thread->preempt = 1;
+    thread->preempt = 2;
     thread->sched_policy = attr->sched_policy;
     thread->sched_class = thread_policy_table[attr->sched_policy];
     thread_init_sched(thread, attr->priority);
@@ -744,6 +762,7 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
               void (*fn)(void *), void *arg)
 
 {
+    struct thread_runq *runq;
     struct thread *thread;
     unsigned long flags;
     void *stack;
@@ -765,9 +784,13 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
 
     thread_init(thread, stack, attr, fn, arg);
 
-    flags = cpu_intr_save();
-    error = thread_runq_add(&thread_runqs[cpu_id()], thread);
-    cpu_intr_restore(flags);
+    /* TODO Multiprocessor thread dispatching */
+    thread_pin();
+    runq = thread_runq_local();
+    spinlock_lock_intr_save(&runq->lock, &flags);
+    error = thread_runq_add(runq, thread);
+    spinlock_unlock_intr_restore(&runq->lock, flags);
+    thread_unpin();
 
     if (error)
         goto error_runq;
@@ -823,6 +846,7 @@ thread_setup_idle(void)
 void __init
 thread_run(void)
 {
+    struct thread_runq *runq;
     struct thread *thread;
 
     assert(cpu_intr_enabled());
@@ -830,7 +854,15 @@ thread_run(void)
     /* This call disables interrupts */
     thread_setup_idle();
 
+    runq = thread_runq_local();
+    spinlock_lock(&runq->lock);
     thread = thread_runq_get_next(thread_runq_local());
+
+    /*
+     * Locking the run queue increased the preemption counter to 3.
+     * Artificially reduce it to the expected value.
+     */
+    thread_preempt_enable_no_resched();
 
     if (thread->task != kernel_task)
         pmap_load(thread->task->map->pmap);
@@ -858,18 +890,29 @@ thread_schedule(void)
 
     do {
         thread_preempt_disable();
-        flags = cpu_intr_save();
-
         runq = thread_runq_local();
+        spinlock_lock_intr_save(&runq->lock, &flags);
+
         prev = thread_self();
         prev->flags &= ~THREAD_RESCHEDULE;
         thread_runq_put_prev(runq, prev);
         next = thread_runq_get_next(runq);
 
-        if (prev != next)
+        if (prev != next) {
+            /*
+             * That's where the true context switch occurs. The next thread
+             * must unlock the run queue and reenable preemption.
+             */
             thread_switch(prev, next);
 
-        cpu_intr_restore(flags);
+            /*
+             * When dispatched again, the thread might have been moved to
+             * another processor.
+             */
+            runq = thread_runq_local();
+        }
+
+        spinlock_unlock_intr_restore(&runq->lock, flags);
         thread_preempt_enable_no_resched();
     } while (prev->flags & THREAD_RESCHEDULE);
 }
@@ -903,12 +946,16 @@ thread_preempt_schedule(void)
 void
 thread_tick(void)
 {
+    struct thread_runq *runq;
     struct thread *thread;
 
     assert(!cpu_intr_enabled());
+    assert(!thread_preempt_enabled());
 
+    runq = thread_runq_local();
     thread = thread_self();
-    thread_preempt_disable();
-    thread_sched_ops[thread->sched_class].tick(thread_runq_local(), thread);
-    thread_preempt_enable_no_resched();
+
+    spinlock_lock(&runq->lock);
+    thread_sched_ops[thread->sched_class].tick(runq, thread);
+    spinlock_unlock(&runq->lock);
 }
