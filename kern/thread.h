@@ -173,14 +173,9 @@ void __noreturn thread_run(void);
 void thread_schedule(void);
 
 /*
- * Invoke the scheduler from interrupt context.
+ * Invoke the scheduler if the calling thread is marked for reschedule.
  */
-void thread_intr_schedule(void);
-
-/*
- * Invoke the scheduler from preemption control functions.
- */
-void thread_preempt_schedule(void);
+void thread_reschedule(void);
 
 /*
  * Report a periodic timer interrupt on the thread currently running on
@@ -256,15 +251,8 @@ thread_preempt_enable_no_resched(void)
 static inline void
 thread_preempt_enable(void)
 {
-    struct thread *thread;
-
-    barrier();
-    thread = thread_self();
-    assert(thread->preempt != 0);
-    thread->preempt--;
-
-    if (thread->flags & THREAD_RESCHEDULE)
-        thread_preempt_schedule();
+    thread_preempt_enable_no_resched();
+    thread_reschedule();
 }
 
 static inline void

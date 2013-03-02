@@ -913,28 +913,9 @@ thread_schedule(void)
 }
 
 void
-thread_intr_schedule(void)
+thread_reschedule(void)
 {
-    struct thread *thread;
-
-    assert(!cpu_intr_enabled());
-
-    thread = thread_self();
-    assert(thread != NULL);
-
-    if ((thread->preempt == 0) && (thread->flags & THREAD_RESCHEDULE))
-        thread_schedule();
-}
-
-void
-thread_preempt_schedule(void)
-{
-    struct thread *thread;
-
-    thread = thread_self();
-    assert(thread != NULL);
-
-    if ((thread->preempt == 0))
+    if ((thread_self()->flags & THREAD_RESCHEDULE) && thread_preempt_enabled())
         thread_schedule();
 }
 
