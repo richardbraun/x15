@@ -83,7 +83,7 @@ struct thread_runq {
  */
 struct thread_sched_ops {
     void (*init_thread)(struct thread *thread, unsigned short priority);
-    int (*add)(struct thread_runq *runq, struct thread *thread);
+    void (*add)(struct thread_runq *runq, struct thread *thread);
     void (*remove)(struct thread_runq *runq, struct thread *thread);
     void (*put_prev)(struct thread_runq *runq, struct thread *thread);
     struct thread * (*get_next)(struct thread_runq *runq);
@@ -182,13 +182,13 @@ thread_runq_init(struct thread_runq *runq)
     thread_runq_init_idle(runq);
 }
 
-static int
+static void
 thread_runq_add(struct thread_runq *runq, struct thread *thread)
 {
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
 
-    return thread_sched_ops[thread->sched_class].add(runq, thread);
+    thread_sched_ops[thread->sched_class].add(runq, thread);
 }
 
 static void
@@ -235,7 +235,7 @@ thread_sched_rt_init_thread(struct thread *thread, unsigned short priority)
     thread->rt_ctx.time_slice = THREAD_DEFAULT_RR_TIME_SLICE;
 }
 
-static int
+static void
 thread_sched_rt_add(struct thread_runq *runq, struct thread *thread)
 {
     struct thread_rt_runq *rt_runq;
@@ -247,8 +247,6 @@ thread_sched_rt_add(struct thread_runq *runq, struct thread *thread)
 
     if (list_singular(threads))
         rt_runq->bitmap |= (1U << thread->rt_ctx.priority);
-
-    return 0;
 }
 
 static void
@@ -345,7 +343,7 @@ thread_sched_ts_add_scale_group(unsigned int group_work,
                           / old_group_weight);
 }
 
-static int
+static void
 thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
 {
     struct thread_ts_runq *ts_runq;
@@ -358,13 +356,14 @@ thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
 
     group_weight = group->weight + thread->ts_ctx.weight;
 
+    /* TODO Limit the maximum number of threads to prevent this situation */
     if (group_weight < group->weight)
-        return ERROR_AGAIN;
+        panic("thread: weight overflow");
 
     total_weight = ts_runq->weight + thread->ts_ctx.weight;
 
     if (total_weight < ts_runq->weight)
-        return ERROR_AGAIN;
+        panic("thread: weight overflow");
 
     node = (group->weight == 0)
            ? list_last(&ts_runq->groups)
@@ -402,7 +401,6 @@ thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
     ts_runq->weight = total_weight;
     group->weight = group_weight;
     list_insert_tail(&group->threads, &thread->ts_ctx.node);
-    return 0;
 }
 
 static unsigned int
@@ -588,7 +586,7 @@ thread_sched_idle_panic(void)
     panic("thread: only idle threads are allowed in the idle class");
 }
 
-static int
+static void
 thread_sched_idle_add(struct thread_runq *runq, struct thread *thread)
 {
     (void)runq;
@@ -783,18 +781,13 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
     thread_pin();
     runq = thread_runq_local();
     spinlock_lock_intr_save(&runq->lock, &flags);
-    error = thread_runq_add(runq, thread);
+    thread_runq_add(runq, thread);
     spinlock_unlock_intr_restore(&runq->lock, flags);
     thread_unpin();
-
-    if (error)
-        goto error_runq;
 
     *threadp = thread;
     return 0;
 
-error_runq:
-    kmem_cache_free(&thread_stack_cache, stack);
 error_stack:
     kmem_cache_free(&thread_cache, thread);
 error_thread:
