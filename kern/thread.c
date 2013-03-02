@@ -395,10 +395,8 @@ thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
                                            thread->ts_ctx.weight)
                : thread_sched_ts_add_scale_group(group->work, group->weight,
                                                  group_weight);
-
-        assert(work <= thread->ts_ctx.weight);
-        ts_runq->work += work;
-        group->work += work;
+        ts_runq->work += work - group->work;
+        group->work = work;
     }
 
     ts_runq->weight = total_weight;
@@ -438,13 +436,10 @@ thread_sched_ts_remove(struct thread_runq *runq, struct thread *thread)
     group_weight = group->weight - thread->ts_ctx.weight;
     work = thread_sched_ts_remove_scale(group->work, group->weight,
                                         group_weight);
-    assert(work <= thread->ts_ctx.weight);
-    group->weight -= thread->ts_ctx.weight;
-    assert(work <= group->work);
-    group->work -= work;
+    ts_runq->work -= group->work - work;
+    group->work = work;
     ts_runq->weight -= thread->ts_ctx.weight;
-    assert(work <= ts_runq->work);
-    ts_runq->work -= work;
+    group->weight -= thread->ts_ctx.weight;
 
     if (ts_runq->weight == 0)
         ts_runq->current = NULL;
