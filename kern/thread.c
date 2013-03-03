@@ -29,6 +29,7 @@
 #include <kern/string.h>
 #include <kern/task.h>
 #include <kern/thread.h>
+#include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>
 #include <machine/tcb.h>
@@ -73,6 +74,7 @@ struct thread_ts_runq {
  */
 struct thread_runq {
     struct spinlock lock;
+    struct thread *current;
     struct thread_rt_runq rt_runq;
     struct thread_ts_runq ts_runq;
     struct thread *idle;
@@ -165,10 +167,12 @@ thread_runq_init_idle(struct thread_runq *runq)
 {
     struct thread *idle;
 
-    /* Make sure preemption is disabled during initialization */
+    /* Initialize what's needed during bootstrap */
     idle = &thread_idles[runq - thread_runqs];
     idle->flags = 0;
     idle->preempt = 1;
+    idle->sched_policy = THREAD_SCHED_POLICY_IDLE;
+    idle->sched_class = THREAD_SCHED_CLASS_IDLE;
     idle->task = kernel_task;
     runq->idle = idle;
 }
@@ -180,6 +184,7 @@ thread_runq_init(struct thread_runq *runq)
     thread_runq_init_rt(runq);
     thread_runq_init_ts(runq);
     thread_runq_init_idle(runq);
+    runq->current = runq->idle;
 }
 
 static void
@@ -189,6 +194,18 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
     spinlock_assert_locked(&runq->lock);
 
     thread_sched_ops[thread->sched_class].add(runq, thread);
+
+    if (thread->sched_class < runq->current->sched_class)
+        runq->current->flags |= THREAD_RESCHEDULE;
+}
+
+static void
+thread_runq_remove(struct thread_runq *runq, struct thread *thread)
+{
+    assert(!cpu_intr_enabled());
+    spinlock_assert_locked(&runq->lock);
+
+    thread_sched_ops[thread->sched_class].remove(runq, thread);
 }
 
 static void
@@ -212,8 +229,10 @@ thread_runq_get_next(struct thread_runq *runq)
     for (i = 0; i < ARRAY_SIZE(thread_sched_ops); i++) {
         thread = thread_sched_ops[i].get_next(runq);
 
-        if (thread != NULL)
+        if (thread != NULL) {
+            runq->current = thread;
             return thread;
+        }
     }
 
     /* The idle class should never be empty */
@@ -247,6 +266,10 @@ thread_sched_rt_add(struct thread_runq *runq, struct thread *thread)
 
     if (list_singular(threads))
         rt_runq->bitmap |= (1U << thread->rt_ctx.priority);
+
+    if ((thread->sched_class == runq->current->sched_class)
+        && (thread->rt_ctx.priority > runq->current->rt_ctx.priority))
+        runq->current->flags |= THREAD_RESCHEDULE;
 }
 
 static void
@@ -401,6 +424,8 @@ thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
     ts_runq->weight = total_weight;
     group->weight = group_weight;
     list_insert_tail(&group->threads, &thread->ts_ctx.node);
+
+    /* TODO Reschedule if the added thread should preempt the current thread */
 }
 
 static unsigned int
@@ -707,6 +732,11 @@ thread_init_sched(struct thread *thread, unsigned short priority)
     thread_sched_ops[thread->sched_class].init_thread(thread, priority);
 }
 
+/*
+ * This function initializes most thread members.
+ *
+ * It leaves the cpu member uninitialized.
+ */
 static void
 thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
             void (*fn)(void *), void *arg)
@@ -736,8 +766,10 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
      * making its value 2.
      */
     thread->flags = 0;
+    thread->state = THREAD_SLEEPING;
     thread->pinned = 0;
     thread->preempt = 2;
+    thread->on_rq = 0;
     thread->sched_policy = attr->sched_policy;
     thread->sched_class = thread_policy_table[attr->sched_policy];
     thread_init_sched(thread, attr->priority);
@@ -755,9 +787,7 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
               void (*fn)(void *), void *arg)
 
 {
-    struct thread_runq *runq;
     struct thread *thread;
-    unsigned long flags;
     void *stack;
     int error;
 
@@ -778,12 +808,8 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
     thread_init(thread, stack, attr, fn, arg);
 
     /* TODO Multiprocessor thread dispatching */
-    thread_pin();
-    runq = thread_runq_local();
-    spinlock_lock_intr_save(&runq->lock, &flags);
-    thread_runq_add(runq, thread);
-    spinlock_unlock_intr_restore(&runq->lock, flags);
-    thread_unpin();
+    thread->cpu = cpu_id();
+    thread_wakeup(thread);
 
     *threadp = thread;
     return 0;
@@ -792,6 +818,39 @@ error_stack:
     kmem_cache_free(&thread_cache, thread);
 error_thread:
     return error;
+}
+
+void
+thread_sleep(void)
+{
+    thread_self()->state = THREAD_SLEEPING;
+    thread_schedule();
+}
+
+void
+thread_wakeup(struct thread *thread)
+{
+    struct thread_runq *runq;
+    unsigned long on_rq, flags;
+
+    /* TODO Multiprocessor thread dispatching */
+    assert(thread->cpu == cpu_id());
+
+    on_rq = atomic_cas(&thread->on_rq, 0, 1);
+
+    if (on_rq)
+        return;
+
+    thread->state = THREAD_RUNNING;
+
+    thread_pin();
+    runq = thread_runq_local();
+    spinlock_lock_intr_save(&runq->lock, &flags);
+    thread_runq_add(runq, thread);
+    spinlock_unlock_intr_restore(&runq->lock, flags);
+    thread_unpin();
+
+    thread_reschedule();
 }
 
 static void
@@ -808,6 +867,7 @@ thread_setup_idle(void)
 {
     char name[THREAD_NAME_SIZE];
     struct thread_attr attr;
+    struct thread *thread;
     unsigned int cpu;
     void *stack;
 
@@ -828,7 +888,10 @@ thread_setup_idle(void)
     attr.task = kernel_task;
     attr.name = name;
     attr.sched_policy = THREAD_SCHED_POLICY_IDLE;
-    thread_init(&thread_idles[cpu], stack, &attr, thread_idle, NULL);
+    thread = &thread_idles[cpu];
+    thread_init(thread, stack, &attr, thread_idle, NULL);
+    thread->state = THREAD_RUNNING;
+    thread->cpu = cpu;
 }
 
 void __init
@@ -876,14 +939,21 @@ thread_schedule(void)
 
     assert(thread_preempt_enabled());
 
+    prev = thread_self();
+
     do {
         thread_preempt_disable();
         runq = thread_runq_local();
         spinlock_lock_intr_save(&runq->lock, &flags);
 
-        prev = thread_self();
         prev->flags &= ~THREAD_RESCHEDULE;
         thread_runq_put_prev(runq, prev);
+
+        if (prev->state != THREAD_RUNNING) {
+            thread_runq_remove(runq, prev);
+            atomic_swap(&prev->on_rq, 0);
+        }
+
         next = thread_runq_get_next(runq);
 
         if (prev != next) {

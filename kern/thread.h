@@ -41,6 +41,12 @@ struct task;
 #define THREAD_RESCHEDULE   0x1 /* Thread marked for reschedule */
 
 /*
+ * Thread states.
+ */
+#define THREAD_RUNNING  0
+#define THREAD_SLEEPING 1
+
+/*
  * Scheduling policies.
  *
  * The idle policy is reserved for the per-CPU idle threads.
@@ -99,9 +105,12 @@ struct thread_ts_ctx {
  */
 struct thread {
     struct tcb tcb;
+    short state;
     short flags;
     unsigned short pinned;
     unsigned short preempt;
+    unsigned int cpu;
+    unsigned long on_rq;
 
     /* Common scheduling properties */
     unsigned char sched_policy;
@@ -159,6 +168,24 @@ void thread_setup(void);
  */
 int thread_create(struct thread **threadp, const struct thread_attr *attr,
                   void (*fn)(void *), void *arg);
+
+/*
+ * Make the scheduler remove the calling thread from its run queue.
+ *
+ * This is a low level thread control primitive that should only be called by
+ * higher thread synchronization functions.
+ */
+void thread_sleep(void);
+
+/*
+ * Schedule the target thread for execution on a processor.
+ *
+ * No action is performed if the target thread is already on a run queue.
+ *
+ * This is a low level thread control primitive that should only be called by
+ * higher thread synchronization functions.
+ */
+void thread_wakeup(struct thread *thread);
 
 /*
  * Start running threads on the local processor.
