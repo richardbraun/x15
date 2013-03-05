@@ -338,32 +338,17 @@ thread_sched_ts_init_thread(struct thread *thread, unsigned short priority)
 }
 
 static unsigned int
-thread_sched_ts_add_scale(unsigned int total_work, unsigned int total_weight,
-                          unsigned short thread_weight)
+thread_sched_ts_add_scale(unsigned int work, unsigned int old_weight,
+                          unsigned int new_weight)
 {
-    assert(total_weight != 0);
+    assert(old_weight != 0);
 
 #ifndef __LP64__
-    if (likely(total_work < 0x10000))
-        return (total_work * thread_weight) / total_weight;
+    if (likely((work < 0x10000) && (new_weight < 0x10000)))
+        return (work * new_weight) / old_weight;
 #endif /* __LP64__ */
 
-    return (unsigned int)(((unsigned long long)total_work * thread_weight)
-                          / total_weight);
-}
-
-static unsigned int
-thread_sched_ts_add_scale_group(unsigned int group_work,
-                                unsigned int old_group_weight,
-                                unsigned int new_group_weight)
-{
-#ifndef __LP64__
-    if (likely((group_work < 0x10000) && (new_group_weight < 0x10000)))
-        return (group_work * new_group_weight) / old_group_weight;
-#endif /* __LP64__ */
-
-    return (unsigned int)(((unsigned long long)group_work * new_group_weight)
-                          / old_group_weight);
+    return (unsigned int)(((unsigned long long)work * new_weight) / old_weight);
 }
 
 static void
@@ -415,8 +400,8 @@ thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
         work = (group->weight == 0)
                ? thread_sched_ts_add_scale(ts_runq->work, ts_runq->weight,
                                            thread->ts_ctx.weight)
-               : thread_sched_ts_add_scale_group(group->work, group->weight,
-                                                 group_weight);
+               : thread_sched_ts_add_scale(group->work, group->weight,
+                                           group_weight);
         ts_runq->work += work - group->work;
         group->work = work;
     }
