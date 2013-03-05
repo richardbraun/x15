@@ -92,12 +92,16 @@ struct thread_rt_ctx {
 #define THREAD_SCHED_TS_PRIO_DEFAULT    20
 #define THREAD_SCHED_TS_PRIO_MAX        39
 
+struct thread_ts_runq;
+
 /*
  * Scheduling context of a time-sharing thread.
  */
 struct thread_ts_ctx {
     struct list node;
+    struct thread_ts_runq *ts_runq;
     unsigned short weight;
+    unsigned short work;
 };
 
 /*
