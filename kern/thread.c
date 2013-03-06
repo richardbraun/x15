@@ -13,6 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * By convention, kernel threads are named after their start function.
  */
 
 #include <kern/assert.h>
@@ -82,7 +85,7 @@ struct thread_runq {
     struct thread_ts_runq ts_runqs[2];
     struct thread_ts_runq *ts_runq_active;
     struct thread_ts_runq *ts_runq_expired;
-    struct thread *idle;
+    struct thread *idler;
 } __aligned(CPU_L1_SIZE);
 
 /*
@@ -100,11 +103,11 @@ struct thread_sched_ops {
 static struct thread_runq thread_runqs[MAX_CPUS];
 
 /*
- * Statically allocating the idle thread structures enables their use as
+ * Statically allocating the idler thread structures enables their use as
  * "current" threads during system bootstrap, which prevents migration and
  * preemption control functions from crashing.
  */
-static struct thread thread_idles[MAX_CPUS];
+static struct thread thread_idlers[MAX_CPUS];
 
 /*
  * Caches for allocated threads and their stacks.
@@ -173,18 +176,18 @@ thread_runq_init_ts(struct thread_runq *runq)
 }
 
 static void __init
-thread_runq_init_idle(struct thread_runq *runq)
+thread_runq_init_idler(struct thread_runq *runq)
 {
-    struct thread *idle;
+    struct thread *idler;
 
     /* Initialize what's needed during bootstrap */
-    idle = &thread_idles[runq - thread_runqs];
-    idle->flags = 0;
-    idle->preempt = 1;
-    idle->sched_policy = THREAD_SCHED_POLICY_IDLE;
-    idle->sched_class = THREAD_SCHED_CLASS_IDLE;
-    idle->task = kernel_task;
-    runq->idle = idle;
+    idler = &thread_idlers[runq - thread_runqs];
+    idler->flags = 0;
+    idler->preempt = 1;
+    idler->sched_policy = THREAD_SCHED_POLICY_IDLE;
+    idler->sched_class = THREAD_SCHED_CLASS_IDLE;
+    idler->task = kernel_task;
+    runq->idler = idler;
 }
 
 static void __init
@@ -193,8 +196,8 @@ thread_runq_init(struct thread_runq *runq)
     spinlock_init(&runq->lock);
     thread_runq_init_rt(runq);
     thread_runq_init_ts(runq);
-    thread_runq_init_idle(runq);
-    runq->current = runq->idle;
+    thread_runq_init_idler(runq);
+    runq->current = runq->idler;
 }
 
 static void
@@ -685,7 +688,7 @@ thread_sched_idle_put_prev(struct thread_runq *runq, struct thread *thread)
 static struct thread *
 thread_sched_idle_get_next(struct thread_runq *runq)
 {
-    return runq->idle;
+    return runq->idler;
 }
 
 static void
@@ -703,13 +706,13 @@ thread_bootstrap(void)
     for (i = 0; i < ARRAY_SIZE(thread_runqs); i++)
         thread_runq_init(&thread_runqs[i]);
 
-    tcb_set_current(&thread_idles[0].tcb);
+    tcb_set_current(&thread_idlers[0].tcb);
 }
 
 void __init
 thread_ap_bootstrap(void)
 {
-    tcb_set_current(&thread_idles[cpu_id()].tcb);
+    tcb_set_current(&thread_idlers[cpu_id()].tcb);
 }
 
 void __init
@@ -900,7 +903,7 @@ thread_wakeup(struct thread *thread)
 }
 
 static void
-thread_idle(void *arg)
+thread_idler(void *arg)
 {
     (void)arg;
 
@@ -909,35 +912,35 @@ thread_idle(void *arg)
 }
 
 static void __init
-thread_setup_idle(void)
+thread_setup_idler(void)
 {
     char name[THREAD_NAME_SIZE];
     struct thread_attr attr;
-    struct thread *thread;
+    struct thread *idler;
     unsigned int cpu;
     void *stack;
 
     stack = kmem_cache_alloc(&thread_stack_cache);
 
     if (stack == NULL)
-        panic("thread: unable to allocate idle thread stack");
+        panic("thread: unable to allocate idler thread stack");
 
     /*
      * Having interrupts enabled was required to allocate the stack, but
-     * at this stage, the idle thread is still the current thread, so disable
+     * at this stage, the idler thread is still the current thread, so disable
      * interrupts while initializing it.
      */
     cpu_intr_disable();
 
     cpu = cpu_id();
-    snprintf(name, sizeof(name), "idle%u", cpu);
+    snprintf(name, sizeof(name), "thread_idler/%u", cpu);
     attr.task = kernel_task;
     attr.name = name;
     attr.sched_policy = THREAD_SCHED_POLICY_IDLE;
-    thread = &thread_idles[cpu];
-    thread_init(thread, stack, &attr, thread_idle, NULL);
-    thread->state = THREAD_RUNNING;
-    thread->cpu = cpu;
+    idler = &thread_idlers[cpu];
+    thread_init(idler, stack, &attr, thread_idler, NULL);
+    idler->state = THREAD_RUNNING;
+    idler->cpu = cpu;
 }
 
 void __init
@@ -949,7 +952,7 @@ thread_run(void)
     assert(cpu_intr_enabled());
 
     /* This call disables interrupts */
-    thread_setup_idle();
+    thread_setup_idler();
 
     runq = thread_runq_local();
     spinlock_lock(&runq->lock);
