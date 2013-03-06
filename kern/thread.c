@@ -432,14 +432,18 @@ thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, struct thread *thread)
 }
 
 static void
-thread_sched_ts_restart(struct thread_ts_runq *ts_runq)
+thread_sched_ts_restart(struct thread_runq *runq)
 {
+    struct thread_ts_runq *ts_runq;
     struct list *node;
 
+    ts_runq = runq->ts_runq_active;
     node = list_first(&ts_runq->groups);
     assert(node != NULL);
     ts_runq->current = list_entry(node, struct thread_ts_group, node);
-    thread_self()->flags |= THREAD_RESCHEDULE;
+
+    if (runq->current->sched_class == THREAD_SCHED_CLASS_TS)
+        runq->current->flags |= THREAD_RESCHEDULE;
 }
 
 static void
@@ -449,7 +453,7 @@ thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
 
     ts_runq = runq->ts_runq_active;
     thread_sched_ts_enqueue(ts_runq, thread);
-    thread_sched_ts_restart(ts_runq);
+    thread_sched_ts_restart(runq);
 }
 
 static unsigned int
@@ -523,7 +527,7 @@ thread_sched_ts_start_next_round(struct thread_runq *runq)
     runq->ts_runq_active = ts_runq;
 
     if (ts_runq->weight != 0)
-        thread_sched_ts_restart(ts_runq);
+        thread_sched_ts_restart(runq);
 }
 
 static void
@@ -538,7 +542,7 @@ thread_sched_ts_remove(struct thread_runq *runq, struct thread *thread)
         if (ts_runq->weight == 0)
             thread_sched_ts_start_next_round(runq);
         else
-            thread_sched_ts_restart(ts_runq);
+            thread_sched_ts_restart(runq);
     }
 }
 
