@@ -21,7 +21,7 @@
  * allocated buffer. They won't produce output larger than 1 KiB. They can
  * be used safely in any context.
  *
- * See the sprintf library module for information about the supported formats.
+ * See the sprintf module for information about the supported formats.
  */
 
 #ifndef _KERN_PRINTK_H
