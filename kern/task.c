@@ -124,7 +124,7 @@ task_info(struct task *task)
 
     spinlock_lock(&task->lock);
 
-    printk("task: name: %s, threads :\n", task->name);
+    printk("task: name: %s, threads:\n", task->name);
 
     list_for_each_entry(&task->threads, thread, task_node)
         printk("task: %s: %s\n", task->name, thread->name);
