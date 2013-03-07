@@ -2,6 +2,7 @@ include arch/x86/Makefrag.am
 
 x15_SOURCES +=              \
 	kern/assert.h       \
+	kern/bitmap.h       \
 	kern/config.h       \
 	kern/error.h        \
 	kern/init.h         \
