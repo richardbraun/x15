@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Richard Braun.
+ * Copyright (c) 2010, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,5 +19,12 @@
 #define _KERN_LIMITS_H
 
 #define CHAR_BIT 8
+#define WORD_BIT 32
+
+#ifdef __LP64__
+#define LONG_BIT 64
+#else /* __LP64__ */
+#define LONG_BIT 32
+#endif /* __LP64__ */
 
 #endif /* _KERN_LIMITS_H */
