@@ -177,7 +177,7 @@ thread_runq_init_ts(struct thread_runq *runq)
 }
 
 static void __init
-thread_runq_init_idler(struct thread_runq *runq)
+thread_runq_init_idle(struct thread_runq *runq)
 {
     struct thread *idler;
 
@@ -197,7 +197,7 @@ thread_runq_init(struct thread_runq *runq)
     spinlock_init(&runq->lock);
     thread_runq_init_rt(runq);
     thread_runq_init_ts(runq);
-    thread_runq_init_idler(runq);
+    thread_runq_init_idle(runq);
     runq->current = runq->idler;
 }
 
