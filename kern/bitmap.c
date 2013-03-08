@@ -19,15 +19,17 @@
 #include <kern/limits.h>
 
 int
-bitmap_find_next_bit(unsigned long *bm, int nr_bits, int bit, int complement)
+bitmap_find_next_bit(const unsigned long *bm, int nr_bits, int bit,
+                     int complement)
 {
-    unsigned long word, *start, *end;
+    const unsigned long *start, *end;
+    unsigned long word;
 
     start = bm;
     end = bm + BITMAP_LONGS(nr_bits);
 
     if (bit >= LONG_BIT)
-        bitmap_lookup(&bm, &bit);
+        bitmap_lookup(bm, bit);
 
     word = *bm;
 

@@ -40,15 +40,20 @@
  * Helper functions.
  */
 
-static inline void
-bitmap_lookup(unsigned long **bm, int *bit)
-{
-    int i;
-
-    i = BITMAP_LONGS(*bit + 1) - 1;
-    *bm += i;
-    *bit -= i * LONG_BIT;
-}
+/*
+ * Adjust the bitmap pointer and the bit index so that the latter refers
+ * to a bit inside the word pointed by the former.
+ *
+ * Implemented as a macro for const-correctness.
+ */
+#define bitmap_lookup(bm, bit)          \
+MACRO_BEGIN                             \
+    int i;                              \
+                                        \
+    i = BITMAP_LONGS((bit) + 1) - 1;    \
+    (bm) += i;                          \
+    (bit) -= i * LONG_BIT;              \
+MACRO_END
 
 static inline unsigned long
 bitmap_mask(int bit)
@@ -62,7 +67,7 @@ bitmap_mask(int bit)
  * complement is true, bits are toggled before searching so that the
  * result is the index of the next zero bit.
  */
-int bitmap_find_next_bit(unsigned long *bm, int nr_bits, int bit,
+int bitmap_find_next_bit(const unsigned long *bm, int nr_bits, int bit,
                          int complement);
 
 /*
@@ -91,7 +96,7 @@ static inline void
 bitmap_set(unsigned long *bm, int bit)
 {
     if (bit >= LONG_BIT)
-        bitmap_lookup(&bm, &bit);
+        bitmap_lookup(bm, bit);
 
     *bm |= bitmap_mask(bit);
 }
@@ -100,7 +105,7 @@ static inline void
 bitmap_set_atomic(unsigned long *bm, int bit)
 {
     if (bit >= LONG_BIT)
-        bitmap_lookup(&bm, &bit);
+        bitmap_lookup(bm, bit);
 
     atomic_or(bm, bitmap_mask(bit));
 }
@@ -109,7 +114,7 @@ static inline void
 bitmap_clear(unsigned long *bm, int bit)
 {
     if (bit >= LONG_BIT)
-        bitmap_lookup(&bm, &bit);
+        bitmap_lookup(bm, bit);
 
     *bm &= ~bitmap_mask(bit);
 }
@@ -118,40 +123,40 @@ static inline void
 bitmap_clear_atomic(unsigned long *bm, int bit)
 {
     if (bit >= LONG_BIT)
-        bitmap_lookup(&bm, &bit);
+        bitmap_lookup(bm, bit);
 
     atomic_and(bm, ~bitmap_mask(bit));
 }
 
 static inline int
-bitmap_test(unsigned long *bm, int bit)
+bitmap_test(const unsigned long *bm, int bit)
 {
     if (bit >= LONG_BIT)
-        bitmap_lookup(&bm, &bit);
+        bitmap_lookup(bm, bit);
 
     return ((*bm & bitmap_mask(bit)) != 0);
 }
 
 static inline int
-bitmap_find_next(unsigned long *bm, int nr_bits, int bit)
+bitmap_find_next(const unsigned long *bm, int nr_bits, int bit)
 {
     return bitmap_find_next_bit(bm, nr_bits, bit, 0);
 }
 
 static inline int
-bitmap_find_first(unsigned long *bm, int nr_bits)
+bitmap_find_first(const unsigned long *bm, int nr_bits)
 {
     return bitmap_find_next(bm, nr_bits, 0);
 }
 
 static inline int
-bitmap_find_next_zero(unsigned long *bm, int nr_bits, int bit)
+bitmap_find_next_zero(const unsigned long *bm, int nr_bits, int bit)
 {
     return bitmap_find_next_bit(bm, nr_bits, bit, 1);
 }
 
 static inline int
-bitmap_find_first_zero(unsigned long *bm, int nr_bits)
+bitmap_find_first_zero(const unsigned long *bm, int nr_bits)
 {
     return bitmap_find_next_zero(bm, nr_bits, 0);
 }
