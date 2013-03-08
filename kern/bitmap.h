@@ -57,6 +57,15 @@ bitmap_mask(int bit)
 }
 
 /*
+ * Return the index of the next set bit in the bitmap, starting (and
+ * including) the given bit index, or -1 if the bitmap is empty. If
+ * complement is true, bits are toggled before searching so that the
+ * result is the index of the next zero bit.
+ */
+int bitmap_find_next_bit(volatile unsigned long *bm, int nr_bits, int bit,
+                         int complement);
+
+/*
  * Public interface.
  */
 
@@ -123,40 +132,10 @@ bitmap_test(volatile unsigned long *bm, int bit)
     return ((*bm & bitmap_mask(bit)) != 0);
 }
 
-/*
- * Return the index of the next set bit in the bitmap, starting (and
- * including) the given bit index, or -1 if the bitmap is empty.
- */
 static inline int
 bitmap_find_next(volatile unsigned long *bm, int nr_bits, int bit)
 {
-    volatile unsigned long *start, *end;
-    unsigned long word;
-
-    start = bm;
-    end = bm + BITMAP_LONGS(nr_bits);
-
-    if (bit >= LONG_BIT)
-        bitmap_lookup(&bm, &bit);
-
-    word = *bm;
-
-    if (bit < LONG_BIT)
-        word &= ~(bitmap_mask(bit) - 1);
-
-    for (;;) {
-        bit = __builtin_ffsl(word);
-
-        if (bit != 0)
-            return ((bm - start) * LONG_BIT) + bit - 1;
-
-        bm++;
-
-        if (bm >= end)
-            return -1;
-
-        word = *bm;
-    }
+    return bitmap_find_next_bit(bm, nr_bits, bit, 0);
 }
 
 static inline int
@@ -165,10 +144,28 @@ bitmap_find_first(volatile unsigned long *bm, int nr_bits)
     return bitmap_find_next(bm, nr_bits, 0);
 }
 
+static inline int
+bitmap_find_next_zero(volatile unsigned long *bm, int nr_bits, int bit)
+{
+    return bitmap_find_next_bit(bm, nr_bits, bit, 1);
+}
+
+static inline int
+bitmap_find_first_zero(volatile unsigned long *bm, int nr_bits)
+{
+    return bitmap_find_next_zero(bm, nr_bits, 0);
+}
+
 #define bitmap_for_each(bm, nr_bits, bit)                       \
 for ((bit) = 0;                                                 \
      ((bit) < nr_bits)                                          \
      && (((bit) = bitmap_find_next(bm, nr_bits, bit)) != -1);   \
+     (bit)++)
+
+#define bitmap_for_each_zero(bm, nr_bits, bit)                      \
+for ((bit) = 0;                                                     \
+     ((bit) < nr_bits)                                              \
+     && (((bit) = bitmap_find_next_zero(bm, nr_bits, bit)) != -1);  \
      (bit)++)
 
 #endif /* _KERN_BITMAP_H */
