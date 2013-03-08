@@ -41,7 +41,7 @@
  */
 
 static inline void
-bitmap_lookup(volatile unsigned long **bm, int *bit)
+bitmap_lookup(unsigned long **bm, int *bit)
 {
     int i;
 
@@ -62,7 +62,7 @@ bitmap_mask(int bit)
  * complement is true, bits are toggled before searching so that the
  * result is the index of the next zero bit.
  */
-int bitmap_find_next_bit(volatile unsigned long *bm, int nr_bits, int bit,
+int bitmap_find_next_bit(unsigned long *bm, int nr_bits, int bit,
                          int complement);
 
 /*
@@ -88,7 +88,7 @@ bitmap_fill(unsigned long *bm, int nr_bits)
 }
 
 static inline void
-bitmap_set(volatile unsigned long *bm, int bit)
+bitmap_set(unsigned long *bm, int bit)
 {
     if (bit >= LONG_BIT)
         bitmap_lookup(&bm, &bit);
@@ -97,7 +97,7 @@ bitmap_set(volatile unsigned long *bm, int bit)
 }
 
 static inline void
-bitmap_set_atomic(volatile unsigned long *bm, int bit)
+bitmap_set_atomic(unsigned long *bm, int bit)
 {
     if (bit >= LONG_BIT)
         bitmap_lookup(&bm, &bit);
@@ -106,7 +106,7 @@ bitmap_set_atomic(volatile unsigned long *bm, int bit)
 }
 
 static inline void
-bitmap_clear(volatile unsigned long *bm, int bit)
+bitmap_clear(unsigned long *bm, int bit)
 {
     if (bit >= LONG_BIT)
         bitmap_lookup(&bm, &bit);
@@ -115,7 +115,7 @@ bitmap_clear(volatile unsigned long *bm, int bit)
 }
 
 static inline void
-bitmap_clear_atomic(volatile unsigned long *bm, int bit)
+bitmap_clear_atomic(unsigned long *bm, int bit)
 {
     if (bit >= LONG_BIT)
         bitmap_lookup(&bm, &bit);
@@ -124,7 +124,7 @@ bitmap_clear_atomic(volatile unsigned long *bm, int bit)
 }
 
 static inline int
-bitmap_test(volatile unsigned long *bm, int bit)
+bitmap_test(unsigned long *bm, int bit)
 {
     if (bit >= LONG_BIT)
         bitmap_lookup(&bm, &bit);
@@ -133,25 +133,25 @@ bitmap_test(volatile unsigned long *bm, int bit)
 }
 
 static inline int
-bitmap_find_next(volatile unsigned long *bm, int nr_bits, int bit)
+bitmap_find_next(unsigned long *bm, int nr_bits, int bit)
 {
     return bitmap_find_next_bit(bm, nr_bits, bit, 0);
 }
 
 static inline int
-bitmap_find_first(volatile unsigned long *bm, int nr_bits)
+bitmap_find_first(unsigned long *bm, int nr_bits)
 {
     return bitmap_find_next(bm, nr_bits, 0);
 }
 
 static inline int
-bitmap_find_next_zero(volatile unsigned long *bm, int nr_bits, int bit)
+bitmap_find_next_zero(unsigned long *bm, int nr_bits, int bit)
 {
     return bitmap_find_next_bit(bm, nr_bits, bit, 1);
 }
 
 static inline int
-bitmap_find_first_zero(volatile unsigned long *bm, int nr_bits)
+bitmap_find_first_zero(unsigned long *bm, int nr_bits)
 {
     return bitmap_find_next_zero(bm, nr_bits, 0);
 }

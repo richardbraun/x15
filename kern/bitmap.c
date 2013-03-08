@@ -19,11 +19,9 @@
 #include <kern/limits.h>
 
 int
-bitmap_find_next_bit(volatile unsigned long *bm, int nr_bits, int bit,
-                     int complement)
+bitmap_find_next_bit(unsigned long *bm, int nr_bits, int bit, int complement)
 {
-    volatile unsigned long *start, *end;
-    unsigned long word;
+    unsigned long word, *start, *end;
 
     start = bm;
     end = bm + BITMAP_LONGS(nr_bits);
