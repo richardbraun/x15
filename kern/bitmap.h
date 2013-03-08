@@ -16,6 +16,9 @@
  *
  *
  * Arbitrary-length bit arrays.
+ *
+ * Most functions do not check whether the given parameters are valid. This
+ * is the responsibility of the caller.
  */
 
 #ifndef _KERN_BITMAP_H
@@ -155,5 +158,11 @@ bitmap_find_first(volatile unsigned long *bm, int nr_bits)
 {
     return bitmap_find_next(bm, nr_bits, 0);
 }
+
+#define bitmap_for_each(bm, nr_bits, bit)                       \
+for ((bit) = 0;                                                 \
+     ((bit) < nr_bits)                                          \
+     && (((bit) = bitmap_find_next(bm, nr_bits, bit)) != -1);   \
+     (bit)++)
 
 #endif /* _KERN_BITMAP_H */
