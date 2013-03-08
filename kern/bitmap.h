@@ -60,16 +60,22 @@ bitmap_mask(int bit)
  * Public interface.
  */
 
-/*
- * Initialize a bitmap, setting all bits to 0.
- */
 static inline void
-bitmap_init(unsigned long *bm, int nr_bits)
+bitmap_zero(unsigned long *bm, int nr_bits)
 {
     int n;
 
     n = BITMAP_LONGS(nr_bits);
     memset(bm, 0, n * sizeof(unsigned long));
+}
+
+static inline void
+bitmap_fill(unsigned long *bm, int nr_bits)
+{
+    int n;
+
+    n = BITMAP_LONGS(nr_bits);
+    memset(bm, 0xff, n * sizeof(unsigned long));
 }
 
 static inline void
