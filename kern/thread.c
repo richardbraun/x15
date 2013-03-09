@@ -69,6 +69,7 @@ struct thread_ts_group {
  * empty.
  */
 struct thread_ts_runq {
+    unsigned long round;
     struct thread_ts_group group_array[THREAD_SCHED_TS_PRIO_MAX + 1];
     struct list groups;
     struct thread_ts_group *current;
@@ -155,9 +156,11 @@ thread_ts_group_init(struct thread_ts_group *group)
 }
 
 static void __init
-thread_ts_runq_init(struct thread_ts_runq *ts_runq)
+thread_ts_runq_init(struct thread_ts_runq *ts_runq, unsigned long round)
 {
     size_t i;
+
+    ts_runq->round = round;
 
     for (i = 0; i < ARRAY_SIZE(ts_runq->group_array); i++)
         thread_ts_group_init(&ts_runq->group_array[i]);
@@ -172,8 +175,8 @@ thread_runq_init_ts(struct thread_runq *runq)
 {
     runq->ts_runq_active = &runq->ts_runqs[0];
     runq->ts_runq_expired = &runq->ts_runqs[1];
-    thread_ts_runq_init(runq->ts_runq_active);
-    thread_ts_runq_init(runq->ts_runq_expired);
+    thread_ts_runq_init(runq->ts_runq_active, 0);
+    thread_ts_runq_init(runq->ts_runq_expired, 1);
 }
 
 static void __init
@@ -349,6 +352,7 @@ thread_sched_ts_init_thread(struct thread *thread, unsigned short priority)
 {
     assert(priority <= THREAD_SCHED_TS_PRIO_MAX);
     thread->ts_ctx.ts_runq = NULL;
+    thread->ts_ctx.round = 0;
     thread->ts_ctx.weight = priority + 1;
     thread->ts_ctx.work = 0;
 }
@@ -372,7 +376,7 @@ thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, struct thread *thread)
 {
     struct thread_ts_group *group, *tmp;
     struct list *node, *init_node;
-    unsigned int thread_work, group_work, group_weight, total_weight;
+    unsigned int group_weight, total_weight;
 
     assert(thread->ts_ctx.ts_runq == NULL);
 
@@ -409,25 +413,41 @@ thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, struct thread *thread)
         list_insert_after(node, &group->node);
     }
 
-    if (ts_runq->weight == 0)
-        thread_work = 0;
-    else {
-        group_work = (group->weight == 0)
-                     ? thread_sched_ts_enqueue_scale(ts_runq->work,
-                                                     ts_runq->weight,
-                                                     thread->ts_ctx.weight)
-                     : thread_sched_ts_enqueue_scale(group->work,
-                                                     group->weight,
-                                                     group_weight);
-        thread_work = group_work - group->work;
-        ts_runq->work += thread_work;
-        group->work = group_work;
+    /*
+     * XXX Unfairness can occur if the run queue round wraps around and the
+     * thread is "lucky" enough to have the same round value. This should be
+     * rare and harmless otherwise.
+     */
+    if (thread->ts_ctx.round == ts_runq->round) {
+        ts_runq->work += thread->ts_ctx.work;
+        group->work += thread->ts_ctx.work;
+    } else {
+        unsigned int group_work, thread_work;
+
+        if (ts_runq->weight == 0)
+            thread_work = 0;
+        else {
+            group_work = (group->weight == 0)
+                         ? thread_sched_ts_enqueue_scale(ts_runq->work,
+                                                         ts_runq->weight,
+                                                         thread->ts_ctx.weight)
+                         : thread_sched_ts_enqueue_scale(group->work,
+                                                         group->weight,
+                                                         group_weight);
+            thread_work = group_work - group->work;
+            ts_runq->work += thread_work;
+            group->work = group_work;
+        }
+
+        thread->ts_ctx.round = ts_runq->round;
+        thread->ts_ctx.work = thread_work;
     }
 
     ts_runq->weight = total_weight;
     group->weight = group_weight;
-    thread->ts_ctx.work = thread_work;
-    list_insert_tail(&group->threads, &thread->ts_ctx.node);
+
+    /* Insert at the front to improve interactivity */
+    list_insert(&group->threads, &thread->ts_ctx.node);
     thread->ts_ctx.ts_runq = ts_runq;
 }
 
@@ -456,28 +476,12 @@ thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
     thread_sched_ts_restart(runq);
 }
 
-static unsigned int
-thread_sched_ts_dequeue_scale(unsigned int group_work,
-                              unsigned int old_group_weight,
-                              unsigned int new_group_weight)
-{
-#ifndef __LP64__
-    if (likely((group_work < 0x10000) && (new_group_weight < 0x10000)))
-        return DIV_CEIL(group_work * new_group_weight, old_group_weight);
-#endif /* __LP64__ */
-
-    return (unsigned int)DIV_CEIL((unsigned long long)group_work
-                                  * new_group_weight,
-                                  old_group_weight);
-}
-
 static void
 thread_sched_ts_dequeue(struct thread *thread)
 {
     struct thread_ts_runq *ts_runq;
     struct thread_ts_group *group, *tmp;
     struct list *node, *init_node;
-    unsigned int thread_work, group_work, group_weight;
 
     assert(thread->ts_ctx.ts_runq != NULL);
 
@@ -486,12 +490,8 @@ thread_sched_ts_dequeue(struct thread *thread)
 
     thread->ts_ctx.ts_runq = NULL;
     list_remove(&thread->ts_ctx.node);
-    group_weight = group->weight - thread->ts_ctx.weight;
-    group_work = thread_sched_ts_dequeue_scale(group->work, group->weight,
-                                               group_weight);
-    thread_work = group->work - group_work;
-    ts_runq->work -= thread_work;
-    group->work = group_work;
+    ts_runq->work -= thread->ts_ctx.work;
+    group->work -= thread->ts_ctx.work;
     ts_runq->weight -= thread->ts_ctx.weight;
     group->weight -= thread->ts_ctx.weight;
 
@@ -520,13 +520,14 @@ thread_sched_ts_dequeue(struct thread *thread)
 static void
 thread_sched_ts_start_next_round(struct thread_runq *runq)
 {
-    struct thread_ts_runq *ts_runq;
+    struct thread_ts_runq *tmp;
 
-    ts_runq = runq->ts_runq_expired;
+    tmp = runq->ts_runq_expired;
     runq->ts_runq_expired = runq->ts_runq_active;
-    runq->ts_runq_active = ts_runq;
+    runq->ts_runq_active = tmp;
+    runq->ts_runq_expired->round = runq->ts_runq_active->round + 1;
 
-    if (ts_runq->weight != 0)
+    if (runq->ts_runq_active->weight != 0)
         thread_sched_ts_restart(runq);
 }
 
@@ -552,6 +553,8 @@ thread_sched_ts_deactivate(struct thread_runq *runq, struct thread *thread)
     assert(thread->ts_ctx.ts_runq == runq->ts_runq_active);
 
     thread_sched_ts_dequeue(thread);
+    thread->ts_ctx.round++;
+    thread->ts_ctx.work -= thread->ts_ctx.weight;
     thread_sched_ts_enqueue(runq->ts_runq_expired, thread);
 
     if (runq->ts_runq_active->weight == 0)
@@ -561,7 +564,6 @@ thread_sched_ts_deactivate(struct thread_runq *runq, struct thread *thread)
 static void
 thread_sched_ts_put_prev(struct thread_runq *runq, struct thread *thread)
 {
-    static int unfair = 0;
     struct thread_ts_runq *ts_runq;
     struct thread_ts_group *group;
 
@@ -569,16 +571,8 @@ thread_sched_ts_put_prev(struct thread_runq *runq, struct thread *thread)
     group = &ts_runq->group_array[thread->ts_ctx.weight - 1];
     list_insert_tail(&group->threads, &thread->ts_ctx.node);
 
-    if (thread->ts_ctx.work >= thread->ts_ctx.weight) {
-        if (likely(!unfair))
-            if (unlikely(thread->ts_ctx.work > thread->ts_ctx.weight)) {
-                unfair = 1;
-                printk("thread: warning: preemption disabled too long is "
-                       "causing scheduling unfairness\n");
-            }
-
+    if (thread->ts_ctx.work >= thread->ts_ctx.weight)
         thread_sched_ts_deactivate(runq, thread);
-    }
 }
 
 static int
