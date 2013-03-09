@@ -18,6 +18,15 @@
 #include <kern/bitmap.h>
 #include <kern/limits.h>
 
+static inline unsigned long
+bitmap_find_next_compute_complement(unsigned long word, int nr_bits)
+{
+    if (nr_bits < LONG_BIT)
+        word |= (((unsigned long)-1) << nr_bits);
+
+    return ~word;
+}
+
 int
 bitmap_find_next_bit(const unsigned long *bm, int nr_bits, int bit,
                      int complement)
@@ -28,13 +37,15 @@ bitmap_find_next_bit(const unsigned long *bm, int nr_bits, int bit,
     start = bm;
     end = bm + BITMAP_LONGS(nr_bits);
 
-    if (bit >= LONG_BIT)
+    if (bit >= LONG_BIT) {
         bitmap_lookup(bm, bit);
+        nr_bits -= ((bm - start) * LONG_BIT);
+    }
 
     word = *bm;
 
     if (complement)
-        word = ~word;
+        word = bitmap_find_next_compute_complement(word, nr_bits);
 
     if (bit < LONG_BIT)
         word &= ~(bitmap_mask(bit) - 1);
@@ -50,9 +61,10 @@ bitmap_find_next_bit(const unsigned long *bm, int nr_bits, int bit,
         if (bm >= end)
             return -1;
 
+        nr_bits -= LONG_BIT;
         word = *bm;
 
         if (complement)
-            word = ~word;
+            word = bitmap_find_next_compute_complement(word, nr_bits);
     }
 }
