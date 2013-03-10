@@ -38,7 +38,7 @@ struct task;
 /*
  * Thread flags.
  */
-#define THREAD_RESCHEDULE   0x1 /* Thread marked for reschedule */
+#define THREAD_RESCHEDULE 0x1UL /* Thread marked for reschedule */
 
 /*
  * Thread states.
@@ -98,7 +98,8 @@ struct thread_ts_runq;
  * Scheduling context of a time-sharing thread.
  */
 struct thread_ts_ctx {
-    struct list node;
+    struct list group_node;
+    struct list runq_node;
     struct thread_ts_runq *ts_runq;
     unsigned long round;
     unsigned short weight;
@@ -110,8 +111,8 @@ struct thread_ts_ctx {
  */
 struct thread {
     struct tcb tcb;
+    unsigned long flags;
     short state;
-    short flags;
     unsigned short pinned;
     unsigned short preempt;
     unsigned int cpu;
