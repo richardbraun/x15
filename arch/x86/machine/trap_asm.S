@@ -157,6 +157,7 @@ TRAP(TRAP_PIC_BASE + 7, pic_int7)
 TRAP(TRAP_PIC_BASE + 15, pic_int15)
 
 /* System defined traps */
+TRAP(TRAP_RESCHEDULE, reschedule)
 TRAP(TRAP_PMAP_UPDATE, pmap_update)
 TRAP(TRAP_CPU_HALT, cpu_halt)
 TRAP(TRAP_LAPIC_TIMER, lapic_timer)

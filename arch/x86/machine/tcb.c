@@ -47,3 +47,13 @@ tcb_load(struct tcb *tcb)
     tcb_set_current(tcb);
     tcb_context_load(tcb);
 }
+
+void
+tcb_reschedule_intr(struct trap_frame *frame)
+{
+    (void)frame;
+
+    lapic_eoi();
+
+    /* Let the return from interrupt code handle rescheduling */
+}
