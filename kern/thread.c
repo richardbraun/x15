@@ -15,7 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * By convention, kernel threads are named after their start function.
+ * By convention, the name of a kernel thread is built by prefixing the
+ * kernel name and adding the name of the start function, without the module
+ * name ("thread"). Threads that are bound to a processor also include the
+ * "/cpu_id" suffix. For example, "x15_balancer/1" is the name of the
+ * inter-processor balancing thread of the second processor.
  */
 
 #include <kern/assert.h>
@@ -1343,7 +1347,7 @@ thread_setup_balancer(void)
      *
      * TODO CPU affinity
      */
-    snprintf(name, sizeof(name), "thread_balancer/%u", cpu_id());
+    snprintf(name, sizeof(name), "x15_balancer/%u", cpu_id());
     attr.task = kernel_task;
     attr.name = name;
     attr.sched_policy = THREAD_SCHED_CLASS_RT;
@@ -1387,7 +1391,7 @@ thread_setup_idler(void)
     cpu_intr_disable();
 
     cpu = cpu_id();
-    snprintf(name, sizeof(name), "thread_idler/%u", cpu);
+    snprintf(name, sizeof(name), "x15_idler/%u", cpu);
     attr.task = kernel_task;
     attr.name = name;
     attr.sched_policy = THREAD_SCHED_POLICY_IDLE;
