@@ -95,7 +95,6 @@ struct thread_ts_group {
  * empty.
  */
 struct thread_ts_runq {
-    unsigned long round;
     struct thread_ts_group group_array[THREAD_SCHED_TS_PRIO_MAX + 1];
     struct list groups;
     struct list threads;
@@ -112,11 +111,24 @@ struct thread_runq {
     struct spinlock lock;
     struct thread *current;
     unsigned int nr_threads;
+
+    /* Real-time related members */
     struct thread_rt_runq rt_runq;
+
+    /*
+     * Time-sharing related members.
+     *
+     * The current round is set when the active run queue becomes non-empty.
+     * It's not reset when both run queues become empty. As a result, the
+     * current round has a meaningful value only when at least one thread is
+     * present, i.e. the global weight isn't zero.
+     */
+    unsigned long ts_round;
     unsigned int ts_weight;
     struct thread_ts_runq ts_runqs[2];
     struct thread_ts_runq *ts_runq_active;
     struct thread_ts_runq *ts_runq_expired;
+
     struct thread *idler;
     struct thread *balancer;
 } __aligned(CPU_L1_SIZE);
@@ -204,8 +216,6 @@ static void __init
 thread_ts_runq_init(struct thread_ts_runq *ts_runq)
 {
     size_t i;
-
-    /* The current round is set when the run queue becomes non-empty */
 
     for (i = 0; i < ARRAY_SIZE(ts_runq->group_array); i++)
         thread_ts_group_init(&ts_runq->group_array[i]);
@@ -498,6 +508,7 @@ thread_sched_ts_select_runq(void)
     unsigned long highest_round;
     unsigned int lowest_weight;
     int i, runq_id, nr_runqs;
+    long delta;
 
     nr_runqs = cpu_count();
     i = bitmap_find_first_zero(thread_active_runqs, nr_runqs);
@@ -520,9 +531,19 @@ thread_sched_ts_select_runq(void)
         if (runq->current == runq->idler)
             return runq;
 
-        if ((runq->ts_runq_active->round >= highest_round)
-            && (runq->ts_weight < lowest_weight)) {
-            highest_round = runq->ts_runq_active->round;
+        /*
+         * The run queue isn't idle, but there are no time-sharing thread,
+         * which means there are real-time threads.
+         */
+        if (runq->ts_weight == 0) {
+            spinlock_unlock(&runq->lock);
+            continue;
+        }
+
+        delta = (long)(runq->ts_round - highest_round);
+
+        if ((delta >= 0) && (runq->ts_weight < lowest_weight)) {
+            highest_round = runq->ts_round;
             lowest_weight = runq->ts_weight;
             runq_id = i;
         }
@@ -551,7 +572,8 @@ thread_sched_ts_enqueue_scale(unsigned int work, unsigned int old_weight,
 }
 
 static void
-thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, struct thread *thread)
+thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, unsigned long round,
+                        struct thread *thread)
 {
     struct thread_ts_group *group, *tmp;
     struct list *node, *init_node;
@@ -588,7 +610,7 @@ thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, struct thread *thread)
      * thread is "lucky" enough to have the same round value. This should be
      * rare and harmless otherwise.
      */
-    if (thread->ts_ctx.round == ts_runq->round) {
+    if (thread->ts_ctx.round == round) {
         ts_runq->work += thread->ts_ctx.work;
         group->work += thread->ts_ctx.work;
     } else {
@@ -609,7 +631,7 @@ thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, struct thread *thread)
             group->work = group_work;
         }
 
-        thread->ts_ctx.round = ts_runq->round;
+        thread->ts_ctx.round = round;
         thread->ts_ctx.work = thread_work;
     }
 
@@ -643,10 +665,8 @@ thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
 {
     unsigned int total_weight;
 
-    if (runq->ts_weight == 0) {
-        runq->ts_runq_active->round = thread_ts_highest_round;
-        runq->ts_runq_expired->round = runq->ts_runq_active->round + 1;
-    }
+    if (runq->ts_weight == 0)
+        runq->ts_round = thread_ts_highest_round;
 
     total_weight = runq->ts_weight + thread->ts_ctx.weight;
 
@@ -655,7 +675,7 @@ thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
         panic("thread: weight overflow");
 
     runq->ts_weight = total_weight;
-    thread_sched_ts_enqueue(runq->ts_runq_active, thread);
+    thread_sched_ts_enqueue(runq->ts_runq_active, runq->ts_round, thread);
     thread_sched_ts_restart(runq);
 }
 
@@ -736,11 +756,12 @@ static void
 thread_sched_ts_deactivate(struct thread_runq *runq, struct thread *thread)
 {
     assert(thread->ts_ctx.ts_runq == runq->ts_runq_active);
+    assert(thread->ts_ctx.round == runq->ts_round);
 
     thread_sched_ts_dequeue(thread);
     thread->ts_ctx.round++;
     thread->ts_ctx.work -= thread->ts_ctx.weight;
-    thread_sched_ts_enqueue(runq->ts_runq_expired, thread);
+    thread_sched_ts_enqueue(runq->ts_runq_expired, runq->ts_round + 1, thread);
 
     if (runq->ts_runq_active->nr_threads == 0)
         thread_sched_ts_wakeup_balancer(runq);
@@ -836,20 +857,18 @@ static void
 thread_sched_ts_start_next_round(struct thread_runq *runq)
 {
     struct thread_ts_runq *tmp;
-    unsigned long highest_round;
+    long delta;
 
     tmp = runq->ts_runq_expired;
     runq->ts_runq_expired = runq->ts_runq_active;
     runq->ts_runq_active = tmp;
-    runq->ts_runq_expired->round = runq->ts_runq_active->round + 1;
 
     if (runq->ts_runq_active->nr_threads != 0) {
-        highest_round = thread_ts_highest_round;
+        runq->ts_round++;
+        delta = (long)(runq->ts_round - thread_ts_highest_round);
 
-        /* Compare to 0 to handle overflow */
-        if ((runq->ts_runq_active->round > highest_round)
-            || ((runq->ts_runq_active->round == 0) && (highest_round != 0)))
-            thread_ts_highest_round = runq->ts_runq_active->round;
+        if (delta > 0)
+            thread_ts_highest_round = runq->ts_round;
 
         thread_sched_ts_restart(runq);
     }
@@ -858,26 +877,30 @@ thread_sched_ts_start_next_round(struct thread_runq *runq)
 static int
 thread_sched_ts_balance_eligible(struct thread_runq *runq)
 {
-    unsigned long round, highest;
+    unsigned long highest_round;
     unsigned int nr_threads;
 
     if (runq->current == runq->idler)
         return 0;
 
-    round = runq->ts_runq_active->round;
-    highest = thread_ts_highest_round;
+    highest_round = thread_ts_highest_round;
 
-    if ((round != highest) && (round != (highest - 1)))
+    if (runq->ts_weight == 0)
+        return 0;
+
+    if ((runq->ts_round != highest_round)
+        && (runq->ts_round != (highest_round - 1)))
         return 0;
 
     nr_threads = runq->ts_runq_active->nr_threads;
 
-    if (round != highest)
+    if (runq->ts_round != highest_round)
         nr_threads += runq->ts_runq_expired->nr_threads;
 
-    if ((nr_threads == 0)
-        || ((nr_threads == 1)
-            && (runq->current->sched_class == THREAD_SCHED_CLASS_TS)))
+    assert(nr_threads != 0);
+
+    if ((nr_threads == 1)
+        && (runq->current->sched_class == THREAD_SCHED_CLASS_TS))
         return 0;
 
     return 1;
@@ -946,7 +969,7 @@ thread_sched_ts_balance_migrate(struct thread_runq *runq,
 
     nr_threads = remote_runq->ts_runq_active->nr_threads;
 
-    if (remote_runq->ts_runq_active->round == thread_ts_highest_round)
+    if (remote_runq->ts_round == thread_ts_highest_round)
         not_highest = 0;
     else {
         not_highest = 1;
@@ -967,7 +990,7 @@ thread_sched_ts_balance_migrate(struct thread_runq *runq,
             continue;
 
         thread_runq_remove(remote_runq, thread);
-        thread->ts_ctx.round = runq->ts_runq_active->round;
+        thread->ts_ctx.round = runq->ts_round;
         thread_runq_add(runq, thread);
         i++;
 
@@ -979,7 +1002,7 @@ thread_sched_ts_balance_migrate(struct thread_runq *runq,
         list_for_each_entry_safe(&remote_runq->ts_runq_expired->threads,
                                  thread, tmp, ts_ctx.runq_node) {
             thread_runq_remove(remote_runq, thread);
-            thread->ts_ctx.round = runq->ts_runq_active->round;
+            thread->ts_ctx.round = runq->ts_round;
             thread_runq_add(runq, thread);
             i++;
 
@@ -1007,7 +1030,7 @@ thread_sched_ts_balance(struct thread_runq *runq)
      * These values can't change while the balancer thread is running, so
      * don't bother locking.
      */
-    if ((runq->ts_runq_active->round == thread_ts_highest_round)
+    if ((runq->ts_round == thread_ts_highest_round)
         || (runq->ts_runq_expired->nr_threads == 0))
         remote_runq = thread_sched_ts_balance_scan(runq);
     else
