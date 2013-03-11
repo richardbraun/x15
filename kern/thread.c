@@ -61,6 +61,13 @@ struct thread_rt_runq {
 };
 
 /*
+ * Initial value of the highest round.
+ *
+ * Set to a high value to make sure overflows are correctly handled.
+ */
+#define THREAD_TS_INITIAL_ROUND ((unsigned long)-10)
+
+/*
  * When pulling threads from a run queue, this value is used to determine
  * the total number of threads to pull by dividing the number of eligible
  * threads with it.
@@ -190,11 +197,11 @@ thread_ts_group_init(struct thread_ts_group *group)
 }
 
 static void __init
-thread_ts_runq_init(struct thread_ts_runq *ts_runq, unsigned long round)
+thread_ts_runq_init(struct thread_ts_runq *ts_runq)
 {
     size_t i;
 
-    ts_runq->round = round;
+    /* The current round is set when the run queue becomes non-empty */
 
     for (i = 0; i < ARRAY_SIZE(ts_runq->group_array); i++)
         thread_ts_group_init(&ts_runq->group_array[i]);
@@ -212,8 +219,8 @@ thread_runq_init_ts(struct thread_runq *runq)
     runq->ts_weight = 0;
     runq->ts_runq_active = &runq->ts_runqs[0];
     runq->ts_runq_expired = &runq->ts_runqs[1];
-    thread_ts_runq_init(runq->ts_runq_active, 0);
-    thread_ts_runq_init(runq->ts_runq_expired, 1);
+    thread_ts_runq_init(runq->ts_runq_active);
+    thread_ts_runq_init(runq->ts_runq_expired);
 }
 
 static void __init
@@ -825,6 +832,7 @@ static void
 thread_sched_ts_start_next_round(struct thread_runq *runq)
 {
     struct thread_ts_runq *tmp;
+    unsigned long highest_round;
 
     tmp = runq->ts_runq_expired;
     runq->ts_runq_expired = runq->ts_runq_active;
@@ -832,8 +840,11 @@ thread_sched_ts_start_next_round(struct thread_runq *runq)
     runq->ts_runq_expired->round = runq->ts_runq_active->round + 1;
 
     if (runq->ts_runq_active->nr_threads != 0) {
-        /* TODO Handle round overflows */
-        if (runq->ts_runq_active->round > thread_ts_highest_round)
+        highest_round = thread_ts_highest_round;
+
+        /* Compare to 0 to handle overflow */
+        if ((runq->ts_runq_active->round > highest_round)
+            || ((runq->ts_runq_active->round == 0) && (highest_round != 0)))
             thread_ts_highest_round = runq->ts_runq_active->round;
 
         thread_sched_ts_restart(runq);
@@ -1150,6 +1161,8 @@ thread_setup(void)
     ops->tick = thread_sched_idle_tick;
 
     bitmap_zero(thread_active_runqs, MAX_CPUS);
+
+    thread_ts_highest_round = THREAD_TS_INITIAL_ROUND;
 
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
                     CPU_L1_SIZE, NULL, NULL, NULL, 0);
