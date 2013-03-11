@@ -106,6 +106,9 @@ struct thread_ts_runq {
 
 /*
  * Per processor run queue.
+ *
+ * Locking multiple run queues is done in the ascending order of their
+ * addresses.
  */
 struct thread_runq {
     struct spinlock lock;
@@ -388,7 +391,9 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 static void
 thread_runq_double_lock(struct thread_runq *a, struct thread_runq *b)
 {
-    if (a <= b) {
+    assert(a != b);
+
+    if (a < b) {
         spinlock_lock(&a->lock);
         spinlock_lock(&b->lock);
     } else {
@@ -504,56 +509,63 @@ thread_sched_ts_init_thread(struct thread *thread, unsigned short priority)
 static struct thread_runq *
 thread_sched_ts_select_runq(void)
 {
-    struct thread_runq *runq;
-    unsigned long highest_round;
-    unsigned int lowest_weight;
-    int i, runq_id, nr_runqs;
+    struct thread_runq *runq, *tmp;
+    int i, nr_runqs;
     long delta;
 
     nr_runqs = cpu_count();
-    i = bitmap_find_first_zero(thread_active_runqs, nr_runqs);
 
-    if (i != -1) {
-        runq_id = i;
-        goto out;
-    }
-
-    runq_id = 0;
-    highest_round = 0;
-    lowest_weight = (unsigned int)-1;
-
-    for (i = 0; i < nr_runqs; i++) {
+    bitmap_for_each_zero(thread_active_runqs, nr_runqs, i) {
         runq = &thread_runqs[i];
 
         spinlock_lock(&runq->lock);
 
-        /* The run queue may have become idle */
+        /* The run queue really is idle, return it */
         if (runq->current == runq->idler)
-            return runq;
+            goto out;
+
+        spinlock_unlock(&runq->lock);
+    }
+
+    runq = &thread_runqs[0];
+
+    spinlock_lock(&runq->lock);
+
+    for (i = 1; i < nr_runqs; i++) {
+        tmp = &thread_runqs[i];
+
+        spinlock_lock(&tmp->lock);
+
+        /* A run queue may have become idle */
+        if (tmp->current == tmp->idler) {
+            spinlock_unlock(&runq->lock);
+            runq = tmp;
+            goto out;
+        }
 
         /*
          * The run queue isn't idle, but there are no time-sharing thread,
          * which means there are real-time threads.
          */
-        if (runq->ts_weight == 0) {
-            spinlock_unlock(&runq->lock);
+        if (tmp->ts_weight == 0) {
+            spinlock_unlock(&tmp->lock);
             continue;
         }
 
-        delta = (long)(runq->ts_round - highest_round);
+        delta = (long)(tmp->ts_round - runq->ts_round);
 
-        if ((delta >= 0) && (runq->ts_weight < lowest_weight)) {
-            highest_round = runq->ts_round;
-            lowest_weight = runq->ts_weight;
-            runq_id = i;
+        /* Look for the least loaded of the run queues in the highest round */
+        if ((delta > 0)
+            || ((delta == 0) && (tmp->ts_weight < runq->ts_weight))) {
+            spinlock_unlock(&runq->lock);
+            runq = tmp;
+            continue;
         }
 
-        spinlock_unlock(&runq->lock);
+        spinlock_unlock(&tmp->lock);
     }
 
 out:
-    runq = &thread_runqs[runq_id];
-    spinlock_lock(&runq->lock);
     return runq;
 }
 
@@ -1335,6 +1347,7 @@ thread_wakeup(struct thread *thread)
 
     /* The returned run queue is locked */
     runq = thread_sched_ops[thread->sched_class].select_runq();
+    spinlock_assert_locked(&runq->lock);
     thread_runq_wakeup(runq, thread);
     spinlock_unlock(&runq->lock);
     cpu_intr_restore(flags);
