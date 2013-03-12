@@ -743,6 +743,9 @@ thread_sched_ts_wakeup_balancer(struct thread_runq *runq)
 {
     unsigned long on_rq;
 
+    if (runq->balancer == NULL)
+        return;
+
     on_rq = atomic_cas(&runq->balancer->on_rq, 0, 1);
 
     if (on_rq)
@@ -1376,8 +1379,12 @@ thread_balancer(void *arg)
     runq = arg;
 
     for (;;) {
-        thread_sleep();
+        /*
+         * Start by balancing in case the first threads were not evenly
+         * dispatched.
+         */
         thread_sched_ts_balance(runq);
+        thread_sleep();
     }
 }
 
