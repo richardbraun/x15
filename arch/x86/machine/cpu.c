@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012 Richard Braun.
+ * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,6 +77,11 @@ static struct cpu cpu_array[MAX_CPUS];
  */
 static unsigned int cpu_boot_array_size __initdata;
 unsigned int cpu_array_size;
+
+/*
+ * Barrier for processor synchronization on kernel entry.
+ */
+static unsigned int cpu_mp_synced __initdata;
 
 /*
  * Interrupt descriptor table.
@@ -555,6 +560,12 @@ cpu_mp_setup(void)
 }
 
 void __init
+cpu_mp_sync(void)
+{
+    cpu_mp_synced = 1;
+}
+
+void __init
 cpu_ap_setup(void)
 {
     cpu_init(&cpu_array[boot_ap_id]);
@@ -565,7 +576,7 @@ cpu_ap_setup(void)
 void __init
 cpu_ap_sync(void)
 {
-    while (cpu_count() == 1)
+    while (!cpu_mp_synced)
         cpu_pause();
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012 Richard Braun.
+ * Copyright (c) 2011, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,12 +27,17 @@ kernel_main(void)
 {
     assert(!cpu_intr_enabled());
 
+    /* Enable interrupts to allow inter-processor pmap updates */
+    cpu_intr_enable();
+
+    /* Initialize the kernel */
     task_setup();
     thread_setup();
 
-    cpu_intr_enable();
-    cpu_mp_setup();
+    /* Rendezvous with APs */
+    cpu_mp_sync();
 
+    /* Run the scheduler */
     thread_run();
 
     /* Never reached */
@@ -43,9 +48,16 @@ kernel_ap_main(void)
 {
     assert(!cpu_intr_enabled());
 
+    /*
+     * Enable interrupts to allow inter-processor pmap updates while the BSP
+     * is initializing the kernel.
+     */
     cpu_intr_enable();
+
+    /* Wait for the BSP to complete kernel initialization */
     cpu_ap_sync();
 
+    /* Run the scheduler */
     thread_run();
 
     /* Never reached */

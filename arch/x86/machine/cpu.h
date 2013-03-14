@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012 Richard Braun.
+ * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -576,8 +576,15 @@ void cpu_mp_register_lapic(unsigned int apic_id, int is_bsp);
 
 /*
  * Probe application processors and start them.
+ *
+ * On return, cpu_count() gives the actual number of managed processors.
  */
 void cpu_mp_setup(void);
+
+/*
+ * Synchronize with APs on kernel entry.
+ */
+void cpu_mp_sync(void);
 
 /*
  * CPU initialization on APs.
@@ -585,13 +592,7 @@ void cpu_mp_setup(void);
 void cpu_ap_setup(void);
 
 /*
- * Synchronize processors on kernel entry.
- *
- * Wait for all processors to reach a proper state when entering the kernel,
- * so that memory allocations can proceed and thread scheduling started.
- *
- * Once this function returns, cpu_count can be used reliably to know if there
- * are more than one processors, and how many.
+ * Synchronize with BSP on kernel entry.
  */
 void cpu_ap_sync(void);
 

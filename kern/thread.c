@@ -743,9 +743,6 @@ thread_sched_ts_wakeup_balancer(struct thread_runq *runq)
 {
     unsigned long on_rq;
 
-    if (runq->balancer == NULL)
-        return;
-
     on_rq = atomic_cas(&runq->balancer->on_rq, 0, 1);
 
     if (on_rq)
@@ -1165,24 +1162,8 @@ thread_sched_idle_tick(struct thread_runq *runq, struct thread *thread)
 void __init
 thread_bootstrap(void)
 {
-    size_t i;
-
-    for (i = 0; i < ARRAY_SIZE(thread_runqs); i++)
-        thread_runq_init(&thread_runqs[i]);
-
-    tcb_set_current(&thread_idlers[0].tcb);
-}
-
-void __init
-thread_ap_bootstrap(void)
-{
-    tcb_set_current(&thread_idlers[cpu_id()].tcb);
-}
-
-void __init
-thread_setup(void)
-{
     struct thread_sched_ops *ops;
+    size_t i;
 
     thread_policy_table[THREAD_SCHED_POLICY_FIFO] = THREAD_SCHED_CLASS_RT;
     thread_policy_table[THREAD_SCHED_POLICY_RR] = THREAD_SCHED_CLASS_RT;
@@ -1220,10 +1201,16 @@ thread_setup(void)
 
     thread_ts_highest_round = THREAD_TS_INITIAL_ROUND;
 
-    kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
-                    CPU_L1_SIZE, NULL, NULL, NULL, 0);
-    kmem_cache_init(&thread_stack_cache, "thread_stack", STACK_SIZE,
-                    DATA_ALIGN, NULL, NULL, NULL, 0);
+    for (i = 0; i < ARRAY_SIZE(thread_runqs); i++)
+        thread_runq_init(&thread_runqs[i]);
+
+    tcb_set_current(&thread_idlers[0].tcb);
+}
+
+void __init
+thread_ap_bootstrap(void)
+{
+    tcb_set_current(&thread_idlers[cpu_id()].tcb);
 }
 
 static void
@@ -1302,6 +1289,152 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     task_add_thread(task, thread);
 }
 
+static void
+thread_balancer(void *arg)
+{
+    struct thread_runq *runq;
+
+    runq = arg;
+
+    for (;;) {
+        /*
+         * Start by balancing in case the first threads were not evenly
+         * dispatched.
+         */
+        thread_sched_ts_balance(runq);
+        thread_sleep();
+    }
+}
+
+static void __init
+thread_setup_balancer(struct thread_runq *runq)
+{
+    char name[THREAD_NAME_SIZE];
+    struct thread_runq *local_runq;
+    struct thread_attr attr;
+    struct thread *balancer;
+    int error;
+
+    snprintf(name, sizeof(name), "x15_balancer/%u", thread_runq_id(runq));
+    attr.task = kernel_task;
+    attr.name = name;
+    attr.sched_policy = THREAD_SCHED_CLASS_RT;
+    attr.priority = THREAD_SCHED_RT_PRIO_MIN;
+    error = thread_create(&balancer, &attr, thread_balancer, runq);
+
+    if (error)
+        panic("thread: unable to create balancer thread");
+
+    runq->balancer = balancer;
+
+    /*
+     * XXX Real-time threads are currently dispatched on the creator's run
+     * queue.
+     *
+     * TODO Implement processor affinity and remove this kludge.
+     */
+    local_runq = thread_runq_local();
+
+    if (runq != local_runq) {
+        unsigned long flags;
+
+        spinlock_lock_intr_save(&local_runq->lock, &flags);
+        thread_runq_remove(local_runq, balancer);
+        spinlock_unlock_intr_restore(&local_runq->lock, flags);
+
+        spinlock_lock(&runq->lock);
+        thread_runq_add(runq, balancer);
+        spinlock_unlock(&runq->lock);
+    }
+}
+
+static void
+thread_idler(void *arg)
+{
+    (void)arg;
+
+    for (;;)
+        cpu_idle();
+}
+
+static void __init
+thread_setup_idler(struct thread_runq *runq)
+{
+    char name[THREAD_NAME_SIZE];
+    struct thread_attr attr;
+    struct thread *idler;
+    unsigned long flags = flags;
+    unsigned long preempt;
+    void *stack;
+
+    stack = kmem_cache_alloc(&thread_stack_cache);
+
+    if (stack == NULL)
+        panic("thread: unable to allocate idler thread stack");
+
+    snprintf(name, sizeof(name), "x15_idler/%u", thread_runq_id(runq));
+    attr.task = kernel_task;
+    attr.name = name;
+    attr.sched_policy = THREAD_SCHED_POLICY_IDLE;
+    idler = &thread_idlers[thread_runq_id(runq)];
+
+    /*
+     * When a processor enters the scheduler, the idler thread is the current
+     * one. Initializing it puts it in the state of a thread waiting to be
+     * dispatched, although it's actually still running. This only affects
+     * the preemption counter. Save it now and restore it once initialized.
+     */
+    preempt = idler->preempt;
+
+    /*
+     * Interrupts are already enabled on every processor, invoking the
+     * scheduler on their return path. Lock run queues while initializing
+     * idler threads to avoid unpleasant surprises.
+     */
+    if (runq == thread_runq_local())
+        spinlock_lock_intr_save(&runq->lock, &flags);
+    else
+        spinlock_lock(&runq->lock);
+
+    thread_init(idler, stack, &attr, thread_idler, NULL);
+    idler->state = THREAD_RUNNING;
+    idler->cpu = thread_runq_id(runq);
+
+    /*
+     * The initial preemption counter should never be less than 2, otherwise
+     * preemption will be reenabled when unlocking the run queue.
+     */
+    assert(idler->preempt > 1);
+
+    if (runq == thread_runq_local())
+        spinlock_unlock_intr_restore(&runq->lock, flags);
+    else
+        spinlock_unlock(&runq->lock);
+
+    idler->preempt = preempt;
+}
+
+static void __init
+thread_setup_runq(struct thread_runq *runq)
+{
+    thread_setup_balancer(runq);
+    thread_setup_idler(runq);
+}
+
+void __init
+thread_setup(void)
+{
+    size_t i;
+
+    kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
+                    CPU_L1_SIZE, NULL, NULL, NULL, 0);
+    kmem_cache_init(&thread_stack_cache, "thread_stack", STACK_SIZE,
+                    DATA_ALIGN, NULL, NULL, NULL, 0);
+
+    for (i = 0; i < cpu_count(); i++)
+        thread_setup_runq(&thread_runqs[i]);
+}
+
 int
 thread_create(struct thread **threadp, const struct thread_attr *attr,
               void (*fn)(void *), void *arg)
@@ -1371,93 +1504,6 @@ thread_wakeup(struct thread *thread)
     thread_preempt_enable();
 }
 
-static void
-thread_balancer(void *arg)
-{
-    struct thread_runq *runq;
-
-    runq = arg;
-
-    for (;;) {
-        /*
-         * Start by balancing in case the first threads were not evenly
-         * dispatched.
-         */
-        thread_sched_ts_balance(runq);
-        thread_sleep();
-    }
-}
-
-static void __init
-thread_setup_balancer(void)
-{
-    char name[THREAD_NAME_SIZE];
-    struct thread_runq *runq;
-    struct thread_attr attr;
-    struct thread *balancer;
-    int error;
-
-    runq = thread_runq_local();
-
-    /*
-     * Real-time threads are currently dispatched on the caller's run queue.
-     *
-     * TODO CPU affinity
-     */
-    snprintf(name, sizeof(name), "x15_balancer/%u", cpu_id());
-    attr.task = kernel_task;
-    attr.name = name;
-    attr.sched_policy = THREAD_SCHED_CLASS_RT;
-    attr.priority = THREAD_SCHED_RT_PRIO_MIN;
-    error = thread_create(&balancer, &attr, thread_balancer, runq);
-
-    if (error)
-        panic("thread: unable to create balancer thread");
-
-    runq->balancer = balancer;
-}
-
-static void
-thread_idler(void *arg)
-{
-    (void)arg;
-
-    for (;;)
-        cpu_idle();
-}
-
-static void __init
-thread_setup_idler(void)
-{
-    char name[THREAD_NAME_SIZE];
-    struct thread_attr attr;
-    struct thread *idler;
-    unsigned int cpu;
-    void *stack;
-
-    stack = kmem_cache_alloc(&thread_stack_cache);
-
-    if (stack == NULL)
-        panic("thread: unable to allocate idler thread stack");
-
-    /*
-     * Having interrupts enabled was required to allocate the stack, but
-     * at this stage, the idler thread is still the current thread, so disable
-     * interrupts while initializing it.
-     */
-    cpu_intr_disable();
-
-    cpu = cpu_id();
-    snprintf(name, sizeof(name), "x15_idler/%u", cpu);
-    attr.task = kernel_task;
-    attr.name = name;
-    attr.sched_policy = THREAD_SCHED_POLICY_IDLE;
-    idler = &thread_idlers[cpu];
-    thread_init(idler, stack, &attr, thread_idler, NULL);
-    idler->state = THREAD_RUNNING;
-    idler->cpu = cpu;
-}
-
 void __init
 thread_run(void)
 {
@@ -1466,20 +1512,10 @@ thread_run(void)
 
     assert(cpu_intr_enabled());
 
-    thread_setup_balancer();
-
-    /* This call disables interrupts */
-    thread_setup_idler();
-
+    cpu_intr_disable();
     runq = thread_runq_local();
     spinlock_lock(&runq->lock);
     thread = thread_runq_get_next(thread_runq_local());
-
-    /*
-     * Locking the run queue increased the preemption counter to 3.
-     * Artificially reduce it to the expected value.
-     */
-    thread_preempt_enable_no_resched();
 
     if (thread->task != kernel_task)
         pmap_load(thread->task->map->pmap);

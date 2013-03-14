@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2010, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -284,6 +284,7 @@ boot_main(void)
     vm_phys_info();
     pic_setup();
     pit_setup();
+    cpu_mp_setup();
     kernel_main();
 
     /* Never reached */
