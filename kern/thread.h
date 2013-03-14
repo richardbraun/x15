@@ -115,7 +115,6 @@ struct thread {
     short state;
     unsigned short pinned;
     unsigned short preempt;
-    unsigned int cpu;
     unsigned long on_rq;
 
     /* Common scheduling properties */

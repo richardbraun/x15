@@ -1241,8 +1241,6 @@ thread_init_sched(struct thread *thread, unsigned short priority)
 
 /*
  * This function initializes most thread members.
- *
- * It leaves the cpu member uninitialized.
  */
 static void
 thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
@@ -1398,7 +1396,6 @@ thread_setup_idler(struct thread_runq *runq)
 
     thread_init(idler, stack, &attr, thread_idler, NULL);
     idler->state = THREAD_RUNNING;
-    idler->cpu = thread_runq_id(runq);
 
     /*
      * The initial preemption counter should never be less than 2, otherwise
