@@ -638,7 +638,7 @@ pmap_kupdate(unsigned long start, unsigned long end)
     pmap_update_start = start;
     pmap_update_end = end;
     pmap_nr_updates.count = nr_cpus - 1;
-    mb_store();
+    barrier();
     lapic_ipi_broadcast(TRAP_PMAP_UPDATE);
 
     /*
