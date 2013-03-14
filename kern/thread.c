@@ -1239,12 +1239,10 @@ thread_init_sched(struct thread *thread, unsigned short priority)
     thread_sched_ops[thread->sched_class].init_thread(thread, priority);
 }
 
-/*
- * This function initializes most thread members.
- */
 static void
-thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
-            void (*fn)(void *), void *arg)
+thread_init_common(struct thread *thread, void *stack,
+                   const struct thread_attr *attr,
+                   void (*fn)(void *), void *arg)
 {
     const char *name;
     struct task *task;
@@ -1260,20 +1258,8 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     assert(name != NULL);
     assert(attr->sched_policy < THREAD_NR_SCHED_POLICIES);
 
-    /*
-     * The expected interrupt, preemption and run queue lock state when
-     * dispatching a thread is :
-     *  - interrupts disabled
-     *  - preemption disabled
-     *  - run queue locked
-     *
-     * Locking the run queue increases the preemption counter once more,
-     * making its value 2.
-     */
     thread->flags = 0;
-    thread->state = THREAD_SLEEPING;
     thread->pinned = 0;
-    thread->preempt = 2;
     thread->on_rq = 0;
     thread->sched_policy = attr->sched_policy;
     thread->sched_class = thread_policy_table[attr->sched_policy];
@@ -1285,6 +1271,26 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     thread->arg = arg;
 
     task_add_thread(task, thread);
+}
+
+static void
+thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
+            void (*fn)(void *), void *arg)
+{
+    thread_init_common(thread, stack, attr, fn, arg);
+
+    /*
+     * The expected interrupt, preemption and run queue lock state when
+     * dispatching a thread is :
+     *  - interrupts disabled
+     *  - preemption disabled
+     *  - run queue locked
+     *
+     * Locking the run queue increases the preemption counter once more,
+     * making its value 2.
+     */
+    thread->state = THREAD_SLEEPING;
+    thread->preempt = 2;
 }
 
 static void
@@ -1362,7 +1368,6 @@ thread_setup_idler(struct thread_runq *runq)
     struct thread_attr attr;
     struct thread *idler;
     unsigned long flags = flags;
-    unsigned long preempt;
     void *stack;
 
     stack = kmem_cache_alloc(&thread_stack_cache);
@@ -1377,14 +1382,6 @@ thread_setup_idler(struct thread_runq *runq)
     idler = &thread_idlers[thread_runq_id(runq)];
 
     /*
-     * When a processor enters the scheduler, the idler thread is the current
-     * one. Initializing it puts it in the state of a thread waiting to be
-     * dispatched, although it's actually still running. This only affects
-     * the preemption counter. Save it now and restore it once initialized.
-     */
-    preempt = idler->preempt;
-
-    /*
      * Interrupts are already enabled on every processor, invoking the
      * scheduler on their return path. Lock run queues while initializing
      * idler threads to avoid unpleasant surprises.
@@ -1394,21 +1391,13 @@ thread_setup_idler(struct thread_runq *runq)
     else
         spinlock_lock(&runq->lock);
 
-    thread_init(idler, stack, &attr, thread_idler, NULL);
+    thread_init_common(idler, stack, &attr, thread_idler, NULL);
     idler->state = THREAD_RUNNING;
-
-    /*
-     * The initial preemption counter should never be less than 2, otherwise
-     * preemption will be reenabled when unlocking the run queue.
-     */
-    assert(idler->preempt > 1);
 
     if (runq == thread_runq_local())
         spinlock_unlock_intr_restore(&runq->lock, flags);
     else
         spinlock_unlock(&runq->lock);
-
-    idler->preempt = preempt;
 }
 
 static void __init
@@ -1509,8 +1498,12 @@ thread_run(void)
 
     assert(cpu_intr_enabled());
 
-    cpu_intr_disable();
     runq = thread_runq_local();
+    thread = thread_self();
+    assert(thread == runq->idler);
+    assert(thread->preempt == 1);
+
+    cpu_intr_disable();
     spinlock_lock(&runq->lock);
     thread = thread_runq_get_next(thread_runq_local());
 
