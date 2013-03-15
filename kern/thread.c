@@ -56,6 +56,11 @@
 #define THREAD_MAX_MIGRATIONS 16
 
 /*
+ * Delay (in ticks) between two balance attempts when a run queue is idle.
+ */
+#define THREAD_IDLE_BALANCE_TICKS (HZ / 2)
+
+/*
  * Run queue properties for real-time threads.
  */
 struct thread_rt_runq {
@@ -128,6 +133,9 @@ struct thread_runq {
 
     struct thread *idler;
     struct thread *balancer;
+
+    /* Ticks before the next balancing attempt when a run queue is idle */
+    unsigned int idle_balance_ticks;
 } __aligned(CPU_L1_SIZE);
 
 /*
@@ -263,6 +271,7 @@ thread_runq_init(struct thread_runq *runq)
     thread_runq_init_idle(runq);
     runq->current = runq->idler;
     runq->balancer = NULL;
+    runq->idle_balance_ticks = THREAD_IDLE_BALANCE_TICKS;
 }
 
 static inline int
@@ -385,6 +394,19 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
         if (thread_test_flag(runq->current, THREAD_RESCHEDULE))
             tcb_send_reschedule(thread_runq_id(runq));
     }
+}
+
+static void
+thread_runq_wakeup_balancer(struct thread_runq *runq)
+{
+    unsigned long on_rq;
+
+    on_rq = atomic_cas(&runq->balancer->on_rq, 0, 1);
+
+    if (on_rq)
+        return;
+
+    thread_runq_wakeup(runq, runq->balancer);
 }
 
 static void
@@ -736,19 +758,6 @@ thread_sched_ts_dequeue(struct thread *thread)
 }
 
 static void
-thread_sched_ts_wakeup_balancer(struct thread_runq *runq)
-{
-    unsigned long on_rq;
-
-    on_rq = atomic_cas(&runq->balancer->on_rq, 0, 1);
-
-    if (on_rq)
-        return;
-
-    thread_runq_wakeup(runq, runq->balancer);
-}
-
-static void
 thread_sched_ts_remove(struct thread_runq *runq, struct thread *thread)
 {
     struct thread_ts_runq *ts_runq;
@@ -759,7 +768,7 @@ thread_sched_ts_remove(struct thread_runq *runq, struct thread *thread)
 
     if (ts_runq == runq->ts_runq_active) {
         if (ts_runq->nr_threads == 0)
-            thread_sched_ts_wakeup_balancer(runq);
+            thread_runq_wakeup_balancer(runq);
         else
             thread_sched_ts_restart(runq);
     }
@@ -777,7 +786,7 @@ thread_sched_ts_deactivate(struct thread_runq *runq, struct thread *thread)
     thread_sched_ts_enqueue(runq->ts_runq_expired, runq->ts_round + 1, thread);
 
     if (runq->ts_runq_active->nr_threads == 0)
-        thread_sched_ts_wakeup_balancer(runq);
+        thread_runq_wakeup_balancer(runq);
 }
 
 static void
@@ -1306,19 +1315,39 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
 }
 
 static void
+thread_balancer_idle_tick(struct thread_runq *runq)
+{
+    assert(runq->idle_balance_ticks != 0);
+
+    /*
+     * Interrupts can occur early, at a time the balancer thread hasn't been
+     * created yet.
+     */
+    if (runq->balancer == NULL)
+        return;
+
+    runq->idle_balance_ticks--;
+
+    if (runq->idle_balance_ticks == 0)
+        thread_runq_wakeup_balancer(runq);
+}
+
+static void
 thread_balancer(void *arg)
 {
     struct thread_runq *runq;
+    unsigned long flags;
 
     runq = arg;
 
     for (;;) {
-        /*
-         * Start by balancing in case the first threads were not evenly
-         * dispatched.
-         */
-        thread_sched_ts_balance(runq);
         thread_sleep();
+        thread_sched_ts_balance(runq);
+
+        /* Locking isn't strictly necessary here, but do it for safety */
+        spinlock_lock_intr_save(&runq->lock, &flags);
+        runq->idle_balance_ticks = THREAD_IDLE_BALANCE_TICKS;
+        spinlock_unlock_intr_restore(&runq->lock, flags);
     }
 }
 
@@ -1543,6 +1572,9 @@ thread_schedule(void)
         if (prev->state != THREAD_RUNNING) {
             thread_runq_remove(runq, prev);
             atomic_swap(&prev->on_rq, 0);
+
+            if ((runq->nr_threads == 0) && (prev != runq->balancer))
+                thread_runq_wakeup_balancer(runq);
         }
 
         next = thread_runq_get_next(runq);
@@ -1587,6 +1619,11 @@ thread_tick(void)
     thread = thread_self();
 
     spinlock_lock(&runq->lock);
+
+    if (runq->nr_threads == 0)
+        thread_balancer_idle_tick(runq);
+
     thread_sched_ops[thread->sched_class].tick(runq, thread);
+
     spinlock_unlock(&runq->lock);
 }
