@@ -897,19 +897,15 @@ thread_sched_ts_start_next_round(struct thread_runq *runq)
 
 /*
  * Check that a remote run queue satisfies the minimum migration requirements.
- *
- * Note that the highest round can change at any time.
  */
 static int
-thread_sched_ts_balance_eligible(struct thread_runq *runq)
+thread_sched_ts_balance_eligible(struct thread_runq *runq,
+                                 unsigned long highest_round)
 {
-    unsigned long highest_round;
     unsigned int nr_threads;
 
     if (runq->ts_weight == 0)
         return 0;
-
-    highest_round = thread_ts_highest_round;
 
     if ((runq->ts_round != highest_round)
         && (runq->ts_round != (highest_round - 1)))
@@ -930,7 +926,8 @@ thread_sched_ts_balance_eligible(struct thread_runq *runq)
  * Try to find the most suitable run queue from which to pull threads.
  */
 static struct thread_runq *
-thread_sched_ts_balance_scan(struct thread_runq *runq)
+thread_sched_ts_balance_scan(struct thread_runq *runq,
+                             unsigned long highest_round)
 {
     struct thread_runq *remote_runq, *tmp;
     unsigned long flags;
@@ -950,7 +947,7 @@ thread_sched_ts_balance_scan(struct thread_runq *runq)
 
         spinlock_lock(&tmp->lock);
 
-        if (!thread_sched_ts_balance_eligible(tmp)) {
+        if (!thread_sched_ts_balance_eligible(tmp, highest_round)) {
             spinlock_unlock(&tmp->lock);
             continue;
         }
@@ -980,12 +977,12 @@ thread_sched_ts_balance_scan(struct thread_runq *runq)
 
 static unsigned int
 thread_sched_ts_balance_migrate(struct thread_runq *runq,
-                                struct thread_runq *remote_runq)
+                                struct thread_runq *remote_runq,
+                                unsigned long highest_round)
 {
     struct thread *thread, *tmp;
     unsigned long flags;
     unsigned int i, nr_threads;
-    int pull_from_expired;
 
     thread_preempt_disable();
     flags = cpu_intr_save();
@@ -993,18 +990,13 @@ thread_sched_ts_balance_migrate(struct thread_runq *runq,
 
     i = 0;
 
-    if (!thread_sched_ts_balance_eligible(remote_runq))
+    if (!thread_sched_ts_balance_eligible(remote_runq, highest_round))
         goto out;
 
     nr_threads = remote_runq->ts_runq_active->nr_threads;
 
-    /* Assume the run queue round is either highest or highest - 1 */
-    if (remote_runq->ts_round != (thread_ts_highest_round - 1))
-        pull_from_expired = 0;
-    else {
-        pull_from_expired = 1;
+    if (remote_runq->ts_round != highest_round)
         nr_threads += remote_runq->ts_runq_expired->nr_threads;
-    }
 
     if (nr_threads == 0)
         goto out;
@@ -1030,7 +1022,11 @@ thread_sched_ts_balance_migrate(struct thread_runq *runq,
             goto out;
     }
 
-    if (pull_from_expired)
+    /*
+     * Threads in the expired queue of a processor in round highest are
+     * actually in round highest + 1.
+     */
+    if (remote_runq->ts_round != highest_round)
         list_for_each_entry_safe(&remote_runq->ts_runq_expired->threads,
                                  thread, tmp, ts_ctx.runq_node) {
             thread_runq_remove(remote_runq, thread);
@@ -1054,15 +1050,21 @@ static void
 thread_sched_ts_balance(struct thread_runq *runq)
 {
     struct thread_runq *remote_runq;
-    unsigned long flags;
+    unsigned long flags, highest_round;
     unsigned int nr_migrations;
     int i, nr_runqs;
+
+    /*
+     * Grab the highest round now and only use the copy so the value is stable
+     * during the balancing operation.
+     */
+    highest_round = thread_ts_highest_round;
 
     /*
      * Don't lock yet as the local run queue round can only be updated
      * by the balancer thread.
      */
-    if (runq->ts_round != thread_ts_highest_round) {
+    if (runq->ts_round != highest_round) {
         spinlock_lock_intr_save(&runq->lock, &flags);
 
         if (runq->ts_runq_expired->nr_threads != 0)
@@ -1071,10 +1073,11 @@ thread_sched_ts_balance(struct thread_runq *runq)
         spinlock_unlock_intr_restore(&runq->lock, flags);
     }
 
-    remote_runq = thread_sched_ts_balance_scan(runq);
+    remote_runq = thread_sched_ts_balance_scan(runq, highest_round);
 
     if (remote_runq != NULL) {
-        nr_migrations = thread_sched_ts_balance_migrate(runq, remote_runq);
+        nr_migrations = thread_sched_ts_balance_migrate(runq, remote_runq,
+                                                        highest_round);
 
         if (nr_migrations != 0)
             return;
@@ -1092,7 +1095,8 @@ thread_sched_ts_balance(struct thread_runq *runq)
         if (remote_runq == runq)
             continue;
 
-        nr_migrations = thread_sched_ts_balance_migrate(runq, remote_runq);
+        nr_migrations = thread_sched_ts_balance_migrate(runq, remote_runq,
+                                                        highest_round);
 
         if (nr_migrations != 0)
             return;
