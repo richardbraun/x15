@@ -200,6 +200,8 @@ static struct {
 
 #define thread_ts_highest_round (thread_ts_highest_round_struct.value)
 
+static void thread_schedule(void);
+
 static void __init
 thread_runq_init_rt(struct thread_runq *runq)
 {
@@ -1550,7 +1552,7 @@ thread_switch(struct thread *prev, struct thread *next)
     tcb_switch(&prev->tcb, &next->tcb);
 }
 
-void
+static void
 thread_schedule(void)
 {
     struct thread_runq *runq;

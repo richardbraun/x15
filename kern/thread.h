@@ -200,11 +200,6 @@ void thread_wakeup(struct thread *thread);
 void __noreturn thread_run(void);
 
 /*
- * Invoke the scheduler.
- */
-void thread_schedule(void);
-
-/*
  * Invoke the scheduler if the calling thread is marked for reschedule.
  */
 void thread_reschedule(void);
