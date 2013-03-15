@@ -31,7 +31,6 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
-#include <kern/printk.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
