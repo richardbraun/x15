@@ -71,13 +71,6 @@ struct thread_rt_runq {
 #define THREAD_TS_INITIAL_ROUND ((unsigned long)-10)
 
 /*
- * When pulling threads from a run queue, this value is used to determine
- * the total number of threads to pull by dividing the number of eligible
- * threads with it.
- */
-#define THREAD_TS_MIGRATION_RATIO 2
-
-/*
  * Group of threads sharing the same weight.
  */
 struct thread_ts_group {
@@ -975,74 +968,79 @@ thread_sched_ts_balance_scan(struct thread_runq *runq,
 }
 
 static unsigned int
+thread_sched_ts_balance_pull(struct thread_runq *runq,
+                             struct thread_runq *remote_runq,
+                             struct thread_ts_runq *ts_runq,
+                             unsigned int nr_pulls)
+{
+    struct thread *thread, *tmp;
+
+    list_for_each_entry_safe(&ts_runq->threads, thread, tmp, ts_ctx.runq_node) {
+        if (thread == remote_runq->current)
+            continue;
+
+        /*
+         * Make sure at least one thread is pulled if possible. If one or more
+         * thread has already been pulled, take weights into account.
+         */
+        if ((nr_pulls != 0)
+            && ((runq->ts_weight + thread->ts_ctx.weight)
+                > (remote_runq->ts_weight - thread->ts_ctx.weight)))
+            break;
+
+        thread_runq_remove(remote_runq, thread);
+
+        /* Don't discard the work already accounted for */
+        thread->ts_ctx.round = runq->ts_round;
+
+        thread_runq_add(runq, thread);
+        nr_pulls++;
+
+        if (nr_pulls == THREAD_MAX_MIGRATIONS)
+            break;
+    }
+
+    return nr_pulls;
+}
+
+static unsigned int
 thread_sched_ts_balance_migrate(struct thread_runq *runq,
                                 struct thread_runq *remote_runq,
                                 unsigned long highest_round)
 {
-    struct thread *thread, *tmp;
     unsigned long flags;
-    unsigned int i, nr_threads;
+    unsigned int nr_pulls;
+
+    nr_pulls = 0;
 
     thread_preempt_disable();
     flags = cpu_intr_save();
     thread_runq_double_lock(runq, remote_runq);
 
-    i = 0;
-
     if (!thread_sched_ts_balance_eligible(remote_runq, highest_round))
         goto out;
 
-    nr_threads = remote_runq->ts_runq_active->nr_threads;
+    nr_pulls = thread_sched_ts_balance_pull(runq, remote_runq,
+                                            remote_runq->ts_runq_active, 0);
 
-    if (remote_runq->ts_round != highest_round)
-        nr_threads += remote_runq->ts_runq_expired->nr_threads;
-
-    if (nr_threads == 0)
+    if (nr_pulls == THREAD_MAX_MIGRATIONS)
         goto out;
-
-    nr_threads /= THREAD_TS_MIGRATION_RATIO;
-
-    if (nr_threads == 0)
-        nr_threads = 1;
-    else if (nr_threads > THREAD_MAX_MIGRATIONS)
-        nr_threads = THREAD_MAX_MIGRATIONS;
-
-    list_for_each_entry_safe(&remote_runq->ts_runq_active->threads,
-                             thread, tmp, ts_ctx.runq_node) {
-        if (thread == remote_runq->current)
-            continue;
-
-        thread_runq_remove(remote_runq, thread);
-        thread->ts_ctx.round = runq->ts_round;
-        thread_runq_add(runq, thread);
-        i++;
-
-        if (i == nr_threads)
-            goto out;
-    }
 
     /*
      * Threads in the expired queue of a processor in round highest are
      * actually in round highest + 1.
      */
     if (remote_runq->ts_round != highest_round)
-        list_for_each_entry_safe(&remote_runq->ts_runq_expired->threads,
-                                 thread, tmp, ts_ctx.runq_node) {
-            thread_runq_remove(remote_runq, thread);
-            thread->ts_ctx.round = runq->ts_round;
-            thread_runq_add(runq, thread);
-            i++;
-
-            if (i == nr_threads)
-                goto out;
-        }
+        nr_pulls = thread_sched_ts_balance_pull(runq, remote_runq,
+                                                remote_runq->ts_runq_expired,
+                                                nr_pulls);
 
 out:
     spinlock_unlock(&remote_runq->lock);
     spinlock_unlock(&runq->lock);
     cpu_intr_restore(flags);
     thread_preempt_enable();
-    return i;
+    return nr_pulls;
 }
 
 static void
