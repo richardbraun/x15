@@ -108,7 +108,9 @@ struct thread_ts_runq {
  * Per processor run queue.
  *
  * Locking multiple run queues is done in the ascending order of their
- * addresses.
+ * addresses. Interrupts must be disabled whenever locking a run queue, even
+ * a remote one, otherwise an interrupt (which invokes the scheduler on its
+ * return path) may violate the locking order.
  */
 struct thread_runq {
     struct spinlock lock;
@@ -306,6 +308,7 @@ thread_test_flag(struct thread *thread, unsigned long flag)
 static void
 thread_runq_add(struct thread_runq *runq, struct thread *thread)
 {
+    assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
 
     thread_sched_ops[thread->sched_class].add(runq, thread);
@@ -322,6 +325,7 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
 static void
 thread_runq_remove(struct thread_runq *runq, struct thread *thread)
 {
+    assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
 
     runq->nr_threads--;
@@ -366,7 +370,6 @@ thread_runq_get_next(struct thread_runq *runq)
 static void
 thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 {
-    spinlock_assert_locked(&runq->lock);
     assert(thread->on_rq);
 
     thread->state = THREAD_RUNNING;
@@ -395,6 +398,8 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 static void
 thread_runq_double_lock(struct thread_runq *a, struct thread_runq *b)
 {
+    assert(!cpu_intr_enabled());
+    assert(!thread_preempt_enabled());
     assert(a != b);
 
     if (a < b) {
@@ -928,10 +933,14 @@ static struct thread_runq *
 thread_sched_ts_balance_scan(struct thread_runq *runq)
 {
     struct thread_runq *remote_runq, *tmp;
+    unsigned long flags;
     int i, nr_runqs;
 
     nr_runqs = cpu_count();
     remote_runq = NULL;
+
+    thread_preempt_disable();
+    flags = cpu_intr_save();
 
     bitmap_for_each(thread_active_runqs, nr_runqs, i) {
         tmp = &thread_runqs[i];
@@ -960,10 +969,12 @@ thread_sched_ts_balance_scan(struct thread_runq *runq)
         spinlock_unlock(&tmp->lock);
     }
 
-    if (remote_runq == NULL)
-        return NULL;
+    if (remote_runq != NULL)
+        spinlock_unlock(&remote_runq->lock);
 
-    spinlock_unlock(&remote_runq->lock);
+    cpu_intr_restore(flags);
+    thread_preempt_enable();
+
     return remote_runq;
 }
 
@@ -1346,9 +1357,9 @@ thread_setup_balancer(struct thread_runq *runq)
         thread_runq_remove(local_runq, balancer);
         spinlock_unlock_intr_restore(&local_runq->lock, flags);
 
-        spinlock_lock(&runq->lock);
+        spinlock_lock_intr_save(&runq->lock, &flags);
         thread_runq_add(runq, balancer);
-        spinlock_unlock(&runq->lock);
+        spinlock_unlock_intr_restore(&runq->lock, flags);
     }
 }
 
@@ -1367,7 +1378,7 @@ thread_setup_idler(struct thread_runq *runq)
     char name[THREAD_NAME_SIZE];
     struct thread_attr attr;
     struct thread *idler;
-    unsigned long flags = flags;
+    unsigned long flags;
     void *stack;
 
     stack = kmem_cache_alloc(&thread_stack_cache);
@@ -1386,18 +1397,10 @@ thread_setup_idler(struct thread_runq *runq)
      * scheduler on their return path. Lock run queues while initializing
      * idler threads to avoid unpleasant surprises.
      */
-    if (runq == thread_runq_local())
-        spinlock_lock_intr_save(&runq->lock, &flags);
-    else
-        spinlock_lock(&runq->lock);
-
+    spinlock_lock_intr_save(&runq->lock, &flags);
     thread_init_common(idler, stack, &attr, thread_idler, NULL);
     idler->state = THREAD_RUNNING;
-
-    if (runq == thread_runq_local())
-        spinlock_unlock_intr_restore(&runq->lock, flags);
-    else
-        spinlock_unlock(&runq->lock);
+    spinlock_unlock_intr_restore(&runq->lock, flags);
 }
 
 static void __init
@@ -1474,16 +1477,11 @@ thread_wakeup(struct thread *thread)
     if (on_rq)
         return;
 
-    /*
-     * Disable preemption and interrupts to avoid a deadlock in case the local
-     * run queue is selected.
-     */
     thread_preempt_disable();
     flags = cpu_intr_save();
 
     /* The returned run queue is locked */
     runq = thread_sched_ops[thread->sched_class].select_runq();
-    spinlock_assert_locked(&runq->lock);
     thread_runq_wakeup(runq, thread);
     spinlock_unlock(&runq->lock);
     cpu_intr_restore(flags);
