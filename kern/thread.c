@@ -1003,6 +1003,20 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
             continue;
 
         /*
+         * The pinned counter is changed without explicit synchronization.
+         * However, it can only be changed by its owning thread. As threads
+         * currently running aren't considered for migration, the thread had
+         * to be preempted, and called thread_schedule(), which globally acts
+         * as a memory barrier. As a result, there is strong ordering between
+         * changing the pinned counter and setting the current thread of a
+         * run queue. Enforce the same ordering on the pulling processor.
+         */
+        mb_load();
+
+        if (thread->pinned)
+            continue;
+
+        /*
          * Make sure at least one thread is pulled if possible. If one or more
          * thread has already been pulled, take weights into account.
          */
