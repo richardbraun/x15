@@ -113,10 +113,10 @@ struct thread_ts_ctx {
 struct thread {
     struct tcb tcb;
     unsigned long flags;
+    unsigned long on_runq;
     short state;
     unsigned short pinned;
     unsigned short preempt;
-    unsigned long on_rq;
 
     /* Common scheduling properties */
     unsigned char sched_policy;

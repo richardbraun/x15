@@ -378,7 +378,7 @@ thread_runq_get_next(struct thread_runq *runq)
 static void
 thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 {
-    assert(thread->on_rq);
+    assert(thread->on_runq);
 
     thread->state = THREAD_RUNNING;
     thread_runq_add(runq, thread);
@@ -399,11 +399,11 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 static void
 thread_runq_wakeup_balancer(struct thread_runq *runq)
 {
-    unsigned long on_rq;
+    unsigned long on_runq;
 
-    on_rq = atomic_cas(&runq->balancer->on_rq, 0, 1);
+    on_runq = atomic_cas(&runq->balancer->on_runq, 0, 1);
 
-    if (on_rq)
+    if (on_runq)
         return;
 
     thread_runq_wakeup(runq, runq->balancer);
@@ -1301,8 +1301,8 @@ thread_init_common(struct thread *thread, void *stack,
     assert(attr->sched_policy < THREAD_NR_SCHED_POLICIES);
 
     thread->flags = 0;
+    thread->on_runq = 0;
     thread->pinned = 0;
-    thread->on_rq = 0;
     thread->sched_policy = attr->sched_policy;
     thread->sched_class = thread_policy_table[attr->sched_policy];
     thread_init_sched(thread, attr->priority);
@@ -1521,11 +1521,11 @@ void
 thread_wakeup(struct thread *thread)
 {
     struct thread_runq *runq;
-    unsigned long on_rq, flags;
+    unsigned long on_runq, flags;
 
-    on_rq = atomic_cas(&thread->on_rq, 0, 1);
+    on_runq = atomic_cas(&thread->on_runq, 0, 1);
 
-    if (on_rq)
+    if (on_runq)
         return;
 
     thread_preempt_disable();
@@ -1592,7 +1592,7 @@ thread_schedule(void)
 
         if (prev->state != THREAD_RUNNING) {
             thread_runq_remove(runq, prev);
-            atomic_swap(&prev->on_rq, 0);
+            atomic_swap(&prev->on_runq, 0);
 
             if ((runq->nr_threads == 0) && (prev != runq->balancer))
                 thread_runq_wakeup_balancer(runq);
