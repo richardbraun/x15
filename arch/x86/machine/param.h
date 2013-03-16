@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012 Richard Braun.
+ * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,8 +46,11 @@
 
 /*
  * System timer frequency.
+ *
+ * The selected value of 200 translates to a period of 5ms, small enough to
+ * provide low latency, and is practical as both a dividend or divisor.
  */
-#define HZ 100
+#define HZ 200
 
 /*
  * 4 KiB pages.
