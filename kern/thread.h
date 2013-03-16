@@ -102,6 +102,7 @@ struct thread_ts_ctx {
     struct list runq_node;
     struct thread_ts_runq *ts_runq;
     unsigned long round;
+    unsigned short priority;
     unsigned short weight;
     unsigned short work;
 };

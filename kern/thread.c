@@ -76,6 +76,11 @@ struct thread_rt_runq {
 #define THREAD_TS_INITIAL_ROUND ((unsigned long)-10)
 
 /*
+ * Round slice base unit for time-sharing threads.
+ */
+#define THREAD_TS_ROUND_SLICE_BASE (HZ / 10)
+
+/*
  * Group of threads sharing the same weight.
  */
 struct thread_ts_group {
@@ -521,13 +526,20 @@ thread_sched_rt_tick(struct thread_runq *runq, struct thread *thread)
     thread_set_flag(thread, THREAD_RESCHEDULE);
 }
 
+static inline unsigned short
+thread_sched_ts_prio2weight(unsigned short priority)
+{
+    return ((priority + 1) * THREAD_TS_ROUND_SLICE_BASE);
+}
+
 static void
 thread_sched_ts_init_thread(struct thread *thread, unsigned short priority)
 {
     assert(priority <= THREAD_SCHED_TS_PRIO_MAX);
     thread->ts_ctx.ts_runq = NULL;
     thread->ts_ctx.round = 0;
-    thread->ts_ctx.weight = priority + 1;
+    thread->ts_ctx.priority = priority;
+    thread->ts_ctx.weight = thread_sched_ts_prio2weight(priority);
     thread->ts_ctx.work = 0;
 }
 
@@ -618,7 +630,7 @@ thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, unsigned long round,
 
     assert(thread->ts_ctx.ts_runq == NULL);
 
-    group = &ts_runq->group_array[thread->ts_ctx.weight - 1];
+    group = &ts_runq->group_array[thread->ts_ctx.priority];
     group_weight = group->weight + thread->ts_ctx.weight;
     total_weight = ts_runq->weight + thread->ts_ctx.weight;
     node = (group->weight == 0)
@@ -726,7 +738,7 @@ thread_sched_ts_dequeue(struct thread *thread)
     assert(thread->ts_ctx.ts_runq != NULL);
 
     ts_runq = thread->ts_ctx.ts_runq;
-    group = &ts_runq->group_array[thread->ts_ctx.weight - 1];
+    group = &ts_runq->group_array[thread->ts_ctx.priority];
 
     thread->ts_ctx.ts_runq = NULL;
     list_remove(&thread->ts_ctx.runq_node);
@@ -798,7 +810,7 @@ thread_sched_ts_put_prev(struct thread_runq *runq, struct thread *thread)
     struct thread_ts_group *group;
 
     ts_runq = runq->ts_runq_active;
-    group = &ts_runq->group_array[thread->ts_ctx.weight - 1];
+    group = &ts_runq->group_array[thread->ts_ctx.priority];
     list_insert_tail(&group->threads, &thread->ts_ctx.group_node);
 
     if (thread->ts_ctx.work >= thread->ts_ctx.weight)
@@ -871,7 +883,7 @@ thread_sched_ts_tick(struct thread_runq *runq, struct thread *thread)
 
     ts_runq = runq->ts_runq_active;
     ts_runq->work++;
-    group = &ts_runq->group_array[thread->ts_ctx.weight - 1];
+    group = &ts_runq->group_array[thread->ts_ctx.priority];
     group->work++;
     thread_set_flag(thread, THREAD_RESCHEDULE);
     thread->ts_ctx.work++;
