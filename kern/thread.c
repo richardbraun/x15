@@ -383,23 +383,16 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
     thread->state = THREAD_RUNNING;
     thread_runq_add(runq, thread);
 
-    if (runq != thread_runq_local()) {
+    if ((runq != thread_runq_local())
+        && thread_test_flag(runq->current, THREAD_RESCHEDULE)) {
         /*
-         * Make the new state and flags globally visible so that a remote
-         * rescheduling operation sees the correct values.
-         *
-         * Although scheduling implies a load memory barrier before testing
-         * the state of a thread (because of the spin lock acquire semantics),
-         * this isn't the case with thread flags. They are set atomically,
-         * but not ordered. As a result, reenabling preemption may miss a
-         * rescheduling request. But interrupts imply full memory barriers
-         * so the request won't be missed when the rescheduling IPI is
-         * received by the remote processor.
+         * Make the new flags globally visible before sending the
+         * rescheduling request. This barrier pairs with the one implied
+         * by the rescheduling IPI.
          */
         mb_store();
 
-        if (thread_test_flag(runq->current, THREAD_RESCHEDULE))
-            tcb_send_reschedule(thread_runq_id(runq));
+        tcb_send_reschedule(thread_runq_id(runq));
     }
 }
 
