@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +21,19 @@
  * stores between internal processor queues and their caches. In particular,
  * it doesn't imply a store is complete after the barrier has completed, only
  * that other processors will see a new value thanks to the cache coherency
- * protocol. Memory barriers aren't suitable for device communication.
+ * protocol. Memory barriers alone aren't suitable for device communication.
+ *
+ * The x86 architectural memory model (total-store ordering) already enforces
+ * strong ordering for almost every access. The only exception is that stores
+ * can be reordered after loads. As a result, load and store memory barriers
+ * are simple compiler barriers whereas full memory barriers must generate
+ * a barrier instruction.
  */
 
 #ifndef _X86_MB_H
 #define _X86_MB_H
+
+#include <kern/macros.h>
 
 #ifdef __LP64__
 
@@ -33,18 +41,6 @@ static inline void
 mb_sync(void)
 {
     asm volatile("mfence" : : : "memory");
-}
-
-static inline void
-mb_load(void)
-{
-    asm volatile("lfence" : : : "memory");
-}
-
-static inline void
-mb_store(void)
-{
-    asm volatile("sfence" : : : "memory");
 }
 
 #else /* __LP64__ */
@@ -55,18 +51,18 @@ mb_sync(void)
     asm volatile("lock addl $0, 0(%%esp)" : : : "cc", "memory");
 }
 
+#endif /* __LP64__ */
+
 static inline void
 mb_load(void)
 {
-    mb_sync();
+    barrier();
 }
 
 static inline void
 mb_store(void)
 {
-    mb_sync();
+    barrier();
 }
-
-#endif /* __LP64__ */
 
 #endif /* _X86_MB_H */
