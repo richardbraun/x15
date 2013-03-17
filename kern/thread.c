@@ -52,9 +52,9 @@
  * an algorithm that shares the same data for both local scheduling and load
  * balancing.
  *
- * A few words are used by both papers with slightly different meanings. Here
+ * A few terms are used by both papers with slightly different meanings. Here
  * are the definitions used in this implementation :
- *  - The time unit is the system timer tick
+ *  - The time unit is the system timer period (1 / HZ)
  *  - Work is the amount of execution time units consumed
  *  - Weight is the amount of execution time units allocated
  *  - A round is the shortest period during which all threads in a run queue
@@ -69,7 +69,7 @@
  * processor groups, perhaps by applying the load balancing algorithm in a
  * bottom-up fashion with one highest round per processor group).
  *
- * TODO Interactivity can currently not be experimented. The current strategy
+ * TODO For now, interactivity can not be experimented. The current strategy
  * is to always add threads in front of their group queue and track rounds
  * so that they don't get more time than they should. A direct consequence
  * is that continually spawning threads at short intervals is likely to cause
