@@ -15,11 +15,70 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * By convention, the name of a kernel thread is built by prefixing the
- * kernel name and adding the name of the start function, without the module
- * name ("thread"). Threads that are bound to a processor also include the
- * "/cpu_id" suffix. For example, "x15_balancer/1" is the name of the
- * inter-processor balancing thread of the second processor.
+ * The scheduling algorithm implemented by this module, named Distributed
+ * Group Ratio Round-Robin (DGR3), is based on the following papers :
+ *  - "Group Ratio Round-Robin: O(1) Proportional Share Scheduling for
+ *    Uniprocessor and Multiprocessor Systems" by Bogdan Caprita, Wong Chun
+ *    Chan, Jason Nieh, Clifford Stein and Haoqiang Zheng.
+ *  - "Efficient and Scalable Multiprocessor Fair Scheduling Using Distributed
+ *    Weighted Round-Robin" by Tong li, Dan Baumberger and Scott Hahn.
+ *
+ * Note that the Group Ratio Round-Robin (GR3) paper offers a multiprocessor
+ * extension, but based on a single global queue, which strongly limits its
+ * scalability on systems with many processors. That extension isn't used in
+ * this implementation.
+ *
+ * The basic idea is to use GR3 for processor-local scheduling, and Distributed
+ * Weighted Round-Robin (DWRR) for inter-processor load balancing. These
+ * algorithms were chosen for several reasons. To begin with, they provide
+ * fair scheduling, a very desirable property for a modern scheduler. Next,
+ * being based on round-robin, their algorithmic complexity is very low (GR3
+ * has O(1) scheduling complexity, and O(g) complexity on thread addition
+ * or removal, g being the number of groups, with one group per priority, a
+ * low number in practice). Finally, they're very simple to implement, making
+ * them easy to adjust and maintain.
+ *
+ * Both algorithms are actually slightly modified for efficiency. First, this
+ * version of GR3 is simplified by mapping exactly one group to one priority,
+ * and in turn, one weight. This is possible because priorities are intended
+ * to match Unix nice values, and systems commonly provide a constant, small
+ * set of nice values. This removes the need for accounting deficit. Next,
+ * round tracking is used to improve the handling of dynamic events : work
+ * scaling is performed only on thread addition, and not when a thread that
+ * was removed is added again during the same round. In addition, since GR3
+ * is itself a round-robin algorithm, it already provides the feature required
+ * from local scheduling by DWRR, namely round slicing. Consequently, DWRR
+ * doesn't sit "on top" of GR3, but is actually merged with it. The result is
+ * an algorithm that shares the same data for both local scheduling and load
+ * balancing.
+ *
+ * A few words are used by both papers with slightly different meanings. Here
+ * are the definitions used in this implementation :
+ *  - The time unit is the system timer tick
+ *  - Work is the amount of execution time units consumed
+ *  - Weight is the amount of execution time units allocated
+ *  - A round is the shortest period during which all threads in a run queue
+ *    consume their allocated time (i.e. their work reaches their weight)
+ *
+ * TODO Sub-tick accounting.
+ *
+ * TODO CPU affinity.
+ *
+ * TODO Take into account the underlying CPU topology (and adjust load
+ * balancing to access the global highest round less frequently on large
+ * processor groups, perhaps by applying the load balancing algorithm in a
+ * bottom-up fashion with one highest round per processor group).
+ *
+ * TODO Interactivity can currently not be experimented. The current strategy
+ * is to always add threads in front of their group queue and track rounds
+ * so that they don't get more time than they should. A direct consequence
+ * is that continually spawning threads at short intervals is likely to cause
+ * starvation. This could be fixed by adding newly created threads at the back
+ * of their group queue. For now, don't overengineer, and wait until all this
+ * can actually be tested.
+ *
+ * TODO Review weight computation (it may be more appropriate to determine
+ * weights in a smoother way than a raw scaling).
  */
 
 #include <kern/assert.h>

@@ -13,6 +13,22 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * The thread module aims at providing an interface suitable to implement
+ * POSIX scheduling policies. As such, it provides scheduling classes and
+ * policies that closely match the standard ones. The "real-time" policies
+ * (FIFO and RR) directly map the first-in first-out (SCHED_FIFO) and
+ * round-robin (SCHED_RR) policies, while the "time-sharing" policy (TS,
+ * named that way because, unlike real-time threads, time sharing is enforced)
+ * can be used for the normal SCHED_OTHER policy. The idle policy is reserved
+ * for idling kernel threads.
+ *
+ * By convention, the name of a kernel thread is built by prefixing the
+ * kernel name and adding the name of the start function, without the module
+ * name ("thread"). Threads that are bound to a processor also include the
+ * "/cpu_id" suffix. For example, "x15_balancer/1" is the name of the
+ * inter-processor balancing thread of the second processor.
  */
 
 #ifndef _KERN_THREAD_H
@@ -109,6 +125,8 @@ struct thread_ts_ctx {
 
 /*
  * Thread structure.
+ *
+ * TODO Document access synchronization.
  */
 struct thread {
     struct tcb tcb;
