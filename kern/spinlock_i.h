@@ -13,12 +13,6 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- *
- * This implementation relies on the availability of hardware compare-and-swap
- * support. It means that almost all spinlock operations imply a full memory
- * barrier. Users must not rely on this behaviour as it could change in the
- * future.
  */
 
 #ifndef _KERN_SPINLOCK_I_H
@@ -38,7 +32,7 @@ struct spinlock {
 static inline int
 spinlock_tryacquire(struct spinlock *lock)
 {
-    return atomic_cas(&lock->locked, 0, 1);
+    return atomic_swap(&lock->locked, 1);
 }
 
 static inline void
