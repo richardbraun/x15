@@ -33,18 +33,18 @@ struct spinlock {
 };
 
 /*
- * Return true if acquired, false if busy.
+ * Return 0 on success, 1 if busy.
  */
 static inline int
 spinlock_tryacquire(struct spinlock *lock)
 {
-    return !atomic_cas(&lock->locked, 0, 1);
+    return atomic_cas(&lock->locked, 0, 1);
 }
 
 static inline void
 spinlock_acquire(struct spinlock *lock)
 {
-    while (!spinlock_tryacquire(lock))
+    while (spinlock_tryacquire(lock))
         cpu_pause();
 }
 

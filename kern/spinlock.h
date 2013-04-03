@@ -45,20 +45,20 @@ spinlock_assert_locked(struct spinlock *lock)
 }
 
 /*
- * Return true if acquired, false if busy.
+ * Return 0 on success, 1 if busy.
  */
 static inline int
 spinlock_trylock(struct spinlock *lock)
 {
-    int acquired;
+    int busy;
 
     thread_preempt_disable();
-    acquired = spinlock_tryacquire(lock);
+    busy = spinlock_tryacquire(lock);
 
-    if (!acquired)
+    if (busy)
         thread_preempt_enable();
 
-    return acquired;
+    return busy;
 }
 
 static inline void
@@ -83,18 +83,18 @@ spinlock_unlock(struct spinlock *lock)
 static inline int
 spinlock_trylock_intr_save(struct spinlock *lock, unsigned long *flags)
 {
-    int acquired;
+    int busy;
 
     thread_preempt_disable();
     *flags = cpu_intr_save();
-    acquired = spinlock_tryacquire(lock);
+    busy = spinlock_tryacquire(lock);
 
-    if (!acquired) {
+    if (busy) {
         cpu_intr_restore(*flags);
         thread_preempt_enable();
     }
 
-    return acquired;
+    return busy;
 }
 
 static inline void
