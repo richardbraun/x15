@@ -143,7 +143,7 @@ trap_double_fault(struct trap_frame *frame)
     frame->ss = cpu->tss.ss;
 #endif /* __LP64__ */
 
-    printk("trap: double fault:\n");
+    printk("trap: double fault (cpu%u):\n", cpu_id());
     trap_frame_show(frame);
     trap_stack_show(frame);
     cpu_halt();
@@ -161,7 +161,7 @@ static void
 trap_default(struct trap_frame *frame)
 {
     cpu_halt_broadcast();
-    printk("trap: unhandled interrupt or exception:\n");
+    printk("trap: unhandled interrupt or exception (cpu%u):\n", cpu_id());
     trap_frame_show(frame);
     trap_stack_show(frame);
     cpu_halt();
