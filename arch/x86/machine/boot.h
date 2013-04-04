@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2010, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,10 +36,8 @@
  */
 #define BOOT_VTOP(addr) ((addr) - KERNEL_OFFSET)
 
-/*
- * Size of the stack used to bootstrap the kernel.
- */
-#define BOOT_STACK_SIZE PAGE_SIZE
+#define BOOT_STACK_SHIFT    PAGE_SHIFT
+#define BOOT_STACK_SIZE     (1 << BOOT_STACK_SHIFT)
 
 /*
  * Address where the MP trampoline code is copied and run at.
@@ -68,27 +66,12 @@
 extern char _boot;
 extern char _eboot;
 
-/*
- * Stack used to bootstrap the kernel.
- */
-extern char boot_stack[BOOT_STACK_SIZE];
+extern char boot_stacks[MAX_CPUS][BOOT_STACK_SIZE];
 
 /*
- * Common stack used by APs to bootstrap.
+ * This variable contains the CPU ID of an AP during early initialization.
  */
-extern char boot_ap_stack[BOOT_STACK_SIZE];
-
-/*
- * This variable contains the CPU ID of an AP during its early boot.
- */
-extern unsigned long boot_ap_id;
-
-/*
- * After its early boot, an AP enables paging and jumps to virtual
- * addresses. At this point, it switches to a per-AP preallocated
- * stack. This variable contains the (virtual) address of that stack.
- */
-extern unsigned long boot_ap_stack_addr;
+extern unsigned int boot_ap_id;
 
 /*
  * Size of the trampoline code used for APs.

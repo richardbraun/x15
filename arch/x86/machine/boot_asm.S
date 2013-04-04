@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2010, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ ASM_ENTRY(_start)
  ljmp $8, $1f
 
 1:
- movl $(boot_stack - KERNEL_OFFSET + BOOT_STACK_SIZE), %esp
+ movl $(boot_stacks - KERNEL_OFFSET + BOOT_STACK_SIZE), %esp
 
 #ifdef __LP64__
  call boot_check_long_mode
@@ -73,6 +73,7 @@ ASM_ENTRY(_start)
  lret
 
 1:
+ .code64
  movl %ebx, %edi
  movl %eax, %esi
 #else /* __LP64__ */
@@ -81,21 +82,20 @@ ASM_ENTRY(_start)
 #endif /* __LP64__ */
 
  call boot_setup_paging
- movl %eax, %cr3
 
 #ifdef __LP64__
- .code64
- movq $(boot_stack + BOOT_STACK_SIZE), %rsp
+ movq %rax, %cr3
+ movq $(boot_stacks + BOOT_STACK_SIZE), %rsp
  xorq %rbp, %rbp
- .code32
 #else /* __LP64__ */
+ movl %eax, %cr3
  movl %cr0, %eax
  orl $CPU_CR0_PG, %eax
  movl %eax, %cr0
  ljmp $8, $1f
 
 1:
- movl $(boot_stack + BOOT_STACK_SIZE), %esp
+ movl $(boot_stacks + BOOT_STACK_SIZE), %esp
  xorl %ebp, %ebp
 #endif /* __LP64__ */
 
@@ -104,6 +104,8 @@ ASM_ENTRY(_start)
  /* Never reached */
  nop
 ASM_END(_start)
+
+.code32
 
 ASM_DATA(boot_gdtr)
  .word boot_gdt_end - boot_gdt - 1
@@ -208,7 +210,10 @@ ASM_ENTRY(boot_ap_start32)
  ljmp $8, $1f
 
 1:
- movl $(boot_ap_stack + BOOT_STACK_SIZE), %esp
+ movl boot_ap_id, %esp
+ incl %esp
+ shll $BOOT_STACK_SHIFT, %esp
+ addl $(boot_stacks - KERNEL_OFFSET), %esp
 
 #ifdef __LP64__
  call boot_setup_long_mode
@@ -217,12 +222,15 @@ ASM_ENTRY(boot_ap_start32)
  lret
 
 1:
+ .code64
 #endif /* __LP64__ */
 
  call pmap_ap_setup_paging
- movl %eax, %cr3
 
-#ifndef __LP64__
+#ifdef __LP64__
+ movq %rax, %cr3
+#else /* __LP64__ */
+ movl %eax, %cr3
  movl %cr0, %eax
  orl $CPU_CR0_PG, %eax
  movl %eax, %cr0
@@ -231,16 +239,15 @@ ASM_ENTRY(boot_ap_start32)
 1:
 #endif /* __LP64__ */
 
- /* Switch to the boot stack preallocated for this AP by the BSP */
+ movl boot_ap_id, %esp
+ incl %esp
+ shll $BOOT_STACK_SHIFT, %esp
+
 #ifdef __LP64__
- .code64
- movq boot_ap_stack_addr, %rsp
- addq $BOOT_STACK_SIZE, %rsp
+ addq $boot_stacks, %rsp
  xorq %rbp, %rbp
- .code32
 #else /* __LP64__ */
- movl boot_ap_stack_addr, %esp
- addl $BOOT_STACK_SIZE, %esp
+ addl $boot_stacks, %esp
  xorl %ebp, %ebp
 #endif /* __LP64__ */
 
@@ -249,6 +256,8 @@ ASM_ENTRY(boot_ap_start32)
  /* Never reached */
  nop
 ASM_END(boot_ap_start32)
+
+.code32
 
 /*
  * This part, including the GDT, is the MP trampoline code run by APs

@@ -506,30 +506,21 @@ cpu_mp_start_aps(void)
 
     /*
      * Preallocate stacks now, as the kernel mappings shouldn't change while
-     * the APs are bootstrapping.
+     * the APs are starting.
      */
     for (i = 1; i < cpu_boot_array_size; i++) {
         cpu = &cpu_array[i];
-        cpu->boot_stack = vm_kmem_alloc(BOOT_STACK_SIZE);
-
-        if (cpu->boot_stack == 0)
-            panic("cpu: unable to allocate boot stack for cpu%u", i);
-
         cpu->double_fault_stack = vm_kmem_alloc(STACK_SIZE);
 
         if (cpu->double_fault_stack == 0)
             panic("cpu: unable to allocate double fault stack for cpu%u", i);
     }
 
-    /* Perform the "Universal Start-up Algorithm" */
     for (i = 1; i < cpu_boot_array_size; i++) {
         cpu = &cpu_array[i];
-
         boot_ap_id = i;
-        boot_ap_stack_addr = cpu->boot_stack;
 
-        barrier();
-
+        /* Perform the "Universal Start-up Algorithm" */
         lapic_ipi_init_assert(cpu->apic_id);
         cpu_delay(200);
         lapic_ipi_init_deassert(cpu->apic_id);

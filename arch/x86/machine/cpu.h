@@ -250,9 +250,6 @@ struct cpu {
     struct cpu_tss double_fault_tss;
 #endif /* __LP64__ */
     volatile int state;
-
-    /* The following members have special initialization paths */
-    unsigned long boot_stack;
     unsigned long double_fault_stack;
 } __aligned(CPU_ALIGN);
 

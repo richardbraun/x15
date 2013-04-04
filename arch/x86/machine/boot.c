@@ -75,11 +75,8 @@
 #define INIT_CGACHARS   (80 * 25)
 #define INIT_CGACOLOR   0x7
 
-char boot_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
-
-char boot_ap_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __bootdata;
-unsigned long boot_ap_id __bootdata;
-unsigned long boot_ap_stack_addr __bootdata;
+char boot_stacks[MAX_CPUS][BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
+unsigned int boot_ap_id __bootdata;
 
 #ifdef __LP64__
 pmap_pte_t boot_pml4[PMAP_L4_NR_PTES] __aligned(PAGE_SIZE) __bootdata;
