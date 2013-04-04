@@ -263,6 +263,7 @@ vm_phys_seg_free_to_buddy(struct vm_phys_seg *seg, struct vm_page *page,
 static void __init
 vm_phys_cpu_pool_init(struct vm_phys_cpu_pool *cpu_pool, int size)
 {
+    spinlock_init(&cpu_pool->lock);
     cpu_pool->size = size;
     cpu_pool->transfer_size = (size + VM_PHYS_CPU_POOL_TRANSFER_RATIO - 1)
                               / VM_PHYS_CPU_POOL_TRANSFER_RATIO;
