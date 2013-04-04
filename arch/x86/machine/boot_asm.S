@@ -86,7 +86,6 @@ ASM_ENTRY(_start)
 #ifdef __LP64__
  movq %rax, %cr3
  movq $(boot_stacks + BOOT_STACK_SIZE), %rsp
- xorq %rbp, %rbp
 #else /* __LP64__ */
  movl %eax, %cr3
  movl %cr0, %eax
@@ -96,9 +95,9 @@ ASM_ENTRY(_start)
 
 1:
  movl $(boot_stacks + BOOT_STACK_SIZE), %esp
- xorl %ebp, %ebp
 #endif /* __LP64__ */
 
+ xorl %ebp, %ebp
  call boot_main
 
  /* Never reached */
@@ -245,12 +244,11 @@ ASM_ENTRY(boot_ap_start32)
 
 #ifdef __LP64__
  addq $boot_stacks, %rsp
- xorq %rbp, %rbp
 #else /* __LP64__ */
  addl $boot_stacks, %esp
- xorl %ebp, %ebp
 #endif /* __LP64__ */
 
+ xorl %ebp, %ebp
  call boot_ap_main
 
  /* Never reached */
