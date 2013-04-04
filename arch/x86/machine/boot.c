@@ -71,9 +71,9 @@
 /*
  * Macros used by the very early panic function.
  */
-#define INIT_CGAMEM     ((uint16_t *)0xb8000)
-#define INIT_CGACHARS   (80 * 25)
-#define INIT_CGACOLOR   0x7
+#define BOOT_CGAMEM     ((uint16_t *)0xb8000)
+#define BOOT_CGACHARS   (80 * 25)
+#define BOOT_CGACOLOR   0x7
 
 char boot_stacks[MAX_CPUS][BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
 unsigned int boot_ap_id __bootdata;
@@ -96,21 +96,21 @@ boot_panic(const char *msg)
     uint16_t *ptr, *end;
     const char *s;
 
-    ptr = INIT_CGAMEM;
-    end = ptr + INIT_CGACHARS;
+    ptr = BOOT_CGAMEM;
+    end = ptr + BOOT_CGACHARS;
 
     s = (void *)BOOT_VTOP((unsigned long)"panic: ");
 
     while ((ptr < end) && (*s != '\0'))
-        *ptr++ = (INIT_CGACOLOR << 8) | *s++;
+        *ptr++ = (BOOT_CGACOLOR << 8) | *s++;
 
     s = BOOT_VTOP(msg);
 
     while ((ptr < end) && (*s != '\0'))
-        *ptr++ = (INIT_CGACOLOR << 8) | *s++;
+        *ptr++ = (BOOT_CGACOLOR << 8) | *s++;
 
     while (ptr < end)
-        *ptr++ = (INIT_CGACOLOR << 8) | ' ';
+        *ptr++ = (BOOT_CGACOLOR << 8) | ' ';
 
     cpu_halt();
 
