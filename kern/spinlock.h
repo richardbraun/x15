@@ -24,8 +24,9 @@
 #define _KERN_SPINLOCK_H
 
 #include <kern/assert.h>
-#include <kern/thread.h>
+#include <kern/macros.h>
 #include <kern/spinlock_i.h>
+#include <kern/thread.h>
 #include <machine/cpu.h>
 
 struct spinlock;
@@ -38,11 +39,7 @@ spinlock_init(struct spinlock *lock)
     lock->locked = 0;
 }
 
-static inline void
-spinlock_assert_locked(struct spinlock *lock)
-{
-    assert(lock->locked);
-}
+#define spinlock_assert_locked(lock) assert((lock)->locked)
 
 /*
  * Return 0 on success, 1 if busy.
