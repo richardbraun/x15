@@ -167,14 +167,10 @@ struct thread_attr {
 /*
  * Early initialization of the thread module.
  *
- * This function makes it possible to use migration and preemption control
- * operations while the system is initializing itself.
+ * These function make it possible to use migration and preemption control
+ * operations (and in turn, spin locks) during bootstrap.
  */
 void thread_bootstrap(void);
-
-/*
- * Early initialization of the TCB on APs.
- */
 void thread_ap_bootstrap(void);
 
 /*

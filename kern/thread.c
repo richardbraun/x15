@@ -195,8 +195,8 @@ struct thread_runq {
     struct thread_ts_runq *ts_runq_active;
     struct thread_ts_runq *ts_runq_expired;
 
-    struct thread *idler;
     struct thread *balancer;
+    struct thread *idler;
 
     /* Ticks before the next balancing attempt when a run queue is idle */
     unsigned int idle_balance_ticks;
@@ -218,11 +218,10 @@ struct thread_sched_ops {
 static struct thread_runq thread_runqs[MAX_CPUS];
 
 /*
- * Statically allocating the idler thread structures enables their use as
- * "current" threads during system bootstrap, which prevents migration and
- * preemption control functions from crashing.
+ * Statically allocated fake threads that provide thread context to processors
+ * during bootstrap.
  */
-static struct thread thread_idlers[MAX_CPUS];
+static struct thread thread_booters[MAX_CPUS] __initdata;
 
 /*
  * Caches for allocated threads and their stacks.
@@ -313,30 +312,15 @@ thread_runq_init_ts(struct thread_runq *runq)
 }
 
 static void __init
-thread_runq_init_idle(struct thread_runq *runq)
-{
-    struct thread *idler;
-
-    /* Initialize what's needed during bootstrap */
-    idler = &thread_idlers[runq - thread_runqs];
-    idler->flags = 0;
-    idler->preempt = 1;
-    idler->sched_policy = THREAD_SCHED_POLICY_IDLE;
-    idler->sched_class = THREAD_SCHED_CLASS_IDLE;
-    idler->task = kernel_task;
-    runq->idler = idler;
-}
-
-static void __init
-thread_runq_init(struct thread_runq *runq)
+thread_runq_init(struct thread_runq *runq, struct thread *booter)
 {
     spinlock_init(&runq->lock);
+    runq->current = booter;
     runq->nr_threads = 0;
     thread_runq_init_rt(runq);
     thread_runq_init_ts(runq);
-    thread_runq_init_idle(runq);
-    runq->current = runq->idler;
     runq->balancer = NULL;
+    runq->idler = NULL;
     runq->idle_balance_ticks = THREAD_IDLE_BALANCE_TICKS;
 }
 
@@ -1260,11 +1244,26 @@ thread_sched_idle_tick(struct thread_runq *runq, struct thread *thread)
     (void)thread;
 }
 
+static void __init
+thread_bootstrap_common(unsigned int cpu)
+{
+    struct thread *booter;
+
+    booter = &thread_booters[cpu];
+
+    /* Initialize only what's needed during bootstrap */
+    booter->flags = 0;
+    booter->preempt = 1;
+    booter->sched_class = THREAD_SCHED_CLASS_IDLE;
+
+    thread_runq_init(&thread_runqs[cpu], booter);
+    tcb_set_current(&booter->tcb);
+}
+
 void __init
 thread_bootstrap(void)
 {
     struct thread_sched_ops *ops;
-    size_t i;
 
     thread_policy_table[THREAD_SCHED_POLICY_FIFO] = THREAD_SCHED_CLASS_RT;
     thread_policy_table[THREAD_SCHED_POLICY_RR] = THREAD_SCHED_CLASS_RT;
@@ -1302,16 +1301,13 @@ thread_bootstrap(void)
 
     thread_ts_highest_round = THREAD_TS_INITIAL_ROUND;
 
-    for (i = 0; i < ARRAY_SIZE(thread_runqs); i++)
-        thread_runq_init(&thread_runqs[i]);
-
-    tcb_set_current(&thread_idlers[0].tcb);
+    thread_bootstrap_common(0);
 }
 
 void __init
 thread_ap_bootstrap(void)
 {
-    tcb_set_current(&thread_idlers[cpu_id()].tcb);
+    thread_bootstrap_common(cpu_id());
 }
 
 static void
@@ -1341,9 +1337,8 @@ thread_init_sched(struct thread *thread, unsigned short priority)
 }
 
 static void
-thread_init_common(struct thread *thread, void *stack,
-                   const struct thread_attr *attr,
-                   void (*fn)(void *), void *arg)
+thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
+            void (*fn)(void *), void *arg)
 {
     const char *name;
     struct task *task;
@@ -1359,8 +1354,20 @@ thread_init_common(struct thread *thread, void *stack,
     assert(name != NULL);
     assert(attr->sched_policy < THREAD_NR_SCHED_POLICIES);
 
+    /*
+     * The expected interrupt, preemption and run queue lock state when
+     * dispatching a thread is :
+     *  - interrupts disabled
+     *  - preemption disabled
+     *  - run queue locked
+     *
+     * Locking the run queue increases the preemption counter once more,
+     * making its value 2.
+     */
     thread->flags = 0;
     thread->on_runq = 0;
+    thread->state = THREAD_SLEEPING;
+    thread->preempt = 2;
     thread->pinned = 0;
     thread->sched_policy = attr->sched_policy;
     thread->sched_class = thread_policy_table[attr->sched_policy];
@@ -1372,26 +1379,6 @@ thread_init_common(struct thread *thread, void *stack,
     thread->arg = arg;
 
     task_add_thread(task, thread);
-}
-
-static void
-thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
-            void (*fn)(void *), void *arg)
-{
-    thread_init_common(thread, stack, attr, fn, arg);
-
-    /*
-     * The expected interrupt, preemption and run queue lock state when
-     * dispatching a thread is :
-     *  - interrupts disabled
-     *  - preemption disabled
-     *  - run queue locked
-     *
-     * Locking the run queue increases the preemption counter once more,
-     * making its value 2.
-     */
-    thread->state = THREAD_SLEEPING;
-    thread->preempt = 2;
 }
 
 static void
@@ -1488,8 +1475,12 @@ thread_setup_idler(struct thread_runq *runq)
     char name[THREAD_NAME_SIZE];
     struct thread_attr attr;
     struct thread *idler;
-    unsigned long flags;
     void *stack;
+
+    idler = kmem_cache_alloc(&thread_cache);
+
+    if (idler == NULL)
+        panic("thread: unable to allocate idler thread");
 
     stack = kmem_cache_alloc(&thread_stack_cache);
 
@@ -1500,17 +1491,12 @@ thread_setup_idler(struct thread_runq *runq)
     attr.task = kernel_task;
     attr.name = name;
     attr.sched_policy = THREAD_SCHED_POLICY_IDLE;
-    idler = &thread_idlers[thread_runq_id(runq)];
+    thread_init(idler, stack, &attr, thread_idler, NULL);
 
-    /*
-     * Interrupts are already enabled on every processor, invoking the
-     * scheduler on their return path. Lock run queues while initializing
-     * idler threads to avoid unpleasant surprises.
-     */
-    spinlock_lock_intr_save(&runq->lock, &flags);
-    thread_init_common(idler, stack, &attr, thread_idler, NULL);
+    /* An idler thread needs special tuning */
+    idler->on_runq = 1;
     idler->state = THREAD_RUNNING;
-    spinlock_unlock_intr_restore(&runq->lock, flags);
+    runq->idler = idler;
 }
 
 static void __init
@@ -1608,7 +1594,7 @@ thread_run(void)
 
     runq = thread_runq_local();
     thread = thread_self();
-    assert(thread == runq->idler);
+    assert(thread == runq->current);
     assert(thread->preempt == 1);
 
     cpu_intr_disable();
