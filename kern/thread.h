@@ -42,9 +42,12 @@
 #include <machine/tcb.h>
 
 /*
- * Forward declaration.
+ * Forward declarations.
  */
+struct spinlock;
 struct task;
+struct thread_runq;
+struct thread_ts_runq;
 
 /*
  * Thread name buffer size.
@@ -58,6 +61,9 @@ struct task;
 
 /*
  * Thread states.
+ *
+ * Threads in the running state may not be on a run queue if they're being
+ * awaken.
  */
 #define THREAD_RUNNING  0
 #define THREAD_SLEEPING 1
@@ -108,8 +114,6 @@ struct thread_rt_ctx {
 #define THREAD_SCHED_TS_PRIO_DEFAULT    20
 #define THREAD_SCHED_TS_PRIO_MAX        39
 
-struct thread_ts_runq;
-
 /*
  * Scheduling context of a time-sharing thread.
  */
@@ -130,11 +134,17 @@ struct thread_ts_ctx {
  */
 struct thread {
     struct tcb tcb;
+
+    /* Flags must be changed atomically */
     unsigned long flags;
-    unsigned long on_runq;
-    short state;
-    unsigned short pinned;
+
+    /* Sleep/wakeup synchronization members */
+    struct thread_runq *runq;
+    unsigned short state;
+
+    /* Thread-local members */
     unsigned short preempt;
+    unsigned short pinned;
 
     /* Common scheduling properties */
     unsigned char sched_policy;
@@ -146,6 +156,7 @@ struct thread {
         struct thread_ts_ctx ts_ctx;
     };
 
+    /* Read-only members */
     struct task *task;
     struct list task_node;
     void *stack;
@@ -190,17 +201,21 @@ int thread_create(struct thread **threadp, const struct thread_attr *attr,
                   void (*fn)(void *), void *arg);
 
 /*
- * Make the scheduler remove the calling thread from its run queue.
+ * Make the current thread sleep while waiting for an event.
+ *
+ * The interlock is used to synchronize the thread state with respect to
+ * wakeups, i.e. a wakeup request sent by another thread will not be missed
+ * if that thread is holding the interlock.
  *
  * This is a low level thread control primitive that should only be called by
  * higher thread synchronization functions.
  */
-void thread_sleep(void);
+void thread_sleep(struct spinlock *interlock);
 
 /*
- * Schedule the target thread for execution on a processor.
+ * Schedule a thread for execution on a processor.
  *
- * No action is performed if the target thread is already on a run queue.
+ * No action is performed if the target thread is already in the running state.
  *
  * This is a low level thread control primitive that should only be called by
  * higher thread synchronization functions.

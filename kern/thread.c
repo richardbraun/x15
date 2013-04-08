@@ -263,8 +263,6 @@ static struct {
 
 #define thread_ts_highest_round (thread_ts_highest_round_struct.value)
 
-static void thread_schedule(void);
-
 static void __init
 thread_runq_init_rt(struct thread_runq *runq)
 {
@@ -321,7 +319,7 @@ thread_runq_init(struct thread_runq *runq, struct thread *booter)
     thread_runq_init_ts(runq);
     runq->balancer = NULL;
     runq->idler = NULL;
-    runq->idle_balance_ticks = THREAD_IDLE_BALANCE_TICKS;
+    runq->idle_balance_ticks = (unsigned int)-1;
 }
 
 static inline int
@@ -371,6 +369,8 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
 
     if (thread->sched_class < runq->current->sched_class)
         thread_set_flag(runq->current, THREAD_RESCHEDULE);
+
+    thread->runq = runq;
 }
 
 static void
@@ -421,9 +421,10 @@ thread_runq_get_next(struct thread_runq *runq)
 static void
 thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 {
-    assert(thread->on_runq);
+    assert(!cpu_intr_enabled());
+    spinlock_assert_locked(&runq->lock);
+    assert(thread->state == THREAD_RUNNING);
 
-    thread->state = THREAD_RUNNING;
     thread_runq_add(runq, thread);
 
     if ((runq != thread_runq_local())
@@ -442,14 +443,59 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 static void
 thread_runq_wakeup_balancer(struct thread_runq *runq)
 {
-    unsigned long on_runq;
-
-    on_runq = atomic_cas(&runq->balancer->on_runq, 0, 1);
-
-    if (on_runq)
+    /*
+     * When operating on a remote run queue, the balancer thread could be
+     * running, in which case it will miss the wakeup request. This is
+     * intended, as otherwise, a livelock could result from balancer threads
+     * indefinitely waking one another. Rely on periodic idle balancing
+     * instead.
+     */
+    if (runq->balancer->state == THREAD_RUNNING)
         return;
 
+    runq->balancer->state = THREAD_RUNNING;
     thread_runq_wakeup(runq, runq->balancer);
+}
+
+static struct thread_runq *
+thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
+{
+    struct thread *next;
+
+    assert(prev->preempt == 2);
+    assert(!cpu_intr_enabled());
+    spinlock_assert_locked(&runq->lock);
+
+    thread_clear_flag(prev, THREAD_RESCHEDULE);
+    thread_runq_put_prev(runq, prev);
+
+    if (prev->state != THREAD_RUNNING) {
+        thread_runq_remove(runq, prev);
+
+        if ((runq->nr_threads == 0) && (prev != runq->balancer))
+            thread_runq_wakeup_balancer(runq);
+    }
+
+    next = thread_runq_get_next(runq);
+
+    if (prev != next) {
+        if ((prev->task != next->task) && (next->task != kernel_task))
+            pmap_load(next->task->map->pmap);
+
+        /*
+         * That's where the true context switch occurs. The next thread must
+         * unlock the run queue and reenable preemption.
+         */
+        tcb_switch(&prev->tcb, &next->tcb);
+
+        /*
+         * When dispatched again, the thread might have been moved to another
+         * processor.
+         */
+        runq = thread_runq_local();
+    }
+
+    return runq;
 }
 
 static void
@@ -1042,7 +1088,7 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
          * The pinned counter is changed without explicit synchronization.
          * However, it can only be changed by its owning thread. As threads
          * currently running aren't considered for migration, the thread had
-         * to be preempted, and called thread_schedule(), which globally acts
+         * to be preempted, and invoke the scheduler, which globally acts
          * as a memory barrier. As a result, there is strong ordering between
          * changing the pinned counter and setting the current thread of a
          * run queue. Enforce the same ordering on the pulling processor.
@@ -1343,8 +1389,6 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     const char *name;
     struct task *task;
 
-    tcb_init(&thread->tcb, stack, thread_main);
-
     if (attr == NULL)
         attr = &thread_default_attr;
 
@@ -1364,8 +1408,9 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
      * Locking the run queue increases the preemption counter once more,
      * making its value 2.
      */
+    tcb_init(&thread->tcb, stack, thread_main);
     thread->flags = 0;
-    thread->on_runq = 0;
+    thread->runq = NULL;
     thread->state = THREAD_SLEEPING;
     thread->preempt = 2;
     thread->pinned = 0;
@@ -1403,18 +1448,24 @@ static void
 thread_balancer(void *arg)
 {
     struct thread_runq *runq;
+    struct thread *self;
     unsigned long flags;
 
     runq = arg;
+    self = runq->balancer;
+    assert(self == runq->balancer);
 
     for (;;) {
-        thread_sleep();
-        thread_sched_ts_balance(runq);
-
-        /* Locking isn't strictly necessary here, but do it for safety */
+        thread_preempt_disable();
         spinlock_lock_intr_save(&runq->lock, &flags);
         runq->idle_balance_ticks = THREAD_IDLE_BALANCE_TICKS;
+        self->state = THREAD_SLEEPING;
+        runq = thread_runq_schedule(runq, self);
+        assert(runq == arg);
         spinlock_unlock_intr_restore(&runq->lock, flags);
+        thread_preempt_enable();
+
+        thread_sched_ts_balance(runq);
     }
 }
 
@@ -1494,7 +1545,6 @@ thread_setup_idler(struct thread_runq *runq)
     thread_init(idler, stack, &attr, thread_idler, NULL);
 
     /* An idler thread needs special tuning */
-    idler->on_runq = 1;
     idler->state = THREAD_RUNNING;
     runq->idler = idler;
 }
@@ -1556,22 +1606,78 @@ error_thread:
 }
 
 void
-thread_sleep(void)
+thread_sleep(struct spinlock *interlock)
 {
-    thread_self()->state = THREAD_SLEEPING;
-    thread_schedule();
+    struct thread_runq *runq;
+    struct thread *thread;
+    unsigned long flags;
+
+    thread = thread_self();
+
+    thread_preempt_disable();
+    runq = thread_runq_local();
+    spinlock_lock_intr_save(&runq->lock, &flags);
+    thread->state = THREAD_SLEEPING;
+    spinlock_unlock(interlock);
+
+    runq = thread_runq_schedule(runq, thread);
+    assert(thread->state == THREAD_RUNNING);
+
+    spinlock_unlock_intr_restore(&runq->lock, flags);
+    thread_preempt_enable();
+
+    spinlock_lock(interlock);
+}
+
+static void
+thread_lock_runq(struct thread *thread, unsigned long *flags)
+{
+    struct thread_runq *runq;
+
+    assert(thread != thread_self());
+
+    for (;;) {
+        runq = thread->runq;
+
+        spinlock_lock_intr_save(&runq->lock, flags);
+
+        if (runq == thread->runq)
+            return;
+
+        spinlock_unlock_intr_restore(&runq->lock, *flags);
+    }
+}
+
+static void
+thread_unlock_runq(struct thread *thread, unsigned long flags)
+{
+    spinlock_unlock_intr_restore(&thread->runq->lock, flags);
 }
 
 void
 thread_wakeup(struct thread *thread)
 {
     struct thread_runq *runq;
-    unsigned long on_runq, flags;
+    unsigned long flags;
 
-    on_runq = atomic_cas(&thread->on_runq, 0, 1);
+    /*
+     * There is at most one reference on threads that were never dispatched,
+     * in which case there is no need to lock anything.
+     */
+    if (thread->runq == NULL) {
+        assert(thread->state != THREAD_RUNNING);
+        thread->state = THREAD_RUNNING;
+    } else {
+        thread_lock_runq(thread, &flags);
 
-    if (on_runq)
-        return;
+        if (thread->state == THREAD_RUNNING) {
+            thread_unlock_runq(thread, flags);
+            return;
+        }
+
+        thread->state = THREAD_RUNNING;
+        thread_unlock_runq(thread, flags);
+    }
 
     thread_preempt_disable();
     flags = cpu_intr_save();
@@ -1607,69 +1713,27 @@ thread_run(void)
     tcb_load(&thread->tcb);
 }
 
-static inline void
-thread_switch(struct thread *prev, struct thread *next)
-{
-    if ((prev->task != next->task) && (next->task != kernel_task))
-        pmap_load(next->task->map->pmap);
-
-    tcb_switch(&prev->tcb, &next->tcb);
-}
-
-static void
-thread_schedule(void)
+void
+thread_reschedule(void)
 {
     struct thread_runq *runq;
-    struct thread *prev, *next;
+    struct thread *thread;
     unsigned long flags;
 
-    assert(thread_preempt_enabled());
+    thread = thread_self();
 
-    prev = thread_self();
+    if (!thread_test_flag(thread, THREAD_RESCHEDULE)
+        || !thread_preempt_enabled())
+        return;
 
     do {
         thread_preempt_disable();
         runq = thread_runq_local();
         spinlock_lock_intr_save(&runq->lock, &flags);
-
-        thread_clear_flag(prev, THREAD_RESCHEDULE);
-        thread_runq_put_prev(runq, prev);
-
-        if (prev->state != THREAD_RUNNING) {
-            thread_runq_remove(runq, prev);
-            atomic_swap(&prev->on_runq, 0);
-
-            if ((runq->nr_threads == 0) && (prev != runq->balancer))
-                thread_runq_wakeup_balancer(runq);
-        }
-
-        next = thread_runq_get_next(runq);
-
-        if (prev != next) {
-            /*
-             * That's where the true context switch occurs. The next thread
-             * must unlock the run queue and reenable preemption.
-             */
-            thread_switch(prev, next);
-
-            /*
-             * When dispatched again, the thread might have been moved to
-             * another processor.
-             */
-            runq = thread_runq_local();
-        }
-
+        runq = thread_runq_schedule(runq, thread);
         spinlock_unlock_intr_restore(&runq->lock, flags);
         thread_preempt_enable_no_resched();
-    } while (thread_test_flag(prev, THREAD_RESCHEDULE));
-}
-
-void
-thread_reschedule(void)
-{
-    if (thread_test_flag(thread_self(), THREAD_RESCHEDULE)
-        && thread_preempt_enabled())
-        thread_schedule();
+    } while (thread_test_flag(thread, THREAD_RESCHEDULE));
 }
 
 void
