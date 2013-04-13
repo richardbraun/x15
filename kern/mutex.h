@@ -23,6 +23,7 @@
 #ifndef _KERN_MUTEX_H
 #define _KERN_MUTEX_H
 
+#include <kern/assert.h>
 #include <kern/list.h>
 #include <kern/spinlock.h>
 
@@ -40,6 +41,8 @@ struct mutex {
     { MUTEX_UNLOCKED, SPINLOCK_INITIALIZER, LIST_INITIALIZER((mutex).waiters) }
 
 void mutex_init(struct mutex *mutex);
+
+#define mutex_assert_locked(mutex) assert((mutex)->state != MUTEX_UNLOCKED)
 
 /*
  * Return 0 on success, 1 if busy.
