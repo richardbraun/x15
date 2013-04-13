@@ -19,13 +19,23 @@
 
 #include <kern/panic.h>
 #include <kern/printk.h>
+#include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/strace.h>
+
+static unsigned long panic_done;
 
 void
 panic(const char *format, ...)
 {
     va_list list;
+    unsigned long already_done;
+
+    already_done = atomic_swap(&panic_done, 1);
+
+    if (already_done)
+        for (;;)
+            cpu_idle();
 
     cpu_intr_disable();
     cpu_halt_broadcast();
