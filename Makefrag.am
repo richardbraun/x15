@@ -4,6 +4,8 @@ x15_SOURCES +=              \
 	kern/assert.h       \
 	kern/bitmap.c       \
 	kern/bitmap.h       \
+	kern/condition.c    \
+	kern/condition.h    \
 	kern/config.h       \
 	kern/error.h        \
 	kern/init.h         \

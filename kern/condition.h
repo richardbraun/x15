@@ -15,48 +15,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * Mutual exclusion locks.
- *
- * Unlike spin locks, acquiring a mutex may make the calling thread sleep.
+ * Condition variables.
  */
 
-#ifndef _KERN_MUTEX_H
-#define _KERN_MUTEX_H
+#ifndef _KERN_CONDITION_H
+#define _KERN_CONDITION_H
 
-#include <kern/assert.h>
 #include <kern/list.h>
+#include <kern/mutex.h>
 #include <kern/spinlock.h>
-#include <kern/thread.h>
+#include <kern/stddef.h>
 
-#define MUTEX_UNLOCKED  0
-#define MUTEX_LOCKED    1
-#define MUTEX_CONTENDED 2
-
-struct mutex_waiter {
-    struct list node;
-    struct thread *thread;
-};
-
-struct mutex {
-    unsigned long state;
+struct condition {
     struct spinlock lock;
+    struct mutex *mutex;
     struct list waiters;
 };
 
-#define MUTEX_INITIALIZER(mutex) \
-    { MUTEX_UNLOCKED, SPINLOCK_INITIALIZER, LIST_INITIALIZER((mutex).waiters) }
+#define CONDITION_INITIALIZER(condition) \
+    { SPINLOCK_INITIALIZER, NULL, LIST_INITIALIZER((condition).waiters) }
 
-void mutex_init(struct mutex *mutex);
+void condition_init(struct condition *cond);
 
-#define mutex_assert_locked(mutex) assert((mutex)->state != MUTEX_UNLOCKED)
+void condition_wait(struct condition *cond, struct mutex *mutex);
 
-/*
- * Return 0 on success, 1 if busy.
- */
-int mutex_trylock(struct mutex *mutex);
+void condition_signal(struct condition *cond);
 
-void mutex_lock(struct mutex *mutex);
+void condition_broadcast(struct condition *cond);
 
-void mutex_unlock(struct mutex *mutex);
-
-#endif /* _KERN_MUTEX_H */
+#endif /* _KERN_CONDITION_H */

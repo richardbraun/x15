@@ -22,11 +22,6 @@
 #include <kern/thread.h>
 #include <machine/atomic.h>
 
-struct mutex_waiter {
-    struct list node;
-    struct thread *thread;
-};
-
 void
 mutex_init(struct mutex *mutex)
 {
