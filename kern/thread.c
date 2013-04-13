@@ -443,13 +443,6 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 static void
 thread_runq_wakeup_balancer(struct thread_runq *runq)
 {
-    /*
-     * When operating on a remote run queue, the balancer thread could be
-     * running, in which case it will miss the wakeup request. This is
-     * intended, as otherwise, a livelock could result from balancer threads
-     * indefinitely waking one another. Rely on periodic idle balancing
-     * instead.
-     */
     if (runq->balancer->state == THREAD_RUNNING)
         return;
 
@@ -477,6 +470,7 @@ thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
     }
 
     next = thread_runq_get_next(runq);
+    assert((next != runq->idler) || (runq->nr_threads == 0));
 
     if (prev != next) {
         if ((prev->task != next->task) && (next->task != kernel_task))
@@ -1127,14 +1121,9 @@ thread_sched_ts_balance_migrate(struct thread_runq *runq,
                                 struct thread_runq *remote_runq,
                                 unsigned long highest_round)
 {
-    unsigned long flags;
     unsigned int nr_pulls;
 
     nr_pulls = 0;
-
-    thread_preempt_disable();
-    flags = cpu_intr_save();
-    thread_runq_double_lock(runq, remote_runq);
 
     if (!thread_sched_ts_balance_eligible(remote_runq, highest_round))
         goto out;
@@ -1155,18 +1144,21 @@ thread_sched_ts_balance_migrate(struct thread_runq *runq,
                                                 nr_pulls);
 
 out:
-    spinlock_unlock(&remote_runq->lock);
-    spinlock_unlock(&runq->lock);
-    cpu_intr_restore(flags);
-    thread_preempt_enable();
     return nr_pulls;
 }
 
+/*
+ * Inter-processor load balancing for time-sharing threads.
+ *
+ * Preemption must be disabled, and the local run queue must be locked when
+ * calling this function. If balancing actually occurs, the lock will be
+ * released and preemption enabled when needed.
+ */
 static void
-thread_sched_ts_balance(struct thread_runq *runq)
+thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
 {
     struct thread_runq *remote_runq;
-    unsigned long flags, highest_round;
+    unsigned long highest_round;
     unsigned int nr_migrations;
     int i, nr_runqs;
 
@@ -1176,27 +1168,28 @@ thread_sched_ts_balance(struct thread_runq *runq)
      */
     highest_round = thread_ts_highest_round;
 
-    /*
-     * Don't lock yet as the local run queue round can only be updated
-     * by the balancer thread.
-     */
-    if (runq->ts_round != highest_round) {
-        spinlock_lock_intr_save(&runq->lock, &flags);
+    if ((runq->ts_round != highest_round)
+        && (runq->ts_runq_expired->nr_threads != 0))
+        goto no_migration;
 
-        if (runq->ts_runq_expired->nr_threads != 0)
-            goto no_migration;
-
-        spinlock_unlock_intr_restore(&runq->lock, flags);
-    }
+    spinlock_unlock_intr_restore(&runq->lock, *flags);
+    thread_preempt_enable();
 
     remote_runq = thread_sched_ts_balance_scan(runq, highest_round);
 
     if (remote_runq != NULL) {
+        thread_preempt_disable();
+        *flags = cpu_intr_save();
+        thread_runq_double_lock(runq, remote_runq);
         nr_migrations = thread_sched_ts_balance_migrate(runq, remote_runq,
                                                         highest_round);
+        spinlock_unlock(&remote_runq->lock);
 
         if (nr_migrations != 0)
             return;
+
+        spinlock_unlock_intr_restore(&runq->lock, *flags);
+        thread_preempt_enable();
     }
 
     /*
@@ -1211,26 +1204,34 @@ thread_sched_ts_balance(struct thread_runq *runq)
         if (remote_runq == runq)
             continue;
 
+        thread_preempt_disable();
+        *flags = cpu_intr_save();
+        thread_runq_double_lock(runq, remote_runq);
         nr_migrations = thread_sched_ts_balance_migrate(runq, remote_runq,
                                                         highest_round);
+        spinlock_unlock(&remote_runq->lock);
 
         if (nr_migrations != 0)
             return;
+
+        spinlock_unlock_intr_restore(&runq->lock, *flags);
+        thread_preempt_enable();
     }
 
-    spinlock_lock_intr_save(&runq->lock, &flags);
+    thread_preempt_disable();
+    spinlock_lock_intr_save(&runq->lock, flags);
 
 no_migration:
 
     /*
      * No thread could be migrated. Check the active run queue, as another
      * processor might have added threads while the balancer was running.
-     * If the run queue is still empty, switch to the next round.
+     * If the run queue is still empty, switch to the next round. The run
+     * queue lock must remain held until the next scheduling decision to
+     * prevent a remote balancer thread from stealing active threads.
      */
     if (runq->ts_runq_active->nr_threads == 0)
         thread_sched_ts_start_next_round(runq);
-
-    spinlock_unlock_intr_restore(&runq->lock, flags);
 }
 
 static void
@@ -1455,17 +1456,20 @@ thread_balancer(void *arg)
     self = runq->balancer;
     assert(self == runq->balancer);
 
+    thread_preempt_disable();
+    spinlock_lock_intr_save(&runq->lock, &flags);
+
     for (;;) {
-        thread_preempt_disable();
-        spinlock_lock_intr_save(&runq->lock, &flags);
         runq->idle_balance_ticks = THREAD_IDLE_BALANCE_TICKS;
         self->state = THREAD_SLEEPING;
         runq = thread_runq_schedule(runq, self);
         assert(runq == arg);
-        spinlock_unlock_intr_restore(&runq->lock, flags);
-        thread_preempt_enable();
 
-        thread_sched_ts_balance(runq);
+        /*
+         * This function may temporarily enable preemption and release the
+         * run queue lock.
+         */
+        thread_sched_ts_balance(runq, &flags);
     }
 }
 
