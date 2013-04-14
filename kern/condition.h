@@ -35,7 +35,13 @@ struct condition {
 #define CONDITION_INITIALIZER(condition) \
     { SPINLOCK_INITIALIZER, NULL, LIST_INITIALIZER((condition).waiters) }
 
-void condition_init(struct condition *cond);
+static inline void
+condition_init(struct condition *condition)
+{
+    spinlock_init(&condition->lock);
+    condition->mutex = NULL;
+    list_init(&condition->waiters);
+}
 
 void condition_wait(struct condition *cond, struct mutex *mutex);
 

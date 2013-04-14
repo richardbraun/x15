@@ -32,14 +32,6 @@
 #include <kern/thread.h>
 
 void
-condition_init(struct condition *condition)
-{
-    spinlock_init(&condition->lock);
-    condition->mutex = NULL;
-    list_init(&condition->waiters);
-}
-
-void
 condition_wait(struct condition *condition, struct mutex *mutex)
 {
     struct mutex_waiter waiter;
