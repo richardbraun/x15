@@ -18,6 +18,7 @@ x15_SOURCES +=              \
 	kern/macros.h       \
 	kern/mutex.c        \
 	kern/mutex.h        \
+	kern/mutex_i.h      \
 	kern/panic.c        \
 	kern/panic.h        \
 	kern/param.h        \

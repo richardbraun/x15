@@ -15,101 +15,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <kern/assert.h>
-#include <kern/list.h>
 #include <kern/mutex.h>
+#include <kern/mutex_i.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
-#include <machine/atomic.h>
 
 void
-mutex_init(struct mutex *mutex)
-{
-    mutex->state = MUTEX_UNLOCKED;
-    spinlock_init(&mutex->lock);
-    list_init(&mutex->waiters);
-}
-
-int
-mutex_trylock(struct mutex *mutex)
-{
-    unsigned long state;
-
-    state = atomic_cas(&mutex->state, MUTEX_UNLOCKED, MUTEX_LOCKED);
-
-    if (state == MUTEX_UNLOCKED)
-        return 0;
-
-    return 1;
-}
-
-void
-mutex_lock(struct mutex *mutex)
+mutex_lock_slow(struct mutex *mutex)
 {
     struct mutex_waiter waiter;
     unsigned long state;
 
-    state = atomic_cas(&mutex->state, MUTEX_UNLOCKED, MUTEX_LOCKED);
-
-    if (state == MUTEX_UNLOCKED)
-        return;
-
-    /*
-     * The mutex was either locked or contended. Unconditionnally update its
-     * state to reflect it is now contended, and to check the previous state
-     * while holding the waiters lock so that the current thread doesn't miss
-     * a wakeup when the owner unlocks.
-     */
-
-    assert((state == MUTEX_LOCKED) || (state == MUTEX_CONTENDED));
-
     spinlock_lock(&mutex->lock);
 
-    state = atomic_swap(&mutex->state, MUTEX_CONTENDED);
+    state = mutex_tryacquire_slow(mutex);
 
-    if (state == MUTEX_UNLOCKED)
-        goto out;
-
-    waiter.thread = thread_self();
-    list_insert_tail(&mutex->waiters, &waiter.node);
-
-    do {
-        thread_sleep(&mutex->lock);
-        state = atomic_swap(&mutex->state, MUTEX_CONTENDED);
-    } while (state != MUTEX_UNLOCKED);
-
-    list_remove(&waiter.node);
-
-out:
-    if (list_empty(&mutex->waiters)) {
-        state = atomic_swap(&mutex->state, MUTEX_LOCKED);
-        assert(state == MUTEX_CONTENDED);
+    if (state != MUTEX_UNLOCKED) {
+        waiter.thread = thread_self();
+        mutex_queue(mutex, &waiter);
+        mutex_wait(mutex, &waiter);
     }
+
+    mutex_trydowngrade(mutex);
 
     spinlock_unlock(&mutex->lock);
 }
 
 void
-mutex_unlock(struct mutex *mutex)
+mutex_unlock_slow(struct mutex *mutex)
 {
-    struct mutex_waiter *waiter;
-    unsigned long state;
-
-    state = atomic_swap(&mutex->state, MUTEX_UNLOCKED);
-
-    if (state == MUTEX_LOCKED)
-        return;
-
-    /* The mutex was contended, wake up the next waiter if any */
-
-    assert(state == MUTEX_CONTENDED);
-
     spinlock_lock(&mutex->lock);
-
-    if (!list_empty(&mutex->waiters)) {
-        waiter = list_first_entry(&mutex->waiters, struct mutex_waiter, node);
-        thread_wakeup(waiter->thread);
-    }
-
+    mutex_signal(mutex);
     spinlock_unlock(&mutex->lock);
 }

@@ -25,38 +25,68 @@
 
 #include <kern/assert.h>
 #include <kern/list.h>
+#include <kern/mutex_i.h>
 #include <kern/spinlock.h>
-#include <kern/thread.h>
 
-#define MUTEX_UNLOCKED  0
-#define MUTEX_LOCKED    1
-#define MUTEX_CONTENDED 2
-
-struct mutex_waiter {
-    struct list node;
-    struct thread *thread;
-};
-
-struct mutex {
-    unsigned long state;
-    struct spinlock lock;
-    struct list waiters;
-};
+struct mutex;
 
 #define MUTEX_INITIALIZER(mutex) \
     { MUTEX_UNLOCKED, SPINLOCK_INITIALIZER, LIST_INITIALIZER((mutex).waiters) }
 
-void mutex_init(struct mutex *mutex);
+static inline void
+mutex_init(struct mutex *mutex)
+{
+    mutex->state = MUTEX_UNLOCKED;
+    spinlock_init(&mutex->lock);
+    list_init(&mutex->waiters);
+}
 
 #define mutex_assert_locked(mutex) assert((mutex)->state != MUTEX_UNLOCKED)
 
 /*
  * Return 0 on success, 1 if busy.
  */
-int mutex_trylock(struct mutex *mutex);
+static inline int
+mutex_trylock(struct mutex *mutex)
+{
+    unsigned long state;
 
-void mutex_lock(struct mutex *mutex);
+    state = mutex_tryacquire(mutex);
 
-void mutex_unlock(struct mutex *mutex);
+    if (state == MUTEX_UNLOCKED)
+        return 0;
+
+    return 1;
+}
+
+static inline void
+mutex_lock(struct mutex *mutex)
+{
+    unsigned long state;
+
+    state = mutex_tryacquire(mutex);
+
+    if (state == MUTEX_UNLOCKED)
+        return;
+
+    assert((state == MUTEX_LOCKED) || (state == MUTEX_CONTENDED));
+
+    mutex_lock_slow(mutex);
+}
+
+static inline void
+mutex_unlock(struct mutex *mutex)
+{
+    unsigned long state;
+
+    state = mutex_release(mutex);
+
+    if (state == MUTEX_LOCKED)
+        return;
+
+    assert(state == MUTEX_CONTENDED);
+
+    mutex_unlock_slow(mutex);
+}
 
 #endif /* _KERN_MUTEX_H */

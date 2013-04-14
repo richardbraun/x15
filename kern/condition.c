@@ -20,18 +20,16 @@
  * queued on the mutex associated with the condition, and an attempt to wake
  * one by locking and unlocking the mutex is performed. If the mutex is already
  * locked, the current owner does the same when unlocking.
- *
- * TODO Refactor mutex and condition code.
  */
 
 #include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/list.h>
 #include <kern/mutex.h>
+#include <kern/mutex_i.h>
 #include <kern/spinlock.h>
 #include <kern/stddef.h>
 #include <kern/thread.h>
-#include <machine/atomic.h>
 
 void
 condition_init(struct condition *condition)
@@ -44,7 +42,7 @@ condition_init(struct condition *condition)
 void
 condition_wait(struct condition *condition, struct mutex *mutex)
 {
-    struct mutex_waiter waiter, *waiter_ptr;
+    struct mutex_waiter waiter;
     unsigned long state;
 
     waiter.thread = thread_self();
@@ -60,31 +58,15 @@ condition_wait(struct condition *condition, struct mutex *mutex)
 
     spinlock_lock(&mutex->lock);
 
-    state = atomic_swap(&mutex->state, MUTEX_UNLOCKED);
+    state = mutex_release(mutex);
 
-    if (state != MUTEX_LOCKED) {
-        assert(state == MUTEX_CONTENDED);
-
-        if (!list_empty(&mutex->waiters)) {
-            waiter_ptr = list_first_entry(&mutex->waiters, struct mutex_waiter,
-                                          node);
-            thread_wakeup(waiter_ptr->thread);
-        }
-    }
+    if (state == MUTEX_CONTENDED)
+        mutex_signal(mutex);
 
     spinlock_unlock(&condition->lock);
 
-    do {
-        thread_sleep(&mutex->lock);
-        state = atomic_swap(&mutex->state, MUTEX_CONTENDED);
-    } while (state != MUTEX_UNLOCKED);
-
-    list_remove(&waiter.node);
-
-    if (list_empty(&mutex->waiters)) {
-        state = atomic_swap(&mutex->state, MUTEX_LOCKED);
-        assert(state == MUTEX_CONTENDED);
-    }
+    mutex_wait(mutex, &waiter);
+    mutex_trydowngrade(mutex);
 
     spinlock_unlock(&mutex->lock);
 }
@@ -114,13 +96,12 @@ condition_signal(struct condition *condition)
 
     spinlock_lock(&mutex->lock);
 
-    list_insert_tail(&mutex->waiters, &waiter->node);
-    state = atomic_swap(&mutex->state, MUTEX_CONTENDED);
+    mutex_queue(mutex, waiter);
+    state = mutex_tryacquire_slow(mutex);
 
     if (state == MUTEX_UNLOCKED) {
-        state = atomic_swap(&mutex->state, MUTEX_UNLOCKED);
-        assert(state == MUTEX_CONTENDED);
-        thread_wakeup(waiter->thread);
+        mutex_release(mutex);
+        mutex_signal(mutex);
     }
 
     spinlock_unlock(&mutex->lock);
@@ -129,9 +110,8 @@ condition_signal(struct condition *condition)
 void
 condition_broadcast(struct condition *condition)
 {
-    struct mutex_waiter *waiter;
+    struct list waiters;
     struct mutex *mutex;
-    struct list tmp;
     unsigned long state;
 
     spinlock_lock(&condition->lock);
@@ -143,21 +123,19 @@ condition_broadcast(struct condition *condition)
 
     mutex = condition->mutex;
     condition->mutex = NULL;
-    list_set_head(&tmp, &condition->waiters);
+    list_set_head(&waiters, &condition->waiters);
     list_init(&condition->waiters);
 
     spinlock_unlock(&condition->lock);
 
     spinlock_lock(&mutex->lock);
 
-    list_concat(&mutex->waiters, &tmp);
-    state = atomic_swap(&mutex->state, MUTEX_CONTENDED);
+    mutex_queue_list(mutex, &waiters);
+    state = mutex_tryacquire_slow(mutex);
 
     if (state == MUTEX_UNLOCKED) {
-        state = atomic_swap(&mutex->state, MUTEX_UNLOCKED);
-        assert(state == MUTEX_CONTENDED);
-        waiter = list_first_entry(&mutex->waiters, struct mutex_waiter, node);
-        thread_wakeup(waiter->thread);
+        mutex_release(mutex);
+        mutex_signal(mutex);
     }
 
     spinlock_unlock(&mutex->lock);
