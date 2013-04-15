@@ -107,6 +107,14 @@ task_add_thread(struct task *task, struct thread *thread)
 }
 
 void
+task_remove_thread(struct task *task, struct thread *thread)
+{
+    spinlock_lock(&task->lock);
+    list_remove(&thread->task_node);
+    spinlock_unlock(&task->lock);
+}
+
+void
 task_info(struct task *task)
 {
     struct thread *thread;

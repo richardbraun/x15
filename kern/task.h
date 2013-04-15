@@ -60,6 +60,11 @@ int task_create(struct task **taskp, const char *name);
 void task_add_thread(struct task *task, struct thread *thread);
 
 /*
+ * Remove a thread from a task.
+ */
+void task_remove_thread(struct task *task, struct thread *thread);
+
+/*
  * Display task information.
  *
  * If task is NULL, this function displays all tasks.
