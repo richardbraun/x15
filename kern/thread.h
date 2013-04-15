@@ -67,6 +67,7 @@ struct thread_ts_runq;
  */
 #define THREAD_RUNNING  0
 #define THREAD_SLEEPING 1
+#define THREAD_DEAD     2
 
 /*
  * Scheduling policies.
@@ -199,6 +200,11 @@ void thread_setup(void);
  */
 int thread_create(struct thread **threadp, const struct thread_attr *attr,
                   void (*fn)(void *), void *arg);
+
+/*
+ * Terminate the calling thread.
+ */
+void __noreturn thread_exit(void);
 
 /*
  * Make the current thread sleep while waiting for an event.

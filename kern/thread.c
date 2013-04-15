@@ -83,11 +83,13 @@
 
 #include <kern/assert.h>
 #include <kern/bitmap.h>
+#include <kern/condition.h>
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
 #include <kern/macros.h>
+#include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/spinlock.h>
@@ -262,6 +264,18 @@ static struct {
 } thread_ts_highest_round_struct;
 
 #define thread_ts_highest_round (thread_ts_highest_round_struct.value)
+
+/*
+ * List of threads pending for destruction by the reaper.
+ */
+static struct mutex thread_reap_lock;
+static struct condition thread_reap_condition;
+static struct list thread_reap_list;
+
+struct thread_reap_waiter {
+    struct list node;
+    struct thread *thread;
+};
 
 static void __init
 thread_runq_init_rt(struct thread_runq *runq)
@@ -1371,10 +1385,7 @@ thread_main(void)
 
     thread = thread_self();
     thread->fn(thread->arg);
-
-    /* TODO Thread destruction */
-    for (;;)
-        cpu_idle();
+    thread_exit();
 }
 
 static void
@@ -1425,6 +1436,97 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     thread->arg = arg;
 
     task_add_thread(task, thread);
+}
+
+static void
+thread_lock_runq(struct thread *thread, unsigned long *flags)
+{
+    struct thread_runq *runq;
+
+    assert(thread != thread_self());
+
+    for (;;) {
+        runq = thread->runq;
+
+        spinlock_lock_intr_save(&runq->lock, flags);
+
+        if (runq == thread->runq)
+            return;
+
+        spinlock_unlock_intr_restore(&runq->lock, *flags);
+    }
+}
+
+static void
+thread_unlock_runq(struct thread *thread, unsigned long flags)
+{
+    spinlock_unlock_intr_restore(&thread->runq->lock, flags);
+}
+
+static void
+thread_destroy(struct thread *thread)
+{
+    unsigned long flags, state;
+
+    do {
+        thread_lock_runq(thread, &flags);
+        state = thread->state;
+        thread_unlock_runq(thread, flags);
+    } while (state != THREAD_DEAD);
+
+    task_remove_thread(thread->task, thread);
+    kmem_cache_free(&thread_stack_cache, thread->stack);
+    kmem_cache_free(&thread_cache, thread);
+}
+
+static void
+thread_reaper(void *arg)
+{
+    struct thread_reap_waiter *tmp;
+    struct list waiters;
+
+    (void)arg;
+
+    for (;;) {
+        mutex_lock(&thread_reap_lock);
+
+        while (list_empty(&thread_reap_list))
+            condition_wait(&thread_reap_condition, &thread_reap_lock);
+
+        list_set_head(&waiters, &thread_reap_list);
+        list_init(&thread_reap_list);
+
+        mutex_unlock(&thread_reap_lock);
+
+        while (!list_empty(&waiters)) {
+            tmp = list_first_entry(&waiters, struct thread_reap_waiter, node);
+            list_remove(&tmp->node);
+            thread_destroy(tmp->thread);
+        }
+    }
+
+    /* Never reached */
+}
+
+static void __init
+thread_setup_reaper(void)
+{
+    struct thread_attr attr;
+    struct thread *thread;
+    int error;
+
+    mutex_init(&thread_reap_lock);
+    condition_init(&thread_reap_condition);
+    list_init(&thread_reap_list);
+
+    attr.task = kernel_task;
+    attr.name = "x15_reaper";
+    attr.sched_policy = THREAD_SCHED_CLASS_TS;
+    attr.priority = THREAD_SCHED_TS_PRIO_DEFAULT;
+    error = thread_create(&thread, &attr, thread_reaper, NULL);
+
+    if (error)
+        panic("thread: unable to create reaper thread");
 }
 
 static void
@@ -1570,6 +1672,8 @@ thread_setup(void)
     kmem_cache_init(&thread_stack_cache, "thread_stack", STACK_SIZE,
                     DATA_ALIGN, NULL, NULL, NULL, 0);
 
+    thread_setup_reaper();
+
     for (i = 0; i < cpu_count(); i++)
         thread_setup_runq(&thread_runqs[i]);
 }
@@ -1610,6 +1714,40 @@ error_thread:
 }
 
 void
+thread_exit(void)
+{
+    struct thread_reap_waiter waiter;
+    struct thread_runq *runq;
+    struct thread *thread;
+    unsigned long flags;
+
+    thread = thread_self();
+    waiter.thread = thread;
+
+    mutex_lock(&thread_reap_lock);
+
+    list_insert_tail(&thread_reap_list, &waiter.node);
+    condition_signal(&thread_reap_condition);
+
+    /*
+     * Disable preemption before releasing the mutex to make sure the current
+     * thread becomes dead as soon as possible. This is important because the
+     * reaper thread actively polls the thread state before destroying it.
+     */
+    thread_preempt_disable();
+
+    mutex_unlock(&thread_reap_lock);
+
+    runq = thread_runq_local();
+    spinlock_lock_intr_save(&runq->lock, &flags);
+
+    thread->state = THREAD_DEAD;
+
+    runq = thread_runq_schedule(runq, thread);
+    panic("thread: dead thread running");
+}
+
+void
 thread_sleep(struct spinlock *interlock)
 {
     struct thread_runq *runq;
@@ -1621,8 +1759,9 @@ thread_sleep(struct spinlock *interlock)
     thread_preempt_disable();
     runq = thread_runq_local();
     spinlock_lock_intr_save(&runq->lock, &flags);
-    thread->state = THREAD_SLEEPING;
     spinlock_unlock(interlock);
+
+    thread->state = THREAD_SLEEPING;
 
     runq = thread_runq_schedule(runq, thread);
     assert(thread->state == THREAD_RUNNING);
@@ -1631,31 +1770,6 @@ thread_sleep(struct spinlock *interlock)
     thread_preempt_enable();
 
     spinlock_lock(interlock);
-}
-
-static void
-thread_lock_runq(struct thread *thread, unsigned long *flags)
-{
-    struct thread_runq *runq;
-
-    assert(thread != thread_self());
-
-    for (;;) {
-        runq = thread->runq;
-
-        spinlock_lock_intr_save(&runq->lock, flags);
-
-        if (runq == thread->runq)
-            return;
-
-        spinlock_unlock_intr_restore(&runq->lock, *flags);
-    }
-}
-
-static void
-thread_unlock_runq(struct thread *thread, unsigned long flags)
-{
-    spinlock_unlock_intr_restore(&thread->runq->lock, flags);
 }
 
 void
