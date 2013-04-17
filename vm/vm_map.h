@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012 Richard Braun.
+ * Copyright (c) 2011, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #define _VM_VM_MAP_H
 
 #include <kern/list.h>
+#include <kern/mutex.h>
 #include <kern/rbtree.h>
-#include <kern/spinlock.h>
 #include <kern/stdint.h>
 #include <machine/pmap.h>
 
@@ -92,7 +92,7 @@ struct vm_map_entry {
  * Memory map.
  */
 struct vm_map {
-    struct spinlock lock;
+    struct mutex lock;
     struct list entry_list;
     struct rbtree entry_tree;
     unsigned int nr_entries;
