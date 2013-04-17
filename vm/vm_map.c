@@ -104,6 +104,7 @@ static struct vm_map_entry vm_map_kentry_entry;
 /*
  * Kentry slab free list.
  */
+static struct mutex vm_map_kentry_free_slabs_lock;
 static struct vm_map_kentry_slab *vm_map_kentry_free_slabs;
 
 #ifdef NDEBUG
@@ -131,9 +132,12 @@ vm_map_kentry_alloc_slab(void)
     if (vm_map_kentry_free_slabs == NULL)
         panic("vm_map: kentry area exhausted");
 
+    mutex_lock(&vm_map_kentry_free_slabs_lock);
     slab = vm_map_kentry_free_slabs;
-    assert(slab->next != VM_MAP_KENTRY_ALLOCATED);
     vm_map_kentry_free_slabs = slab->next;
+    mutex_unlock(&vm_map_kentry_free_slabs_lock);
+
+    assert(slab->next != VM_MAP_KENTRY_ALLOCATED);
     slab->next = VM_MAP_KENTRY_ALLOCATED;
     return slab;
 }
@@ -142,8 +146,11 @@ static void
 vm_map_kentry_free_slab(struct vm_map_kentry_slab *slab)
 {
     assert(slab->next == VM_MAP_KENTRY_ALLOCATED);
+
+    mutex_lock(&vm_map_kentry_free_slabs_lock);
     slab->next = vm_map_kentry_free_slabs;
     vm_map_kentry_free_slabs = slab;
+    mutex_unlock(&vm_map_kentry_free_slabs_lock);
 }
 
 static struct vm_map_kentry_slab *
@@ -279,6 +286,7 @@ vm_map_kentry_setup(void)
 
     pmap_kupdate(table_va, table_va + (nr_pages * PAGE_SIZE));
 
+    mutex_init(&vm_map_kentry_free_slabs_lock);
     slabs = (struct vm_map_kentry_slab *)table_va;
     vm_map_kentry_free_slabs = &slabs[nr_slabs - 1];
     vm_map_kentry_free_slabs->next = NULL;
