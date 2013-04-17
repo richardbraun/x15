@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012 Richard Braun.
+ * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #define _KERN_KMEM_H
 
 #include <kern/list.h>
+#include <kern/mutex.h>
 #include <kern/param.h>
-#include <kern/spinlock.h>
 #include <kern/stddef.h>
 
 /*
@@ -32,7 +32,7 @@
  * The flags member is a read-only CPU-local copy of the parent cache flags.
  */
 struct kmem_cpu_pool {
-    struct spinlock lock;
+    struct mutex lock;
     int flags;
     int size;
     int transfer_size;
@@ -204,7 +204,7 @@ struct kmem_cache {
     struct kmem_cpu_pool_type *cpu_pool_type;
 
     /* Slab layer */
-    struct spinlock lock;
+    struct mutex lock;
     struct list node;   /* Cache list linkage */
     struct list partial_slabs;
     struct list free_slabs;

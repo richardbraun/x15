@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012 Richard Braun.
+ * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +48,7 @@
 #include <kern/list.h>
 #include <kern/kmem.h>
 #include <kern/macros.h>
+#include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
@@ -148,7 +149,7 @@ static struct kmem_cache kmem_caches[KMEM_NR_MEM_CACHES];
  * List of all caches managed by the allocator.
  */
 static struct list kmem_cache_list;
-static struct spinlock kmem_cache_list_lock;
+static struct mutex kmem_cache_list_lock;
 
 static void kmem_cache_error(struct kmem_cache *cache, void *buf, int error,
                              void *arg);
@@ -331,7 +332,7 @@ kmem_slab_lookup_needed(int flags)
 static void
 kmem_cpu_pool_init(struct kmem_cpu_pool *cpu_pool, struct kmem_cache *cache)
 {
-    spinlock_init(&cpu_pool->lock);
+    mutex_init(&cpu_pool->lock);
     cpu_pool->flags = cache->flags;
     cpu_pool->size = 0;
     cpu_pool->transfer_size = 0;
@@ -339,6 +340,14 @@ kmem_cpu_pool_init(struct kmem_cpu_pool *cpu_pool, struct kmem_cache *cache)
     cpu_pool->array = NULL;
 }
 
+/*
+ * This function will generally return the pool for the CPU running the
+ * calling thread. Because of thread migration, the caller might be running
+ * on another processor after this function returns. Although not optimal,
+ * this should rarely happen, and it doesn't affect the allocator operations
+ * in any other way, as CPU pools are always valid, and their access is
+ * serialized by a lock.
+ */
 static inline struct kmem_cpu_pool *
 kmem_cpu_pool_get(struct kmem_cache *cache)
 {
@@ -376,7 +385,7 @@ kmem_cpu_pool_fill(struct kmem_cpu_pool *cpu_pool, struct kmem_cache *cache)
     void *obj;
     int i;
 
-    spinlock_lock(&cache->lock);
+    mutex_lock(&cache->lock);
 
     for (i = 0; i < cpu_pool->transfer_size; i++) {
         obj = kmem_cache_alloc_from_slab(cache);
@@ -387,7 +396,7 @@ kmem_cpu_pool_fill(struct kmem_cpu_pool *cpu_pool, struct kmem_cache *cache)
         kmem_cpu_pool_push(cpu_pool, obj);
     }
 
-    spinlock_unlock(&cache->lock);
+    mutex_unlock(&cache->lock);
 
     return i;
 }
@@ -398,14 +407,14 @@ kmem_cpu_pool_drain(struct kmem_cpu_pool *cpu_pool, struct kmem_cache *cache)
     void *obj;
     int i;
 
-    spinlock_lock(&cache->lock);
+    mutex_lock(&cache->lock);
 
     for (i = cpu_pool->transfer_size; i > 0; i--) {
         obj = kmem_cpu_pool_pop(cpu_pool);
         kmem_cache_free_to_slab(cache, obj);
     }
 
-    spinlock_unlock(&cache->lock);
+    mutex_unlock(&cache->lock);
 }
 
 static void
@@ -547,7 +556,7 @@ kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
 
     buf_size = P2ROUND(obj_size, align);
 
-    spinlock_init(&cache->lock);
+    mutex_init(&cache->lock);
     list_node_init(&cache->node);
     list_init(&cache->partial_slabs);
     list_init(&cache->free_slabs);
@@ -587,9 +596,9 @@ kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
     for (i = 0; i < ARRAY_SIZE(cache->cpu_pools); i++)
         kmem_cpu_pool_init(&cache->cpu_pools[i], cache);
 
-    spinlock_lock(&kmem_cache_list_lock);
+    mutex_lock(&kmem_cache_list_lock);
     list_insert_tail(&kmem_cache_list, &cache->node);
-    spinlock_unlock(&kmem_cache_list_lock);
+    mutex_unlock(&kmem_cache_list_lock);
 }
 
 static inline int
@@ -605,10 +614,10 @@ kmem_cache_grow(struct kmem_cache *cache)
     size_t color;
     int empty;
 
-    spinlock_lock(&cache->lock);
+    mutex_lock(&cache->lock);
 
     if (!kmem_cache_empty(cache)) {
-        spinlock_unlock(&cache->lock);
+        mutex_unlock(&cache->lock);
         return 1;
     }
 
@@ -618,11 +627,11 @@ kmem_cache_grow(struct kmem_cache *cache)
     if (cache->color > cache->color_max)
         cache->color = 0;
 
-    spinlock_unlock(&cache->lock);
+    mutex_unlock(&cache->lock);
 
     slab = kmem_slab_create(cache, color);
 
-    spinlock_lock(&cache->lock);
+    mutex_lock(&cache->lock);
 
     if (slab != NULL) {
         list_insert_tail(&cache->free_slabs, &slab->node);
@@ -640,7 +649,7 @@ kmem_cache_grow(struct kmem_cache *cache)
      */
     empty = kmem_cache_empty(cache);
 
-    spinlock_unlock(&cache->lock);
+    mutex_unlock(&cache->lock);
 
     return !empty;
 }
@@ -840,12 +849,12 @@ kmem_cache_alloc(struct kmem_cache *cache)
     if (cpu_pool->flags & KMEM_CF_NO_CPU_POOL)
         goto slab_alloc;
 
-    spinlock_lock(&cpu_pool->lock);
+    mutex_lock(&cpu_pool->lock);
 
 fast_alloc:
     if (likely(cpu_pool->nr_objs > 0)) {
         buf = kmem_cpu_pool_pop(cpu_pool);
-        spinlock_unlock(&cpu_pool->lock);
+        mutex_unlock(&cpu_pool->lock);
 
         if (cpu_pool->flags & KMEM_CF_VERIFY)
             kmem_cache_alloc_verify(cache, buf, KMEM_AV_CONSTRUCT);
@@ -857,25 +866,25 @@ fast_alloc:
         filled = kmem_cpu_pool_fill(cpu_pool, cache);
 
         if (!filled) {
-            spinlock_unlock(&cpu_pool->lock);
+            mutex_unlock(&cpu_pool->lock);
 
             filled = kmem_cache_grow(cache);
 
             if (!filled)
                 return NULL;
 
-            spinlock_lock(&cpu_pool->lock);
+            mutex_lock(&cpu_pool->lock);
         }
 
         goto fast_alloc;
     }
 
-    spinlock_unlock(&cpu_pool->lock);
+    mutex_unlock(&cpu_pool->lock);
 
 slab_alloc:
-    spinlock_lock(&cache->lock);
+    mutex_lock(&cache->lock);
     buf = kmem_cache_alloc_from_slab(cache);
-    spinlock_unlock(&cache->lock);
+    mutex_unlock(&cache->lock);
 
     if (buf == NULL) {
         filled = kmem_cache_grow(cache);
@@ -973,12 +982,12 @@ kmem_cache_free(struct kmem_cache *cache, void *obj)
     if (cpu_pool->flags & KMEM_CF_NO_CPU_POOL)
         goto slab_free;
 
-    spinlock_lock(&cpu_pool->lock);
+    mutex_lock(&cpu_pool->lock);
 
 fast_free:
     if (likely(cpu_pool->nr_objs < cpu_pool->size)) {
         kmem_cpu_pool_push(cpu_pool, obj);
-        spinlock_unlock(&cpu_pool->lock);
+        mutex_unlock(&cpu_pool->lock);
         return;
     }
 
@@ -987,19 +996,19 @@ fast_free:
         goto fast_free;
     }
 
-    spinlock_unlock(&cpu_pool->lock);
+    mutex_unlock(&cpu_pool->lock);
 
     array = kmem_cache_alloc(cache->cpu_pool_type->array_cache);
 
     if (array != NULL) {
-        spinlock_lock(&cpu_pool->lock);
+        mutex_lock(&cpu_pool->lock);
 
         /*
          * Another thread may have built the CPU pool while the lock was
          * dropped.
          */
         if (cpu_pool->array != NULL) {
-            spinlock_unlock(&cpu_pool->lock);
+            mutex_unlock(&cpu_pool->lock);
             kmem_cache_free(cache->cpu_pool_type->array_cache, array);
             goto fast_free;
         }
@@ -1018,12 +1027,12 @@ kmem_cache_info(struct kmem_cache *cache)
     char flags_str[64];
 
     if (cache == NULL) {
-        spinlock_lock(&kmem_cache_list_lock);
+        mutex_lock(&kmem_cache_list_lock);
 
         list_for_each_entry(&kmem_cache_list, cache, node)
             kmem_cache_info(cache);
 
-        spinlock_unlock(&kmem_cache_list_lock);
+        mutex_unlock(&kmem_cache_list_lock);
 
         return;
     }
@@ -1033,7 +1042,7 @@ kmem_cache_info(struct kmem_cache *cache)
         (cache->flags & KMEM_CF_SLAB_EXTERNAL) ? " SLAB_EXTERNAL" : "",
         (cache->flags & KMEM_CF_VERIFY) ? " VERIFY" : "");
 
-    spinlock_lock(&cache->lock);
+    mutex_lock(&cache->lock);
 
     printk("kmem: name: %s\n"
            "kmem: flags: 0x%x%s\n"
@@ -1057,7 +1066,7 @@ kmem_cache_info(struct kmem_cache *cache)
            cache->nr_free_slabs, cache->buftag_dist, cache->redzone_pad,
            cache->cpu_pool_type->array_size);
 
-    spinlock_unlock(&cache->lock);
+    mutex_unlock(&cache->lock);
 }
 
 void __init
@@ -1071,7 +1080,7 @@ kmem_setup(void)
     assert(sizeof(union kmem_bufctl) <= KMEM_ALIGN_MIN);
 
     list_init(&kmem_cache_list);
-    spinlock_init(&kmem_cache_list_lock);
+    mutex_init(&kmem_cache_list_lock);
 
     for (i = 0; i < ARRAY_SIZE(kmem_cpu_pool_types); i++) {
         cpu_pool_type = &kmem_cpu_pool_types[i];
@@ -1220,10 +1229,10 @@ kmem_info(void)
            "kmem: name                  size size /slab  usage  count "
            "  memory      memory\n");
 
-    spinlock_lock(&kmem_cache_list_lock);
+    mutex_lock(&kmem_cache_list_lock);
 
     list_for_each_entry(&kmem_cache_list, cache, node) {
-        spinlock_lock(&cache->lock);
+        mutex_lock(&cache->lock);
 
         mem_usage = (cache->nr_slabs * cache->slab_size) >> 10;
         mem_reclaimable = (cache->nr_free_slabs * cache->slab_size) >> 10;
@@ -1233,8 +1242,8 @@ kmem_info(void)
                cache->bufs_per_slab, cache->nr_objs, cache->nr_bufs,
                mem_usage, mem_reclaimable);
 
-        spinlock_unlock(&cache->lock);
+        mutex_unlock(&cache->lock);
     }
 
-    spinlock_unlock(&kmem_cache_list_lock);
+    mutex_unlock(&kmem_cache_list_lock);
 }
