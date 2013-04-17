@@ -33,10 +33,10 @@
 #include <kern/init.h>
 #include <kern/list.h>
 #include <kern/macros.h>
+#include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
-#include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
@@ -72,7 +72,7 @@
  * Per-processor cache of pages.
  */
 struct vm_phys_cpu_pool {
-    struct spinlock lock;
+    struct mutex lock;
     int size;
     int transfer_size;
     int nr_pages;
@@ -110,7 +110,7 @@ struct vm_phys_seg {
     phys_addr_t end;
     struct vm_page *pages;
     struct vm_page *pages_end;
-    struct spinlock lock;
+    struct mutex lock;
     struct vm_phys_free_list free_lists[VM_PHYS_NR_FREE_LISTS];
     unsigned long nr_free_pages;
     char name[VM_PHYS_NAME_SIZE];
@@ -263,7 +263,7 @@ vm_phys_seg_free_to_buddy(struct vm_phys_seg *seg, struct vm_page *page,
 static void __init
 vm_phys_cpu_pool_init(struct vm_phys_cpu_pool *cpu_pool, int size)
 {
-    spinlock_init(&cpu_pool->lock);
+    mutex_init(&cpu_pool->lock);
     cpu_pool->size = size;
     cpu_pool->transfer_size = (size + VM_PHYS_CPU_POOL_TRANSFER_RATIO - 1)
                               / VM_PHYS_CPU_POOL_TRANSFER_RATIO;
@@ -306,7 +306,7 @@ vm_phys_cpu_pool_fill(struct vm_phys_cpu_pool *cpu_pool,
 
     assert(cpu_pool->nr_pages == 0);
 
-    spinlock_lock(&seg->lock);
+    mutex_lock(&seg->lock);
 
     for (i = 0; i < cpu_pool->transfer_size; i++) {
         page = vm_phys_seg_alloc_from_buddy(seg, 0);
@@ -317,7 +317,7 @@ vm_phys_cpu_pool_fill(struct vm_phys_cpu_pool *cpu_pool,
         vm_phys_cpu_pool_push(cpu_pool, page);
     }
 
-    spinlock_unlock(&seg->lock);
+    mutex_unlock(&seg->lock);
 
     return i;
 }
@@ -331,14 +331,14 @@ vm_phys_cpu_pool_drain(struct vm_phys_cpu_pool *cpu_pool,
 
     assert(cpu_pool->nr_pages == cpu_pool->size);
 
-    spinlock_lock(&seg->lock);
+    mutex_lock(&seg->lock);
 
     for (i = cpu_pool->transfer_size; i > 0; i--) {
         page = vm_phys_cpu_pool_pop(cpu_pool);
         vm_phys_seg_free_to_buddy(seg, page, 0);
     }
 
-    spinlock_unlock(&seg->lock);
+    mutex_unlock(&seg->lock);
 }
 
 static inline phys_addr_t __init
@@ -376,7 +376,7 @@ vm_phys_seg_init(struct vm_phys_seg *seg, struct vm_page *pages)
 
     seg->pages = pages;
     seg->pages_end = pages + vm_page_atop(vm_phys_seg_size(seg));
-    spinlock_init(&seg->lock);
+    mutex_init(&seg->lock);
 
     for (i = 0; i < ARRAY_SIZE(seg->free_lists); i++)
         vm_phys_free_list_init(&seg->free_lists[i]);
@@ -401,23 +401,23 @@ vm_phys_seg_alloc(struct vm_phys_seg *seg, unsigned int order)
     if (order == 0) {
         cpu_pool = vm_phys_cpu_pool_get(seg);
 
-        spinlock_lock(&cpu_pool->lock);
+        mutex_lock(&cpu_pool->lock);
 
         if (cpu_pool->nr_pages == 0) {
             filled = vm_phys_cpu_pool_fill(cpu_pool, seg);
 
             if (!filled) {
-                spinlock_unlock(&cpu_pool->lock);
+                mutex_unlock(&cpu_pool->lock);
                 return NULL;
             }
         }
 
         page = vm_phys_cpu_pool_pop(cpu_pool);
-        spinlock_unlock(&cpu_pool->lock);
+        mutex_unlock(&cpu_pool->lock);
     } else {
-        spinlock_lock(&seg->lock);
+        mutex_lock(&seg->lock);
         page = vm_phys_seg_alloc_from_buddy(seg, order);
-        spinlock_unlock(&seg->lock);
+        mutex_unlock(&seg->lock);
     }
 
     return page;
@@ -434,17 +434,17 @@ vm_phys_seg_free(struct vm_phys_seg *seg, struct vm_page *page,
     if (order == 0) {
         cpu_pool = vm_phys_cpu_pool_get(seg);
 
-        spinlock_lock(&cpu_pool->lock);
+        mutex_lock(&cpu_pool->lock);
 
         if (cpu_pool->nr_pages == cpu_pool->size)
             vm_phys_cpu_pool_drain(cpu_pool, seg);
 
         vm_phys_cpu_pool_push(cpu_pool, page);
-        spinlock_unlock(&cpu_pool->lock);
+        mutex_unlock(&cpu_pool->lock);
     } else {
-        spinlock_lock(&seg->lock);
+        mutex_lock(&seg->lock);
         vm_phys_seg_free_to_buddy(seg, page, order);
-        spinlock_unlock(&seg->lock);
+        mutex_unlock(&seg->lock);
     }
 }
 
