@@ -573,6 +573,8 @@ static void
 vm_map_link(struct vm_map *map, struct vm_map_entry *entry,
             struct vm_map_entry *prev, struct vm_map_entry *next)
 {
+    assert(entry->start < entry->end);
+
     if ((prev == NULL) && (next == NULL))
         list_insert_tail(&map->entry_list, &entry->list_node);
     else if (prev == NULL)
@@ -587,6 +589,8 @@ vm_map_link(struct vm_map *map, struct vm_map_entry *entry,
 static void
 vm_map_unlink(struct vm_map *map, struct vm_map_entry *entry)
 {
+    assert(entry->start < entry->end);
+
     list_remove(&entry->list_node);
     rbtree_remove(&map->entry_tree, &entry->tree_node);
     map->nr_entries--;
@@ -817,31 +821,31 @@ static void
 vm_map_split_entries(struct vm_map_entry *prev, struct vm_map_entry *next,
                      unsigned long split_addr)
 {
-    unsigned long diff;
+    unsigned long delta;
 
-    assert(prev->start < split_addr);
-    assert(split_addr < prev->end);
-
-    diff = split_addr - prev->start;
+    delta = split_addr - prev->start;
     prev->end = split_addr;
     next->start = split_addr;
 
     if (next->object != NULL)
-        next->offset += diff;
+        next->offset += delta;
 }
 
 static void
 vm_map_clip_start(struct vm_map *map, struct vm_map_entry *entry,
                   unsigned long start)
 {
-    struct vm_map_entry *new_entry;
+    struct vm_map_entry *new_entry, *next;
 
-    if (entry->start >= start)
+    if ((start <= entry->start) || (start >= entry->end))
         return;
 
+    next = vm_map_next(map, entry);
+    vm_map_unlink(map, entry);
     new_entry = vm_map_entry_create(map);
     *new_entry = *entry;
     vm_map_split_entries(new_entry, entry, start);
+    vm_map_link(map, entry, NULL, next);
     vm_map_link(map, new_entry, NULL, entry);
 }
 
@@ -849,14 +853,17 @@ static void
 vm_map_clip_end(struct vm_map *map, struct vm_map_entry *entry,
                 unsigned long end)
 {
-    struct vm_map_entry *new_entry;
+    struct vm_map_entry *new_entry, *prev;
 
-    if (entry->end <= end)
+    if ((end <= entry->start) || (end >= entry->end))
         return;
 
+    prev = vm_map_prev(map, entry);
+    vm_map_unlink(map, entry);
     new_entry = vm_map_entry_create(map);
     *new_entry = *entry;
     vm_map_split_entries(entry, new_entry, end);
+    vm_map_link(map, entry, prev, NULL);
     vm_map_link(map, new_entry, entry, NULL);
 }
 
@@ -879,13 +886,18 @@ vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end)
 
     vm_map_clip_start(map, entry, start);
 
-    while (!list_end(&map->entry_list, &entry->list_node)
-           && (entry->start < end)) {
+    while (entry->start < end) {
         vm_map_clip_end(map, entry, end);
         map->size -= entry->end - entry->start;
         node = list_next(&entry->list_node);
         vm_map_unlink(map, entry);
+
+        /* TODO Defer destruction to shorten critical section */
         vm_map_entry_destroy(entry, map);
+
+        if (list_end(&map->entry_list, node))
+            break;
+
         entry = list_entry(node, struct vm_map_entry, list_node);
     }
 
