@@ -591,6 +591,9 @@ vm_map_unlink(struct vm_map *map, struct vm_map_entry *entry)
 {
     assert(entry->start < entry->end);
 
+    if (map->lookup_cache == entry)
+        map->lookup_cache = NULL;
+
     list_remove(&entry->list_node);
     rbtree_remove(&map->entry_tree, &entry->tree_node);
     map->nr_entries--;
