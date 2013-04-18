@@ -524,7 +524,8 @@ pmap_kgrow(unsigned long end)
         pt_level = &pmap_pt_levels[level - 1];
         pt_lower_level = &pmap_pt_levels[level - 2];
 
-        for (va = start; va <= end; va = P2END(va, 1UL << pt_level->shift)) {
+        for (va = start; (va != 0) && (va <= end);
+             va = P2END(va, 1UL << pt_level->shift)) {
             index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
             pte = &pt_level->ptes[index];
 
