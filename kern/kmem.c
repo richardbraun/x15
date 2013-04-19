@@ -47,6 +47,7 @@
 #include <kern/limits.h>
 #include <kern/list.h>
 #include <kern/kmem.h>
+#include <kern/kmem_i.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>

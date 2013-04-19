@@ -13,6 +13,7 @@ x15_SOURCES +=              \
 	kern/kernel.h       \
 	kern/kmem.c         \
 	kern/kmem.h         \
+	kern/kmem_i.h       \
 	kern/limits.h       \
 	kern/list.h         \
 	kern/macros.h       \
