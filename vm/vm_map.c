@@ -1003,6 +1003,8 @@ vm_map_info(struct vm_map *map)
     else
         name = "map";
 
+    mutex_lock(&map->lock);
+
     printk("vm_map: %s: %016lx-%016lx\n"
            "vm_map:      start             end          "
            "size     offset   flags    type\n", name, map->start, map->end);
@@ -1019,4 +1021,6 @@ vm_map_info(struct vm_map *map)
     }
 
     printk("vm_map: total: %zuk\n", map->size >> 10);
+
+    mutex_unlock(&map->lock);
 }
