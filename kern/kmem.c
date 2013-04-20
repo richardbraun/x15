@@ -635,7 +635,7 @@ kmem_cache_grow(struct kmem_cache *cache)
     mutex_lock(&cache->lock);
 
     if (slab != NULL) {
-        list_insert_tail(&cache->free_slabs, &slab->node);
+        list_insert(&cache->free_slabs, &slab->node);
         cache->nr_bufs += cache->bufs_per_slab;
         cache->nr_slabs++;
         cache->nr_free_slabs++;
@@ -679,49 +679,17 @@ kmem_cache_alloc_from_slab(struct kmem_cache *cache)
     slab->nr_refs++;
     cache->nr_objs++;
 
-    /*
-     * The slab has become complete.
-     */
     if (slab->nr_refs == cache->bufs_per_slab) {
+        /* The slab has become complete */
         list_remove(&slab->node);
 
         if (slab->nr_refs == 1)
             cache->nr_free_slabs--;
     } else if (slab->nr_refs == 1) {
-        /*
-         * The slab has become partial.
-         */
+        /* The slab has become partial */
         list_remove(&slab->node);
-        list_insert_tail(&cache->partial_slabs, &slab->node);
+        list_insert(&cache->partial_slabs, &slab->node);
         cache->nr_free_slabs--;
-    } else if (!list_singular(&cache->partial_slabs)) {
-        struct list *node;
-        struct kmem_slab *tmp;
-
-        /*
-         * The slab remains partial. If there are more than one partial slabs,
-         * maintain the list sorted.
-         */
-
-        assert(slab->nr_refs > 1);
-
-        for (node = list_prev(&slab->node);
-             !list_end(&cache->partial_slabs, node);
-             node = list_prev(node)) {
-            tmp = list_entry(node, struct kmem_slab, node);
-
-            if (tmp->nr_refs >= slab->nr_refs)
-                break;
-        }
-
-        /*
-         * If the direct neighbor was found, the list is already sorted.
-         * If no slab was found, the slab is inserted at the head of the list.
-         */
-        if (node != list_prev(&slab->node)) {
-            list_remove(&slab->node);
-            list_insert_after(node, &slab->node);
-        }
     }
 
     return kmem_bufctl_to_buf(bufctl, cache);
@@ -761,51 +729,17 @@ kmem_cache_free_to_slab(struct kmem_cache *cache, void *buf)
     slab->nr_refs--;
     cache->nr_objs--;
 
-    /*
-     * The slab has become free.
-     */
     if (slab->nr_refs == 0) {
-        /*
-         * The slab was partial.
-         */
-        if (cache->bufs_per_slab > 1)
+        /* The slab has become free */
+
+        if (cache->bufs_per_slab != 1)
             list_remove(&slab->node);
 
-        list_insert_tail(&cache->free_slabs, &slab->node);
+        list_insert(&cache->free_slabs, &slab->node);
         cache->nr_free_slabs++;
     } else if (slab->nr_refs == (cache->bufs_per_slab - 1)) {
-        /*
-         * The slab has become partial.
-         */
+        /* The slab has become partial */
         list_insert(&cache->partial_slabs, &slab->node);
-    } else if (!list_singular(&cache->partial_slabs)) {
-        struct list *node;
-        struct kmem_slab *tmp;
-
-        /*
-         * The slab remains partial. If there are more than one partial slabs,
-         * maintain the list sorted.
-         */
-
-        assert(slab->nr_refs > 0);
-
-        for (node = list_next(&slab->node);
-             !list_end(&cache->partial_slabs, node);
-             node = list_next(node)) {
-            tmp = list_entry(node, struct kmem_slab, node);
-
-            if (tmp->nr_refs <= slab->nr_refs)
-                break;
-        }
-
-        /*
-         * If the direct neighbor was found, the list is already sorted.
-         * If no slab was found, the slab is inserted at the tail of the list.
-         */
-        if (node != list_next(&slab->node)) {
-            list_remove(&slab->node);
-            list_insert_before(node, &slab->node);
-        }
     }
 }
 

@@ -167,13 +167,6 @@ struct kmem_slab {
  * Cache of objects.
  *
  * Locking order : cpu_pool -> cache. CPU pools locking is ordered by CPU ID.
- *
- * The partial slabs list is sorted by slab references. Slabs with a high
- * number of references are placed first on the list to reduce fragmentation.
- * Sorting occurs at insertion/removal of buffers in a slab. As the list
- * is maintained sorted, and the number of references only changes by one,
- * this is a very cheap operation in the average case and the worst (linear)
- * case is very unlikely.
  */
 struct kmem_cache {
     /* CPU pool layer */
