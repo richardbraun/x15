@@ -1019,7 +1019,9 @@ fast_free:
     }
 
 slab_free:
+    mutex_lock(&cache->lock);
     kmem_cache_free_to_slab(cache, obj);
+    mutex_unlock(&cache->lock);
 }
 
 void
