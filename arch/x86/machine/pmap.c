@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2010, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <kern/kmem.h>
 #include <kern/list.h>
 #include <kern/macros.h>
+#include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/spinlock.h>
@@ -136,11 +137,11 @@ static pmap_pte_t pmap_prot_table[8];
 /*
  * Special addresses for temporary mappings.
  */
-static struct spinlock pmap_zero_va_lock;
+static struct mutex pmap_zero_va_lock;
 static unsigned long pmap_zero_va;
 
 static struct {
-    struct spinlock lock;
+    struct mutex lock;
     unsigned long va;
 } pmap_pt_vas[MAX_CPUS];
 
@@ -161,7 +162,7 @@ static struct {
 /*
  * Global list of physical maps.
  */
-static struct spinlock pmap_list_lock;
+static struct mutex pmap_list_lock;
 static struct list pmap_list;
 
 static struct kmem_cache pmap_cache;
@@ -350,7 +351,7 @@ pmap_bootstrap(void)
 {
     unsigned int i;
 
-    spinlock_init(&kernel_pmap->lock);
+    mutex_init(&kernel_pmap->lock);
     cpu_percpu_set_pmap(kernel_pmap);
 
     pmap_boot_heap = (unsigned long)&_end;
@@ -367,17 +368,17 @@ pmap_bootstrap(void)
     pmap_prot_table[VM_PROT_EXECUTE | VM_PROT_WRITE] = PMAP_PTE_RW;
     pmap_prot_table[VM_PROT_ALL] = PMAP_PTE_RW;
 
-    spinlock_init(&pmap_zero_va_lock);
+    mutex_init(&pmap_zero_va_lock);
     pmap_zero_va = pmap_bootalloc(1);
 
     for (i = 0; i < MAX_CPUS; i++) {
-        spinlock_init(&pmap_pt_vas[i].lock);
+        mutex_init(&pmap_pt_vas[i].lock);
         pmap_pt_vas[i].va = pmap_bootalloc(PMAP_NR_RPTPS);
     }
 
     spinlock_init(&pmap_update_lock);
 
-    spinlock_init(&pmap_list_lock);
+    mutex_init(&pmap_list_lock);
     list_init(&pmap_list);
     list_insert_tail(&pmap_list, &kernel_pmap->node);
 
@@ -434,11 +435,11 @@ pmap_zero_page(phys_addr_t pa)
      */
 
     thread_pin();
-    spinlock_lock(&pmap_zero_va_lock);
+    mutex_lock(&pmap_zero_va_lock);
     pmap_kenter(pmap_zero_va, pa);
     cpu_tlb_flush_va(pmap_zero_va);
     memset((void *)pmap_zero_va, 0, PAGE_SIZE);
-    spinlock_unlock(&pmap_zero_va_lock);
+    mutex_unlock(&pmap_zero_va_lock);
     thread_unpin();
 }
 
@@ -451,7 +452,7 @@ pmap_map_pt(phys_addr_t pa)
     thread_pin();
     cpu = cpu_id();
     base = pmap_pt_vas[cpu].va;
-    spinlock_lock(&pmap_pt_vas[cpu].lock);
+    mutex_lock(&pmap_pt_vas[cpu].lock);
 
     for (i = 0; i < PMAP_NR_RPTPS; i++) {
         offset = i * PAGE_SIZE;
@@ -478,7 +479,7 @@ pmap_unmap_pt(void)
     for (i = 0; i < PMAP_NR_RPTPS; i++)
         cpu_tlb_flush_va(base + (i * PAGE_SIZE));
 
-    spinlock_unlock(&pmap_pt_vas[cpu].lock);
+    mutex_unlock(&pmap_pt_vas[cpu].lock);
     thread_unpin();
 }
 
@@ -492,7 +493,7 @@ pmap_kgrow_update_pmaps(unsigned int index)
     pt_level = &pmap_pt_levels[PMAP_NR_LEVELS - 1];
     current = pmap_current();
 
-    spinlock_lock(&pmap_list_lock);
+    mutex_lock(&pmap_list_lock);
 
     list_for_each_entry(&pmap_list, pmap, node) {
         if (pmap == current)
@@ -503,7 +504,7 @@ pmap_kgrow_update_pmaps(unsigned int index)
         pmap_unmap_pt();
     }
 
-    spinlock_unlock(&pmap_list_lock);
+    mutex_unlock(&pmap_list_lock);
 }
 
 void
@@ -776,11 +777,11 @@ pmap_create(struct pmap **pmapp)
 
     pmap_unmap_pt();
 
-    spinlock_init(&pmap->lock);
+    mutex_init(&pmap->lock);
 
-    spinlock_lock(&pmap_list_lock);
+    mutex_lock(&pmap_list_lock);
     list_insert_tail(&pmap_list, &pmap->node);
-    spinlock_unlock(&pmap_list_lock);
+    mutex_unlock(&pmap_list_lock);
 
     *pmapp = pmap;
     return 0;

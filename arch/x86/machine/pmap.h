@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012 Richard Braun.
+ * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@
 #ifndef __ASSEMBLER__
 
 #include <kern/list.h>
-#include <kern/spinlock.h>
+#include <kern/mutex.h>
 #include <kern/stdint.h>
 #include <kern/types.h>
 #include <machine/cpu.h>
@@ -106,7 +106,7 @@ typedef unsigned long pmap_pte_t;
  * Physical address map.
  */
 struct pmap {
-    struct spinlock lock;
+    struct mutex lock;
     struct list node;
     unsigned long root_pt;
 #ifdef X86_PAE
