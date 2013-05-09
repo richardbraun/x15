@@ -492,7 +492,9 @@ thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
 
         /*
          * That's where the true context switch occurs. The next thread must
-         * unlock the run queue and reenable preemption.
+         * unlock the run queue and reenable preemption. Note that unlocking
+         * and locking the run queue again is equivalent to a full memory
+         * barrier.
          */
         tcb_switch(&prev->tcb, &next->tcb);
 
@@ -1096,13 +1098,11 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
          * The pinned counter is changed without explicit synchronization.
          * However, it can only be changed by its owning thread. As threads
          * currently running aren't considered for migration, the thread had
-         * to be preempted, and invoke the scheduler, which globally acts
-         * as a memory barrier. As a result, there is strong ordering between
+         * to be preempted and invoke the scheduler. Since balancer threads
+         * acquire the run queue lock, there is strong ordering between
          * changing the pinned counter and setting the current thread of a
-         * run queue. Enforce the same ordering on the pulling processor.
+         * run queue.
          */
-        mb_load();
-
         if (thread->pinned)
             continue;
 
