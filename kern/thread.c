@@ -1316,6 +1316,7 @@ thread_bootstrap_common(unsigned int cpu)
     booter->flags = 0;
     booter->preempt = 1;
     booter->sched_class = THREAD_SCHED_CLASS_IDLE;
+    booter->task = kernel_task;
 
     thread_runq_init(&thread_runqs[cpu], booter);
     tcb_set_current(&booter->tcb);
@@ -1519,7 +1520,7 @@ thread_setup_reaper(void)
     condition_init(&thread_reap_condition);
     list_init(&thread_reap_list);
 
-    attr.task = kernel_task;
+    attr.task = NULL;
     attr.name = "x15_reaper";
     attr.sched_policy = THREAD_SCHED_POLICY_TS;
     attr.priority = THREAD_SCHED_TS_PRIO_DEFAULT;
@@ -1585,7 +1586,7 @@ thread_setup_balancer(struct thread_runq *runq)
     int error;
 
     snprintf(name, sizeof(name), "x15_balancer/%u", thread_runq_id(runq));
-    attr.task = kernel_task;
+    attr.task = NULL;
     attr.name = name;
     attr.sched_policy = THREAD_SCHED_POLICY_RR;
     attr.priority = THREAD_SCHED_RT_PRIO_MIN;
