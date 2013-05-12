@@ -1521,7 +1521,7 @@ thread_setup_reaper(void)
 
     attr.task = kernel_task;
     attr.name = "x15_reaper";
-    attr.sched_policy = THREAD_SCHED_CLASS_TS;
+    attr.sched_policy = THREAD_SCHED_POLICY_TS;
     attr.priority = THREAD_SCHED_TS_PRIO_DEFAULT;
     error = thread_create(&thread, &attr, thread_reaper, NULL);
 
