@@ -1409,7 +1409,7 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     assert(task != NULL);
     name = (attr->name == NULL) ? task->name : attr->name;
     assert(name != NULL);
-    assert(attr->sched_policy < THREAD_NR_SCHED_POLICIES);
+    assert(attr->policy < THREAD_NR_SCHED_POLICIES);
 
     /*
      * The expected interrupt, preemption and run queue lock state when
@@ -1427,8 +1427,8 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     thread->state = THREAD_SLEEPING;
     thread->preempt = 2;
     thread->pinned = 0;
-    thread->sched_policy = attr->sched_policy;
-    thread->sched_class = thread_policy_table[attr->sched_policy];
+    thread->sched_policy = attr->policy;
+    thread->sched_class = thread_policy_table[attr->policy];
     thread_init_sched(thread, attr->priority);
     thread->task = task;
     thread->stack = stack;
@@ -1522,7 +1522,7 @@ thread_setup_reaper(void)
 
     attr.task = NULL;
     attr.name = "x15_reaper";
-    attr.sched_policy = THREAD_SCHED_POLICY_TS;
+    attr.policy = THREAD_SCHED_POLICY_TS;
     attr.priority = THREAD_SCHED_TS_PRIO_DEFAULT;
     error = thread_create(&thread, &attr, thread_reaper, NULL);
 
@@ -1588,7 +1588,7 @@ thread_setup_balancer(struct thread_runq *runq)
     snprintf(name, sizeof(name), "x15_balancer/%u", thread_runq_id(runq));
     attr.task = NULL;
     attr.name = name;
-    attr.sched_policy = THREAD_SCHED_POLICY_RR;
+    attr.policy = THREAD_SCHED_POLICY_RR;
     attr.priority = THREAD_SCHED_RT_PRIO_MIN;
     error = thread_create(&balancer, &attr, thread_balancer, runq);
 
@@ -1648,7 +1648,7 @@ thread_setup_idler(struct thread_runq *runq)
     snprintf(name, sizeof(name), "x15_idler/%u", thread_runq_id(runq));
     attr.task = kernel_task;
     attr.name = name;
-    attr.sched_policy = THREAD_SCHED_POLICY_IDLE;
+    attr.policy = THREAD_SCHED_POLICY_IDLE;
     thread_init(idler, stack, &attr, thread_idler, NULL);
 
     /* An idler thread needs special tuning */

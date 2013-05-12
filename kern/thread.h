@@ -172,7 +172,7 @@ struct thread {
 struct thread_attr {
     struct task *task;
     const char *name;
-    unsigned char sched_policy;
+    unsigned char policy;
     unsigned short priority;
 };
 
