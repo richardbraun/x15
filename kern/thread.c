@@ -1587,7 +1587,7 @@ thread_setup_balancer(struct thread_runq *runq)
     snprintf(name, sizeof(name), "x15_balancer/%u", thread_runq_id(runq));
     attr.task = kernel_task;
     attr.name = name;
-    attr.sched_policy = THREAD_SCHED_CLASS_RT;
+    attr.sched_policy = THREAD_SCHED_POLICY_RR;
     attr.priority = THREAD_SCHED_RT_PRIO_MIN;
     error = thread_create(&balancer, &attr, thread_balancer, runq);
 
