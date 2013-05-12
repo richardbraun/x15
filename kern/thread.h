@@ -24,11 +24,11 @@
  * can be used for the normal SCHED_OTHER policy. The idle policy is reserved
  * for idling kernel threads.
  *
- * By convention, the name of a kernel thread is built by prefixing the
- * kernel name and adding the name of the start function, without the module
- * name ("thread"). Threads that are bound to a processor also include the
- * "/cpu_id" suffix. For example, "x15_balancer/1" is the name of the
- * inter-processor balancing thread of the second processor.
+ * By convention, the name of a kernel thread is built by concatenating the
+ * kernel name and the name of the start function, separated with an underscore.
+ * Threads that are bound to a processor also include the "/cpu_id" suffix.
+ * For example, "x15_thread_balance/1" is the name of the inter-processor
+ * balancer thread of the second processor.
  */
 
 #ifndef _KERN_THREAD_H

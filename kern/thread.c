@@ -1481,7 +1481,7 @@ thread_destroy(struct thread *thread)
 }
 
 static void
-thread_reaper(void *arg)
+thread_reap(void *arg)
 {
     struct thread_reap_waiter *tmp;
     struct list waiters;
@@ -1521,17 +1521,17 @@ thread_setup_reaper(void)
     list_init(&thread_reap_list);
 
     attr.task = NULL;
-    attr.name = "x15_reaper";
+    attr.name = "x15_thread_reap";
     attr.policy = THREAD_SCHED_POLICY_TS;
     attr.priority = THREAD_SCHED_TS_PRIO_DEFAULT;
-    error = thread_create(&thread, &attr, thread_reaper, NULL);
+    error = thread_create(&thread, &attr, thread_reap, NULL);
 
     if (error)
         panic("thread: unable to create reaper thread");
 }
 
 static void
-thread_balancer_idle_tick(struct thread_runq *runq)
+thread_balance_idle_tick(struct thread_runq *runq)
 {
     assert(runq->idle_balance_ticks != 0);
 
@@ -1549,7 +1549,7 @@ thread_balancer_idle_tick(struct thread_runq *runq)
 }
 
 static void
-thread_balancer(void *arg)
+thread_balance(void *arg)
 {
     struct thread_runq *runq;
     struct thread *self;
@@ -1585,12 +1585,12 @@ thread_setup_balancer(struct thread_runq *runq)
     struct thread *balancer;
     int error;
 
-    snprintf(name, sizeof(name), "x15_balancer/%u", thread_runq_id(runq));
+    snprintf(name, sizeof(name), "x15_thread_balance/%u", thread_runq_id(runq));
     attr.task = NULL;
     attr.name = name;
     attr.policy = THREAD_SCHED_POLICY_RR;
     attr.priority = THREAD_SCHED_RT_PRIO_MIN;
-    error = thread_create(&balancer, &attr, thread_balancer, runq);
+    error = thread_create(&balancer, &attr, thread_balance, runq);
 
     if (error)
         panic("thread: unable to create balancer thread");
@@ -1619,7 +1619,7 @@ thread_setup_balancer(struct thread_runq *runq)
 }
 
 static void
-thread_idler(void *arg)
+thread_idle(void *arg)
 {
     (void)arg;
 
@@ -1645,11 +1645,11 @@ thread_setup_idler(struct thread_runq *runq)
     if (stack == NULL)
         panic("thread: unable to allocate idler thread stack");
 
-    snprintf(name, sizeof(name), "x15_idler/%u", thread_runq_id(runq));
+    snprintf(name, sizeof(name), "x15_thread_idle/%u", thread_runq_id(runq));
     attr.task = kernel_task;
     attr.name = name;
     attr.policy = THREAD_SCHED_POLICY_IDLE;
-    thread_init(idler, stack, &attr, thread_idler, NULL);
+    thread_init(idler, stack, &attr, thread_idle, NULL);
 
     /* An idler thread needs special tuning */
     idler->state = THREAD_RUNNING;
@@ -1870,7 +1870,7 @@ thread_tick(void)
     spinlock_lock(&runq->lock);
 
     if (runq->nr_threads == 0)
-        thread_balancer_idle_tick(runq);
+        thread_balance_idle_tick(runq);
 
     thread_sched_ops[thread->sched_class].tick(runq, thread);
 
