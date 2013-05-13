@@ -1439,7 +1439,7 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     task_add_thread(task, thread);
 }
 
-static void
+static struct thread_runq *
 thread_lock_runq(struct thread *thread, unsigned long *flags)
 {
     struct thread_runq *runq;
@@ -1452,27 +1452,28 @@ thread_lock_runq(struct thread *thread, unsigned long *flags)
         spinlock_lock_intr_save(&runq->lock, flags);
 
         if (runq == thread->runq)
-            return;
+            return runq;
 
         spinlock_unlock_intr_restore(&runq->lock, *flags);
     }
 }
 
 static void
-thread_unlock_runq(struct thread *thread, unsigned long flags)
+thread_unlock_runq(struct thread_runq *runq, unsigned long flags)
 {
-    spinlock_unlock_intr_restore(&thread->runq->lock, flags);
+    spinlock_unlock_intr_restore(&runq->lock, flags);
 }
 
 static void
 thread_destroy(struct thread *thread)
 {
+    struct thread_runq *runq;
     unsigned long flags, state;
 
     do {
-        thread_lock_runq(thread, &flags);
+        runq = thread_lock_runq(thread, &flags);
         state = thread->state;
-        thread_unlock_runq(thread, flags);
+        thread_unlock_runq(runq, flags);
     } while (state != THREAD_DEAD);
 
     task_remove_thread(thread->task, thread);
@@ -1787,15 +1788,25 @@ thread_wakeup(struct thread *thread)
         assert(thread->state != THREAD_RUNNING);
         thread->state = THREAD_RUNNING;
     } else {
-        thread_lock_runq(thread, &flags);
+        /*
+         * If another wakeup was attempted right before this one, the thread
+         * may currently be pushed on a remote run queue, and the run queue
+         * being locked here is actually the previous one. The run queue
+         * pointer may be modified concurrently, now being protected by the
+         * target run queue. This isn't a problem since the thread state has
+         * already been updated, making this attempt stop early. In addition,
+         * locking semantics guarantee that, if the thread as seen by this
+         * attempt isn't running, its run queue is up to date.
+         */
+        runq = thread_lock_runq(thread, &flags);
 
         if (thread->state == THREAD_RUNNING) {
-            thread_unlock_runq(thread, flags);
+            thread_unlock_runq(runq, flags);
             return;
         }
 
         thread->state = THREAD_RUNNING;
-        thread_unlock_runq(thread, flags);
+        thread_unlock_runq(runq, flags);
     }
 
     thread_preempt_disable();
