@@ -248,7 +248,7 @@ static struct thread_attr thread_default_attr = {
     THREAD_SCHED_TS_PRIO_DEFAULT
 };
 
-BITMAP_DECLARE(thread_active_runqs, MAX_CPUS);
+static BITMAP_DECLARE(thread_active_runqs, MAX_CPUS);
 
 /*
  * System-wide value of the current highest round.
