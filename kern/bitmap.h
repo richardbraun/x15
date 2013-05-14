@@ -93,6 +93,15 @@ bitmap_fill(unsigned long *bm, int nr_bits)
 }
 
 static inline void
+bitmap_copy(unsigned long *dest, const unsigned long *src, int nr_bits)
+{
+    int n;
+
+    n = BITMAP_LONGS(nr_bits);
+    memcpy(dest, src, n * sizeof(unsigned long));
+}
+
+static inline void
 bitmap_set(unsigned long *bm, int bit)
 {
     if (bit >= LONG_BIT)
