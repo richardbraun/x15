@@ -215,6 +215,8 @@ void __noreturn thread_exit(void);
  *
  * This is a low level thread control primitive that should only be called by
  * higher thread synchronization functions.
+ *
+ * Implies a memory barrier.
  */
 void thread_sleep(struct spinlock *interlock);
 
