@@ -93,6 +93,7 @@
 #include <kern/param.h>
 #include <kern/stddef.h>
 #include <kern/stdint.h>
+#include <machine/lapic.h>
 #include <machine/pit.h>
 
 /*
@@ -592,6 +593,20 @@ void cpu_ap_setup(void);
  * Synchronize with BSP on kernel entry.
  */
 void cpu_ap_sync(void);
+
+/*
+ * Request a remote processor to reset its checkpoint.
+ */
+static inline void
+cpu_send_llsync_reset(unsigned int cpu)
+{
+    lapic_ipi_send(cpu, TRAP_LLSYNC_RESET);
+}
+
+/*
+ * Interrupt handler for checkpoint reset requests.
+ */
+void cpu_llsync_reset_intr(struct trap_frame *frame);
 
 #endif /* __ASSEMBLER__ */
 

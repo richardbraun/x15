@@ -596,3 +596,13 @@ cpu_halt_intr(struct trap_frame *frame)
 
     cpu_halt();
 }
+
+void
+cpu_llsync_reset_intr(struct trap_frame *frame)
+{
+    (void)frame;
+
+    lapic_eoi();
+
+    /* Not implemented yet */
+}
