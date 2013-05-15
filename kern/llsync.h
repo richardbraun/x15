@@ -32,7 +32,7 @@ struct llsync_work;
 /*
  * Type for work functions.
  *
- * Works are guaranteed to process in thread context and can block, but
+ * Works are guaranteed to be processed in thread context and can block, but
  * must not sleep for long durations.
  */
 typedef void (*llsync_fn_t)(struct llsync_work *);
