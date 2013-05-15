@@ -406,12 +406,16 @@ cpu_pause(void)
 /*
  * Make the CPU idle until the next interrupt.
  *
+ * Interrupts are enabled. Besides, they're enabled in a way that doesn't
+ * allow the processor handling them before entering the idle state if they
+ * were disabled before calling this function.
+ *
  * Implies a compiler barrier.
  */
 static __always_inline void
 cpu_idle(void)
 {
-    asm volatile("hlt" : : : "memory");
+    asm volatile("sti; hlt" : : : "memory");
 }
 
 /*
@@ -425,7 +429,7 @@ cpu_halt(void)
     cpu_intr_disable();
 
     for (;;)
-        cpu_idle();
+        asm volatile("hlt" : : : "memory");
 }
 
 /*
