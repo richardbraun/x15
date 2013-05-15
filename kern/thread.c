@@ -1574,7 +1574,8 @@ thread_balance(void *arg)
 
         /*
          * This function may temporarily enable preemption and release the
-         * run queue lock.
+         * run queue lock, but on return, the lock must remain held until this
+         * balancer thread sleeps.
          */
         thread_sched_ts_balance(runq, &flags);
     }
