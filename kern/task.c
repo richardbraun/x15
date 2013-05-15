@@ -86,7 +86,7 @@ task_create(struct task **taskp, const char *name)
     task_init(task, name, map);
 
     spinlock_lock(&task_list_lock);
-    list_insert_head(&task_list, &kernel_task->node);
+    list_insert_tail(&task_list, &task->node);
     spinlock_unlock(&task_list_lock);
 
     *taskp = task;
