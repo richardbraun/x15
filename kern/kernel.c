@@ -17,6 +17,7 @@
 
 #include <kern/init.h>
 #include <kern/kernel.h>
+#include <kern/llsync.h>
 #include <kern/panic.h>
 #include <kern/task.h>
 #include <kern/thread.h>
@@ -33,6 +34,7 @@ kernel_main(void)
     /* Initialize the kernel */
     task_setup();
     thread_setup();
+    llsync_setup();
 
     /* Rendezvous with APs */
     cpu_mp_sync();

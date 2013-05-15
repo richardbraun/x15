@@ -88,6 +88,7 @@
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
+#include <kern/llsync.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
@@ -472,6 +473,8 @@ thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
     assert(prev->preempt == 2);
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
+
+    llsync_checkin(thread_runq_id(runq));
 
     thread_clear_flag(prev, THREAD_RESCHEDULE);
     thread_runq_put_prev(runq, prev);
@@ -1630,6 +1633,7 @@ thread_idle(void *arg)
 
     for (;;) {
         thread_preempt_disable();
+        llsync_unregister_cpu(cpu);
 
         for (;;) {
             cpu_intr_disable();
@@ -1642,6 +1646,7 @@ thread_idle(void *arg)
             cpu_idle();
         }
 
+        llsync_register_cpu(cpu);
         thread_preempt_enable();
     }
 }
@@ -1847,6 +1852,7 @@ thread_run(void)
     assert(cpu_intr_enabled());
 
     runq = thread_runq_local();
+    llsync_register_cpu(thread_runq_id(runq));
     thread = thread_self();
     assert(thread == runq->current);
     assert(thread->preempt == 1);
@@ -1894,6 +1900,7 @@ thread_tick(void)
     assert(!thread_preempt_enabled());
 
     runq = thread_runq_local();
+    llsync_commit_checkpoint(thread_runq_id(runq));
     thread = thread_self();
 
     spinlock_lock(&runq->lock);

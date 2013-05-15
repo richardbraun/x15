@@ -16,6 +16,9 @@ x15_SOURCES +=              \
 	kern/kmem_i.h       \
 	kern/limits.h       \
 	kern/list.h         \
+	kern/llsync.c       \
+	kern/llsync.h       \
+	kern/llsync_i.h     \
 	kern/macros.h       \
 	kern/mutex.c        \
 	kern/mutex.h        \
