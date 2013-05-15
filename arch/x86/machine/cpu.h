@@ -367,15 +367,11 @@ cpu_intr_restore(unsigned long eflags)
  *
  * Implies a compiler barrier.
  */
-static __always_inline unsigned long
-cpu_intr_save(void)
+static __always_inline void
+cpu_intr_save(unsigned long *eflags)
 {
-    unsigned long eflags;
-
-    eflags = cpu_get_eflags();
+    *eflags = cpu_get_eflags();
     cpu_intr_disable();
-
-    return eflags;
 }
 
 /*

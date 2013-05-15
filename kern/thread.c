@@ -1047,7 +1047,7 @@ thread_sched_ts_balance_scan(struct thread_runq *runq,
     remote_runq = NULL;
 
     thread_preempt_disable();
-    flags = cpu_intr_save();
+    cpu_intr_save(&flags);
 
     bitmap_for_each(thread_active_runqs, nr_runqs, i) {
         tmp = &thread_runqs[i];
@@ -1196,7 +1196,7 @@ thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
 
     if (remote_runq != NULL) {
         thread_preempt_disable();
-        *flags = cpu_intr_save();
+        cpu_intr_save(flags);
         thread_runq_double_lock(runq, remote_runq);
         nr_migrations = thread_sched_ts_balance_migrate(runq, remote_runq,
                                                         highest_round);
@@ -1222,7 +1222,7 @@ thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
             continue;
 
         thread_preempt_disable();
-        *flags = cpu_intr_save();
+        cpu_intr_save(flags);
         thread_runq_double_lock(runq, remote_runq);
         nr_migrations = thread_sched_ts_balance_migrate(runq, remote_runq,
                                                         highest_round);
@@ -1835,7 +1835,7 @@ thread_wakeup(struct thread *thread)
     }
 
     thread_preempt_disable();
-    flags = cpu_intr_save();
+    cpu_intr_save(&flags);
 
     /* The returned run queue is locked */
     runq = thread_sched_ops[thread->sched_class].select_runq();

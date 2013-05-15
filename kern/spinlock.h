@@ -83,7 +83,7 @@ spinlock_trylock_intr_save(struct spinlock *lock, unsigned long *flags)
     int busy;
 
     thread_preempt_disable();
-    *flags = cpu_intr_save();
+    cpu_intr_save(flags);
     busy = spinlock_tryacquire(lock);
 
     if (busy) {
@@ -98,7 +98,7 @@ static inline void
 spinlock_lock_intr_save(struct spinlock *lock, unsigned long *flags)
 {
     thread_preempt_disable();
-    *flags = cpu_intr_save();
+    cpu_intr_save(flags);
     spinlock_acquire(lock);
 }
 
