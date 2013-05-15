@@ -337,7 +337,7 @@ thread_runq_init(struct thread_runq *runq, struct thread *booter)
     runq->idle_balance_ticks = (unsigned int)-1;
 }
 
-static inline int
+static inline unsigned int
 thread_runq_id(struct thread_runq *runq)
 {
     return runq - thread_runqs;
