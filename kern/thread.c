@@ -1677,6 +1677,7 @@ thread_setup_idler(struct thread_runq *runq)
 
     /* An idler thread needs special tuning */
     idler->state = THREAD_RUNNING;
+    idler->runq = runq;
     runq->idler = idler;
 }
 
