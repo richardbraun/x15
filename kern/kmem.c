@@ -686,9 +686,12 @@ kmem_cache_alloc_from_slab(struct kmem_cache *cache)
         if (slab->nr_refs == 1)
             cache->nr_free_slabs--;
     } else if (slab->nr_refs == 1) {
-        /* The slab has become partial */
+        /*
+         * The slab has become partial. Insert the new slab at the end of
+         * the list to reduce fragmentation.
+         */
         list_remove(&slab->node);
-        list_insert_head(&cache->partial_slabs, &slab->node);
+        list_insert_tail(&cache->partial_slabs, &slab->node);
         cache->nr_free_slabs--;
     }
 
