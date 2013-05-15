@@ -17,6 +17,7 @@
 
 #include <kern/assert.h>
 #include <kern/init.h>
+#include <kern/llsync.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
@@ -604,5 +605,5 @@ cpu_llsync_reset_intr(struct trap_frame *frame)
 
     lapic_eoi();
 
-    /* Not implemented yet */
+    llsync_reset_checkpoint(cpu_id());
 }
