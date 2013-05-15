@@ -16,6 +16,7 @@
  */
 
 #include <kern/bitmap.h>
+#include <kern/bitmap_i.h>
 #include <kern/limits.h>
 
 static inline unsigned long
