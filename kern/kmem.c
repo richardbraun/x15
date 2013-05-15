@@ -635,7 +635,7 @@ kmem_cache_grow(struct kmem_cache *cache)
     mutex_lock(&cache->lock);
 
     if (slab != NULL) {
-        list_insert(&cache->free_slabs, &slab->node);
+        list_insert_head(&cache->free_slabs, &slab->node);
         cache->nr_bufs += cache->bufs_per_slab;
         cache->nr_slabs++;
         cache->nr_free_slabs++;
@@ -688,7 +688,7 @@ kmem_cache_alloc_from_slab(struct kmem_cache *cache)
     } else if (slab->nr_refs == 1) {
         /* The slab has become partial */
         list_remove(&slab->node);
-        list_insert(&cache->partial_slabs, &slab->node);
+        list_insert_head(&cache->partial_slabs, &slab->node);
         cache->nr_free_slabs--;
     }
 
@@ -735,11 +735,11 @@ kmem_cache_free_to_slab(struct kmem_cache *cache, void *buf)
         if (cache->bufs_per_slab != 1)
             list_remove(&slab->node);
 
-        list_insert(&cache->free_slabs, &slab->node);
+        list_insert_head(&cache->free_slabs, &slab->node);
         cache->nr_free_slabs++;
     } else if (slab->nr_refs == (cache->bufs_per_slab - 1)) {
         /* The slab has become partial */
-        list_insert(&cache->partial_slabs, &slab->node);
+        list_insert_head(&cache->partial_slabs, &slab->node);
     }
 }
 

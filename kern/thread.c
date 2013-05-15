@@ -784,7 +784,7 @@ thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, unsigned long round,
     group->weight = group_weight;
 
     /* Insert at the front of the group to improve interactivity */
-    list_insert(&group->threads, &thread->ts_ctx.group_node);
+    list_insert_head(&group->threads, &thread->ts_ctx.group_node);
     list_insert_tail(&ts_runq->threads, &thread->ts_ctx.runq_node);
     thread->ts_ctx.ts_runq = ts_runq;
 }

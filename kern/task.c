@@ -61,7 +61,7 @@ task_setup(void)
     list_init(&task_list);
     spinlock_init(&task_list_lock);
     task_init(kernel_task, "x15", kernel_map);
-    list_insert(&task_list, &kernel_task->node);
+    list_insert_head(&task_list, &kernel_task->node);
 }
 
 int
@@ -86,7 +86,7 @@ task_create(struct task **taskp, const char *name)
     task_init(task, name, map);
 
     spinlock_lock(&task_list_lock);
-    list_insert(&task_list, &kernel_task->node);
+    list_insert_head(&task_list, &kernel_task->node);
     spinlock_unlock(&task_list_lock);
 
     *taskp = task;

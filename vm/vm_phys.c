@@ -172,7 +172,7 @@ vm_phys_free_list_insert(struct vm_phys_free_list *free_list,
     assert(page->order == VM_PHYS_ORDER_ALLOCATED);
 
     free_list->size++;
-    list_insert(&free_list->blocks, &page->node);
+    list_insert_head(&free_list->blocks, &page->node);
 }
 
 static inline void
@@ -294,7 +294,7 @@ vm_phys_cpu_pool_push(struct vm_phys_cpu_pool *cpu_pool, struct vm_page *page)
 {
     assert(cpu_pool->nr_pages < cpu_pool->size);
     cpu_pool->nr_pages++;
-    list_insert(&cpu_pool->pages, &page->node);
+    list_insert_head(&cpu_pool->pages, &page->node);
 }
 
 static int
