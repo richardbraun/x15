@@ -1622,10 +1622,28 @@ thread_setup_balancer(struct thread_runq *runq)
 static void
 thread_idle(void *arg)
 {
-    (void)arg;
+    struct thread *self;
+    unsigned int cpu;
 
-    for (;;)
-        cpu_idle();
+    self = thread_self();
+    cpu = thread_runq_id(arg);
+
+    for (;;) {
+        thread_preempt_disable();
+
+        for (;;) {
+            cpu_intr_disable();
+
+            if (thread_test_flag(self, THREAD_RESCHEDULE)) {
+                cpu_intr_enable();
+                break;
+            }
+
+            cpu_idle();
+        }
+
+        thread_preempt_enable();
+    }
 }
 
 static void __init
@@ -1650,7 +1668,7 @@ thread_setup_idler(struct thread_runq *runq)
     attr.task = kernel_task;
     attr.name = name;
     attr.policy = THREAD_SCHED_POLICY_IDLE;
-    thread_init(idler, stack, &attr, thread_idle, NULL);
+    thread_init(idler, stack, &attr, thread_idle, runq);
 
     /* An idler thread needs special tuning */
     idler->state = THREAD_RUNNING;
