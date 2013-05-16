@@ -1837,8 +1837,13 @@ thread_wakeup(struct thread *thread)
     thread_preempt_disable();
     cpu_intr_save(&flags);
 
-    /* The returned run queue is locked */
-    runq = thread_sched_ops[thread->sched_class].select_runq();
+    if (!thread->pinned)
+        runq = thread_sched_ops[thread->sched_class].select_runq();
+    else {
+        runq = thread->runq;
+        spinlock_lock(&runq->lock);
+    }
+
     thread_runq_wakeup(runq, thread);
     spinlock_unlock(&runq->lock);
     cpu_intr_restore(flags);
