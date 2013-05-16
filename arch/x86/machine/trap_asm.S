@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,18 +59,18 @@
  addq $16, %rsp /* skip vector and error */
 .endm
 
-#define TRAP(vector, name)          \
-ASM_ENTRY(trap_isr_ ## name)        \
- pushq $0;                          \
- pushq $(vector);                   \
- jmp trap_common;                   \
-ASM_END(trap_isr_ ## name)
+#define TRAP(vector, name)  \
+ASM_ENTRY(name)             \
+ pushq $0;                  \
+ pushq $(vector);           \
+ jmp trap_common;           \
+ASM_END(name)
 
 #define TRAP_ERROR(vector, name)    \
-ASM_ENTRY(trap_isr_ ## name)        \
+ASM_ENTRY(name)                     \
  pushq $(vector);                   \
  jmp trap_common;                   \
-ASM_END(trap_isr_ ## name)
+ASM_END(name)
 
 ASM_ENTRY(trap_common)
  TRAP_STORE_REGISTERS
@@ -108,18 +108,18 @@ ASM_END(trap_common)
  addl $24, %esp /* skip segment registers, vector and error */
 .endm
 
-#define TRAP(vector, name)          \
-ASM_ENTRY(trap_isr_ ## name)        \
- pushl $0;                          \
- pushl $(vector);                   \
- jmp trap_common;                   \
-ASM_END(trap_isr_ ## name)
+#define TRAP(vector, name)  \
+ASM_ENTRY(name)             \
+ pushl $0;                  \
+ pushl $(vector);           \
+ jmp trap_common;           \
+ASM_END(name)
 
 #define TRAP_ERROR(vector, name)    \
-ASM_ENTRY(trap_isr_ ## name)        \
+ASM_ENTRY(name)                     \
  pushl $(vector);                   \
  jmp trap_common;                   \
-ASM_END(trap_isr_ ## name)
+ASM_END(name)
 
 ASM_ENTRY(trap_common)
  TRAP_STORE_REGISTERS
@@ -133,37 +133,37 @@ ASM_END(trap_common)
 #endif /* __LP64__ */
 
 /* Architecture defined traps */
-TRAP(TRAP_DE, divide_error)
-TRAP(TRAP_DB, debug)
-TRAP(TRAP_NMI, nmi)
-TRAP(TRAP_BP, breakpoint)
-TRAP(TRAP_OF, overflow)
-TRAP(TRAP_BR, bound_range)
-TRAP(TRAP_UD, invalid_opcode)
-TRAP(TRAP_NM, device_not_available)
-TRAP_ERROR(TRAP_DF, double_fault)
-TRAP_ERROR(TRAP_TS, invalid_tss)
-TRAP_ERROR(TRAP_NP, segment_not_present)
-TRAP_ERROR(TRAP_SS, stack_segment_fault)
-TRAP_ERROR(TRAP_GP, general_protection)
-TRAP_ERROR(TRAP_PF, page_fault)
-TRAP(TRAP_MF, math_fault)
-TRAP_ERROR(TRAP_AC, alignment_check)
-TRAP(TRAP_MC, machine_check)
-TRAP(TRAP_XM, simd_fp_exception)
+TRAP(TRAP_DE, trap_isr_divide_error)
+TRAP(TRAP_DB, trap_isr_debug)
+TRAP(TRAP_NMI, trap_isr_nmi)
+TRAP(TRAP_BP, trap_isr_breakpoint)
+TRAP(TRAP_OF, trap_isr_overflow)
+TRAP(TRAP_BR, trap_isr_bound_range)
+TRAP(TRAP_UD, trap_isr_invalid_opcode)
+TRAP(TRAP_NM, trap_isr_device_not_available)
+TRAP_ERROR(TRAP_DF, trap_isr_double_fault)
+TRAP_ERROR(TRAP_TS, trap_isr_invalid_tss)
+TRAP_ERROR(TRAP_NP, trap_isr_segment_not_present)
+TRAP_ERROR(TRAP_SS, trap_isr_stack_segment_fault)
+TRAP_ERROR(TRAP_GP, trap_isr_general_protection)
+TRAP_ERROR(TRAP_PF, trap_isr_page_fault)
+TRAP(TRAP_MF, trap_isr_math_fault)
+TRAP_ERROR(TRAP_AC, trap_isr_alignment_check)
+TRAP(TRAP_MC, trap_isr_machine_check)
+TRAP(TRAP_XM, trap_isr_simd_fp_exception)
 
 /* Basic PIC support */
-TRAP(TRAP_PIC_BASE + 7, pic_int7)
-TRAP(TRAP_PIC_BASE + 15, pic_int15)
+TRAP(TRAP_PIC_BASE + 7, trap_isr_pic_int7)
+TRAP(TRAP_PIC_BASE + 15, trap_isr_pic_int15)
 
 /* System defined traps */
-TRAP(TRAP_LLSYNC_RESET, llsync_reset)
-TRAP(TRAP_RESCHEDULE, reschedule)
-TRAP(TRAP_PMAP_UPDATE, pmap_update)
-TRAP(TRAP_CPU_HALT, cpu_halt)
-TRAP(TRAP_LAPIC_TIMER, lapic_timer)
-TRAP(TRAP_LAPIC_ERROR, lapic_error)
-TRAP(TRAP_LAPIC_SPURIOUS, lapic_spurious)
+TRAP(TRAP_LLSYNC_RESET, trap_isr_llsync_reset)
+TRAP(TRAP_RESCHEDULE, trap_isr_reschedule)
+TRAP(TRAP_PMAP_UPDATE, trap_isr_pmap_update)
+TRAP(TRAP_CPU_HALT, trap_isr_cpu_halt)
+TRAP(TRAP_LAPIC_TIMER, trap_isr_lapic_timer)
+TRAP(TRAP_LAPIC_ERROR, trap_isr_lapic_error)
+TRAP(TRAP_LAPIC_SPURIOUS, trap_isr_lapic_spurious)
 
 /* Unhandled traps */
-TRAP(TRAP_DEFAULT, default)
+TRAP(TRAP_DEFAULT, trap_isr_default)
