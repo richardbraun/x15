@@ -48,7 +48,7 @@ mb_sync(void)
 static inline void
 mb_sync(void)
 {
-    asm volatile("lock addl $0, 0(%%esp)" : : : "cc", "memory");
+    asm volatile("lock addl $0, 0(%%esp)" : : : "memory");
 }
 
 #endif /* __LP64__ */
