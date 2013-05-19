@@ -35,6 +35,7 @@
 #define _KERN_THREAD_H
 
 #include <kern/assert.h>
+#include <kern/cpumap.h>
 #include <kern/list.h>
 #include <kern/macros.h>
 #include <kern/param.h>
@@ -151,6 +152,9 @@ struct thread {
     unsigned char sched_policy;
     unsigned char sched_class;
 
+    /* Processors on which this thread is allowed to run */
+    struct cpumap cpumap;
+
     /* Scheduling class specific contexts */
     union {
         struct thread_rt_ctx rt_ctx;
@@ -174,6 +178,7 @@ struct thread_attr {
     const char *name;
     unsigned char policy;
     unsigned short priority;
+    struct cpumap *cpumap;
 };
 
 /*
@@ -195,8 +200,9 @@ void thread_setup(void);
  *
  * If the given attributes are NULL, default attributes are used. If the task
  * is NULL, the caller task is selected. If the name is NULL, the task name is
- * used instead. The default attributes also select the caller task and task
- * name.
+ * used instead. If the CPU map is NULL, the new thread inherits the map of
+ * the caller. The default attributes also select the caller task, task name
+ * and CPU map.
  */
 int thread_create(struct thread **threadp, const struct thread_attr *attr,
                   void (*fn)(void *), void *arg);

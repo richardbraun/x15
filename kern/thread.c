@@ -62,7 +62,7 @@
  *
  * TODO Sub-tick accounting.
  *
- * TODO CPU affinity.
+ * TODO Setting affinity/priority after thread creation.
  *
  * TODO Take into account the underlying CPU topology (and adjust load
  * balancing to access the global highest round less frequently on large
@@ -84,6 +84,7 @@
 #include <kern/assert.h>
 #include <kern/bitmap.h>
 #include <kern/condition.h>
+#include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
@@ -210,7 +211,7 @@ struct thread_runq {
  */
 struct thread_sched_ops {
     void (*init_thread)(struct thread *thread, unsigned short priority);
-    struct thread_runq * (*select_runq)(void);
+    struct thread_runq * (*select_runq)(struct thread *thread);
     void (*add)(struct thread_runq *runq, struct thread *thread);
     void (*remove)(struct thread_runq *runq, struct thread *thread);
     void (*put_prev)(struct thread_runq *runq, struct thread *thread);
@@ -246,7 +247,8 @@ static struct thread_attr thread_default_attr = {
     NULL,
     NULL,
     THREAD_SCHED_POLICY_TS,
-    THREAD_SCHED_TS_PRIO_DEFAULT
+    THREAD_SCHED_TS_PRIO_DEFAULT,
+    NULL
 };
 
 static BITMAP_DECLARE(thread_active_runqs, MAX_CPUS);
@@ -536,11 +538,20 @@ thread_sched_rt_init_thread(struct thread *thread, unsigned short priority)
 }
 
 static struct thread_runq *
-thread_sched_rt_select_runq(void)
+thread_sched_rt_select_runq(struct thread *thread)
 {
     struct thread_runq *runq;
+    int i;
 
-    runq = thread_runq_local();
+    /*
+     * Real-time tasks are commonly configured to run on one specific
+     * processor only.
+     */
+    i = cpumap_find_first(&thread->cpumap);
+    assert(i >= 0);
+    assert((unsigned int)i < cpu_count());
+
+    runq = &thread_runqs[i];
     spinlock_lock(&runq->lock);
     return runq;
 }
@@ -639,7 +650,7 @@ thread_sched_ts_init_thread(struct thread *thread, unsigned short priority)
 }
 
 static struct thread_runq *
-thread_sched_ts_select_runq(void)
+thread_sched_ts_select_runq(struct thread *thread)
 {
     struct thread_runq *runq, *tmp;
     int i, nr_runqs;
@@ -648,6 +659,9 @@ thread_sched_ts_select_runq(void)
     nr_runqs = cpu_count();
 
     bitmap_for_each_zero(thread_active_runqs, nr_runqs, i) {
+        if (!cpumap_test(&thread->cpumap, i))
+            continue;
+
         runq = &thread_runqs[i];
 
         spinlock_lock(&runq->lock);
@@ -664,6 +678,9 @@ thread_sched_ts_select_runq(void)
     spinlock_lock(&runq->lock);
 
     for (i = 1; i < nr_runqs; i++) {
+        if (!cpumap_test(&thread->cpumap, i))
+            continue;
+
         tmp = &thread_runqs[i];
 
         spinlock_lock(&tmp->lock);
@@ -696,6 +713,8 @@ thread_sched_ts_select_runq(void)
 
         spinlock_unlock(&tmp->lock);
     }
+
+    assert(cpumap_test(&thread->cpumap, thread_runq_id(runq)));
 
 out:
     return runq;
@@ -1092,6 +1111,9 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
                              unsigned int nr_pulls)
 {
     struct thread *thread, *tmp;
+    int runq_id;
+
+    runq_id = thread_runq_id(runq);
 
     list_for_each_entry_safe(&ts_runq->threads, thread, tmp, ts_ctx.runq_node) {
         if (thread == remote_runq->current)
@@ -1107,6 +1129,9 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
          * run queue.
          */
         if (thread->pinned)
+            continue;
+
+        if (!cpumap_test(&thread->cpumap, runq_id))
             continue;
 
         /*
@@ -1259,8 +1284,9 @@ thread_sched_idle_init_thread(struct thread *thread, unsigned short priority)
 }
 
 static struct thread_runq *
-thread_sched_idle_select_runq(void)
+thread_sched_idle_select_runq(struct thread *thread)
 {
+    (void)thread;
     panic("thread: idler threads cannot be awaken");
 }
 
@@ -1319,6 +1345,7 @@ thread_bootstrap_common(unsigned int cpu)
     booter->flags = 0;
     booter->preempt = 1;
     booter->sched_class = THREAD_SCHED_CLASS_IDLE;
+    cpumap_fill(&booter->cpumap);
     booter->task = kernel_task;
 
     thread_runq_init(&thread_runqs[cpu], booter);
@@ -1402,16 +1429,22 @@ static void
 thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
             void (*fn)(void *), void *arg)
 {
-    const char *name;
+    struct thread *caller;
     struct task *task;
+    struct cpumap *cpumap;
+    const char *name;
+
+    caller = thread_self();
 
     if (attr == NULL)
         attr = &thread_default_attr;
 
-    task = (attr->task == NULL) ? thread_self()->task : attr->task;
+    task = (attr->task == NULL) ? caller->task : attr->task;
     assert(task != NULL);
     name = (attr->name == NULL) ? task->name : attr->name;
     assert(name != NULL);
+    cpumap = (attr->cpumap == NULL) ? &caller->cpumap : attr->cpumap;
+    assert(cpumap != NULL);
     assert(attr->policy < THREAD_NR_SCHED_POLICIES);
 
     /*
@@ -1432,6 +1465,7 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     thread->pinned = 0;
     thread->sched_policy = attr->policy;
     thread->sched_class = thread_policy_table[attr->policy];
+    cpumap_copy(&thread->cpumap, cpumap);
     thread_init_sched(thread, attr->priority);
     thread->task = task;
     thread->stack = stack;
@@ -1528,6 +1562,7 @@ thread_setup_reaper(void)
     attr.name = "x15_thread_reap";
     attr.policy = THREAD_SCHED_POLICY_TS;
     attr.priority = THREAD_SCHED_TS_PRIO_DEFAULT;
+    attr.cpumap = NULL;
     error = thread_create(&thread, &attr, thread_reap, NULL);
 
     if (error)
@@ -1585,42 +1620,31 @@ static void __init
 thread_setup_balancer(struct thread_runq *runq)
 {
     char name[THREAD_NAME_SIZE];
-    struct thread_runq *local_runq;
     struct thread_attr attr;
     struct thread *balancer;
+    struct cpumap *cpumap;
     int error;
 
+    error = cpumap_create(&cpumap);
+
+    if (error)
+        panic("thread: unable to create balancer thread CPU map");
+
+    cpumap_zero(cpumap);
+    cpumap_set(cpumap, thread_runq_id(runq));
     snprintf(name, sizeof(name), "x15_thread_balance/%u", thread_runq_id(runq));
     attr.task = NULL;
     attr.name = name;
     attr.policy = THREAD_SCHED_POLICY_RR;
     attr.priority = THREAD_SCHED_RT_PRIO_MIN;
+    attr.cpumap = cpumap;
     error = thread_create(&balancer, &attr, thread_balance, runq);
+    cpumap_destroy(cpumap);
 
     if (error)
         panic("thread: unable to create balancer thread");
 
     runq->balancer = balancer;
-
-    /*
-     * XXX Real-time threads are currently dispatched on the creator's run
-     * queue.
-     *
-     * TODO Implement processor affinity and remove this kludge.
-     */
-    local_runq = thread_runq_local();
-
-    if (runq != local_runq) {
-        unsigned long flags;
-
-        spinlock_lock_intr_save(&local_runq->lock, &flags);
-        thread_runq_remove(local_runq, balancer);
-        spinlock_unlock_intr_restore(&local_runq->lock, flags);
-
-        spinlock_lock_intr_save(&runq->lock, &flags);
-        thread_runq_add(runq, balancer);
-        spinlock_unlock_intr_restore(&runq->lock, flags);
-    }
 }
 
 static void
@@ -1658,8 +1682,17 @@ thread_setup_idler(struct thread_runq *runq)
     char name[THREAD_NAME_SIZE];
     struct thread_attr attr;
     struct thread *idler;
+    struct cpumap *cpumap;
     void *stack;
+    int error;
 
+    error = cpumap_create(&cpumap);
+
+    if (error)
+        panic("thread: unable to allocate idler thread CPU map");
+
+    cpumap_zero(cpumap);
+    cpumap_set(cpumap, thread_runq_id(runq));
     idler = kmem_cache_alloc(&thread_cache);
 
     if (idler == NULL)
@@ -1674,7 +1707,9 @@ thread_setup_idler(struct thread_runq *runq)
     attr.task = kernel_task;
     attr.name = name;
     attr.policy = THREAD_SCHED_POLICY_IDLE;
+    attr.cpumap = cpumap;
     thread_init(idler, stack, &attr, thread_idle, runq);
+    cpumap_destroy(cpumap);
 
     /* An idler thread needs special tuning */
     idler->state = THREAD_RUNNING;
@@ -1713,6 +1748,13 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
     struct thread *thread;
     void *stack;
     int error;
+
+    if (attr->cpumap != NULL) {
+        error = cpumap_check(attr->cpumap);
+
+        if (error)
+            return error;
+    }
 
     thread = kmem_cache_alloc(&thread_cache);
 
@@ -1838,7 +1880,7 @@ thread_wakeup(struct thread *thread)
     cpu_intr_save(&flags);
 
     if (!thread->pinned)
-        runq = thread_sched_ops[thread->sched_class].select_runq();
+        runq = thread_sched_ops[thread->sched_class].select_runq(thread);
     else {
         runq = thread->runq;
         spinlock_lock(&runq->lock);
