@@ -20,5 +20,6 @@
 
 #define ERROR_NOMEM 1
 #define ERROR_AGAIN 2
+#define ERROR_INVAL 3
 
 #endif /* _KERN_ERROR_H */

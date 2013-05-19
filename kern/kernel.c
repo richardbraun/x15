@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <kern/cpumap.h>
 #include <kern/init.h>
 #include <kern/kernel.h>
 #include <kern/llsync.h>
@@ -32,6 +33,7 @@ kernel_main(void)
     cpu_intr_enable();
 
     /* Initialize the kernel */
+    cpumap_setup();
     task_setup();
     thread_setup();
     llsync_setup();
