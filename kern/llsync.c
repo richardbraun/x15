@@ -157,6 +157,7 @@ llsync_setup(void)
     attr.name = "x15_llsync_work";
     attr.policy = THREAD_SCHED_POLICY_TS;
     attr.priority = THREAD_SCHED_TS_PRIO_DEFAULT;
+    attr.cpumap = NULL;
     error = thread_create(&llsync_worker, &attr, llsync_work, NULL);
 
     if (error)
