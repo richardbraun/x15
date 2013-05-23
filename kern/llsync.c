@@ -51,7 +51,7 @@
 
 #define LLSYNC_NR_WORKS_WARN 10000
 
-struct llsync_cpu_checkpoint llsync_cpu_checkpoints[MAX_CPUS];
+struct llsync_cpu llsync_cpus[MAX_CPUS];
 
 /*
  * Global lock protecting the remaining module data.
@@ -208,6 +208,9 @@ llsync_register_cpu(unsigned int cpu)
         llsync_process_global_checkpoint(cpu);
 
     spinlock_unlock_intr_restore(&llsync_lock, flags);
+
+    assert(!llsync_cpus[cpu].registered);
+    llsync_cpus[cpu].registered = 1;
 }
 
 static void
@@ -232,7 +235,8 @@ llsync_unregister_cpu(unsigned int cpu)
 {
     unsigned long flags;
 
-    llsync_reset_checkpoint(cpu);
+    assert(llsync_cpus[cpu].registered);
+    llsync_cpus[cpu].registered = 0;
 
     spinlock_lock_intr_save(&llsync_lock, &flags);
 
@@ -256,14 +260,11 @@ llsync_commit_checkpoint(unsigned int cpu)
 {
     unsigned long flags;
 
-    if (!llsync_cpu_checkpoints[cpu].checked)
+    if (!(llsync_cpus[cpu].registered && llsync_cpus[cpu].checked))
         return;
 
     spinlock_lock_intr_save(&llsync_lock, &flags);
-
-    if (bitmap_test(llsync_registered_cpus, cpu))
-        llsync_commit_checkpoint_common(cpu);
-
+    llsync_commit_checkpoint_common(cpu);
     spinlock_unlock_intr_restore(&llsync_lock, flags);
 }
 

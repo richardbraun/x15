@@ -90,7 +90,7 @@ llsync_read_unlock(void)
 static inline void
 llsync_reset_checkpoint(unsigned int cpu)
 {
-    llsync_cpu_checkpoints[cpu].checked = 0;
+    llsync_cpus[cpu].checked = 0;
 }
 
 /*
@@ -101,7 +101,7 @@ llsync_reset_checkpoint(unsigned int cpu)
 static inline void
 llsync_checkin(unsigned int cpu)
 {
-    llsync_cpu_checkpoints[cpu].checked = 1;
+    llsync_cpus[cpu].checked = 1;
 }
 
 /*

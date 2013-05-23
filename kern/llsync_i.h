@@ -21,12 +21,13 @@
 #include <kern/param.h>
 
 /*
- * Per-processor flag indicating if a processor checked in.
+ * Per-processor data.
  */
-struct llsync_cpu_checkpoint {
+struct llsync_cpu {
+    int registered;
     int checked;
 } __aligned(CPU_L1_SIZE);
 
-extern struct llsync_cpu_checkpoint llsync_cpu_checkpoints[MAX_CPUS];
+extern struct llsync_cpu llsync_cpus[MAX_CPUS];
 
 #endif /* _KERN_LLSYNC_I_H */
