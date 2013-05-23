@@ -261,10 +261,8 @@ llsync_commit_checkpoint(unsigned int cpu)
 
     spinlock_lock_intr_save(&llsync_lock, &flags);
 
-    if (!bitmap_test(llsync_registered_cpus, cpu))
-        return;
-
-    llsync_commit_checkpoint_common(cpu);
+    if (bitmap_test(llsync_registered_cpus, cpu))
+        llsync_commit_checkpoint_common(cpu);
 
     spinlock_unlock_intr_restore(&llsync_lock, flags);
 }
