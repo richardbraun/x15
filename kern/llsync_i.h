@@ -22,6 +22,8 @@
 
 /*
  * Per-processor data.
+ *
+ * Interrupts must be disabled on access.
  */
 struct llsync_cpu {
     int registered;

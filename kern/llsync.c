@@ -207,10 +207,10 @@ llsync_register_cpu(unsigned int cpu)
     if (llsync_nr_registered_cpus == 1)
         llsync_process_global_checkpoint(cpu);
 
-    spinlock_unlock_intr_restore(&llsync_lock, flags);
-
     assert(!llsync_cpus[cpu].registered);
     llsync_cpus[cpu].registered = 1;
+
+    spinlock_unlock_intr_restore(&llsync_lock, flags);
 }
 
 static void
@@ -235,10 +235,10 @@ llsync_unregister_cpu(unsigned int cpu)
 {
     unsigned long flags;
 
+    spinlock_lock_intr_save(&llsync_lock, &flags);
+
     assert(llsync_cpus[cpu].registered);
     llsync_cpus[cpu].registered = 0;
-
-    spinlock_lock_intr_save(&llsync_lock, &flags);
 
     assert(bitmap_test(llsync_registered_cpus, cpu));
     bitmap_clear(llsync_registered_cpus, cpu);
