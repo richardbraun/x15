@@ -210,7 +210,8 @@ llsync_register_cpu(unsigned int cpu)
     bitmap_set(llsync_registered_cpus, cpu);
     llsync_nr_registered_cpus++;
 
-    if (llsync_nr_registered_cpus == 1)
+    if ((llsync_nr_registered_cpus == 1)
+        && (llsync_nr_pending_checkpoints == 0))
         llsync_process_global_checkpoint(cpu);
 
     assert(!llsync_cpus[cpu].registered);
