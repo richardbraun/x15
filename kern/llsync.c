@@ -179,6 +179,12 @@ llsync_process_global_checkpoint(unsigned int cpu)
     nr_cpus = cpu_count();
     bitmap_copy(llsync_pending_checkpoints, llsync_registered_cpus, nr_cpus);
     llsync_nr_pending_checkpoints = llsync_nr_registered_cpus;
+
+    if (llsync_nr_registered_cpus == 0) {
+        list_concat(&llsync_list1, &llsync_list0);
+        list_init(&llsync_list0);
+    }
+
     list_concat(&llsync_list2, &llsync_list1);
     list_set_head(&llsync_list1, &llsync_list0);
     list_init(&llsync_list0);
@@ -244,13 +250,7 @@ llsync_unregister_cpu(unsigned int cpu)
     bitmap_clear(llsync_registered_cpus, cpu);
     llsync_nr_registered_cpus--;
 
-    if (llsync_nr_registered_cpus != 0)
-        llsync_commit_checkpoint_common(cpu);
-    else {
-        list_concat(&llsync_list1, &llsync_list0);
-        list_init(&llsync_list0);
-        llsync_process_global_checkpoint(cpu);
-    }
+    llsync_commit_checkpoint_common(cpu);
 
     spinlock_unlock_intr_restore(&llsync_lock, flags);
 }
