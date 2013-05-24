@@ -208,6 +208,23 @@ llsync_process_global_checkpoint(unsigned int cpu)
         llsync_wakeup_worker();
 }
 
+static void
+llsync_commit_checkpoint_common(unsigned int cpu)
+{
+    int pending;
+
+    pending = bitmap_test(llsync_pending_checkpoints, cpu);
+
+    if (!pending)
+        return;
+
+    bitmap_clear(llsync_pending_checkpoints, cpu);
+    llsync_nr_pending_checkpoints--;
+
+    if (llsync_nr_pending_checkpoints == 0)
+        llsync_process_global_checkpoint(cpu);
+}
+
 void
 llsync_register_cpu(unsigned int cpu)
 {
@@ -229,23 +246,6 @@ llsync_register_cpu(unsigned int cpu)
         llsync_process_global_checkpoint(cpu);
 
     spinlock_unlock_intr_restore(&llsync_lock, flags);
-}
-
-static void
-llsync_commit_checkpoint_common(unsigned int cpu)
-{
-    int pending;
-
-    pending = bitmap_test(llsync_pending_checkpoints, cpu);
-
-    if (!pending)
-        return;
-
-    bitmap_clear(llsync_pending_checkpoints, cpu);
-    llsync_nr_pending_checkpoints--;
-
-    if (llsync_nr_pending_checkpoints == 0)
-        llsync_process_global_checkpoint(cpu);
 }
 
 void
