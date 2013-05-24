@@ -172,13 +172,17 @@ llsync_wakeup_worker(void)
 }
 
 static void
+llsync_reset_checkpoint_common(unsigned int cpu)
+{
+    assert(!bitmap_test(llsync_pending_checkpoints, cpu));
+    bitmap_set(llsync_pending_checkpoints, cpu);
+    llsync_cpus[cpu].checked = 0;
+}
+
+static void
 llsync_process_global_checkpoint(unsigned int cpu)
 {
     int i, nr_cpus;
-
-    nr_cpus = cpu_count();
-    bitmap_copy(llsync_pending_checkpoints, llsync_registered_cpus, nr_cpus);
-    llsync_nr_pending_checkpoints = llsync_nr_registered_cpus;
 
     if (llsync_nr_registered_cpus == 0) {
         list_concat(&llsync_list1, &llsync_list0);
@@ -189,7 +193,12 @@ llsync_process_global_checkpoint(unsigned int cpu)
     list_set_head(&llsync_list1, &llsync_list0);
     list_init(&llsync_list0);
 
-    llsync_reset_checkpoint(cpu);
+    llsync_nr_pending_checkpoints = llsync_nr_registered_cpus;
+
+    if (llsync_cpus[cpu].registered)
+        llsync_reset_checkpoint_common(cpu);
+
+    nr_cpus = cpu_count();
 
     bitmap_for_each(llsync_registered_cpus, nr_cpus, i)
         if ((unsigned int)i != cpu)
@@ -206,16 +215,18 @@ llsync_register_cpu(unsigned int cpu)
 
     spinlock_lock_intr_save(&llsync_lock, &flags);
 
+    assert(!llsync_cpus[cpu].registered);
+    llsync_cpus[cpu].registered = 1;
+
     assert(!bitmap_test(llsync_registered_cpus, cpu));
     bitmap_set(llsync_registered_cpus, cpu);
     llsync_nr_registered_cpus++;
 
+    assert(!bitmap_test(llsync_pending_checkpoints, cpu));
+
     if ((llsync_nr_registered_cpus == 1)
         && (llsync_nr_pending_checkpoints == 0))
         llsync_process_global_checkpoint(cpu);
-
-    assert(!llsync_cpus[cpu].registered);
-    llsync_cpus[cpu].registered = 1;
 
     spinlock_unlock_intr_restore(&llsync_lock, flags);
 }
@@ -251,9 +262,35 @@ llsync_unregister_cpu(unsigned int cpu)
     bitmap_clear(llsync_registered_cpus, cpu);
     llsync_nr_registered_cpus--;
 
+    /*
+     * Processor registration qualifies as a checkpoint. Since unregistering
+     * a processor also disables commits until it's registered again, perform
+     * one now.
+     */
     llsync_commit_checkpoint_common(cpu);
 
     spinlock_unlock_intr_restore(&llsync_lock, flags);
+}
+
+void
+llsync_reset_checkpoint(unsigned int cpu)
+{
+    assert(!cpu_intr_enabled());
+
+    spinlock_lock(&llsync_lock);
+
+    llsync_reset_checkpoint_common(cpu);
+
+    /*
+     * It may happen that this processor was registered at the time a global
+     * checkpoint occurred, but unregistered itself before receiving the reset
+     * interrupt. In this case, behave as if the reset request was received
+     * before unregistering by immediately committing the local checkpoint.
+     */
+    if (!llsync_cpus[cpu].registered)
+        llsync_commit_checkpoint_common(cpu);
+
+    spinlock_unlock(&llsync_lock);
 }
 
 void

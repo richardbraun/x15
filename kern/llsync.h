@@ -83,17 +83,6 @@ llsync_read_unlock(void)
 }
 
 /*
- * Reset the checkpoint flag of a processor.
- *
- * Called from interrupt context.
- */
-static inline void
-llsync_reset_checkpoint(unsigned int cpu)
-{
-    llsync_cpus[cpu].checked = 0;
-}
-
-/*
  * Report that a processor has reached a checkpoint.
  *
  * Called during context switch.
@@ -111,6 +100,9 @@ void llsync_setup(void);
 
 /*
  * Report that a processor will be regularly checking in.
+ *
+ * Registered processors perform checkpoint commits and receive checkpoint
+ * reset interrupts.
  */
 void llsync_register_cpu(unsigned int cpu);
 
@@ -128,6 +120,13 @@ void llsync_unregister_cpu(unsigned int cpu);
  * system timer interrupt.
  */
 void llsync_commit_checkpoint(unsigned int cpu);
+
+/*
+ * Reset the checkpoint pending state of a processor.
+ *
+ * Called from interrupt context.
+ */
+void llsync_reset_checkpoint(unsigned int cpu);
 
 /*
  * Defer an operation until all existing read-side references are dropped,
