@@ -110,10 +110,16 @@
  */
 #define VM_MIN_KERNEL_ADDRESS   (VM_PMAP_PTEMAP_ADDRESS + VM_PMAP_PTEMAP_SIZE)
 
+/*
+ * In addition to being the end of the kernel address space, this is also
+ * where the kernel image is loaded. Excluding the kernel image from its
+ * address space simplifies bootstrapping, and also saves a static VM map
+ * entry.
+ */
 #ifdef __LP64__
 #define VM_MAX_KERNEL_ADDRESS   DECL_CONST(0xffffffff80000000, UL)
 #else /* __LP64__ */
-#define VM_MAX_KERNEL_ADDRESS   DECL_CONST(0xffe00000, UL)
+#define VM_MAX_KERNEL_ADDRESS   DECL_CONST(0xfc000000, UL)
 #endif /* __LP64__ */
 
 /*
