@@ -258,14 +258,14 @@ llsync_unregister_cpu(unsigned int cpu)
 void
 llsync_commit_checkpoint(unsigned int cpu)
 {
-    unsigned long flags;
+    assert(!cpu_intr_enabled());
 
     if (!(llsync_cpus[cpu].registered && llsync_cpus[cpu].checked))
         return;
 
-    spinlock_lock_intr_save(&llsync_lock, &flags);
+    spinlock_lock(&llsync_lock);
     llsync_commit_checkpoint_common(cpu);
-    spinlock_unlock_intr_restore(&llsync_lock, flags);
+    spinlock_unlock(&llsync_lock);
 }
 
 void
