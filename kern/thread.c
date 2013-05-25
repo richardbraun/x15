@@ -82,7 +82,6 @@
  */
 
 #include <kern/assert.h>
-#include <kern/bitmap.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
@@ -251,7 +250,18 @@ static struct thread_attr thread_default_attr = {
     NULL
 };
 
-static BITMAP_DECLARE(thread_active_runqs, MAX_CPUS);
+/*
+ * Map of run queues for which a processor is running.
+ */
+static struct cpumap thread_active_runqs;
+
+/*
+ * Map of idle run queues.
+ *
+ * Access to this map isn't synchronized. It is merely used as a fast hint
+ * to find run queues that are likely to be idle.
+ */
+static struct cpumap thread_idle_runqs;
 
 /*
  * System-wide value of the current highest round.
@@ -380,7 +390,7 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
     thread_sched_ops[thread->sched_class].add(runq, thread);
 
     if (runq->nr_threads == 0)
-        bitmap_set_atomic(thread_active_runqs, thread_runq_id(runq));
+        cpumap_clear_atomic(&thread_idle_runqs, thread_runq_id(runq));
 
     runq->nr_threads++;
 
@@ -399,7 +409,7 @@ thread_runq_remove(struct thread_runq *runq, struct thread *thread)
     runq->nr_threads--;
 
     if (runq->nr_threads == 0)
-        bitmap_clear_atomic(thread_active_runqs, thread_runq_id(runq));
+        cpumap_set_atomic(&thread_idle_runqs, thread_runq_id(runq));
 
     thread_sched_ops[thread->sched_class].remove(runq, thread);
 }
@@ -549,7 +559,7 @@ thread_sched_rt_select_runq(struct thread *thread)
      */
     i = cpumap_find_first(&thread->cpumap);
     assert(i >= 0);
-    assert((unsigned int)i < cpu_count());
+    assert(cpumap_test(&thread_active_runqs, i));
 
     runq = &thread_runqs[i];
     spinlock_lock(&runq->lock);
@@ -653,12 +663,10 @@ static struct thread_runq *
 thread_sched_ts_select_runq(struct thread *thread)
 {
     struct thread_runq *runq, *tmp;
-    int i, nr_runqs;
     long delta;
+    int i;
 
-    nr_runqs = cpu_count();
-
-    bitmap_for_each_zero(thread_active_runqs, nr_runqs, i) {
+    cpumap_for_each(&thread_idle_runqs, i) {
         if (!cpumap_test(&thread->cpumap, i))
             continue;
 
@@ -673,17 +681,20 @@ thread_sched_ts_select_runq(struct thread *thread)
         spinlock_unlock(&runq->lock);
     }
 
-    runq = &thread_runqs[0];
+    runq = NULL;
 
-    spinlock_lock(&runq->lock);
-
-    for (i = 1; i < nr_runqs; i++) {
+    cpumap_for_each(&thread_active_runqs, i) {
         if (!cpumap_test(&thread->cpumap, i))
             continue;
 
         tmp = &thread_runqs[i];
 
         spinlock_lock(&tmp->lock);
+
+        if (runq == NULL) {
+            runq = tmp;
+            continue;
+        }
 
         /* A run queue may have become idle */
         if (tmp->current == tmp->idler) {
@@ -714,7 +725,7 @@ thread_sched_ts_select_runq(struct thread *thread)
         spinlock_unlock(&tmp->lock);
     }
 
-    assert(cpumap_test(&thread->cpumap, thread_runq_id(runq)));
+    assert(runq != NULL);
 
 out:
     return runq;
@@ -1060,15 +1071,14 @@ thread_sched_ts_balance_scan(struct thread_runq *runq,
 {
     struct thread_runq *remote_runq, *tmp;
     unsigned long flags;
-    int i, nr_runqs;
+    int i;
 
-    nr_runqs = cpu_count();
     remote_runq = NULL;
 
     thread_preempt_disable();
     cpu_intr_save(&flags);
 
-    bitmap_for_each(thread_active_runqs, nr_runqs, i) {
+    cpumap_for_each(&thread_active_runqs, i) {
         tmp = &thread_runqs[i];
 
         if (tmp == runq)
@@ -1202,7 +1212,7 @@ thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
     struct thread_runq *remote_runq;
     unsigned long highest_round;
     unsigned int nr_migrations;
-    int i, nr_runqs;
+    int i;
 
     /*
      * Grab the highest round now and only use the copy so the value is stable
@@ -1240,7 +1250,7 @@ thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
      * be successfully pulled.
      */
 
-    for (i = 0, nr_runqs = cpu_count(); i < nr_runqs; i++) {
+    cpumap_for_each(&thread_active_runqs, i) {
         remote_runq = &thread_runqs[i];
 
         if (remote_runq == runq)
@@ -1339,6 +1349,8 @@ thread_bootstrap_common(unsigned int cpu)
 {
     struct thread *booter;
 
+    cpumap_set(&thread_active_runqs, cpu);
+
     booter = &thread_booters[cpu];
 
     /* Initialize only what's needed during bootstrap */
@@ -1389,7 +1401,8 @@ thread_bootstrap(void)
     ops->get_next = thread_sched_idle_get_next;
     ops->tick = thread_sched_idle_tick;
 
-    bitmap_zero(thread_active_runqs, MAX_CPUS);
+    cpumap_zero(&thread_active_runqs);
+    cpumap_zero(&thread_idle_runqs);
 
     thread_ts_highest_round = THREAD_TS_INITIAL_ROUND;
 
@@ -1727,7 +1740,7 @@ thread_setup_runq(struct thread_runq *runq)
 void __init
 thread_setup(void)
 {
-    size_t i;
+    int i;
 
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
                     CPU_L1_SIZE, NULL, NULL, NULL, 0);
@@ -1736,7 +1749,7 @@ thread_setup(void)
 
     thread_setup_reaper();
 
-    for (i = 0; i < cpu_count(); i++)
+    cpumap_for_each(&thread_active_runqs, i)
         thread_setup_runq(&thread_runqs[i]);
 }
 
