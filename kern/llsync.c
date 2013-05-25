@@ -34,8 +34,8 @@
  * TODO Gracefully handle large amounts of deferred works.
  */
 
-#include <kern/bitmap.h>
 #include <kern/condition.h>
+#include <kern/cpumap.h>
 #include <kern/list.h>
 #include <kern/llsync.h>
 #include <kern/llsync_i.h>
@@ -63,7 +63,7 @@ static struct spinlock llsync_lock;
 /*
  * Map of processors regularly checking in.
  */
-static BITMAP_DECLARE(llsync_registered_cpus, MAX_CPUS);
+static struct cpumap llsync_registered_cpus;
 static unsigned int llsync_nr_registered_cpus;
 
 /*
@@ -71,10 +71,10 @@ static unsigned int llsync_nr_registered_cpus;
  *
  * To reduce contention, checking in only affects a single per-processor
  * cache line. Special events (currently the system timer interrupt only)
- * trigger checkpoint commits, which report the local state to this bitmap,
- * thereby acquiring the global lock.
+ * trigger checkpoint commits, which report the local state to this CPU
+ * map, thereby acquiring the global lock.
  */
-static BITMAP_DECLARE(llsync_pending_checkpoints, MAX_CPUS);
+static struct cpumap llsync_pending_checkpoints;
 static unsigned int llsync_nr_pending_checkpoints;
 
 /*
@@ -174,15 +174,15 @@ llsync_wakeup_worker(void)
 static void
 llsync_reset_checkpoint_common(unsigned int cpu)
 {
-    assert(!bitmap_test(llsync_pending_checkpoints, cpu));
-    bitmap_set(llsync_pending_checkpoints, cpu);
+    assert(!cpumap_test(&llsync_pending_checkpoints, cpu));
+    cpumap_set(&llsync_pending_checkpoints, cpu);
     llsync_cpus[cpu].checked = 0;
 }
 
 static void
 llsync_process_global_checkpoint(unsigned int cpu)
 {
-    int i, nr_cpus;
+    int i;
 
     if (llsync_nr_registered_cpus == 0) {
         list_concat(&llsync_list1, &llsync_list0);
@@ -198,9 +198,7 @@ llsync_process_global_checkpoint(unsigned int cpu)
     if (llsync_cpus[cpu].registered)
         llsync_reset_checkpoint_common(cpu);
 
-    nr_cpus = cpu_count();
-
-    bitmap_for_each(llsync_registered_cpus, nr_cpus, i)
+    cpumap_for_each(&llsync_registered_cpus, i)
         if ((unsigned int)i != cpu)
             cpu_send_llsync_reset(i);
 
@@ -213,12 +211,12 @@ llsync_commit_checkpoint_common(unsigned int cpu)
 {
     int pending;
 
-    pending = bitmap_test(llsync_pending_checkpoints, cpu);
+    pending = cpumap_test(&llsync_pending_checkpoints, cpu);
 
     if (!pending)
         return;
 
-    bitmap_clear(llsync_pending_checkpoints, cpu);
+    cpumap_clear(&llsync_pending_checkpoints, cpu);
     llsync_nr_pending_checkpoints--;
 
     if (llsync_nr_pending_checkpoints == 0)
@@ -235,11 +233,11 @@ llsync_register_cpu(unsigned int cpu)
     assert(!llsync_cpus[cpu].registered);
     llsync_cpus[cpu].registered = 1;
 
-    assert(!bitmap_test(llsync_registered_cpus, cpu));
-    bitmap_set(llsync_registered_cpus, cpu);
+    assert(!cpumap_test(&llsync_registered_cpus, cpu));
+    cpumap_set(&llsync_registered_cpus, cpu);
     llsync_nr_registered_cpus++;
 
-    assert(!bitmap_test(llsync_pending_checkpoints, cpu));
+    assert(!cpumap_test(&llsync_pending_checkpoints, cpu));
 
     if ((llsync_nr_registered_cpus == 1)
         && (llsync_nr_pending_checkpoints == 0))
@@ -258,8 +256,8 @@ llsync_unregister_cpu(unsigned int cpu)
     assert(llsync_cpus[cpu].registered);
     llsync_cpus[cpu].registered = 0;
 
-    assert(bitmap_test(llsync_registered_cpus, cpu));
-    bitmap_clear(llsync_registered_cpus, cpu);
+    assert(cpumap_test(&llsync_registered_cpus, cpu));
+    cpumap_clear(&llsync_registered_cpus, cpu);
     llsync_nr_registered_cpus--;
 
     /*
