@@ -21,6 +21,14 @@
 #include <kern/types.h>
 
 /*
+ * The kernel space is required not to start at address 0, which is used to
+ * report allocation errors.
+ */
+#if VM_MIN_KERNEL_ADDRESS == 0
+#error "kernel space must not start at address 0"
+#endif
+
+/*
  * Special kernel addresses.
  */
 extern char _text;
