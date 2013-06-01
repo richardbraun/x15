@@ -153,11 +153,11 @@ llsync_setup(void)
     list_init(&llsync_list1);
     list_init(&llsync_list2);
 
-    attr.task = NULL;
     attr.name = "x15_llsync_work";
+    attr.cpumap = NULL;
+    attr.task = NULL;
     attr.policy = THREAD_SCHED_POLICY_TS;
     attr.priority = THREAD_SCHED_TS_PRIO_DEFAULT;
-    attr.cpumap = NULL;
     error = thread_create(&llsync_worker, &attr, llsync_work, NULL);
 
     if (error)

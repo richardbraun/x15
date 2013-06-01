@@ -176,11 +176,11 @@ struct thread {
  * Thread creation attributes.
  */
 struct thread_attr {
-    struct task *task;
     const char *name;
+    struct cpumap *cpumap;
+    struct task *task;
     unsigned char policy;
     unsigned short priority;
-    struct cpumap *cpumap;
 };
 
 /*
@@ -200,11 +200,9 @@ void thread_setup(void);
 /*
  * Create a thread.
  *
- * If the given attributes are NULL, default attributes are used. If the task
- * is NULL, the caller task is selected. If the name is NULL, the task name is
- * used instead. If the CPU map is NULL, the new thread inherits the map of
- * the caller. The default attributes also select the caller task, task name
- * and CPU map.
+ * Creation attributes must be passed, but some of them may be NULL, in which
+ * case the value is inherited from the caller. The name attribute must not be
+ * NULL.
  */
 int thread_create(struct thread **threadp, const struct thread_attr *attr,
                   void (*fn)(void *), void *arg);
