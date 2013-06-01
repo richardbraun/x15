@@ -132,7 +132,8 @@ struct thread_ts_data {
 /*
  * Thread structure.
  *
- * TODO Document access synchronization.
+ * Thread members are normally protected by the lock of the run queue they're
+ * associated with. Thread-local members are accessed without synchronization.
  */
 struct thread {
     struct tcb tcb;
