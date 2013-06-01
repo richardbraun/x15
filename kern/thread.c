@@ -99,7 +99,6 @@
 #include <kern/string.h>
 #include <kern/task.h>
 #include <kern/thread.h>
-#include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/mb.h>
 #include <machine/pmap.h>
@@ -362,25 +361,6 @@ thread_runq_local(void)
     return &thread_runqs[cpu_id()];
 }
 
-static inline void
-thread_set_flag(struct thread *thread, unsigned long flag)
-{
-    atomic_or(&thread->flags, flag);
-}
-
-static inline void
-thread_clear_flag(struct thread *thread, unsigned long flag)
-{
-    atomic_and(&thread->flags, ~flag);
-}
-
-static inline int
-thread_test_flag(struct thread *thread, unsigned long flag)
-{
-    barrier();
-    return ((thread->flags & flag) != 0);
-}
-
 static void
 thread_runq_add(struct thread_runq *runq, struct thread *thread)
 {
@@ -395,7 +375,7 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
     runq->nr_threads++;
 
     if (thread->sched_class < runq->current->sched_class)
-        thread_set_flag(runq->current, THREAD_RESCHEDULE);
+        thread_set_flag(runq->current, THREAD_YIELD);
 
     thread->runq = runq;
 }
@@ -455,7 +435,7 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
     thread_runq_add(runq, thread);
 
     if ((runq != thread_runq_local())
-        && thread_test_flag(runq->current, THREAD_RESCHEDULE)) {
+        && thread_test_flag(runq->current, THREAD_YIELD)) {
         /*
          * Make the new flags globally visible before sending the
          * rescheduling request. This barrier pairs with the one implied
@@ -488,7 +468,7 @@ thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
 
     llsync_checkin(thread_runq_id(runq));
 
-    thread_clear_flag(prev, THREAD_RESCHEDULE);
+    thread_clear_flag(prev, THREAD_YIELD);
     thread_runq_put_prev(runq, prev);
 
     if (prev->state != THREAD_RUNNING) {
@@ -581,7 +561,7 @@ thread_sched_rt_add(struct thread_runq *runq, struct thread *thread)
 
     if ((thread->sched_class == runq->current->sched_class)
         && (thread->rt_data.priority > runq->current->rt_data.priority))
-        thread_set_flag(runq->current, THREAD_RESCHEDULE);
+        thread_set_flag(runq->current, THREAD_YIELD);
 }
 
 static void
@@ -639,7 +619,7 @@ thread_sched_rt_tick(struct thread_runq *runq, struct thread *thread)
         return;
 
     thread->rt_data.time_slice = THREAD_DEFAULT_RR_TIME_SLICE;
-    thread_set_flag(thread, THREAD_RESCHEDULE);
+    thread_set_flag(thread, THREAD_YIELD);
 }
 
 static inline unsigned short
@@ -831,7 +811,7 @@ thread_sched_ts_restart(struct thread_runq *runq)
     ts_runq->current = list_entry(node, struct thread_ts_group, node);
 
     if (runq->current->sched_class == THREAD_SCHED_CLASS_TS)
-        thread_set_flag(runq->current, THREAD_RESCHEDULE);
+        thread_set_flag(runq->current, THREAD_YIELD);
 }
 
 static void
@@ -1010,7 +990,7 @@ thread_sched_ts_tick(struct thread_runq *runq, struct thread *thread)
     ts_runq->work++;
     group = &ts_runq->group_array[thread->ts_data.priority];
     group->work++;
-    thread_set_flag(thread, THREAD_RESCHEDULE);
+    thread_set_flag(thread, THREAD_YIELD);
     thread->ts_data.work++;
 }
 
@@ -1677,7 +1657,7 @@ thread_idle(void *arg)
         for (;;) {
             cpu_intr_disable();
 
-            if (thread_test_flag(self, THREAD_RESCHEDULE)) {
+            if (thread_test_flag(self, THREAD_YIELD)) {
                 cpu_intr_enable();
                 break;
             }
@@ -1931,7 +1911,7 @@ thread_run(void)
 }
 
 void
-thread_reschedule(void)
+thread_yield(void)
 {
     struct thread_runq *runq;
     struct thread *thread;
@@ -1939,8 +1919,7 @@ thread_reschedule(void)
 
     thread = thread_self();
 
-    if (!thread_test_flag(thread, THREAD_RESCHEDULE)
-        || !thread_preempt_enabled())
+    if (!thread_preempt_enabled())
         return;
 
     do {
@@ -1950,7 +1929,7 @@ thread_reschedule(void)
         runq = thread_runq_schedule(runq, thread);
         spinlock_unlock_intr_restore(&runq->lock, flags);
         thread_preempt_enable_no_resched();
-    } while (thread_test_flag(thread, THREAD_RESCHEDULE));
+    } while (thread_test_flag(thread, THREAD_YIELD));
 }
 
 void

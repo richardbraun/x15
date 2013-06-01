@@ -39,6 +39,7 @@
 #include <kern/list.h>
 #include <kern/macros.h>
 #include <kern/param.h>
+#include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/tcb.h>
 
@@ -58,7 +59,7 @@ struct thread_ts_runq;
 /*
  * Thread flags.
  */
-#define THREAD_RESCHEDULE 0x1UL /* Thread marked for reschedule */
+#define THREAD_YIELD 0x1UL /* Must yield the processor ASAP */
 
 /*
  * Thread states.
@@ -245,9 +246,13 @@ void thread_wakeup(struct thread *thread);
 void __noreturn thread_run(void);
 
 /*
- * Invoke the scheduler if the calling thread is marked for reschedule.
+ * Make the calling thread release the processor.
+ *
+ * This call does nothing if preemption is disabled, or the scheduler
+ * determines the caller should continue to run (e.g. it's currently the only
+ * runnable thread).
  */
-void thread_reschedule(void);
+void thread_yield(void);
 
 /*
  * Report a periodic timer interrupt on the thread currently running on
@@ -261,6 +266,47 @@ static inline struct thread *
 thread_self(void)
 {
     return structof(tcb_current(), struct thread, tcb);
+}
+
+/*
+ * Flag access functions.
+ */
+
+static inline void
+thread_set_flag(struct thread *thread, unsigned long flag)
+{
+    atomic_or(&thread->flags, flag);
+}
+
+static inline void
+thread_clear_flag(struct thread *thread, unsigned long flag)
+{
+    atomic_and(&thread->flags, ~flag);
+}
+
+static inline int
+thread_test_flag(struct thread *thread, unsigned long flag)
+{
+    barrier();
+    return ((thread->flags & flag) != 0);
+}
+
+/*
+ * Main scheduler invocation call.
+ *
+ * Called on return from interrupt or when reenabling preemption.
+ *
+ * Implies a compiler barrier.
+ */
+static inline void
+thread_schedule(void)
+{
+    barrier();
+
+    if (likely(!thread_test_flag(thread_self(), THREAD_YIELD)))
+        return;
+
+    thread_yield();
 }
 
 /*
@@ -324,7 +370,7 @@ static inline void
 thread_preempt_enable(void)
 {
     thread_preempt_enable_no_resched();
-    thread_reschedule();
+    thread_schedule();
 }
 
 static inline void

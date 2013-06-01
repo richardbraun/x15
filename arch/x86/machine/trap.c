@@ -245,7 +245,7 @@ trap_main(struct trap_frame *frame)
     if (handler->flags & TRAP_HF_NOPREEMPT)
         thread_preempt_enable_no_resched();
 
-    thread_reschedule();
+    thread_schedule();
 }
 
 #ifdef __LP64__
