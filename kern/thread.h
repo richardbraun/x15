@@ -101,9 +101,9 @@ struct thread_ts_runq;
 #define THREAD_SCHED_RT_PRIO_MAX        31
 
 /*
- * Scheduling context of a real-time thread.
+ * Scheduling data for a real-time thread.
  */
-struct thread_rt_ctx {
+struct thread_rt_data {
     struct list node;
     unsigned short priority;
     unsigned short time_slice;
@@ -117,9 +117,9 @@ struct thread_rt_ctx {
 #define THREAD_SCHED_TS_PRIO_MAX        39
 
 /*
- * Scheduling context of a time-sharing thread.
+ * Scheduling data for a time-sharing thread.
  */
-struct thread_ts_ctx {
+struct thread_ts_data {
     struct list group_node;
     struct list runq_node;
     struct thread_ts_runq *ts_runq;
@@ -155,10 +155,10 @@ struct thread {
     /* Processors on which this thread is allowed to run */
     struct cpumap cpumap;
 
-    /* Scheduling class specific contexts */
+    /* Scheduling class specific data */
     union {
-        struct thread_rt_ctx rt_ctx;
-        struct thread_ts_ctx ts_ctx;
+        struct thread_rt_data rt_data;
+        struct thread_ts_data ts_data;
     };
 
     /* Read-only members */
