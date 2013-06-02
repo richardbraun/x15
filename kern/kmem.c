@@ -948,6 +948,7 @@ fast_free:
         if (cpu_pool->array != NULL) {
             mutex_unlock(&cpu_pool->lock);
             kmem_cache_free(cache->cpu_pool_type->array_cache, array);
+            mutex_lock(&cpu_pool->lock);
             goto fast_free;
         }
 
