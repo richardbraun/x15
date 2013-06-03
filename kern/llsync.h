@@ -25,30 +25,8 @@
 #include <kern/macros.h>
 #include <kern/llsync_i.h>
 #include <kern/thread.h>
+#include <kern/work.h>
 #include <machine/mb.h>
-
-struct llsync_work;
-
-/*
- * Type for work functions.
- *
- * Works are guaranteed to be processed in thread context and can block, but
- * must not sleep for long durations.
- */
-typedef void (*llsync_fn_t)(struct llsync_work *);
-
-/*
- * Deferred work.
- *
- * This structure should be embedded in objects protected with lockless
- * synchronization. It stores the work function and is passed to it as its
- * only parameter. The function can then find the containing object with
- * structof and release it.
- */
-struct llsync_work {
-    struct list node;
-    llsync_fn_t fn;
-};
 
 /*
  * Safely assign a pointer.
@@ -132,7 +110,7 @@ void llsync_reset_checkpoint(unsigned int cpu);
  * Defer an operation until all existing read-side references are dropped,
  * without blocking.
  */
-void llsync_defer(struct llsync_work *work, llsync_fn_t fn);
+void llsync_defer(struct work *work);
 
 /*
  * Wait for all existing read-side references to be dropped.

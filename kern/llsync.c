@@ -27,9 +27,7 @@
  * http://lists.lttng.org/pipermail/lttng-dev/2013-May/020305.html). As
  * patents expire, this module could be reworked to become a true RCU
  * implementation. In the mean time, the module interface was carefully
- * designed to be compatible with RCU.
- *
- * TODO Implement and use generic worker threads.
+ * designed to be similar to RCU.
  *
  * TODO Gracefully handle large amounts of deferred works.
  */
@@ -41,15 +39,14 @@
 #include <kern/llsync_i.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
-#include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
 #include <kern/spinlock.h>
 #include <kern/stddef.h>
-#include <kern/thread.h>
+#include <kern/work.h>
 #include <machine/cpu.h>
 
-#define LLSYNC_NR_WORKS_WARN 10000
+#define LLSYNC_NR_PENDING_WORKS_WARN 10000
 
 struct llsync_cpu llsync_cpus[MAX_CPUS];
 
@@ -78,97 +75,35 @@ static struct cpumap llsync_pending_checkpoints;
 static unsigned int llsync_nr_pending_checkpoints;
 
 /*
- * List of deferred works.
+ * Queues of deferred works.
  *
- * The list number matches the number of global checkpoints that occurred
- * since works contained in it were added, except list2 for which it's two
- * or more.
+ * The queue number matches the number of global checkpoints that occurred
+ * since works contained in it were added. After two global checkpoints,
+ * works are scheduled for processing.
  */
-static struct list llsync_list0;
-static struct list llsync_list1;
-static struct list llsync_list2;
+static struct work_queue llsync_queue0;
+static struct work_queue llsync_queue1;
 
 /*
- * Total number of deferred works.
+ * Number of works not yet scheduled for processing.
  *
- * Mostly unused, except to monitor work processing.
+ * Mostly unused, except for debugging.
  */
-static unsigned long llsync_nr_works;
-
-/*
- * Thread processing deferred works.
- */
-static struct thread *llsync_worker;
+static unsigned long llsync_nr_pending_works;
 
 struct llsync_waiter {
-    struct llsync_work work;
+    struct work work;
     struct mutex lock;
     struct condition cond;
     int done;
 };
 
-static void
-llsync_work(void *arg)
-{
-    struct llsync_work *work ;
-    struct list tmp;
-    unsigned long flags, nr_works;
-
-    (void)arg;
-
-    spinlock_lock_intr_save(&llsync_lock, &flags);
-
-    for (;;) {
-        while (list_empty(&llsync_list2))
-            thread_sleep(&llsync_lock);
-
-        list_set_head(&tmp, &llsync_list2);
-        list_init(&llsync_list2);
-
-        spinlock_unlock_intr_restore(&llsync_lock, flags);
-
-        nr_works = 0;
-
-        do {
-            work = list_first_entry(&tmp, struct llsync_work, node);
-            list_remove(&work->node);
-            nr_works++;
-            work->fn(work);
-        } while (!list_empty(&tmp));
-
-        spinlock_lock_intr_save(&llsync_lock, &flags);
-
-        llsync_nr_works -= nr_works;
-    }
-}
-
 void
 llsync_setup(void)
 {
-    struct thread_attr attr;
-    int error;
-
     spinlock_init(&llsync_lock);
-    list_init(&llsync_list0);
-    list_init(&llsync_list1);
-    list_init(&llsync_list2);
-
-    attr.name = "x15_llsync_work";
-    attr.cpumap = NULL;
-    attr.task = NULL;
-    attr.policy = THREAD_SCHED_POLICY_TS;
-    attr.priority = THREAD_SCHED_TS_PRIO_DEFAULT;
-    error = thread_create(&llsync_worker, &attr, llsync_work, NULL);
-
-    if (error)
-        panic("llsync: unable to create worker thread");
-}
-
-static void
-llsync_wakeup_worker(void)
-{
-    if (thread_self() != llsync_worker)
-        thread_wakeup(llsync_worker);
+    work_queue_init(&llsync_queue0);
+    work_queue_init(&llsync_queue1);
 }
 
 static void
@@ -182,16 +117,18 @@ llsync_reset_checkpoint_common(unsigned int cpu)
 static void
 llsync_process_global_checkpoint(unsigned int cpu)
 {
+    struct work_queue queue;
+    unsigned int nr_works;
     int i;
 
     if (llsync_nr_registered_cpus == 0) {
-        list_concat(&llsync_list1, &llsync_list0);
-        list_init(&llsync_list0);
+        work_queue_concat(&llsync_queue1, &llsync_queue0);
+        work_queue_init(&llsync_queue0);
     }
 
-    list_concat(&llsync_list2, &llsync_list1);
-    list_set_head(&llsync_list1, &llsync_list0);
-    list_init(&llsync_list0);
+    work_queue_transfer(&queue, &llsync_queue1);
+    work_queue_transfer(&llsync_queue1, &llsync_queue0);
+    work_queue_init(&llsync_queue0);
 
     llsync_nr_pending_checkpoints = llsync_nr_registered_cpus;
 
@@ -202,8 +139,12 @@ llsync_process_global_checkpoint(unsigned int cpu)
         if ((unsigned int)i != cpu)
             cpu_send_llsync_reset(i);
 
-    if (!list_empty(&llsync_list2))
-        llsync_wakeup_worker();
+    nr_works = work_queue_nr_works(&queue);
+
+    if (nr_works != 0) {
+        llsync_nr_pending_works -= nr_works;
+        work_queue_schedule(&queue, 0);
+    }
 }
 
 static void
@@ -305,25 +246,23 @@ llsync_commit_checkpoint(unsigned int cpu)
 }
 
 void
-llsync_defer(struct llsync_work *work, llsync_fn_t fn)
+llsync_defer(struct work *work)
 {
     unsigned long flags;
 
-    work->fn = fn;
-
     spinlock_lock_intr_save(&llsync_lock, &flags);
 
-    list_insert_tail(&llsync_list0, &work->node);
-    llsync_nr_works++;
+    work_queue_push(&llsync_queue0, work);
+    llsync_nr_pending_works++;
 
-    if (llsync_nr_works == LLSYNC_NR_WORKS_WARN)
-        printk("llsync: warning: large number of deferred works\n");
+    if (llsync_nr_pending_works == LLSYNC_NR_PENDING_WORKS_WARN)
+        printk("llsync: warning: large number of pending works\n");
 
     spinlock_unlock_intr_restore(&llsync_lock, flags);
 }
 
 static void
-llsync_signal(struct llsync_work *work)
+llsync_signal(struct work *work)
 {
     struct llsync_waiter *waiter;
 
@@ -340,11 +279,12 @@ llsync_wait(void)
 {
     struct llsync_waiter waiter;
 
+    work_init(&waiter.work, llsync_signal);
     mutex_init(&waiter.lock);
     condition_init(&waiter.cond);
     waiter.done = 0;
 
-    llsync_defer(&waiter.work, llsync_signal);
+    llsync_defer(&waiter.work);
 
     mutex_lock(&waiter.lock);
 
