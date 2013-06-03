@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,9 @@
 #ifdef __LP64__
 
 ASM_ENTRY(tcb_context_load)
- movq 8(%rdi), %rax
- movq (%rdi), %rsp
+ movq (%rdi), %rbp
+ movq 8(%rdi), %rsp
+ movq 16(%rdi), %rax
  pushq $CPU_EFL_ONE
  popfq
  jmp *%rax
@@ -35,8 +36,9 @@ ASM_END(tcb_context_load)
 
 ASM_ENTRY(tcb_context_load)
  movl 4(%esp), %eax
- movl 4(%eax), %ecx
- movl (%eax), %esp
+ movl (%eax), %ebp
+ movl 4(%eax), %esp
+ movl 8(%eax), %ecx
  pushl $CPU_EFL_ONE
  popfl
  jmp *%ecx
@@ -50,7 +52,6 @@ ASM_END(tcb_context_load)
 
 ASM_ENTRY(tcb_start)
  popq %rax
- xorq %rbp, %rbp
  call *%rax
 
  /* Never reached */
@@ -60,15 +61,16 @@ ASM_END(tcb_start)
 ASM_ENTRY(tcb_context_switch)
  pushfq
  pushq %rbx
- pushq %rbp
  pushq %r12
  pushq %r13
  pushq %r14
  pushq %r15
- movq %rsp, (%rdi)
- movq $1f, 8(%rdi)
- movq (%rsi), %rsp
- movq 8(%rsi), %rax
+ movq %rbp, (%rdi)
+ movq %rsp, 8(%rdi)
+ movq $1f, 16(%rdi)
+ movq (%rsi), %rbp
+ movq 8(%rsi), %rsp
+ movq 16(%rsi), %rax
  jmp *%rax
 
 1:
@@ -76,7 +78,6 @@ ASM_ENTRY(tcb_context_switch)
  popq %r14
  popq %r13
  popq %r12
- popq %rbp
  popq %rbx
  popfq
  ret
@@ -86,7 +87,6 @@ ASM_END(tcb_context_switch)
 
 ASM_ENTRY(tcb_start)
  popl %eax
- xorl %ebp, %ebp
  call *%eax
 
  /* Never reached */
@@ -98,19 +98,19 @@ ASM_ENTRY(tcb_context_switch)
  movl 8(%esp), %ecx
  pushfl
  pushl %ebx
- pushl %ebp
  pushl %edi
  pushl %esi
- movl %esp, (%eax)
- movl $1f, 4(%eax)
- movl (%ecx), %esp
- movl 4(%ecx), %edx
+ movl %ebp, (%eax)
+ movl %esp, 4(%eax)
+ movl $1f, 8(%eax)
+ movl (%ecx), %ebp
+ movl 4(%ecx), %esp
+ movl 8(%ecx), %edx
  jmp *%edx
 
 1:
  popl %esi
  popl %edi
- popl %ebp
  popl %ebx
  popfl
  ret

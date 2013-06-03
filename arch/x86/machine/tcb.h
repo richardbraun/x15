@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
  * Architecture specific thread data.
  */
 struct tcb {
+    unsigned long bp;
     unsigned long sp;
     unsigned long ip;
 };
@@ -80,6 +81,13 @@ tcb_switch(struct tcb *prev, struct tcb *next)
     tcb_set_current(next);
     tcb_context_switch(prev, next);
 }
+
+/*
+ * Dump the stack trace of a TCB.
+ *
+ * The thread associated to the TCB should not be running.
+ */
+void tcb_trace(const struct tcb *tcb);
 
 /*
  * Send a rescheduling interrupt to a remote processor.

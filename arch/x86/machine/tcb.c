@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <kern/macros.h>
 #include <kern/param.h>
 #include <machine/cpu.h>
+#include <machine/strace.h>
 #include <machine/tcb.h>
 
 /*
@@ -32,6 +33,7 @@ tcb_init(struct tcb *tcb, void *stack, void (*fn)(void))
 {
     void **ptr;
 
+    tcb->bp = 0;
     tcb->sp = (unsigned long)stack + STACK_SIZE - sizeof(unsigned long);
     tcb->ip = (unsigned long)tcb_start;
 
@@ -46,6 +48,12 @@ tcb_load(struct tcb *tcb)
 
     tcb_set_current(tcb);
     tcb_context_load(tcb);
+}
+
+void
+tcb_trace(const struct tcb *tcb)
+{
+    strace_show(tcb->ip, tcb->bp);
 }
 
 void
