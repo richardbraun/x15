@@ -22,6 +22,7 @@
 #include <kern/panic.h>
 #include <kern/task.h>
 #include <kern/thread.h>
+#include <kern/work.h>
 #include <machine/cpu.h>
 
 void __init
@@ -36,6 +37,7 @@ kernel_main(void)
     cpumap_setup();
     task_setup();
     thread_setup();
+    work_setup();
     llsync_setup();
 
     /* Rendezvous with APs */
