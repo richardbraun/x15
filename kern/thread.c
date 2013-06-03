@@ -1749,9 +1749,15 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
     }
 
     thread_init(thread, stack, attr, fn, arg);
+
+    /*
+     * The new thread address must be written before the thread is started
+     * in case it's passed to it.
+     */
+    *threadp = thread;
+
     thread_wakeup(thread);
 
-    *threadp = thread;
     return 0;
 
 error_stack:
