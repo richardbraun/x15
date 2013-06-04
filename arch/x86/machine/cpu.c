@@ -599,6 +599,16 @@ cpu_halt_intr(struct trap_frame *frame)
 }
 
 void
+cpu_thread_schedule_intr(struct trap_frame *frame)
+{
+    (void)frame;
+
+    lapic_eoi();
+
+    /* Let the return from interrupt code invoke the scheduler */
+}
+
+void
 cpu_llsync_reset_intr(struct trap_frame *frame)
 {
     (void)frame;

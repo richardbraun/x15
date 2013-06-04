@@ -158,7 +158,7 @@ TRAP(TRAP_PIC_BASE + 15, trap_isr_pic_int15)
 
 /* System defined traps */
 TRAP(TRAP_LLSYNC_RESET, trap_isr_llsync_reset)
-TRAP(TRAP_RESCHEDULE, trap_isr_reschedule)
+TRAP(TRAP_THREAD_SCHEDULE, trap_isr_thread_schedule)
 TRAP(TRAP_PMAP_UPDATE, trap_isr_pmap_update)
 TRAP(TRAP_CPU_HALT, trap_isr_cpu_halt)
 TRAP(TRAP_LAPIC_TIMER, trap_isr_lapic_timer)

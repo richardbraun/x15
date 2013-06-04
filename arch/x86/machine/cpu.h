@@ -595,6 +595,20 @@ void cpu_ap_setup(void);
 void cpu_ap_sync(void);
 
 /*
+ * Send a scheduling interrupt to a remote processor.
+ */
+static inline void
+cpu_send_thread_schedule(unsigned int cpu)
+{
+    lapic_ipi_send(cpu, TRAP_THREAD_SCHEDULE);
+}
+
+/*
+ * Interrupt handler for scheduling requests.
+ */
+void cpu_thread_schedule_intr(struct trap_frame *frame);
+
+/*
  * Request a remote processor to reset its checkpoint.
  */
 static inline void

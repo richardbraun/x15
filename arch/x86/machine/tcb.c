@@ -55,13 +55,3 @@ tcb_trace(const struct tcb *tcb)
 {
     strace_show(tcb->ip, tcb->bp);
 }
-
-void
-tcb_reschedule_intr(struct trap_frame *frame)
-{
-    (void)frame;
-
-    lapic_eoi();
-
-    /* Let the return from interrupt code handle rescheduling */
-}

@@ -24,8 +24,6 @@
 #include <kern/assert.h>
 #include <kern/macros.h>
 #include <machine/cpu.h>
-#include <machine/lapic.h>
-#include <machine/trap.h>
 
 /*
  * Architecture specific thread data.
@@ -88,19 +86,5 @@ tcb_switch(struct tcb *prev, struct tcb *next)
  * The thread associated to the TCB should not be running.
  */
 void tcb_trace(const struct tcb *tcb);
-
-/*
- * Send a rescheduling interrupt to a remote processor.
- */
-static inline void
-tcb_send_reschedule(unsigned int cpu)
-{
-    lapic_ipi_send(cpu, TRAP_RESCHEDULE);
-}
-
-/*
- * Interrupt handler for rescheduling requests.
- */
-void tcb_reschedule_intr(struct trap_frame *frame);
 
 #endif /* _X86_TCB_H */

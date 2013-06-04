@@ -429,13 +429,12 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
     if ((runq != thread_runq_local())
         && thread_test_flag(runq->current, THREAD_YIELD)) {
         /*
-         * Make the new flags globally visible before sending the
-         * rescheduling request. This barrier pairs with the one implied
-         * by the rescheduling IPI.
+         * Make the new flags globally visible before sending the scheduling
+         * request. This barrier pairs with the one implied by the received IPI.
          */
         mb_store();
 
-        tcb_send_reschedule(thread_runq_id(runq));
+        cpu_send_thread_schedule(thread_runq_id(runq));
     }
 }
 
