@@ -131,6 +131,17 @@ rdxtree_node_to_entry(struct rdxtree_node *node)
     return (void *)((unsigned long)node | 1);
 }
 
+static void
+rdxtree_node_ctor(void *buf)
+{
+    struct rdxtree_node *node;
+
+    node = buf;
+    node->nr_entries = 0;
+    node->alloc_bm = RDXTREE_BM_FULL;
+    memset(node->entries, 0, sizeof(node->entries));
+}
+
 static int
 rdxtree_node_create(struct rdxtree_node **nodep, unsigned int height)
 {
@@ -144,9 +155,6 @@ rdxtree_node_create(struct rdxtree_node **nodep, unsigned int height)
     assert(rdxtree_check_alignment(node));
     node->parent = NULL;
     node->height = height;
-    node->nr_entries = 0;
-    node->alloc_bm = RDXTREE_BM_FULL;
-    memset(node->entries, 0, sizeof(node->entries));
     *nodep = node;
     return 0;
 }
@@ -157,6 +165,16 @@ rdxtree_node_destroy(struct work *work)
     struct rdxtree_node *node;
 
     node = structof(work, struct rdxtree_node, work);
+
+    /* See rdxtree_shrink() */
+    if (node->nr_entries != 0) {
+        assert(node->nr_entries == 1);
+        assert(node->entries[0] != NULL);
+        node->entries[0] = NULL;
+        node->nr_entries = 0;
+        node->alloc_bm = RDXTREE_BM_FULL;
+    }
+
     kmem_cache_free(&rdxtree_node_cache, node);
 }
 
@@ -307,6 +325,13 @@ rdxtree_shrink(struct rdxtree *tree)
             rdxtree_node_unlink(rdxtree_entry_addr(entry));
 
         llsync_assign_ptr(tree->root, entry);
+
+        /*
+         * There is still one valid entry (the first one) in this node. It
+         * must remain valid as long as read-side references can exist so
+         * that concurrent lookups can find the rest of the tree. Therefore,
+         * this entry isn't reset before node destruction.
+         */
         rdxtree_node_schedule_destruction(node);
     }
 }
@@ -765,6 +790,13 @@ rdxtree_remove_all(struct rdxtree *tree)
     do {
         next = rdxtree_walk(tree, node);
 
+        /* Version of rdxtree_node_ctor() with proper pointer assignment */
+        node->nr_entries = 0;
+        node->alloc_bm = RDXTREE_BM_FULL;
+
+        for (index = 0; index < ARRAY_SIZE(node->entries); index++)
+            llsync_assign_ptr(node->entries[index], NULL);
+
         parent = node->parent;
 
         if (parent != NULL) {
@@ -785,5 +817,6 @@ void
 rdxtree_setup(void)
 {
     kmem_cache_init(&rdxtree_node_cache, "rdxtree_node",
-                    sizeof(struct rdxtree_node), 0, NULL, NULL, NULL, 0);
+                    sizeof(struct rdxtree_node), 0,
+                    rdxtree_node_ctor, NULL, NULL, 0);
 }
