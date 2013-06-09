@@ -34,6 +34,9 @@ x15_SOURCES +=              \
 	kern/rbtree.c       \
 	kern/rbtree.h       \
 	kern/rbtree_i.h     \
+	kern/rdxtree.c      \
+	kern/rdxtree.h      \
+	kern/rdxtree_i.h    \
 	kern/spinlock.h     \
 	kern/spinlock_i.h   \
 	kern/sprintf.c      \
