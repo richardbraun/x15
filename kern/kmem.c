@@ -383,18 +383,24 @@ kmem_cpu_pool_push(struct kmem_cpu_pool *cpu_pool, void *obj)
 static int
 kmem_cpu_pool_fill(struct kmem_cpu_pool *cpu_pool, struct kmem_cache *cache)
 {
-    void *obj;
+    kmem_cache_ctor_t ctor;
+    void *buf;
     int i;
+
+    ctor = (cpu_pool->flags & KMEM_CF_VERIFY) ? NULL : cache->ctor;
 
     mutex_lock(&cache->lock);
 
     for (i = 0; i < cpu_pool->transfer_size; i++) {
-        obj = kmem_cache_alloc_from_slab(cache);
+        buf = kmem_cache_alloc_from_slab(cache);
 
-        if (obj == NULL)
+        if (buf == NULL)
             break;
 
-        kmem_cpu_pool_push(cpu_pool, obj);
+        if (ctor != NULL)
+            ctor(buf);
+
+        kmem_cpu_pool_push(cpu_pool, buf);
     }
 
     mutex_unlock(&cache->lock);
