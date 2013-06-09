@@ -23,6 +23,7 @@
 #include <kern/list.h>
 #include <kern/panic.h>
 #include <kern/printk.h>
+#include <kern/rdxtree.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
@@ -58,14 +59,21 @@
 
 struct work_thread {
     struct list node;
-    struct work_pool *pool;
     struct thread *thread;
+    unsigned long id;
+    struct work_pool *pool;
 };
 
 /*
  * Pool of threads and works.
  *
  * Interrupts must be disabled when acquiring the pool lock.
+ *
+ * The radix tree is only used to allocate worker IDs. It doesn't store
+ * anything relevant. The limit placed on the number of worker threads per
+ * pool prevents the allocation of many nodes, which keeps memory waste low.
+ * TODO The tree implementation could be improved to use nodes of reduced
+ * size, storing only allocation bitmaps and not actual pointers.
  */
 struct work_pool {
     struct spinlock lock;
@@ -75,10 +83,11 @@ struct work_pool {
     unsigned int nr_threads;
     unsigned int nr_available_threads;
     struct list available_threads;
+    struct rdxtree tree;
     char name[WORK_NAME_SIZE];
 };
 
-static int work_thread_create(struct work_pool *pool);
+static int work_thread_create(struct work_pool *pool, unsigned long id);
 static void work_thread_destroy(struct work_thread *worker);
 
 static struct work_pool work_pool_main;
@@ -88,23 +97,57 @@ static struct kmem_cache work_thread_cache;
 
 static unsigned int work_max_threads;
 
+static inline int
+work_pool_alloc_id(struct work_pool *pool, unsigned long *idp)
+{
+    int error;
+
+    error = rdxtree_insert_alloc(&pool->tree, pool, idp);
+
+    if (error)
+        return error;
+
+    pool->nr_threads++;
+    return 0;
+}
+
+static inline void
+work_pool_free_id(struct work_pool *pool, unsigned long id)
+{
+    pool->nr_threads--;
+    rdxtree_remove(&pool->tree, id);
+}
+
 static void
 work_pool_init(struct work_pool *pool, const char *name, int flags)
 {
+    unsigned long id;
     int error;
 
     spinlock_init(&pool->lock);
     pool->flags = flags;
     work_queue_init(&pool->queue);
     pool->manager = NULL;
-    pool->nr_threads = 1;
+    pool->nr_threads = 0;
     pool->nr_available_threads = 0;
     list_init(&pool->available_threads);
+    rdxtree_init(&pool->tree);
     strlcpy(pool->name, name, sizeof(pool->name));
-    error = work_thread_create(pool);
+
+    error = work_pool_alloc_id(pool, &id);
 
     if (error)
-        panic("work: unable to create initial worker thread");
+        goto error_thread;
+
+    error = work_thread_create(pool, id);
+
+    if (error)
+        goto error_thread;
+
+    return;
+
+error_thread:
+    panic("work: unable to create initial worker thread");
 }
 
 static void
@@ -129,7 +172,7 @@ work_process(void *arg)
     struct work_thread *self, *worker;
     struct work_pool *pool;
     struct work *work;
-    unsigned long flags;
+    unsigned long flags, id;
     int error;
 
     self = arg;
@@ -171,15 +214,20 @@ work_process(void *arg)
                                           struct work_thread, node);
                 thread_wakeup(worker->thread);
             } else if (pool->nr_threads < work_max_threads) {
-                pool->nr_threads++;
+                error = work_pool_alloc_id(pool, &id);
+
+                if (error)
+                    goto warn_thread;
+
                 spinlock_unlock_intr_restore(&pool->lock, flags);
 
-                error = work_thread_create(pool);
+                error = work_thread_create(pool, id);
 
                 spinlock_lock_intr_save(&pool->lock, &flags);
 
                 if (error) {
-                    pool->nr_threads--;
+                    work_pool_free_id(pool, id);
+warn_thread:
                     printk("work: warning: unable to create worker thread\n");
                 }
             }
@@ -190,13 +238,13 @@ work_process(void *arg)
         work->fn(work);
     }
 
-    pool->nr_threads--;
+    work_pool_free_id(pool, self->id);
     spinlock_unlock_intr_restore(&pool->lock, flags);
     work_thread_destroy(self);
 }
 
 static int
-work_thread_create(struct work_pool *pool)
+work_thread_create(struct work_pool *pool, unsigned long id)
 {
     char name[THREAD_NAME_SIZE];
     struct thread_attr attr;
@@ -208,10 +256,10 @@ work_thread_create(struct work_pool *pool)
     if (worker == NULL)
         return ERROR_NOMEM;
 
+    worker->id = id;
     worker->pool = pool;
 
-    /* TODO Allocate numeric IDs to better identify worker threads */
-    snprintf(name, sizeof(name), "x15_work_process:%s", pool->name);
+    snprintf(name, sizeof(name), "x15_work_process:%s:%lu", pool->name, id);
     attr.name = name;
     attr.cpumap = NULL;
     attr.task = NULL;
