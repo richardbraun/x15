@@ -191,7 +191,7 @@ struct kmem_cache {
     unsigned long nr_bufs;  /* Total number of buffers */
     unsigned long nr_slabs;
     unsigned long nr_free_slabs;
-    kmem_cache_ctor_t ctor;
+    kmem_ctor_fn_t ctor;
     kmem_slab_alloc_fn_t slab_alloc_fn;
     kmem_slab_free_fn_t slab_free_fn;
     char name[KMEM_NAME_SIZE];

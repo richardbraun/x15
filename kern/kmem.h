@@ -33,12 +33,12 @@ struct kmem_cache;
  *
  * The pre-constructed state of an object is supposed to include only
  * elements such as e.g. linked lists, locks, reference counters. Therefore
- * constructors are expected to 1) never fail and 2) not need any
- * user-provided data. The first constraint implies that object construction
- * never performs dynamic resource allocation, which also means there is no
- * need for destructors.
+ * constructors are expected to 1) never block, 2) never fail and 3) not
+ * need any user-provided data. As a result, object construction never
+ * performs dynamic resource allocation, which removes the need for
+ * destructors.
  */
-typedef void (*kmem_cache_ctor_t)(void *);
+typedef void (*kmem_ctor_fn_t)(void *);
 
 /*
  * Types for slab allocation/free functions.
@@ -64,7 +64,7 @@ typedef void (*kmem_slab_free_fn_t)(unsigned long, size_t);
  * (vm_kmem on the kernel map) is used for the allocation/free action.
  */
 void kmem_cache_init(struct kmem_cache *cache, const char *name,
-                     size_t obj_size, size_t align, kmem_cache_ctor_t ctor,
+                     size_t obj_size, size_t align, kmem_ctor_fn_t ctor,
                      kmem_slab_alloc_fn_t slab_alloc_fn,
                      kmem_slab_free_fn_t slab_free_fn, int flags);
 

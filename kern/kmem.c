@@ -383,7 +383,7 @@ kmem_cpu_pool_push(struct kmem_cpu_pool *cpu_pool, void *obj)
 static int
 kmem_cpu_pool_fill(struct kmem_cpu_pool *cpu_pool, struct kmem_cache *cache)
 {
-    kmem_cache_ctor_t ctor;
+    kmem_ctor_fn_t ctor;
     void *buf;
     int i;
 
@@ -535,7 +535,7 @@ kmem_cache_compute_sizes(struct kmem_cache *cache, int flags)
 
 void
 kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
-                size_t align, kmem_cache_ctor_t ctor,
+                size_t align, kmem_ctor_fn_t ctor,
                 kmem_slab_alloc_fn_t slab_alloc_fn,
                 kmem_slab_free_fn_t slab_free_fn, int flags)
 {
