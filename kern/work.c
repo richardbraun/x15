@@ -21,6 +21,7 @@
 #include <kern/error.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
+#include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/printk.h>
 #include <kern/rdxtree.h>
@@ -83,11 +84,12 @@ struct work_pool {
     unsigned int nr_threads;
     unsigned int nr_available_threads;
     struct list available_threads;
+    struct mutex tree_lock;
     struct rdxtree tree;
     char name[WORK_NAME_SIZE];
 };
 
-static int work_thread_create(struct work_pool *pool, unsigned long id);
+static int work_thread_create(struct work_pool *pool);
 static void work_thread_destroy(struct work_thread *worker);
 
 static struct work_pool work_pool_main;
@@ -97,49 +99,44 @@ static struct kmem_cache work_thread_cache;
 
 static unsigned int work_max_threads;
 
-static inline int
-work_pool_alloc_id(struct work_pool *pool, unsigned long *idp)
+static int
+work_pool_alloc_id(struct work_pool *pool, struct work_thread *worker,
+                   unsigned long *idp)
 {
     int error;
 
-    error = rdxtree_insert_alloc(&pool->tree, pool, idp);
+    mutex_lock(&pool->tree_lock);
+    error = rdxtree_insert_alloc(&pool->tree, worker, idp);
+    mutex_unlock(&pool->tree_lock);
 
-    if (error)
-        return error;
-
-    pool->nr_threads++;
-    return 0;
+    return error;
 }
 
-static inline void
+static void
 work_pool_free_id(struct work_pool *pool, unsigned long id)
 {
-    pool->nr_threads--;
+    mutex_lock(&pool->tree_lock);
     rdxtree_remove(&pool->tree, id);
+    mutex_unlock(&pool->tree_lock);
 }
 
 static void
 work_pool_init(struct work_pool *pool, const char *name, int flags)
 {
-    unsigned long id;
     int error;
 
     spinlock_init(&pool->lock);
     pool->flags = flags;
     work_queue_init(&pool->queue);
     pool->manager = NULL;
-    pool->nr_threads = 0;
+    pool->nr_threads = 1;
     pool->nr_available_threads = 0;
     list_init(&pool->available_threads);
+    mutex_init(&pool->tree_lock);
     rdxtree_init(&pool->tree);
     strlcpy(pool->name, name, sizeof(pool->name));
 
-    error = work_pool_alloc_id(pool, &id);
-
-    if (error)
-        goto error_thread;
-
-    error = work_thread_create(pool, id);
+    error = work_thread_create(pool);
 
     if (error)
         goto error_thread;
@@ -172,7 +169,7 @@ work_process(void *arg)
     struct work_thread *self, *worker;
     struct work_pool *pool;
     struct work *work;
-    unsigned long flags, id;
+    unsigned long flags;
     int error;
 
     self = arg;
@@ -214,20 +211,15 @@ work_process(void *arg)
                                           struct work_thread, node);
                 thread_wakeup(worker->thread);
             } else if (pool->nr_threads < work_max_threads) {
-                error = work_pool_alloc_id(pool, &id);
-
-                if (error)
-                    goto warn_thread;
-
+                pool->nr_threads++;
                 spinlock_unlock_intr_restore(&pool->lock, flags);
 
-                error = work_thread_create(pool, id);
+                error = work_thread_create(pool);
 
                 spinlock_lock_intr_save(&pool->lock, &flags);
 
                 if (error) {
-                    work_pool_free_id(pool, id);
-warn_thread:
+                    pool->nr_threads--;
                     printk("work: warning: unable to create worker thread\n");
                 }
             }
@@ -238,13 +230,13 @@ warn_thread:
         work->fn(work);
     }
 
-    work_pool_free_id(pool, self->id);
+    pool->nr_threads--;
     spinlock_unlock_intr_restore(&pool->lock, flags);
     work_thread_destroy(self);
 }
 
 static int
-work_thread_create(struct work_pool *pool, unsigned long id)
+work_thread_create(struct work_pool *pool)
 {
     char name[THREAD_NAME_SIZE];
     struct thread_attr attr;
@@ -256,10 +248,15 @@ work_thread_create(struct work_pool *pool, unsigned long id)
     if (worker == NULL)
         return ERROR_NOMEM;
 
-    worker->id = id;
+    error = work_pool_alloc_id(pool, worker, &worker->id);
+
+    if (error)
+        goto error_id;
+
     worker->pool = pool;
 
-    snprintf(name, sizeof(name), "x15_work_process:%s:%lu", pool->name, id);
+    snprintf(name, sizeof(name), "x15_work_process:%s:%lu", pool->name,
+             worker->id);
     attr.name = name;
     attr.cpumap = NULL;
     attr.task = NULL;
@@ -275,6 +272,8 @@ work_thread_create(struct work_pool *pool, unsigned long id)
     return 0;
 
 error_thread:
+    work_pool_free_id(pool, worker->id);
+error_id:
     kmem_cache_free(&work_thread_cache, worker);
     return error;
 }
@@ -282,6 +281,7 @@ error_thread:
 static void
 work_thread_destroy(struct work_thread *worker)
 {
+    work_pool_free_id(worker->pool, worker->id);
     kmem_cache_free(&work_thread_cache, worker);
 }
 
