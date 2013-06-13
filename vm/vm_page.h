@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011 Richard Braun.
+ * Copyright (c) 2010, 2011, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <kern/macros.h>
 #include <kern/param.h>
 #include <kern/types.h>
+#include <vm/vm_object.h>
 
 /*
  * Address/page conversion and rounding macros (not inline functions to
@@ -41,8 +42,17 @@ struct vm_page {
     struct list node;
     unsigned short seg_index;
     unsigned short order;
+
+    union {
+        struct {
+            struct vm_object *object;
+            uint64_t offset;
+        };
+
+        void *slab_priv;
+    };
+
     phys_addr_t phys_addr;
-    void *slab_priv;
 };
 
 static inline phys_addr_t

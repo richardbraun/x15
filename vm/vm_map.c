@@ -46,8 +46,9 @@
 #include <machine/pmap.h>
 #include <vm/vm_adv.h>
 #include <vm/vm_inherit.h>
-#include <vm/vm_map.h>
 #include <vm/vm_kmem.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
 #include <vm/vm_prot.h>

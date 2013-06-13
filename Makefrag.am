@@ -55,6 +55,8 @@ x15_SOURCES +=              \
 
 x15_SOURCES +=              \
 	vm/vm_adv.h         \
+	vm/vm_anon.c        \
+	vm/vm_anon.h        \
 	vm/vm_inherit.h     \
 	vm/vm_kmem.c        \
 	vm/vm_kmem.h        \
