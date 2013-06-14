@@ -49,13 +49,13 @@ MACRO_END
 #define llsync_read_ptr(ptr) (ptr)
 
 static inline void
-llsync_read_lock(void)
+llsync_read_enter(void)
 {
     thread_preempt_disable();
 }
 
 static inline void
-llsync_read_unlock(void)
+llsync_read_leave(void)
 {
     thread_preempt_enable();
 }
