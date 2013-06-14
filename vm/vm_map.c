@@ -635,9 +635,14 @@ vm_map_prepare(struct vm_map *map, struct vm_object *object, unsigned long offse
  */
 
 static inline int
-vm_map_try_merge_compatible(int flags1, int flags2)
+vm_map_try_merge_compatible(const struct vm_map_request *request,
+                            const struct vm_map_entry *entry)
 {
-    return (flags1 & VM_MAP_ENTRY_MASK) == (flags2 & VM_MAP_ENTRY_MASK);
+    /* Only merge special kernel mappings for now */
+    return (request->object == NULL)
+           && (entry->object == NULL)
+           && ((request->flags & VM_MAP_ENTRY_MASK)
+               == (entry->flags & VM_MAP_ENTRY_MASK));
 }
 
 static struct vm_map_entry *
@@ -648,7 +653,7 @@ vm_map_try_merge_prev(struct vm_map *map, const struct vm_map_request *request,
 
     assert(entry != NULL);
 
-    if (!vm_map_try_merge_compatible(entry->flags, request->flags))
+    if (!vm_map_try_merge_compatible(request, entry))
         return NULL;
 
     if (entry->end != request->start)
@@ -671,7 +676,7 @@ vm_map_try_merge_next(struct vm_map *map, const struct vm_map_request *request,
 
     assert(entry != NULL);
 
-    if (!vm_map_try_merge_compatible(entry->flags, request->flags))
+    if (!vm_map_try_merge_compatible(request, entry))
         return NULL;
 
     end = request->start + request->size;
@@ -698,8 +703,8 @@ vm_map_try_merge_near(struct vm_map *map, const struct vm_map_request *request,
 
     if ((first->end == request->start)
         && ((request->start + request->size) == second->start)
-        && vm_map_try_merge_compatible(first->flags, request->flags)
-        && vm_map_try_merge_compatible(request->flags, second->flags)) {
+        && vm_map_try_merge_compatible(request, first)
+        && vm_map_try_merge_compatible(request, second)) {
         struct vm_map_entry *prev, *next;
 
         prev = vm_map_prev(map, first);
@@ -726,11 +731,8 @@ vm_map_try_merge(struct vm_map *map, const struct vm_map_request *request)
     struct vm_map_entry *entry, *prev;
     struct list *node;
 
+    /* Statically allocated map entries must not be merged */
     assert(!(request->flags & VM_MAP_NOMERGE));
-
-    /* Only merge special kernel mappings for now */
-    if (request->object != NULL)
-        return NULL;
 
     if (request->next == NULL) {
         node = list_last(&map->entry_list);
