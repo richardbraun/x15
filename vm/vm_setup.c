@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <kern/init.h>
 #include <kern/kmem.h>
 #include <machine/pmap.h>
 #include <vm/vm_map.h>
@@ -22,7 +23,7 @@
 #include <vm/vm_phys.h>
 #include <vm/vm_setup.h>
 
-void
+void __init
 vm_setup(void)
 {
     vm_kmem_setup();
