@@ -760,7 +760,7 @@ vm_map_try_merge(struct vm_map *map, const struct vm_map_request *request)
 /*
  * Convert a prepared mapping request into an entry in the given map.
  *
- * if entry is NULL, a map entry is allocated for the mapping.
+ * If entry is NULL, a map entry is allocated for the mapping.
  */
 static int
 vm_map_insert(struct vm_map *map, struct vm_map_entry *entry,
