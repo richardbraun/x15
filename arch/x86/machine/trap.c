@@ -23,7 +23,9 @@
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
+#include <kern/param.h>
 #include <kern/printk.h>
+#include <kern/task.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>
@@ -31,6 +33,18 @@
 #include <machine/pmap.h>
 #include <machine/strace.h>
 #include <machine/trap.h>
+#include <vm/vm_kmem.h>
+#include <vm/vm_map.h>
+#include <vm/vm_prot.h>
+
+/*
+ * Page fault error codes.
+ */
+#define TRAP_ERROR_PF_PROT      0x01    /* Protection violation */
+#define TRAP_ERROR_PF_WRITE     0x02    /* Write access */
+#define TRAP_ERROR_PF_USER      0x04    /* User mode access */
+#define TRAP_ERROR_PF_RESERVED  0x08    /* Invalid PTE (reserved bit set) */
+#define TRAP_ERROR_PF_EXEC      0x10    /* Instruction fetch */
 
 /*
  * Type for interrupt service routines and trap handler functions.
@@ -158,6 +172,47 @@ trap_install_double_fault(void)
 }
 
 static void
+trap_page_fault(struct trap_frame *frame)
+{
+    struct thread *thread;
+    struct vm_map *map;
+    unsigned long addr;
+    int error, access;
+
+    /*
+     * TODO Page faults can currently only be handled when they are accesses
+     * from kernel space to valid mapped objects. Complete according to the
+     * VM system capabilities.
+     */
+    assert(!(frame->error & TRAP_ERROR_PF_PROT));
+    assert(!(frame->error & TRAP_ERROR_PF_USER));
+    assert(!(frame->error & TRAP_ERROR_PF_RESERVED));
+    assert(!(frame->error & TRAP_ERROR_PF_EXEC));
+
+    /*
+     * Reading CR2 is safe because interrupts are disabled and kernel code
+     * can't cause another page fault while handling a page fault.
+     */
+    addr = cpu_get_cr2();
+    access = (frame->error & TRAP_ERROR_PF_WRITE)
+             ? VM_PROT_WRITE
+             : VM_PROT_READ;
+    thread = thread_self();
+    map = (addr >= VM_MIN_KERNEL_ADDRESS) ? kernel_map : thread->task->map;
+
+    error = vm_map_fault(map, addr, access);
+
+    if (error) {
+        cpu_halt_broadcast();
+        printk("trap: page fault error: %d, code %#lx at %#lx in task %s\n",
+               error, frame->error, addr, thread->task->name);
+        trap_frame_show(frame);
+        trap_stack_show(frame);
+        cpu_halt();
+    }
+}
+
+static void
 trap_default(struct trap_frame *frame)
 {
     cpu_halt_broadcast();
@@ -189,7 +244,7 @@ trap_setup(void)
     trap_install(TRAP_NP, 0, trap_isr_segment_not_present, trap_default);
     trap_install(TRAP_SS, 0, trap_isr_stack_segment_fault, trap_default);
     trap_install(TRAP_GP, 0, trap_isr_general_protection, trap_default);
-    trap_install(TRAP_PF, 0, trap_isr_page_fault, trap_default);
+    trap_install(TRAP_PF, 0, trap_isr_page_fault, trap_page_fault);
     trap_install(TRAP_MF, 0, trap_isr_math_fault, trap_default);
     trap_install(TRAP_AC, 0, trap_isr_alignment_check, trap_default);
     trap_install(TRAP_MC, TRAP_HF_NOPREEMPT,

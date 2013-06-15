@@ -31,6 +31,7 @@
 #include <kern/mutex.h>
 #include <kern/rdxtree.h>
 #include <kern/stdint.h>
+#include <vm/vm_page.h>
 
 struct vm_object_pager;
 
@@ -50,8 +51,8 @@ struct vm_object {
 struct vm_object_pager {
     void (*ref)(struct vm_object *object);
     void (*unref)(struct vm_object *object);
-    int (*get)(struct vm_object *object, uint64_t offset, struct list *pages,
-               int access_prot, int advice);
+    int (*get)(struct vm_object *object, uint64_t offset,
+               struct vm_page **pagep, int access_type, int advice);
 };
 
 static inline void

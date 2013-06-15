@@ -26,6 +26,50 @@
 #include <kern/work.h>
 #include <machine/cpu.h>
 
+#include <vm/vm_anon.h>
+#include <vm/vm_kmem.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
+
+#define OBJ_SIZE (PAGE_SIZE * 10)
+
+static void
+kernel_test(void *arg)
+{
+    struct vm_object *object;
+    unsigned long addr;
+    int error, flags;
+
+    (void)arg;
+
+    object = vm_anon_create(OBJ_SIZE);
+    assert(object != NULL);
+    addr = 0;
+    flags = VM_MAP_PROT_ALL | VM_MAP_MAX_PROT_ALL | VM_MAP_INHERIT_NONE
+            | VM_MAP_ADV_NORMAL;
+    error = vm_map_enter(kernel_map, object, 0, &addr, OBJ_SIZE, 0, flags);
+    assert(!error);
+    printk("anonymous object mapped at %#lx\n", addr);
+    vm_map_info(kernel_map);
+    memset((void *)addr, '\0', OBJ_SIZE);
+}
+
+static void
+start_test(void)
+{
+    struct thread_attr attr;
+    struct thread *thread;
+    int error;
+
+    attr.name = "test";
+    attr.cpumap = NULL;
+    attr.task = NULL;
+    attr.policy = THREAD_SCHED_POLICY_TS;
+    attr.priority = THREAD_SCHED_TS_PRIO_DEFAULT;
+    error = thread_create(&thread, &attr, kernel_test, NULL);
+    assert(!error);
+}
+
 void __init
 kernel_main(void)
 {
@@ -41,6 +85,8 @@ kernel_main(void)
     thread_setup();
     work_setup();
     llsync_setup();
+
+    start_test();
 
     /* Rendezvous with APs */
     cpu_mp_sync();

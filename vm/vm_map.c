@@ -900,6 +900,16 @@ out:
     mutex_unlock(&map->lock);
 }
 
+int
+vm_map_fault(struct vm_map *map, unsigned long addr, int access)
+{
+    (void)map;
+    (void)addr;
+    (void)access;
+
+    return ERROR_AGAIN;
+}
+
 static void
 vm_map_init(struct vm_map *map, struct pmap *pmap, unsigned long start,
             unsigned long end)

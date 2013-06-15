@@ -103,6 +103,13 @@ int vm_map_enter(struct vm_map *map, struct vm_object *object, uint64_t offset,
 void vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end);
 
 /*
+ * Page fault handling.
+ *
+ * Access is one of VM_PROT_READ, VM_PROT_WRITE or VM_PROT_EXECUTE.
+ */
+int vm_map_fault(struct vm_map *map, unsigned long addr, int access);
+
+/*
  * Set up the vm_map module.
  */
 void vm_map_setup(void);
