@@ -26,10 +26,13 @@
 #include <kern/work.h>
 #include <machine/cpu.h>
 
+#include <vm/vm_adv.h>
 #include <vm/vm_anon.h>
+#include <vm/vm_inherit.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_prot.h>
 
 #define OBJ_SIZE (PAGE_SIZE * 10)
 
@@ -45,8 +48,8 @@ kernel_test(void *arg)
     object = vm_anon_create(OBJ_SIZE);
     assert(object != NULL);
     addr = 0;
-    flags = VM_MAP_PROT_ALL | VM_MAP_MAX_PROT_ALL | VM_MAP_INHERIT_NONE
-            | VM_MAP_ADV_NORMAL;
+    flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_DEFAULT,
+                         VM_ADV_DEFAULT, 0);
     error = vm_map_enter(kernel_map, object, 0, &addr, OBJ_SIZE, 0, flags);
     assert(!error);
     printk("anonymous object mapped at %#lx\n", addr);
