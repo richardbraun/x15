@@ -54,6 +54,7 @@ x15_SOURCES +=              \
 	kern/work.h
 
 x15_SOURCES +=              \
+	vm/vm_adv.h         \
 	vm/vm_inherit.h     \
 	vm/vm_kmem.c        \
 	vm/vm_kmem.h        \

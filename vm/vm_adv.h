@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,15 +15,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _VM_VM_INHERIT_H
-#define _VM_VM_INHERIT_H
+#ifndef _VM_VM_ADV_H
+#define _VM_VM_ADV_H
 
 /*
- * Inheritance values.
+ * Advice values.
  */
-#define VM_INHERIT_NONE     0
-#define VM_INHERIT_SHARE    1
-#define VM_INHERIT_COPY     2
-#define VM_INHERIT_DEFAULT  VM_INHERIT_COPY
+#define VM_ADV_NORMAL       0
+#define VM_ADV_RANDOM       1
+#define VM_ADV_SEQUENTIAL   2
+#define VM_ADV_WILLNEED     3
+#define VM_ADV_DONTNEED     4
+#define VM_ADV_DEFAULT      VM_ADV_NORMAL
 
-#endif /* _VM_VM_INHERIT_H */
+#endif /* _VM_VM_ADV_H */

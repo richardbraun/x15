@@ -26,58 +26,39 @@
 #include <kern/rbtree.h>
 #include <kern/stdint.h>
 #include <machine/pmap.h>
+#include <vm/vm_adv.h>
+#include <vm/vm_inherit.h>
+#include <vm/vm_prot.h>
 
 /*
- * Mapping flags and masks.
+ * Mapping flags.
  *
- * All these flags can be used when creating a mapping. Most of them are
- * also used as map entry flags.
+ * Unless otherwise mentioned, these can also be used as map entry flags.
  */
-#define VM_MAP_PROT_READ        0x00001
-#define VM_MAP_PROT_WRITE       0x00002
-#define VM_MAP_PROT_EXEC        0x00004
-#define VM_MAP_PROT_ALL         (VM_MAP_PROT_READ       \
-                                 | VM_MAP_PROT_WRITE    \
-                                 | VM_MAP_PROT_EXEC)
-#define VM_MAP_PROT_MASK        VM_MAP_PROT_ALL
-
-#define VM_MAP_MAX_PROT_READ    (VM_MAP_PROT_READ << 4)
-#define VM_MAP_MAX_PROT_WRITE   (VM_MAP_PROT_WRITE << 4)
-#define VM_MAP_MAX_PROT_EXEC    (VM_MAP_PROT_EXEC << 4)
-#define VM_MAP_MAX_PROT_ALL     (VM_MAP_MAX_PROT_READ       \
-                                 | VM_MAP_MAX_PROT_WRITE    \
-                                 | VM_MAP_MAX_PROT_EXEC)
-#define VM_MAP_MAX_PROT_MASK    VM_MAP_MAX_PROT_ALL
-
-#define VM_MAP_INHERIT_SHARE    0x00100
-#define VM_MAP_INHERIT_COPY     0x00200
-#define VM_MAP_INHERIT_NONE     0x00400
-#define VM_MAP_INHERIT_MASK     (VM_MAP_INHERIT_SHARE   \
-                                 | VM_MAP_INHERIT_COPY  \
-                                 | VM_MAP_INHERIT_NONE)
-
-#define VM_MAP_ADV_NORMAL       0x01000
-#define VM_MAP_ADV_RAND         0x02000
-#define VM_MAP_ADV_SEQUENTIAL   0x04000
-#define VM_MAP_ADV_WILLNEED     0x08000
-#define VM_MAP_ADV_DONTNEED     0x10000
-#define VM_MAP_ADV_MASK         (VM_MAP_ADV_NORMAL          \
-                                 | VM_MAP_ADV_RAND          \
-                                 | VM_MAP_ADV_SEQUENTIAL    \
-                                 | VM_MAP_ADV_WILLNEED      \
-                                 | VM_MAP_ADV_DONTNEED)
-
-#define VM_MAP_NOMERGE          0x20000
-#define VM_MAP_FIXED            0x40000 /* Not an entry flag */
+#define VM_MAP_NOMERGE  0x10000
+#define VM_MAP_FIXED    0x20000 /* Not an entry flag */
 
 /*
- * Flags that can be used as map entry flags.
+ * Macro used to forge "packed" flags.
  */
-#define VM_MAP_ENTRY_MASK       (VM_MAP_PROT_MASK       \
-                                 | VM_MAP_MAX_PROT_MASK \
-                                 | VM_MAP_INHERIT_MASK  \
-                                 | VM_MAP_ADV_MASK   \
-                                 | VM_MAP_NOMERGE)
+#define VM_MAP_FLAGS(prot, maxprot, inherit, advice, mapflags)          \
+    ((prot) | ((maxprot) << 4) | ((inherit) << 8) | ((advice) << 12)    \
+     | (mapflags))
+
+/*
+ * Flags usable as map entry flags.
+ *
+ * Map entry flags also use the packed format.
+ */
+#define VM_MAP_ENTRY_MASK (VM_MAP_NOMERGE | 0xffff)
+
+/*
+ * Macros used to extract specific properties out of packed flags.
+ */
+#define VM_MAP_PROT(flags)      ((flags) & 0xf)
+#define VM_MAP_MAXPROT(flags)   (((flags) & 0xf0) >> 4)
+#define VM_MAP_INHERIT(flags)   (((flags) & 0xf00) >> 8)
+#define VM_MAP_ADVICE(flags)    (((flags) & 0xf000) >> 12)
 
 /*
  * Memory range descriptor.

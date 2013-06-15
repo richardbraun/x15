@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012 Richard Braun.
+ * Copyright (c) 2011, 2012, 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +22,13 @@
 #include <kern/stddef.h>
 #include <kern/types.h>
 #include <machine/pmap.h>
-#include <vm/vm_map.h>
+#include <vm/vm_adv.h>
+#include <vm/vm_inherit.h>
 #include <vm/vm_kmem.h>
+#include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_prot.h>
 
 /*
  * Kernel map and storage.
@@ -123,8 +126,8 @@ vm_kmem_alloc_va(size_t size)
     size = vm_page_round(size);
 
     va = 0;
-    flags = VM_MAP_PROT_ALL | VM_MAP_MAX_PROT_ALL | VM_MAP_INHERIT_NONE
-            | VM_MAP_ADV_NORMAL;
+    flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
+                         VM_ADV_DEFAULT, 0);
     error = vm_map_enter(kernel_map, NULL, 0, &va, size, 0, flags);
 
     if (error)

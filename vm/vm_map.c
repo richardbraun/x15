@@ -44,10 +44,13 @@
 #include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <machine/pmap.h>
+#include <vm/vm_adv.h>
+#include <vm/vm_inherit.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_prot.h>
 
 /*
  * Special threshold which disables the use of the free area cache address.
@@ -262,8 +265,8 @@ vm_map_kentry_setup(void)
     assert(nr_pages > 0);
 
     assert(vm_page_aligned(VM_MAP_KENTRY_SIZE));
-    flags = VM_MAP_PROT_ALL | VM_MAP_MAX_PROT_ALL | VM_MAP_INHERIT_NONE
-            | VM_MAP_ADV_NORMAL | VM_MAP_NOMERGE;
+    flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
+                         VM_ADV_DEFAULT, VM_MAP_NOMERGE);
     error = vm_map_prepare(kernel_map, NULL, 0, 0, VM_MAP_KENTRY_SIZE + size,
                            0, flags, &request);
 
@@ -348,24 +351,10 @@ vm_map_entry_cmp_insert(const struct rbtree_node *a,
     return vm_map_entry_cmp_lookup(entry->start, b);
 }
 
-static inline int
-vm_map_get_protection(int flags)
-{
-    return flags & VM_MAP_PROT_MASK;
-}
-
-static inline int
-vm_map_get_max_protection(int flags)
-{
-    return (flags & VM_MAP_MAX_PROT_MASK) >> 4;
-}
-
 #ifndef NDEBUG
 static void
 vm_map_request_assert_valid(const struct vm_map_request *request)
 {
-    int prot, max_prot;
-
     assert((request->object != NULL) || (request->offset == 0));
     assert(vm_page_aligned(request->offset));
     assert(vm_page_aligned(request->start));
@@ -375,11 +364,8 @@ vm_map_request_assert_valid(const struct vm_map_request *request)
     assert((request->align == 0) || (request->align >= PAGE_SIZE));
     assert(ISP2(request->align));
 
-    prot = vm_map_get_protection(request->flags);
-    max_prot = vm_map_get_max_protection(request->flags);
-    assert((prot & max_prot) == prot);
-    assert(__builtin_popcount(request->flags & VM_MAP_INHERIT_MASK) == 1);
-    assert(__builtin_popcount(request->flags & VM_MAP_ADV_MASK) == 1);
+    assert((VM_MAP_PROT(request->flags) & VM_MAP_MAXPROT(request->flags))
+           == VM_MAP_PROT(request->flags));
     assert(!(request->flags & VM_MAP_FIXED)
            || (request->align == 0)
            || P2ALIGNED(request->start, request->align));
@@ -946,8 +932,8 @@ vm_map_setup(void)
      * the physical page table.
      */
     vm_kmem_boot_space(&start, &end);
-    flags = VM_MAP_PROT_ALL | VM_MAP_MAX_PROT_ALL | VM_MAP_INHERIT_NONE
-            | VM_MAP_ADV_NORMAL | VM_MAP_NOMERGE | VM_MAP_FIXED;
+    flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
+                         VM_ADV_DEFAULT, VM_MAP_NOMERGE | VM_MAP_FIXED);
     error = vm_map_prepare(kernel_map, NULL, 0, start, end - start, 0, flags,
                            &request);
 
