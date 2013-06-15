@@ -60,6 +60,7 @@ x15_SOURCES +=              \
 	vm/vm_kmem.h        \
 	vm/vm_map.c         \
 	vm/vm_map.h         \
+	vm/vm_object.h      \
 	vm/vm_page.h        \
 	vm/vm_phys.c        \
 	vm/vm_phys.h        \
