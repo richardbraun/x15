@@ -263,7 +263,7 @@ vm_map_kentry_setup(void)
 
     assert(vm_page_aligned(VM_MAP_KENTRY_SIZE));
     flags = VM_MAP_PROT_ALL | VM_MAP_MAX_PROT_ALL | VM_MAP_INHERIT_NONE
-            | VM_MAP_ADVISE_NORMAL | VM_MAP_NOMERGE;
+            | VM_MAP_ADV_NORMAL | VM_MAP_NOMERGE;
     error = vm_map_prepare(kernel_map, NULL, 0, 0, VM_MAP_KENTRY_SIZE + size,
                            0, flags, &request);
 
@@ -379,7 +379,7 @@ vm_map_request_assert_valid(const struct vm_map_request *request)
     max_prot = vm_map_get_max_protection(request->flags);
     assert((prot & max_prot) == prot);
     assert(__builtin_popcount(request->flags & VM_MAP_INHERIT_MASK) == 1);
-    assert(__builtin_popcount(request->flags & VM_MAP_ADVISE_MASK) == 1);
+    assert(__builtin_popcount(request->flags & VM_MAP_ADV_MASK) == 1);
     assert(!(request->flags & VM_MAP_FIXED)
            || (request->align == 0)
            || P2ALIGNED(request->start, request->align));
@@ -947,7 +947,7 @@ vm_map_setup(void)
      */
     vm_kmem_boot_space(&start, &end);
     flags = VM_MAP_PROT_ALL | VM_MAP_MAX_PROT_ALL | VM_MAP_INHERIT_NONE
-            | VM_MAP_ADVISE_NORMAL | VM_MAP_NOMERGE | VM_MAP_FIXED;
+            | VM_MAP_ADV_NORMAL | VM_MAP_NOMERGE | VM_MAP_FIXED;
     error = vm_map_prepare(kernel_map, NULL, 0, start, end - start, 0, flags,
                            &request);
 

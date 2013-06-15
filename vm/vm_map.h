@@ -56,15 +56,19 @@
                                  | VM_MAP_INHERIT_COPY  \
                                  | VM_MAP_INHERIT_NONE)
 
-#define VM_MAP_ADVISE_NORMAL    0x01000
-#define VM_MAP_ADVISE_RAND      0x02000
-#define VM_MAP_ADVISE_SEQ       0x04000
-#define VM_MAP_ADVISE_MASK      (VM_MAP_ADVISE_NORMAL   \
-                                 | VM_MAP_ADVISE_RAND   \
-                                 | VM_MAP_ADVISE_SEQ)
+#define VM_MAP_ADV_NORMAL       0x01000
+#define VM_MAP_ADV_RAND         0x02000
+#define VM_MAP_ADV_SEQUENTIAL   0x04000
+#define VM_MAP_ADV_WILLNEED     0x08000
+#define VM_MAP_ADV_DONTNEED     0x10000
+#define VM_MAP_ADV_MASK         (VM_MAP_ADV_NORMAL          \
+                                 | VM_MAP_ADV_RAND          \
+                                 | VM_MAP_ADV_SEQUENTIAL    \
+                                 | VM_MAP_ADV_WILLNEED      \
+                                 | VM_MAP_ADV_DONTNEED)
 
-#define VM_MAP_NOMERGE          0x10000
-#define VM_MAP_FIXED            0x20000 /* Not an entry flag */
+#define VM_MAP_NOMERGE          0x20000
+#define VM_MAP_FIXED            0x40000 /* Not an entry flag */
 
 /*
  * Flags that can be used as map entry flags.
@@ -72,7 +76,7 @@
 #define VM_MAP_ENTRY_MASK       (VM_MAP_PROT_MASK       \
                                  | VM_MAP_MAX_PROT_MASK \
                                  | VM_MAP_INHERIT_MASK  \
-                                 | VM_MAP_ADVISE_MASK   \
+                                 | VM_MAP_ADV_MASK   \
                                  | VM_MAP_NOMERGE)
 
 /*
