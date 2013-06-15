@@ -27,12 +27,11 @@
 #ifndef _VM_VM_OBJECT_H
 #define _VM_VM_OBJECT_H
 
-#include <kern/list.h>
 #include <kern/mutex.h>
 #include <kern/rdxtree.h>
 #include <kern/stdint.h>
-#include <vm/vm_page.h>
 
+struct vm_page;
 struct vm_object_pager;
 
 /*
@@ -63,5 +62,10 @@ vm_object_init(struct vm_object *object, struct vm_object_pager *pager)
     object->nr_pages = 0;
     object->pager = pager;
 }
+
+/*
+ * Get the page at offset inside an object, or NULL if none is found.
+ */
+struct vm_page * vm_object_get(const struct vm_object *object, uint64_t offset);
 
 #endif /* _VM_VM_OBJECT_H */

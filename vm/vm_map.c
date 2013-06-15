@@ -917,16 +917,43 @@ int
 vm_map_fault(struct vm_map *map, unsigned long addr, int access)
 {
     struct vm_map_entry *entry;
+    struct vm_page *page;
+    int error;
 
-    (void)access;
+    addr = vm_page_trunc(addr);
+
+    mutex_lock(&map->lock);
 
     entry = vm_map_fault_lookup(map, addr);
 
-    if (entry == NULL)
-        return ERROR_FAULT;
+    if (entry == NULL) {
+        error = ERROR_FAULT;
+        goto out;
+    }
 
-    printk("vm_map: fault on entry %p\n", entry);
-    return ERROR_AGAIN;
+    if ((access & VM_MAP_PROT(entry->flags)) != access) {
+        error = ERROR_ACCES;
+        goto out;
+    }
+
+    /* Null mappings are reserved for the kernel and always wired */
+    assert(entry->object != NULL);
+
+    page = vm_object_get(entry->object, entry->offset + (addr - entry->start));
+
+    if (page == NULL) {
+        /* TODO Get page from pager */
+        error = ERROR_FAULT;
+        goto out;
+    }
+
+    /* TODO Map the page */
+
+    error = ERROR_INVAL;
+
+out:
+    mutex_unlock(&map->lock);
+    return error;
 }
 
 static void

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Richard Braun.
+ * Copyright (c) 2013 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,14 +15,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_ERROR_H
-#define _KERN_ERROR_H
+#include <kern/rdxtree.h>
+#include <kern/rdxtree.h>
+#include <kern/stddef.h>
+#include <kern/stdint.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
 
-#define ERROR_NOMEM     1
-#define ERROR_AGAIN     2
-#define ERROR_INVAL     3
-#define ERROR_BUSY      4
-#define ERROR_FAULT     5
-#define ERROR_ACCES     6
+struct vm_page *
+vm_object_get(const struct vm_object *object, uint64_t offset)
+{
+    /* TODO Bump radix tree key size to 64-bits */
 
-#endif /* _KERN_ERROR_H */
+    return NULL;
+}
