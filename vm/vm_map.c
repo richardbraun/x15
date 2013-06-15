@@ -900,13 +900,32 @@ out:
     mutex_unlock(&map->lock);
 }
 
+static struct vm_map_entry *
+vm_map_fault_lookup(struct vm_map *map, unsigned long addr)
+{
+    struct vm_map_entry *entry;
+
+    entry = vm_map_lookup_nearest(map, addr);
+
+    if ((entry == NULL) || (addr < entry->start))
+        return NULL;
+
+    return entry;
+}
+
 int
 vm_map_fault(struct vm_map *map, unsigned long addr, int access)
 {
-    (void)map;
-    (void)addr;
+    struct vm_map_entry *entry;
+
     (void)access;
 
+    entry = vm_map_fault_lookup(map, addr);
+
+    if (entry == NULL)
+        return ERROR_FAULT;
+
+    printk("vm_map: fault on entry %p\n", entry);
     return ERROR_AGAIN;
 }
 

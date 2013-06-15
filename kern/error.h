@@ -22,5 +22,6 @@
 #define ERROR_AGAIN 2
 #define ERROR_INVAL 3
 #define ERROR_BUSY  4
+#define ERROR_FAULT 5
 
 #endif /* _KERN_ERROR_H */
