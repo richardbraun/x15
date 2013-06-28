@@ -179,8 +179,13 @@ void pmap_kgrow(unsigned long end);
  */
 void pmap_kenter(unsigned long va, phys_addr_t pa);
 void pmap_kremove(unsigned long start, unsigned long end);
-void pmap_kprotect(unsigned long start, unsigned long end, int prot);
 phys_addr_t pmap_kextract(unsigned long va);
+
+/*
+ * Set the protection of mappings in a physical map.
+ */
+void pmap_protect(struct pmap *pmap, unsigned long start, unsigned long end,
+                  int prot);
 
 /*
  * Flush the TLB for the given range of kernel addresses.

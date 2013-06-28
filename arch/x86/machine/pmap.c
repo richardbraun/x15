@@ -382,9 +382,10 @@ pmap_bootstrap(void)
     list_init(&pmap_list);
     list_insert_tail(&pmap_list, &kernel_pmap->node);
 
-    pmap_kprotect((unsigned long)&_text, (unsigned long)&_rodata,
-                  VM_PROT_READ | VM_PROT_EXECUTE);
-    pmap_kprotect((unsigned long)&_rodata, (unsigned long)&_data, VM_PROT_READ);
+    pmap_protect(kernel_pmap, (unsigned long)&_text, (unsigned long)&_rodata,
+                 VM_PROT_READ | VM_PROT_EXECUTE);
+    pmap_protect(kernel_pmap, (unsigned long)&_rodata, (unsigned long)&_data,
+                 VM_PROT_READ);
 
     if (cpu_has_global_pages())
         pmap_setup_global_pages();
@@ -582,8 +583,8 @@ pmap_kremove(unsigned long start, unsigned long end)
     }
 }
 
-void
-pmap_kprotect(unsigned long start, unsigned long end, int prot)
+static void
+pmap_protect_ptemap(unsigned long start, unsigned long end, int prot)
 {
     pmap_pte_t *pte, flags;
 
@@ -594,6 +595,19 @@ pmap_kprotect(unsigned long start, unsigned long end, int prot)
         *pte = (*pte & ~PMAP_PTE_PROT_MASK) | flags;
         start += PAGE_SIZE;
     }
+}
+
+void
+pmap_protect(struct pmap *pmap, unsigned long start, unsigned long end,
+             int prot)
+{
+    if ((pmap == kernel_pmap) || (pmap == pmap_current())) {
+        pmap_protect_ptemap(start, end, prot);
+        return;
+    }
+
+    /* TODO Complete pmap_protect() */
+    panic("pmap: pmap_protect not completely implemented yet");
 }
 
 phys_addr_t
