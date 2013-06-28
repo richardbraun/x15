@@ -146,6 +146,12 @@ static struct {
 } pmap_pt_vas[MAX_CPUS];
 
 /*
+ * Maximum number of mappings for which individual TLB invalidations can be
+ * performed. Global TLB flushes are done beyond this value.
+ */
+#define PMAP_UPDATE_MAX_MAPPINGS 64
+
+/*
  * TLB invalidation data.
  *
  * TODO Implement generic inter-processor calls with low overhead and use them.
@@ -645,9 +651,16 @@ pmap_update_local(struct pmap *pmap, unsigned long start, unsigned long end)
     if ((pmap != pmap_current()) && (pmap != kernel_pmap))
         return;
 
-    while (start < end) {
-        cpu_tlb_flush_va(start);
-        start += PAGE_SIZE;
+    if (vm_page_atop(end - start) > PMAP_UPDATE_MAX_MAPPINGS) {
+        if (pmap == kernel_pmap)
+            cpu_tlb_flush_all();
+        else
+            cpu_tlb_flush();
+    } else {
+        while (start < end) {
+            cpu_tlb_flush_va(start);
+            start += PAGE_SIZE;
+        }
     }
 }
 
