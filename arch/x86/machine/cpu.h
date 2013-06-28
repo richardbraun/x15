@@ -284,30 +284,6 @@ CPU_DECL_GETSET_CR(cr3)
 CPU_DECL_GETSET_CR(cr4)
 
 /*
- * Flush the whole TLB.
- *
- * Implies a compiler barrier.
- */
-static __always_inline void
-cpu_tlb_flush(void)
-{
-    cpu_set_cr3(cpu_get_cr3());
-}
-
-/*
- * Flush a single page table entry in the TLB. In some cases, the entire TLB
- * can be flushed by this instruction. The va parameter is a virtual
- * address in the page described by the PTE to flush.
- *
- * Implies a compiler barrier.
- */
-static __always_inline void
-cpu_tlb_flush_va(unsigned long va)
-{
-    asm volatile("invlpg (%0)" : : "r" (va) : "memory");
-}
-
-/*
  * Return the content of the EFLAGS register.
  *
  * Implies a compiler barrier.
@@ -529,6 +505,54 @@ static __always_inline void
 cpu_set_msr(uint32_t msr, uint32_t low, uint32_t high)
 {
     asm volatile("wrmsr" : : "c" (msr), "a" (low), "d" (high));
+}
+
+/*
+ * Flush non-global TLB entries.
+ *
+ * Implies a compiler barrier.
+ */
+static __always_inline void
+cpu_tlb_flush(void)
+{
+    cpu_set_cr3(cpu_get_cr3());
+}
+
+/*
+ * Flush all TLB entries, including global ones.
+ *
+ * Implies a compiler barrier.
+ */
+static __always_inline void
+cpu_tlb_flush_all(void)
+{
+    if (!cpu_has_global_pages())
+        cpu_tlb_flush();
+    else {
+        unsigned long cr4;
+
+        cr4 = cpu_get_cr4();
+
+        if (!(cr4 & CPU_CR4_PGE))
+            cpu_tlb_flush();
+        else {
+            cr4 &= ~CPU_CR4_PGE;
+            cpu_set_cr4(cr4);
+            cr4 |= CPU_CR4_PGE;
+            cpu_set_cr4(cr4);
+        }
+    }
+}
+
+/*
+ * Flush a single page table entry in the TLB.
+ *
+ * Implies a compiler barrier.
+ */
+static __always_inline void
+cpu_tlb_flush_va(unsigned long va)
+{
+    asm volatile("invlpg (%0)" : : "r" (va) : "memory");
 }
 
 /*
