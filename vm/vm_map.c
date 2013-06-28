@@ -227,7 +227,7 @@ vm_map_kentry_free(unsigned long va, size_t slab_size)
     assert(slab_size == vm_map_kentry_slab_size);
 
     for (i = 0; i < slab_size; i += PAGE_SIZE) {
-        pa = pmap_kextract(va + i);
+        pa = pmap_extract(kernel_pmap, va + i);
         assert(pa != 0);
         page = vm_phys_lookup_page(pa);
         assert(page != NULL);

@@ -610,8 +610,8 @@ pmap_protect(struct pmap *pmap, unsigned long start, unsigned long end,
     panic("pmap: pmap_protect not completely implemented yet");
 }
 
-phys_addr_t
-pmap_kextract(unsigned long va)
+static phys_addr_t
+pmap_extract_ptemap(unsigned long va)
 {
     const struct pmap_pt_level *pt_level;
     unsigned int level;
@@ -626,6 +626,16 @@ pmap_kextract(unsigned long va)
     }
 
     return *pte & PMAP_PA_MASK;
+}
+
+phys_addr_t
+pmap_extract(struct pmap *pmap, unsigned long va)
+{
+    if ((pmap == kernel_pmap) || (pmap == pmap_current()))
+        return pmap_extract_ptemap(va);
+
+    /* TODO Complete pmap_extract() */
+    panic("pmap: pmap_extract not completely implemented yet");
 }
 
 static void
@@ -766,7 +776,7 @@ pmap_create(struct pmap **pmapp)
     for (i = 0; i < PMAP_NR_RPTPS; i++)
         pmap->pdpt[i] = (pmap->root_pt + (i * PAGE_SIZE)) | PMAP_PTE_P;
 
-    pa = pmap_kextract(va) + (va & PAGE_MASK);
+    pa = pmap_extract_ptemap(va) + (va & PAGE_MASK);
     assert(pa < VM_PHYS_NORMAL_LIMIT);
     pmap->pdpt_pa = (unsigned long)pa;
 #endif /* X86_PAE */

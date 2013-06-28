@@ -89,7 +89,7 @@ vm_kmem_lookup_page(unsigned long va)
 {
     phys_addr_t pa;
 
-    pa = pmap_kextract(va);
+    pa = pmap_extract(kernel_pmap, va);
 
     if (pa == 0)
         return NULL;
@@ -188,7 +188,7 @@ vm_kmem_free(unsigned long addr, size_t size)
     end = addr + size;
 
     for (va = addr; va < end; va += PAGE_SIZE) {
-        pa = pmap_kextract(va);
+        pa = pmap_extract(kernel_pmap, va);
 
         if (pa == 0)
             continue;

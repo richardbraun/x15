@@ -179,13 +179,21 @@ void pmap_kgrow(unsigned long end);
  */
 void pmap_kenter(unsigned long va, phys_addr_t pa);
 void pmap_kremove(unsigned long start, unsigned long end);
-phys_addr_t pmap_kextract(unsigned long va);
 
 /*
  * Set the protection of mappings in a physical map.
  */
 void pmap_protect(struct pmap *pmap, unsigned long start, unsigned long end,
                   int prot);
+
+/*
+ * Extract a mapping from a physical map.
+ *
+ * This function walks the page tables to retreive the physical address
+ * mapped at the given virtual address. If there is no mapping for the
+ * virtual address, 0 is returned (implying that page 0 is always reserved).
+ */
+phys_addr_t pmap_extract(struct pmap *pmap, unsigned long va);
 
 /*
  * Flush the TLB for the given range of kernel addresses.

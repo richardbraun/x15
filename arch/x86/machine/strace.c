@@ -92,7 +92,7 @@ strace_show(unsigned long ip, unsigned long bp)
         if (frame == NULL)
             break;
 
-        pa = pmap_kextract((unsigned long)&frame[1]);
+        pa = pmap_extract(kernel_pmap, (unsigned long)&frame[1]);
 
         if (pa == 0) {
             printk("strace: unmapped return address at %p\n", &frame[1]);
@@ -100,7 +100,7 @@ strace_show(unsigned long ip, unsigned long bp)
         }
 
         strace_show_one(i, (unsigned long)frame[1]);
-        pa = pmap_kextract((unsigned long)frame);
+        pa = pmap_extract(kernel_pmap, (unsigned long)frame);
 
         if (pa == 0) {
             printk("strace: unmapped frame address at %p\n", frame);
