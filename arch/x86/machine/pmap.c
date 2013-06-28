@@ -146,18 +146,19 @@ static struct {
 } pmap_pt_vas[MAX_CPUS];
 
 /*
- * Shared variables used by the inter-processor update functions.
- */
-static unsigned long pmap_update_start;
-static unsigned long pmap_update_end;
-static struct spinlock pmap_update_lock;
-
-/*
- * There is strong bouncing on this counter so give it its own cache line.
+ * TLB invalidation data.
+ *
+ * TODO Implement generic inter-processor calls with low overhead and use them.
  */
 static struct {
-    volatile unsigned long count __aligned(CPU_L1_SIZE);
-} pmap_nr_updates;
+    struct spinlock lock;
+    struct pmap *pmap;
+    unsigned long start;
+    unsigned long end;
+
+    /* There may be strong bouncing on this counter so give it a cache line */
+    volatile unsigned long nr_pending_updates __aligned(CPU_L1_SIZE);
+} pmap_update_data;
 
 /*
  * Global list of physical maps.
@@ -376,7 +377,7 @@ pmap_bootstrap(void)
         pmap_pt_vas[i].va = pmap_bootalloc(PMAP_NR_RPTPS);
     }
 
-    spinlock_init(&pmap_update_lock);
+    spinlock_init(&pmap_update_data.lock);
 
     mutex_init(&pmap_list_lock);
     list_init(&pmap_list);
@@ -553,7 +554,7 @@ pmap_kgrow(unsigned long end)
                 lower_index = PMAP_PTEMAP_INDEX(va, pt_lower_level->shift);
                 lower_pt = &pt_lower_level->ptes[lower_index];
                 lower_pt_va = (unsigned long)lower_pt;
-                pmap_kupdate(lower_pt_va, lower_pt_va + PAGE_SIZE);
+                pmap_update(kernel_pmap, lower_pt_va, lower_pt_va + PAGE_SIZE);
             }
         }
     }
@@ -639,8 +640,11 @@ pmap_extract(struct pmap *pmap, unsigned long va)
 }
 
 static void
-pmap_kupdate_local(unsigned long start, unsigned long end)
+pmap_update_local(struct pmap *pmap, unsigned long start, unsigned long end)
 {
+    if ((pmap != pmap_current()) && (pmap != kernel_pmap))
+        return;
+
     while (start < end) {
         cpu_tlb_flush_va(start);
         start += PAGE_SIZE;
@@ -648,35 +652,38 @@ pmap_kupdate_local(unsigned long start, unsigned long end)
 }
 
 void
-pmap_kupdate(unsigned long start, unsigned long end)
+pmap_update(struct pmap *pmap, unsigned long start, unsigned long end)
 {
     unsigned int nr_cpus;
 
     nr_cpus = cpu_count();
 
+    assert(cpu_intr_enabled() || (nr_cpus == 1));
+
     if (nr_cpus == 1) {
-        pmap_kupdate_local(start, end);
+        pmap_update_local(pmap, start, end);
         return;
     }
 
-    spinlock_lock(&pmap_update_lock);
+    spinlock_lock(&pmap_update_data.lock);
 
-    pmap_update_start = start;
-    pmap_update_end = end;
-    pmap_nr_updates.count = nr_cpus - 1;
-    barrier();
+    pmap_update_data.pmap = pmap;
+    pmap_update_data.start = start;
+    pmap_update_data.end = end;
+    pmap_update_data.nr_pending_updates = nr_cpus - 1;
+    mb_store();
     lapic_ipi_broadcast(TRAP_PMAP_UPDATE);
 
     /*
      * Perform the local update now so that some time is given to the other
      * processors, which slightly reduces contention on the update counter.
      */
-    pmap_kupdate_local(start, end);
+    pmap_update_local(pmap, start, end);
 
-    while (pmap_nr_updates.count != 0)
+    while (pmap_update_data.nr_pending_updates != 0)
         cpu_pause();
 
-    spinlock_unlock(&pmap_update_lock);
+    spinlock_unlock(&pmap_update_data.lock);
 }
 
 void
@@ -687,8 +694,9 @@ pmap_update_intr(struct trap_frame *frame)
     lapic_eoi();
 
     /* Interrupts are serializing events, no memory barrier required */
-    pmap_kupdate_local(pmap_update_start, pmap_update_end);
-    atomic_add(&pmap_nr_updates.count, -1);
+    pmap_update_local(pmap_update_data.pmap, pmap_update_data.start,
+                      pmap_update_data.end);
+    atomic_add(&pmap_update_data.nr_pending_updates, -1);
 }
 
 #ifdef X86_PAE
@@ -712,7 +720,7 @@ pmap_pdpt_alloc(size_t slab_size)
         pmap_kenter(start, vm_page_to_pa(page));
     }
 
-    pmap_kupdate(va, end);
+    pmap_update(kernel_pmap, va, end);
     return va;
 
 error_page:
@@ -823,6 +831,9 @@ error_pmap:
 void
 pmap_load(struct pmap *pmap)
 {
+    assert(!cpu_intr_enabled());
+    assert(!thread_preempt_enabled());
+
     cpu_percpu_set_pmap(pmap);
 
 #ifdef X86_PAE

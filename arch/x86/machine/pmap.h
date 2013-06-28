@@ -174,8 +174,7 @@ void pmap_kgrow(unsigned long end);
  *
  * These functions assume the caller owns the addresses and don't grab any
  * lock. Page tables for the new mappings must be preallocated with
- * pmap_kgrow(). The TLB isn't flushed, the caller must use pmap_kupdate()
- * to explicitely request TLB flushing.
+ * pmap_kgrow().
  */
 void pmap_kenter(unsigned long va, phys_addr_t pa);
 void pmap_kremove(unsigned long start, unsigned long end);
@@ -196,9 +195,18 @@ void pmap_protect(struct pmap *pmap, unsigned long start, unsigned long end,
 phys_addr_t pmap_extract(struct pmap *pmap, unsigned long va);
 
 /*
- * Flush the TLB for the given range of kernel addresses.
+ * Perform the required TLB invalidations so that a physical map is up to
+ * date on all processors using it.
+ *
+ * Functions that require updating are :
+ *  - pmap_kenter
+ *  - pmap_kremove
+ *  - pmap_protect
+ *
+ * If the kernel has reached a state where IPIs may be used to update remote
+ * processor TLBs, interrupts must be enabled when calling this function.
  */
-void pmap_kupdate(unsigned long start, unsigned long end);
+void pmap_update(struct pmap *pmap, unsigned long start, unsigned long end);
 
 /*
  * Interrupt handler for inter-processor update requests.
@@ -220,6 +228,8 @@ int pmap_create(struct pmap **pmapp);
 
 /*
  * Load the given pmap on the current processor.
+ *
+ * This function must be called with interrupts and preemption disabled.
  */
 void pmap_load(struct pmap *pmap);
 

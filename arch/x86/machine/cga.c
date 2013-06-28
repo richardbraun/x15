@@ -108,7 +108,7 @@ cga_setup(void)
 
     va = pmap_bootalloc(1);
     pmap_kenter(va, CGA_MEMORY);
-    pmap_kupdate(va, va + PAGE_SIZE);
+    pmap_update(kernel_pmap, va, va + PAGE_SIZE);
     cga_memory = (uint8_t *)va;
 
     /*
