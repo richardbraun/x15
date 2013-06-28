@@ -518,11 +518,11 @@ pmap_kgrow_update_pmaps(unsigned int index)
 void
 pmap_kgrow(unsigned long end)
 {
-    const struct pmap_pt_level *pt_level, *pt_lower_level;
+    const struct pmap_pt_level *pt_level;
     struct vm_page *page;
-    unsigned long start, va, lower_pt_va;
-    unsigned int level, index, lower_index;
-    pmap_pte_t *pte, *lower_pt;
+    unsigned long start, va;
+    unsigned int level, index;
+    pmap_pte_t *pte;
     phys_addr_t pa;
 
     start = pmap_kernel_limit;
@@ -531,7 +531,6 @@ pmap_kgrow(unsigned long end)
 
     for (level = PMAP_NR_LEVELS; level > 1; level--) {
         pt_level = &pmap_pt_levels[level - 1];
-        pt_lower_level = &pmap_pt_levels[level - 2];
 
         for (va = start; (va != 0) && (va <= end);
              va = P2END(va, 1UL << pt_level->shift)) {
@@ -556,15 +555,11 @@ pmap_kgrow(unsigned long end)
 
                 if (level == PMAP_NR_LEVELS)
                     pmap_kgrow_update_pmaps(index);
-
-                lower_index = PMAP_PTEMAP_INDEX(va, pt_lower_level->shift);
-                lower_pt = &pt_lower_level->ptes[lower_index];
-                lower_pt_va = (unsigned long)lower_pt;
-                pmap_update(kernel_pmap, lower_pt_va, lower_pt_va + PAGE_SIZE);
             }
         }
     }
 
+    pmap_update(kernel_pmap, 0, (unsigned long)-1);
     pmap_kernel_limit = end + 1;
 }
 
