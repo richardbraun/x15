@@ -473,8 +473,7 @@ thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
     assert((next != runq->idler) || (runq->nr_threads == 0));
 
     if (prev != next) {
-        if ((prev->task != next->task) && (next->task != kernel_task))
-            pmap_load(next->task->map->pmap);
+        pmap_load(next->task->map->pmap);
 
         /*
          * That's where the true context switch occurs. The next thread must
@@ -1893,9 +1892,7 @@ thread_run(void)
     spinlock_lock(&runq->lock);
     thread = thread_runq_get_next(thread_runq_local());
 
-    if (thread->task != kernel_task)
-        pmap_load(thread->task->map->pmap);
-
+    pmap_load(thread->task->map->pmap);
     tcb_load(&thread->tcb);
 }
 

@@ -104,6 +104,8 @@ typedef unsigned long pmap_pte_t;
 
 /*
  * Physical address map.
+ *
+ * TODO Define locking protocol.
  */
 struct pmap {
     struct mutex lock;
@@ -113,6 +115,9 @@ struct pmap {
     pmap_pte_t *pdpt;
     unsigned long pdpt_pa;
 #endif /* X86_PAE */
+
+    /* Processors on which this pmap is loaded */
+    struct cpumap cpumap;
 };
 
 /*

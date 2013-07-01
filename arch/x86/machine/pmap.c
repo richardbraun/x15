@@ -16,6 +16,7 @@
  */
 
 #include <kern/assert.h>
+#include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
@@ -29,7 +30,6 @@
 #include <kern/string.h>
 #include <kern/thread.h>
 #include <kern/types.h>
-#include <machine/atomic.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
@@ -154,16 +154,20 @@ static struct {
 /*
  * TLB invalidation data.
  *
- * TODO Implement generic inter-processor calls with low overhead and use them.
+ * TODO Use per processor sets of update data.
  */
+struct pmap_update_cpu_data {
+    int updated;
+} __aligned(CPU_L1_SIZE);
+
 static struct {
+    struct pmap_update_cpu_data cpu_datas[MAX_CPUS];
+
     struct spinlock lock;
+    struct cpumap cpumap;
     struct pmap *pmap;
     unsigned long start;
     unsigned long end;
-
-    /* There may be strong bouncing on this counter so give it a cache line */
-    volatile unsigned long nr_pending_updates __aligned(CPU_L1_SIZE);
 } pmap_update_data;
 
 /*
@@ -359,6 +363,8 @@ pmap_bootstrap(void)
     unsigned int i;
 
     mutex_init(&kernel_pmap->lock);
+    cpumap_zero(&kernel_pmap->cpumap);
+    cpumap_set(&kernel_pmap->cpumap, 0);
     cpu_percpu_set_pmap(kernel_pmap);
 
     pmap_boot_heap = (unsigned long)&_end;
@@ -403,6 +409,7 @@ pmap_bootstrap(void)
 void __init
 pmap_ap_bootstrap(void)
 {
+    cpumap_set(&kernel_pmap->cpumap, cpu_id());
     cpu_percpu_set_pmap(kernel_pmap);
 
     if (cpu_has_global_pages())
@@ -662,34 +669,43 @@ pmap_update_local(struct pmap *pmap, unsigned long start, unsigned long end)
 void
 pmap_update(struct pmap *pmap, unsigned long start, unsigned long end)
 {
-    unsigned int nr_cpus;
+    unsigned int cpu;
+    int i;
 
-    nr_cpus = cpu_count();
-
-    assert(cpu_intr_enabled() || (nr_cpus == 1));
-
-    if (nr_cpus == 1) {
+    if (cpu_count() == 1) {
         pmap_update_local(pmap, start, end);
         return;
     }
 
+    assert(cpu_intr_enabled());
+
     spinlock_lock(&pmap_update_data.lock);
+
+    cpumap_copy(&pmap_update_data.cpumap, &pmap->cpumap);
+    cpu = cpu_id();
+
+    cpumap_for_each(&pmap_update_data.cpumap, i)
+        if ((unsigned int)i != cpu)
+            pmap_update_data.cpu_datas[i].updated = 0;
 
     pmap_update_data.pmap = pmap;
     pmap_update_data.start = start;
     pmap_update_data.end = end;
-    pmap_update_data.nr_pending_updates = nr_cpus - 1;
     mb_store();
-    lapic_ipi_broadcast(TRAP_PMAP_UPDATE);
 
-    /*
-     * Perform the local update now so that some time is given to the other
-     * processors, which slightly reduces contention on the update counter.
-     */
+    if (pmap == kernel_pmap)
+        lapic_ipi_broadcast(TRAP_PMAP_UPDATE);
+    else
+        cpumap_for_each(&pmap_update_data.cpumap, i)
+            if ((unsigned int)i != cpu)
+                lapic_ipi_send(i, TRAP_PMAP_UPDATE);
+
     pmap_update_local(pmap, start, end);
 
-    while (pmap_update_data.nr_pending_updates != 0)
-        cpu_pause();
+    cpumap_for_each(&pmap_update_data.cpumap, i)
+        if ((unsigned int)i != cpu)
+            while (!pmap_update_data.cpu_datas[i].updated)
+                cpu_pause();
 
     spinlock_unlock(&pmap_update_data.lock);
 }
@@ -704,7 +720,7 @@ pmap_update_intr(struct trap_frame *frame)
     /* Interrupts are serializing events, no memory barrier required */
     pmap_update_local(pmap_update_data.pmap, pmap_update_data.start,
                       pmap_update_data.end);
-    atomic_add(&pmap_update_data.nr_pending_updates, -1);
+    pmap_update_data.cpu_datas[cpu_id()].updated = 1;
 }
 
 #ifdef X86_PAE
@@ -818,6 +834,7 @@ pmap_create(struct pmap **pmapp)
     pmap_unmap_pt();
 
     mutex_init(&pmap->lock);
+    cpumap_zero(&pmap->cpumap);
 
     mutex_lock(&pmap_list_lock);
     list_insert_tail(&pmap_list, &pmap->node);
@@ -839,10 +856,40 @@ error_pmap:
 void
 pmap_load(struct pmap *pmap)
 {
+    struct pmap *prev;
+    unsigned int cpu;
+
     assert(!cpu_intr_enabled());
     assert(!thread_preempt_enabled());
 
-    cpu_percpu_set_pmap(pmap);
+    prev = pmap_current();
+
+    if (prev == pmap)
+        return;
+
+    cpu = cpu_id();
+
+    /*
+     * The kernel pmap is considered always loaded on every processor. As a
+     * result, its CPU map is never changed. In addition, don't bother
+     * flushing the TLB when switching to a kernel thread, which results in
+     * a form of lazy TLB invalidation.
+     *
+     * TODO As an exception, force switching when the currently loaded pmap
+     * is about to be destroyed.
+     */
+    if (prev == kernel_pmap) {
+        cpu_percpu_set_pmap(pmap);
+        cpumap_set_atomic(&pmap->cpumap, cpu);
+    } else if (pmap == kernel_pmap) {
+        cpumap_clear_atomic(&prev->cpumap, cpu);
+        cpu_percpu_set_pmap(kernel_pmap);
+        return;
+    } else {
+        cpumap_clear_atomic(&prev->cpumap, cpu);
+        cpu_percpu_set_pmap(pmap);
+        cpumap_set_atomic(&pmap->cpumap, cpu);
+    }
 
 #ifdef X86_PAE
     cpu_set_cr3(pmap->pdpt_pa);
