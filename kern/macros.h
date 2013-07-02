@@ -53,7 +53,7 @@
 #define P2END(x, a)         (-(~(x) & -(a)))
 
 #define structof(ptr, type, member) \
-    ((type *)((char *)ptr - offsetof(type, member)))
+    ((type *)((char *)(ptr) - offsetof(type, member)))
 
 #define alignof(x)          __alignof__(x)
 
