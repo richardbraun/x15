@@ -34,7 +34,6 @@
 #include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>
-#include <machine/mb.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
 #include <vm/vm_kmem.h>
@@ -152,23 +151,48 @@ static struct {
 #define PMAP_UPDATE_MAX_MAPPINGS 64
 
 /*
- * TLB invalidation data.
- *
- * TODO Use per processor sets of update data.
+ * Structures related to TLB invalidation.
  */
-struct pmap_update_cpu_data {
-    int updated;
-} __aligned(CPU_L1_SIZE);
 
-static struct {
-    struct pmap_update_cpu_data cpu_datas[MAX_CPUS];
-
-    struct spinlock lock;
-    struct cpumap cpumap;
+/*
+ * Request sent by a processor.
+ */
+struct pmap_update_request {
     struct pmap *pmap;
     unsigned long start;
     unsigned long end;
-} pmap_update_data;
+} __aligned(CPU_L1_SIZE);
+
+/*
+ * Per processor request, queued on remote processor.
+ *
+ * A processor receiving such a request is able to locate the invalidation
+ * data from the address of the request, without an explicit pointer.
+ */
+struct pmap_update_cpu_request {
+    struct list node;
+    int done;
+} __aligned(CPU_L1_SIZE);
+
+/*
+ * Queue holding update requests from remote processors.
+ */
+struct pmap_update_queue {
+    struct spinlock lock;
+    struct list cpu_requests;
+} __aligned(CPU_L1_SIZE);
+
+/*
+ * Per processor TLB invalidation data.
+ */
+struct pmap_update_data {
+    struct pmap_update_request request;
+    struct pmap_update_cpu_request cpu_requests[MAX_CPUS];
+    struct cpumap cpumap;
+    struct pmap_update_queue queue;
+} __aligned(CPU_L1_SIZE);
+
+static struct pmap_update_data pmap_update_data[MAX_CPUS];
 
 /*
  * Global list of physical maps.
@@ -387,9 +411,10 @@ pmap_bootstrap(void)
     for (i = 0; i < MAX_CPUS; i++) {
         mutex_init(&pmap_pt_vas[i].lock);
         pmap_pt_vas[i].va = pmap_bootalloc(PMAP_NR_RPTPS);
-    }
 
-    spinlock_init(&pmap_update_data.lock);
+        spinlock_init(&pmap_update_data[i].queue.lock);
+        list_init(&pmap_update_data[i].queue.cpu_requests);
+    }
 
     mutex_init(&pmap_list_lock);
     list_init(&pmap_list);
@@ -669,6 +694,9 @@ pmap_update_local(struct pmap *pmap, unsigned long start, unsigned long end)
 void
 pmap_update(struct pmap *pmap, unsigned long start, unsigned long end)
 {
+    struct pmap_update_data *pud;
+    struct pmap_update_queue *queue;
+    unsigned long flags;
     unsigned int cpu;
     int i;
 
@@ -679,48 +707,74 @@ pmap_update(struct pmap *pmap, unsigned long start, unsigned long end)
 
     assert(cpu_intr_enabled());
 
-    spinlock_lock(&pmap_update_data.lock);
+    thread_preempt_disable();
 
-    cpumap_copy(&pmap_update_data.cpumap, &pmap->cpumap);
     cpu = cpu_id();
+    pud = &pmap_update_data[cpu];
+    pud->request.pmap = pmap;
+    pud->request.start = start;
+    pud->request.end = end;
 
-    cpumap_for_each(&pmap_update_data.cpumap, i)
-        if ((unsigned int)i != cpu)
-            pmap_update_data.cpu_datas[i].updated = 0;
+    cpumap_copy(&pud->cpumap, &pmap->cpumap);
 
-    pmap_update_data.pmap = pmap;
-    pmap_update_data.start = start;
-    pmap_update_data.end = end;
-    mb_store();
+    cpumap_for_each(&pud->cpumap, i)
+        if ((unsigned int)i != cpu) {
+            pud->cpu_requests[i].done = 0;
+            queue = &pmap_update_data[i].queue;
+
+            spinlock_lock_intr_save(&queue->lock, &flags);
+            list_insert_tail(&queue->cpu_requests, &pud->cpu_requests[i].node);
+            spinlock_unlock_intr_restore(&queue->lock, flags);
+        }
 
     if (pmap == kernel_pmap)
         lapic_ipi_broadcast(TRAP_PMAP_UPDATE);
     else
-        cpumap_for_each(&pmap_update_data.cpumap, i)
+        cpumap_for_each(&pud->cpumap, i)
             if ((unsigned int)i != cpu)
                 lapic_ipi_send(i, TRAP_PMAP_UPDATE);
 
     pmap_update_local(pmap, start, end);
 
-    cpumap_for_each(&pmap_update_data.cpumap, i)
+    cpumap_for_each(&pud->cpumap, i)
         if ((unsigned int)i != cpu)
-            while (!pmap_update_data.cpu_datas[i].updated)
+            while (!pud->cpu_requests[i].done)
                 cpu_pause();
 
-    spinlock_unlock(&pmap_update_data.lock);
+    thread_preempt_enable();
 }
 
 void
 pmap_update_intr(struct trap_frame *frame)
 {
+    struct pmap_update_cpu_request *cpu_request, *array;
+    struct pmap_update_data *pud;
+    struct list cpu_requests, *node;
+    unsigned int cpu;
+
     (void)frame;
 
     lapic_eoi();
 
-    /* Interrupts are serializing events, no memory barrier required */
-    pmap_update_local(pmap_update_data.pmap, pmap_update_data.start,
-                      pmap_update_data.end);
-    pmap_update_data.cpu_datas[cpu_id()].updated = 1;
+    cpu = cpu_id();
+    pud = &pmap_update_data[cpu];
+
+    spinlock_lock(&pud->queue.lock);
+    list_set_head(&cpu_requests, &pud->queue.cpu_requests);
+    list_init(&pud->queue.cpu_requests);
+    spinlock_unlock(&pud->queue.lock);
+
+    while (!list_empty(&cpu_requests)) {
+        node = list_first(&cpu_requests);
+        cpu_request = list_entry(node, struct pmap_update_cpu_request, node);
+        list_remove(&cpu_request->node);
+
+        array = cpu_request - cpu;
+        pud = structof(array, struct pmap_update_data, cpu_requests);
+        pmap_update_local(pud->request.pmap, pud->request.start,
+                          pud->request.end);
+        cpu_request->done = 1;
+    }
 }
 
 #ifdef X86_PAE
