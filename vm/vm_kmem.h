@@ -90,7 +90,7 @@ unsigned long vm_kmem_alloc(size_t size);
 void vm_kmem_free(unsigned long addr, size_t size);
 
 /*
- * Map physical memory in a kernel map.
+ * Map physical memory in the kernel map.
  *
  * Return the address at which the mapped memory can be accessed. If map_addrp
  * and/or map_sizep aren't NULL, they are updated to the address and size of
@@ -106,7 +106,7 @@ void * vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
                       size_t *map_sizep);
 
 /*
- * Unmap physical memory from a kernel map.
+ * Unmap physical memory from the kernel map.
  */
 void vm_kmem_unmap_pa(unsigned long map_addr, size_t map_size);
 
