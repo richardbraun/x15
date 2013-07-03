@@ -180,6 +180,8 @@ void pmap_kgrow(unsigned long end);
  * If protection is VM_PROT_NONE, this function behaves as if it were
  * VM_PROT_READ. Page tables for the new mapping must be preallocated with
  * pmap_kgrow().
+ *
+ * This function is an optimized version of pmap_enter() for the kernel pmap.
  */
 void pmap_kenter(unsigned long va, phys_addr_t pa, int prot);
 
@@ -234,6 +236,18 @@ void pmap_setup(void);
  * Create a pmap for a user task.
  */
 int pmap_create(struct pmap **pmapp);
+
+/*
+ * Create a mapping on a physical map.
+ *
+ * If protection is VM_PROT_NONE, this function behaves as if it were
+ * VM_PROT_READ.
+ *
+ * This function may be used on the kernel pmap, but not for the purpose of
+ * mapping kernel memory, i.e. data structures used by the kernel memory
+ * allocator should be mapped with pmap_kenter().
+ */
+int pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot);
 
 /*
  * Load the given pmap on the current processor.

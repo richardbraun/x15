@@ -908,6 +908,64 @@ error_pmap:
     return error;
 }
 
+static int
+pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
+{
+    const struct pmap_pt_level *pt_level;
+    struct vm_page *page;
+    unsigned int level;
+    pmap_pte_t *pte, pte_bits;
+    phys_addr_t pt_pa;
+
+    pte_bits = PMAP_PTE_RW | PMAP_PTE_P;
+
+    /*
+     * Page tables describing user mappings are protected from user access by
+     * not setting the U/S bit when inserting the root page table into itself.
+     */
+    if (pmap != kernel_pmap)
+        pte_bits |= PMAP_PTE_US;
+
+    for (level = PMAP_NR_LEVELS; level > 1; level--) {
+        pt_level = &pmap_pt_levels[level - 1];
+        pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(va, pt_level->shift)];
+
+        if (*pte & PMAP_PTE_P)
+            continue;
+
+        page = vm_phys_alloc(0);
+
+        /* Note that other pages allocated on the way are not released */
+        if (page == NULL)
+            return ERROR_NOMEM;
+
+        pt_pa = vm_page_to_pa(page);
+        pmap_zero_page(pt_pa);
+        *pte = (pt_pa | pte_bits) & pt_level->mask;
+    }
+
+    pte_bits = pmap_prot_table[prot & VM_PROT_ALL] | PMAP_PTE_P;
+
+    if (pmap == kernel_pmap)
+        pte_bits |= PMAP_PTE_G;
+    else
+        pte_bits |= PMAP_PTE_US;
+
+    pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L1_SHIFT);
+    *pte = ((pa & PMAP_PA_MASK) | pte_bits) & pmap_pt_levels[0].mask;
+    return 0;
+}
+
+int
+pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
+{
+    if ((pmap == kernel_pmap) || (pmap == pmap_current()))
+        return pmap_enter_ptemap(pmap, va, pa, prot);
+
+    /* TODO Complete pmap_enter() */
+    panic("pmap: pmap_enter not completely implemented yet");
+}
+
 void
 pmap_load(struct pmap *pmap)
 {
