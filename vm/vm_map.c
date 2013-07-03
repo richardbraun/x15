@@ -207,7 +207,7 @@ vm_map_kentry_alloc(size_t slab_size)
         if (page == NULL)
             panic("vm_map: no physical page for kentry cache");
 
-        pmap_kenter(va + i, vm_page_to_pa(page));
+        pmap_kenter(va + i, vm_page_to_pa(page), VM_PROT_READ | VM_PROT_WRITE);
     }
 
     pmap_update(kernel_pmap, va, va + slab_size);
@@ -284,7 +284,8 @@ vm_map_kentry_setup(void)
         if (page == NULL)
             panic("vm_map: unable to allocate page for kentry table");
 
-        pmap_kenter(table_va + (i * PAGE_SIZE), vm_page_to_pa(page));
+        pmap_kenter(table_va + (i * PAGE_SIZE), vm_page_to_pa(page),
+                    VM_PROT_READ | VM_PROT_WRITE);
     }
 
     pmap_update(kernel_pmap, table_va, table_va + (nr_pages * PAGE_SIZE));

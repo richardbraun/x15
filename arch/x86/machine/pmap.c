@@ -476,7 +476,7 @@ pmap_zero_page(phys_addr_t pa)
 
     thread_pin();
     mutex_lock(&pmap_zero_va_lock);
-    pmap_kenter(pmap_zero_va, pa);
+    pmap_kenter(pmap_zero_va, pa, VM_PROT_WRITE);
     cpu_tlb_flush_va(pmap_zero_va);
     memset((void *)pmap_zero_va, 0, PAGE_SIZE);
     mutex_unlock(&pmap_zero_va_lock);
@@ -497,7 +497,7 @@ pmap_map_pt(phys_addr_t pa)
     for (i = 0; i < PMAP_NR_RPTPS; i++) {
         offset = i * PAGE_SIZE;
         va = base + offset;
-        pmap_kenter(va, pa + offset);
+        pmap_kenter(va, pa + offset, VM_PROT_READ | VM_PROT_WRITE);
         cpu_tlb_flush_va(va);
     }
 
@@ -596,12 +596,13 @@ pmap_kgrow(unsigned long end)
 }
 
 void
-pmap_kenter(unsigned long va, phys_addr_t pa)
+pmap_kenter(unsigned long va, phys_addr_t pa, int prot)
 {
     pmap_pte_t *pte;
 
     pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L1_SHIFT);
-    *pte = ((pa & PMAP_PA_MASK) | PMAP_PTE_G | PMAP_PTE_RW | PMAP_PTE_P)
+    *pte = ((pa & PMAP_PA_MASK) | PMAP_PTE_G | PMAP_PTE_P
+            | pmap_prot_table[prot & VM_PROT_ALL])
            & pmap_pt_levels[0].mask;
 }
 
@@ -795,7 +796,7 @@ pmap_pdpt_alloc(size_t slab_size)
         if (page == NULL)
             goto error_page;
 
-        pmap_kenter(start, vm_page_to_pa(page));
+        pmap_kenter(start, vm_page_to_pa(page), VM_PROT_READ | VM_PROT_WRITE);
     }
 
     pmap_update(kernel_pmap, va, end);

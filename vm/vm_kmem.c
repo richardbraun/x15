@@ -70,7 +70,7 @@ vm_kmem_bootalloc(size_t size)
 
     for (va = start; va < vm_kmem_boot_start; va += PAGE_SIZE) {
         pa = vm_phys_bootalloc();
-        pmap_kenter(va, pa);
+        pmap_kenter(va, pa, VM_PROT_READ | VM_PROT_WRITE);
     }
 
     pmap_update(kernel_pmap, start, vm_kmem_boot_start);
@@ -166,7 +166,7 @@ vm_kmem_alloc(size_t size)
         if (page == NULL)
             goto error_page;
 
-        pmap_kenter(start, vm_page_to_pa(page));
+        pmap_kenter(start, vm_page_to_pa(page), VM_PROT_READ | VM_PROT_WRITE);
     }
 
     pmap_update(kernel_pmap, va, end);
@@ -217,7 +217,8 @@ vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
         return NULL;
 
     for (offset = 0; offset < map_size; offset += PAGE_SIZE)
-        pmap_kenter(map_addr + offset, start + offset);
+        pmap_kenter(map_addr + offset, start + offset,
+                    VM_PROT_READ | VM_PROT_WRITE);
 
     pmap_update(kernel_pmap, map_addr, map_addr + map_size);
 

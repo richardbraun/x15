@@ -175,13 +175,17 @@ unsigned long pmap_klimit(void);
 void pmap_kgrow(unsigned long end);
 
 /*
- * Kernel pmap functions.
+ * Create a mapping on the kernel physical map.
  *
- * These functions assume the caller owns the addresses and don't grab any
- * lock. Page tables for the new mappings must be preallocated with
+ * If protection is VM_PROT_NONE, this function behaves as if it were
+ * VM_PROT_READ. Page tables for the new mapping must be preallocated with
  * pmap_kgrow().
  */
-void pmap_kenter(unsigned long va, phys_addr_t pa);
+void pmap_kenter(unsigned long va, phys_addr_t pa, int prot);
+
+/*
+ * Remove mappings from the kernel physical map.
+ */
 void pmap_kremove(unsigned long start, unsigned long end);
 
 /*
