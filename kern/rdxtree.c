@@ -284,17 +284,17 @@ rdxtree_node_bm_first(struct rdxtree_node *node)
     return rdxtree_ffs(node->alloc_bm) - 1;
 }
 
-static inline unsigned long
+static inline unsigned long long
 rdxtree_max_key(unsigned int height)
 {
-    unsigned int shift;
+    size_t shift;
 
     shift = RDXTREE_RADIX * height;
 
-    if (likely(shift < (sizeof(unsigned long) * CHAR_BIT)))
-        return (1 << shift) - 1;
+    if (likely(shift < (sizeof(unsigned long long) * CHAR_BIT)))
+        return (1ULL << shift) - 1;
     else
-        return ~0UL;
+        return ~0ULL;
 }
 
 static void
@@ -332,7 +332,7 @@ rdxtree_shrink(struct rdxtree *tree)
 }
 
 static int
-rdxtree_grow(struct rdxtree *tree, unsigned long key)
+rdxtree_grow(struct rdxtree *tree, unsigned long long key)
 {
     struct rdxtree_node *root, *node;
     unsigned int new_height;
@@ -419,8 +419,8 @@ rdxtree_insert_bm_clear(struct rdxtree_node *node, unsigned int index)
 }
 
 int
-rdxtree_insert_common(struct rdxtree *tree, unsigned long key, void *ptr,
-                      void ***slotp)
+rdxtree_insert_common(struct rdxtree *tree, unsigned long long key,
+                      void *ptr, void ***slotp)
 {
     struct rdxtree_node *node, *prev;
     unsigned int height, shift, index = index;
@@ -476,7 +476,7 @@ rdxtree_insert_common(struct rdxtree *tree, unsigned long key, void *ptr,
         }
 
         prev = node;
-        index = (key >> shift) & RDXTREE_RADIX_MASK;
+        index = (unsigned int)(key >> shift) & RDXTREE_RADIX_MASK;
         node = rdxtree_entry_addr(prev->entries[index]);
         shift -= RDXTREE_RADIX;
         height--;
@@ -496,10 +496,10 @@ rdxtree_insert_common(struct rdxtree *tree, unsigned long key, void *ptr,
 
 int
 rdxtree_insert_alloc_common(struct rdxtree *tree, void *ptr,
-                            unsigned long *keyp, void ***slotp)
+                            unsigned long long *keyp, void ***slotp)
 {
     struct rdxtree_node *node, *prev;
-    unsigned long key;
+    unsigned long long key;
     unsigned int height, shift, index = index;
     int error;
 
@@ -546,7 +546,7 @@ rdxtree_insert_alloc_common(struct rdxtree *tree, void *ptr,
         if (index == (unsigned int)-1)
             goto grow;
 
-        key |= ((unsigned long)index << shift);
+        key |= (unsigned long long)index << shift;
         node = rdxtree_entry_addr(node->entries[index]);
         shift -= RDXTREE_RADIX;
         height--;
@@ -587,7 +587,7 @@ rdxtree_remove_bm_set(struct rdxtree_node *node, unsigned int index)
 }
 
 void *
-rdxtree_remove(struct rdxtree *tree, unsigned long key)
+rdxtree_remove(struct rdxtree *tree, unsigned long long key)
 {
     struct rdxtree_node *node, *prev;
     unsigned int height, shift, index;
@@ -611,7 +611,7 @@ rdxtree_remove(struct rdxtree *tree, unsigned long key)
             return NULL;
 
         prev = node;
-        index = (key >> shift) & RDXTREE_RADIX_MASK;
+        index = (unsigned int)(key >> shift) & RDXTREE_RADIX_MASK;
         node = rdxtree_entry_addr(node->entries[index]);
         shift -= RDXTREE_RADIX;
         height--;
@@ -627,7 +627,8 @@ rdxtree_remove(struct rdxtree *tree, unsigned long key)
 }
 
 void *
-rdxtree_lookup_common(struct rdxtree *tree, unsigned long key, int get_slot)
+rdxtree_lookup_common(struct rdxtree *tree, unsigned long long key,
+                      int get_slot)
 {
     struct rdxtree_node *node, *prev;
     unsigned int height, shift, index;
@@ -660,7 +661,7 @@ rdxtree_lookup_common(struct rdxtree *tree, unsigned long key, int get_slot)
             return NULL;
 
         prev = node;
-        index = (key >> shift) & RDXTREE_RADIX_MASK;
+        index = (unsigned int)(key >> shift) & RDXTREE_RADIX_MASK;
         entry = llsync_read_ptr(node->entries[index]);
         node = rdxtree_entry_addr(entry);
         shift -= RDXTREE_RADIX;

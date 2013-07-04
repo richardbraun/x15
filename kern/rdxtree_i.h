@@ -44,13 +44,13 @@ rdxtree_iter_init(struct rdxtree_iter *iter)
     iter->slot = NULL;
 }
 
-int rdxtree_insert_common(struct rdxtree *tree, unsigned long key,
+int rdxtree_insert_common(struct rdxtree *tree, unsigned long long key,
                           void *ptr, void ***slotp);
 
 int rdxtree_insert_alloc_common(struct rdxtree *tree, void *ptr,
-                                unsigned long *keyp, void ***slotp);
+                                unsigned long long *keyp, void ***slotp);
 
-void * rdxtree_lookup_common(struct rdxtree *tree, unsigned long key,
+void * rdxtree_lookup_common(struct rdxtree *tree, unsigned long long key,
                              int get_slot);
 
 /*
