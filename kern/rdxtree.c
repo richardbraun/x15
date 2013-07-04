@@ -43,13 +43,8 @@
 typedef unsigned long rdxtree_bm_t;
 #define rdxtree_ffs(x) __builtin_ffsl(x)
 #elif RDXTREE_RADIX == 6 /* RDXTREE_RADIX < 6 */
-#ifdef __LP64__
-typedef unsigned long rdxtree_bm_t;
-#define rdxtree_ffs(x) __builtin_ffsl(x)
-#else /* __LP64__ */
 typedef unsigned long long rdxtree_bm_t;
 #define rdxtree_ffs(x) __builtin_ffsll(x)
-#endif /* __LP64__ */
 #else /* RDXTREE_RADIX < 6 */
 #error "radix too high"
 #endif /* RDXTREE_RADIX < 6 */
