@@ -15,8 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <kern/kmem.h>
+#include <kern/error.h>
 #include <kern/init.h>
+#include <kern/kmem.h>
 #include <kern/list.h>
 #include <kern/llsync.h>
 #include <kern/macros.h>
@@ -27,6 +28,7 @@
 #include <vm/vm_anon.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 
 /*
  * Anonymous memory container.
@@ -43,7 +45,7 @@ struct vm_anon {
 static void vm_anon_ref(struct vm_object *object);
 static void vm_anon_unref(struct vm_object *object);
 static int vm_anon_get(struct vm_object *object, uint64_t offset,
-                       struct vm_page **pagep, int access_prot, int advice);
+                       struct vm_page **pagep);
 
 static struct vm_object_pager vm_anon_pager = {
     .ref = vm_anon_ref,
@@ -108,13 +110,19 @@ vm_anon_unref(struct vm_object *object)
 
 static int
 vm_anon_get(struct vm_object *object, uint64_t offset,
-            struct vm_page **pagep, int access_prot, int advice)
+            struct vm_page **pagep)
 {
+    struct vm_page *page;
+
+    page = vm_phys_alloc(0);
+
+    if (page == NULL)
+        return ERROR_NOMEM;
+
+    /* TODO Insert page in object */
     (void)object;
     (void)offset;
-    (void)pagep;
-    (void)access_prot;
-    (void)advice;
 
-    return -1;
+    *pagep = page;
+    return 0;
 }

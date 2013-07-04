@@ -917,8 +917,10 @@ int
 vm_map_fault(struct vm_map *map, unsigned long addr, int access)
 {
     struct vm_map_entry *entry;
+    struct vm_object *object;
     struct vm_page *page;
-    int error;
+    uint64_t offset;
+    int error, prot;
 
     addr = vm_page_trunc(addr);
 
@@ -938,18 +940,27 @@ vm_map_fault(struct vm_map *map, unsigned long addr, int access)
 
     /* Null mappings are reserved for the kernel and always wired */
     assert(entry->object != NULL);
-
-    page = vm_object_get(entry->object, entry->offset + (addr - entry->start));
+    object = entry->object;
+    offset = entry->offset + (addr - entry->start);
+    page = vm_object_get(object, offset);
 
     if (page == NULL) {
-        /* TODO Get page from pager */
-        error = ERROR_FAULT;
-        goto out;
+        /* TODO Get neighbor pages */
+        error = object->pager->get(object, offset, &page);
+
+        if (error)
+            goto out;
     }
 
-    /* TODO Map the page */
+    prot = VM_MAP_PROT(entry->flags);
+    error = pmap_enter(map->pmap, addr, vm_page_to_pa(page), prot);
 
-    error = ERROR_INVAL;
+    /* TODO Properly handle errors */
+    if (error)
+        panic("vm_map: unable to create physical mapping");
+
+    pmap_update(map->pmap, addr, addr + PAGE_SIZE);
+    error = 0;
 
 out:
     mutex_unlock(&map->lock);

@@ -16,7 +16,6 @@
  */
 
 #include <kern/rdxtree.h>
-#include <kern/rdxtree.h>
 #include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <vm/vm_object.h>
@@ -25,6 +24,9 @@
 struct vm_page *
 vm_object_get(const struct vm_object *object, uint64_t offset)
 {
+    (void)object;
+    (void)offset;
+
     /* TODO Bump radix tree key size to 64-bits */
 
     return NULL;

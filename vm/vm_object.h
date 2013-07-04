@@ -51,7 +51,7 @@ struct vm_object_pager {
     void (*ref)(struct vm_object *object);
     void (*unref)(struct vm_object *object);
     int (*get)(struct vm_object *object, uint64_t offset,
-               struct vm_page **pagep, int access_type, int advice);
+               struct vm_page **pagep);
 };
 
 static inline void

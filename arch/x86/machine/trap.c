@@ -194,6 +194,9 @@ trap_page_fault(struct trap_frame *frame)
      * can't cause another page fault while handling a page fault.
      */
     addr = cpu_get_cr2();
+
+    cpu_intr_enable();
+
     access = (frame->error & TRAP_ERROR_PF_WRITE)
              ? VM_PROT_WRITE
              : VM_PROT_READ;
