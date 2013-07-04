@@ -60,8 +60,8 @@
 
 struct work_thread {
     struct list node;
+    unsigned long long id;
     struct thread *thread;
-    unsigned long id;
     struct work_pool *pool;
 };
 
@@ -101,7 +101,7 @@ static unsigned int work_max_threads;
 
 static int
 work_pool_alloc_id(struct work_pool *pool, struct work_thread *worker,
-                   unsigned long *idp)
+                   unsigned long long *idp)
 {
     int error;
 
@@ -113,7 +113,7 @@ work_pool_alloc_id(struct work_pool *pool, struct work_thread *worker,
 }
 
 static void
-work_pool_free_id(struct work_pool *pool, unsigned long id)
+work_pool_free_id(struct work_pool *pool, unsigned long long id)
 {
     mutex_lock(&pool->tree_lock);
     rdxtree_remove(&pool->tree, id);
@@ -255,7 +255,7 @@ work_thread_create(struct work_pool *pool)
 
     worker->pool = pool;
 
-    snprintf(name, sizeof(name), "x15_work_process:%s:%lu", pool->name,
+    snprintf(name, sizeof(name), "x15_work_process:%s:%llu", pool->name,
              worker->id);
     attr.name = name;
     attr.cpumap = NULL;
