@@ -327,8 +327,10 @@ cpu_init(struct cpu *cpu)
     memcpy(cpu->vendor_id + 8, &ecx, sizeof(ecx));
     cpu->vendor_id[sizeof(cpu->vendor_id) - 1] = '\0';
 
-    /* Initialized if the processor supports brand strings */
+    /* Some fields are only initialized if supported by the processor */
     cpu->model_name[0] = '\0';
+    cpu->phys_addr_width = 0;
+    cpu->virt_addr_width = 0;
 
     assert(max_basic >= 1);
 
@@ -394,6 +396,13 @@ cpu_init(struct cpu *cpu)
         cpu->model_name[sizeof(cpu->model_name) - 1] = '\0';
     }
 
+    if (max_extended >= 0x80000008) {
+        eax = 0x80000008;
+        cpu_cpuid(&eax, &ebx, &ecx, &edx);
+        cpu->phys_addr_width = (unsigned short)eax & 0xff;
+        cpu->virt_addr_width = ((unsigned short)eax >> 8) & 0xff;
+    }
+
     cpu->state = CPU_STATE_ON;
 }
 
@@ -441,6 +450,10 @@ cpu_info(const struct cpu *cpu)
 
     if (strlen(cpu->model_name) > 0)
         printk("cpu%u: %s\n", cpu->id, cpu->model_name);
+
+    if ((cpu->phys_addr_width != 0) && (cpu->virt_addr_width != 0))
+        printk("cpu%u: address widths: physical: %hu, virtual: %hu\n",
+               cpu->id, cpu->phys_addr_width, cpu->virt_addr_width);
 }
 
 void __init

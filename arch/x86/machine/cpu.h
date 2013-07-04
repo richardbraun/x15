@@ -245,6 +245,8 @@ struct cpu {
     unsigned int features2;
     unsigned int features3;
     unsigned int features4;
+    unsigned short phys_addr_width;
+    unsigned short virt_addr_width;
     char gdt[CPU_GDT_SIZE] __aligned(8);
     struct cpu_tss tss;
 #ifndef __LP64__
