@@ -27,6 +27,7 @@
 #include <kern/types.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
+#include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/multiboot.h>
 #include <vm/vm_kmem.h>
@@ -567,11 +568,23 @@ biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
 }
 
 static void __init
-biosmem_load_segment(const char *name, phys_addr_t phys_start,
-                     phys_addr_t phys_end, phys_addr_t avail_start,
-                     phys_addr_t avail_end, unsigned int seg_index,
-                     unsigned int seglist_prio)
+biosmem_load_segment(const char *name, unsigned long long max_phys_end,
+                     phys_addr_t phys_start, phys_addr_t phys_end,
+                     phys_addr_t avail_start, phys_addr_t avail_end,
+                     unsigned int seg_index, unsigned int seglist_prio)
 {
+    if (phys_end > max_phys_end) {
+        if (max_phys_end <= phys_start) {
+            printk("biosmem: warning: segment %s physically unreachable, "
+                   "not loaded\n", name);
+            return;
+        }
+
+        printk("biosmem: warning: segment %s truncated to %#llx\n", name,
+               max_phys_end);
+        phys_end = max_phys_end;
+    }
+
     if ((avail_start < phys_start) || (avail_start > phys_end))
         avail_start = phys_start;
 
@@ -585,18 +598,25 @@ biosmem_load_segment(const char *name, phys_addr_t phys_start,
 void __init
 biosmem_setup(void)
 {
+    unsigned long long max_phys_end;
     phys_addr_t phys_start, phys_end;
+    struct cpu *cpu;
     int error;
 
     biosmem_map_adjust();
     biosmem_map_show();
+
+    cpu = cpu_current();
+    max_phys_end = (cpu->phys_addr_width == 0)
+                   ? (unsigned long long)-1
+                   : 1ULL << cpu->phys_addr_width;
 
     phys_start = BIOSMEM_BASE;
     phys_end = VM_PHYS_NORMAL_LIMIT;
     error = biosmem_map_find_avail(&phys_start, &phys_end);
 
     if (!error)
-        biosmem_load_segment("normal", phys_start, phys_end,
+        biosmem_load_segment("normal", max_phys_end, phys_start, phys_end,
                              biosmem_heap_free, biosmem_heap_end,
                              VM_PHYS_SEG_NORMAL, VM_PHYS_SEGLIST_NORMAL);
 
@@ -606,7 +626,7 @@ biosmem_setup(void)
     error = biosmem_map_find_avail(&phys_start, &phys_end);
 
     if (!error)
-        biosmem_load_segment("highmem", phys_start, phys_end,
+        biosmem_load_segment("highmem", max_phys_end, phys_start, phys_end,
                              phys_start, phys_end,
                              VM_PHYS_SEG_HIGHMEM, VM_PHYS_SEGLIST_HIGHMEM);
 #endif /* VM_PHYS_HIGHMEM_LIMIT */
