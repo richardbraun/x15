@@ -78,9 +78,9 @@ typedef unsigned long long rdxtree_bm_t;
  * each node includes the height of its subtree, which is invariant during
  * the entire node lifetime. Since the tree height does vary, it can't be
  * used to determine whether the tree root is a node or a stored pointer.
- * This implementation assumes that all nodes and stored pointers are 4-byte
- * aligned, and uses the least significant bit of entries to indicate the
- * pointer type. This bit is set for internal nodes, and clear for stored
+ * This implementation assumes that all nodes and stored pointers are at least
+ * 4-byte aligned, and uses the least significant bit of entries to indicate
+ * the pointer type. This bit is set for internal nodes, and clear for stored
  * pointers so that they can be accessed from slots without conversion.
  */
 struct rdxtree_node {

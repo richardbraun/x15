@@ -131,7 +131,7 @@ rdxtree_lookup(struct rdxtree *tree, unsigned long key)
 /*
  * Look up a slot in a tree.
  *
- * A slot is a pointer to a contained pointer in a tree. It can be used as
+ * A slot is a pointer to a stored pointer in a tree. It can be used as
  * a placeholder for fast replacements to avoid multiple lookups on the same
  * key.
  *
