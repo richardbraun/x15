@@ -627,7 +627,7 @@ rdxtree_remove(struct rdxtree *tree, unsigned long long key)
 }
 
 void *
-rdxtree_lookup_common(struct rdxtree *tree, unsigned long long key,
+rdxtree_lookup_common(const struct rdxtree *tree, unsigned long long key,
                       int get_slot)
 {
     struct rdxtree_node *node, *prev;

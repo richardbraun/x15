@@ -50,7 +50,7 @@ int rdxtree_insert_common(struct rdxtree *tree, unsigned long long key,
 int rdxtree_insert_alloc_common(struct rdxtree *tree, void *ptr,
                                 unsigned long long *keyp, void ***slotp);
 
-void * rdxtree_lookup_common(struct rdxtree *tree, unsigned long long key,
+void * rdxtree_lookup_common(const struct rdxtree *tree, unsigned long long key,
                              int get_slot);
 
 /*

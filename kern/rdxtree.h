@@ -123,7 +123,7 @@ void * rdxtree_remove(struct rdxtree *tree, unsigned long long key);
  * updated through the use of lockless synchronization.
  */
 static inline void *
-rdxtree_lookup(struct rdxtree *tree, unsigned long long key)
+rdxtree_lookup(const struct rdxtree *tree, unsigned long long key)
 {
     return rdxtree_lookup_common(tree, key, 0);
 }
@@ -143,7 +143,7 @@ rdxtree_lookup(struct rdxtree *tree, unsigned long long key)
  * See rdxtree_replace_slot().
  */
 static inline void **
-rdxtree_lookup_slot(struct rdxtree *tree, unsigned long long key)
+rdxtree_lookup_slot(const struct rdxtree *tree, unsigned long long key)
 {
     return rdxtree_lookup_common(tree, key, 1);
 }
