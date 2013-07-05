@@ -113,16 +113,22 @@ vm_anon_get(struct vm_object *object, uint64_t offset,
             struct vm_page **pagep)
 {
     struct vm_page *page;
+    int error;
 
     page = vm_phys_alloc(0);
 
     if (page == NULL)
         return ERROR_NOMEM;
 
-    /* TODO Insert page in object */
-    (void)object;
-    (void)offset;
+    error = vm_object_add(object, offset, page);
+
+    if (error)
+        goto error_object;
 
     *pagep = page;
     return 0;
+
+error_object:
+    vm_phys_free(page, 0);
+    return error;
 }

@@ -64,6 +64,12 @@ vm_object_init(struct vm_object *object, struct vm_object_pager *pager)
 }
 
 /*
+ * Add a page at offset inside an object.
+ */
+int vm_object_add(struct vm_object *object, uint64_t offset,
+                  struct vm_page *page);
+
+/*
  * Get the page at offset inside an object, or NULL if none is found.
  */
 struct vm_page * vm_object_get(const struct vm_object *object, uint64_t offset);

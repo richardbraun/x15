@@ -786,6 +786,10 @@ vm_map_enter(struct vm_map *map, struct vm_object *object, uint64_t offset,
     struct vm_map_request request;
     int error;
 
+    /* XXX For now, prevent managed mappings in the kernel map */
+    if ((map == kernel_map) && (object != NULL))
+        return ERROR_INVAL;
+
     mutex_lock(&map->lock);
 
     error = vm_map_prepare(map, object, offset, *startp, size, align, flags,
@@ -922,6 +926,8 @@ vm_map_fault(struct vm_map *map, unsigned long addr, int access)
     uint64_t offset;
     int error, prot;
 
+    assert(map != kernel_map);
+
     addr = vm_page_trunc(addr);
 
     mutex_lock(&map->lock);
@@ -944,7 +950,10 @@ vm_map_fault(struct vm_map *map, unsigned long addr, int access)
     offset = entry->offset + (addr - entry->start);
     page = vm_object_get(object, offset);
 
-    if (page == NULL) {
+    if (page != NULL)
+        printk("vm_map: fault: cache hit\n");
+    else {
+        printk("vm_map: fault: cache miss\n");
         /* TODO Get neighbor pages */
         error = object->pager->get(object, offset, &page);
 
@@ -960,7 +969,6 @@ vm_map_fault(struct vm_map *map, unsigned long addr, int access)
         panic("vm_map: unable to create physical mapping");
 
     pmap_update(map->pmap, addr, addr + PAGE_SIZE);
-    error = 0;
 
 out:
     mutex_unlock(&map->lock);
