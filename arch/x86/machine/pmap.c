@@ -64,19 +64,6 @@
 #define PMAP_PTE_PROT_MASK PMAP_PTE_RW
 
 /*
- * Number of pages to reserve for the pmap module after the kernel.
- *
- * This pool of pure virtual memory can be used to reserve virtual addresses
- * before the VM system is initialized.
- *
- * List of users :
- *  - pmap_zero_va (1 page)
- *  - pmap_pt_va (up to PMAP_NR_RPTPS, 1 per CPU)
- *  - CGA video memory (1 page)
- */
-#define PMAP_RESERVED_PAGES (1 + (PMAP_NR_RPTPS * MAX_CPUS) + 1)
-
-/*
  * Properties of a page translation level.
  */
 struct pmap_pt_level {
@@ -86,6 +73,33 @@ struct pmap_pt_level {
     unsigned int nr_ptes;
     pmap_pte_t mask;
 };
+
+/*
+ * Number of mappings to reserve for the pmap module after the kernel.
+ *
+ * This pool of pure virtual memory can be used to reserve virtual addresses
+ * before the VM system is initialized.
+ *
+ * List of users :
+ *  - pmap_zero_mapping (1 page)
+ *  - pmap_pt_mapping (up to PMAP_NR_RPTPS, 1 per CPU)
+ *  - CGA video memory (1 page)
+ */
+#define PMAP_RESERVED_PAGES (1                              \
+                             + (PMAP_NR_RPTPS * MAX_CPUS)   \
+                             + 1)
+
+/*
+ * Addresses reserved for temporary mappings.
+ */
+struct pmap_tmp_mapping {
+    struct mutex lock;
+    unsigned long va;
+};
+
+static struct pmap_tmp_mapping pmap_zero_mapping;
+static struct pmap_tmp_mapping pmap_pt_mappings[MAX_CPUS];
+
 
 static struct pmap kernel_pmap_store;
 struct pmap *kernel_pmap = &kernel_pmap_store;
@@ -132,17 +146,6 @@ static struct pmap_pt_level pmap_pt_levels[] = {
  * specific PTE bits.
  */
 static pmap_pte_t pmap_prot_table[8];
-
-/*
- * Special addresses for temporary mappings.
- */
-static struct mutex pmap_zero_va_lock;
-static unsigned long pmap_zero_va;
-
-static struct {
-    struct mutex lock;
-    unsigned long va;
-} pmap_pt_vas[MAX_CPUS];
 
 /*
  * Maximum number of mappings for which individual TLB invalidations can be
@@ -311,6 +314,8 @@ pmap_setup_paging(void)
         va += PAGE_SIZE;
     }
 
+    assert(va > (unsigned long)&_end);
+
     pmap_setup_ptemap(root_pt);
 
     pmap = (void *)BOOT_VTOP((unsigned long)&kernel_pmap_store);
@@ -405,12 +410,12 @@ pmap_bootstrap(void)
     pmap_prot_table[VM_PROT_EXECUTE | VM_PROT_WRITE] = PMAP_PTE_RW;
     pmap_prot_table[VM_PROT_ALL] = PMAP_PTE_RW;
 
-    mutex_init(&pmap_zero_va_lock);
-    pmap_zero_va = pmap_bootalloc(1);
+    mutex_init(&pmap_zero_mapping.lock);
+    pmap_zero_mapping.va = pmap_bootalloc(1);
 
     for (i = 0; i < MAX_CPUS; i++) {
-        mutex_init(&pmap_pt_vas[i].lock);
-        pmap_pt_vas[i].va = pmap_bootalloc(PMAP_NR_RPTPS);
+        mutex_init(&pmap_pt_mappings[i].lock);
+        pmap_pt_mappings[i].va = pmap_bootalloc(PMAP_NR_RPTPS);
 
         spinlock_init(&pmap_update_data[i].queue.lock);
         list_init(&pmap_update_data[i].queue.cpu_requests);
@@ -468,6 +473,8 @@ pmap_klimit(void)
 static void
 pmap_zero_page(phys_addr_t pa)
 {
+    unsigned long va;
+
     /*
      * This function is currently only used by pmap_kgrow, which is already
      * protected from concurrent execution. Grab a lock for safety. Disable
@@ -475,51 +482,52 @@ pmap_zero_page(phys_addr_t pa)
      */
 
     thread_pin();
-    mutex_lock(&pmap_zero_va_lock);
-    pmap_kenter(pmap_zero_va, pa, VM_PROT_WRITE);
-    cpu_tlb_flush_va(pmap_zero_va);
-    memset((void *)pmap_zero_va, 0, PAGE_SIZE);
-    mutex_unlock(&pmap_zero_va_lock);
+    mutex_lock(&pmap_zero_mapping.lock);
+    va = pmap_zero_mapping.va;
+    pmap_kenter(va, pa, VM_PROT_WRITE);
+    cpu_tlb_flush_va(va);
+    memset((void *)va, 0, PAGE_SIZE);
+    mutex_unlock(&pmap_zero_mapping.lock);
     thread_unpin();
 }
 
-static unsigned long
+static struct pmap_tmp_mapping *
 pmap_map_pt(phys_addr_t pa)
 {
-    unsigned long va, base;
-    unsigned int i, cpu, offset;
+    struct pmap_tmp_mapping *pt_mapping;
+    unsigned long va;
+    unsigned int i, offset;
 
     thread_pin();
-    cpu = cpu_id();
-    base = pmap_pt_vas[cpu].va;
-    mutex_lock(&pmap_pt_vas[cpu].lock);
+    pt_mapping  = &pmap_pt_mappings[cpu_id()];
+    mutex_lock(&pt_mapping->lock);
 
     for (i = 0; i < PMAP_NR_RPTPS; i++) {
         offset = i * PAGE_SIZE;
-        va = base + offset;
+        va = pt_mapping->va + offset;
         pmap_kenter(va, pa + offset, VM_PROT_READ | VM_PROT_WRITE);
         cpu_tlb_flush_va(va);
     }
 
-    return base;
+    return pt_mapping;
 }
 
 static void
-pmap_unmap_pt(void)
+pmap_unmap_pt(struct pmap_tmp_mapping *pt_mapping)
 {
-    unsigned long base;
-    unsigned int i, cpu;
+    unsigned long va;
+    unsigned int i;
 
     assert(thread_pinned());
+    mutex_assert_locked(&pt_mapping->lock);
 
-    cpu = cpu_id();
-    base = pmap_pt_vas[cpu].va;
-    pmap_kremove(base, base + (PMAP_NR_RPTPS * PAGE_SIZE));
+    va = pt_mapping->va;
+    pmap_kremove(va, va + (PMAP_NR_RPTPS * PAGE_SIZE));
 
     for (i = 0; i < PMAP_NR_RPTPS; i++)
-        cpu_tlb_flush_va(base + (i * PAGE_SIZE));
+        cpu_tlb_flush_va(va + (i * PAGE_SIZE));
 
-    mutex_unlock(&pmap_pt_vas[cpu].lock);
+    mutex_unlock(&pt_mapping->lock);
     thread_unpin();
 }
 
@@ -527,6 +535,7 @@ static void
 pmap_kgrow_update_pmaps(unsigned int index)
 {
     const struct pmap_pt_level *pt_level;
+    struct pmap_tmp_mapping *pt_mapping;
     struct pmap *pmap, *current;
     pmap_pte_t *root_pt;
 
@@ -539,9 +548,10 @@ pmap_kgrow_update_pmaps(unsigned int index)
         if (pmap == current)
             continue;
 
-        root_pt = (pmap_pte_t *)pmap_map_pt(pmap->root_pt);
+        pt_mapping = pmap_map_pt(pmap->root_pt);
+        root_pt = (pmap_pte_t *)pt_mapping->va;
         root_pt[index] = pt_level->ptes[index];
-        pmap_unmap_pt();
+        pmap_unmap_pt(pt_mapping);
     }
 
     mutex_unlock(&pmap_list_lock);
@@ -825,6 +835,7 @@ int
 pmap_create(struct pmap **pmapp)
 {
     const struct pmap_pt_level *pt_level;
+    struct pmap_tmp_mapping *pt_mapping;
     struct vm_page *root_pages;
     struct pmap *pmap;
     pmap_pte_t *pt, *kpt;
@@ -872,7 +883,8 @@ pmap_create(struct pmap **pmapp)
     kpt = pt_level->ptes;
     index = PMAP_PTEMAP_INDEX(VM_PMAP_PTEMAP_ADDRESS, pt_level->shift);
 
-    pt = (pmap_pte_t *)pmap_map_pt(pmap->root_pt);
+    pt_mapping = pmap_map_pt(pmap->root_pt);
+    pt = (pmap_pte_t *)pt_mapping->va;
 
     memset(pt, 0, index * sizeof(pmap_pte_t));
     index += PMAP_NR_RPTPS;
@@ -886,7 +898,7 @@ pmap_create(struct pmap **pmapp)
         pt[index] = (pa | PMAP_PTE_RW | PMAP_PTE_P) & pt_level->mask;
     }
 
-    pmap_unmap_pt();
+    pmap_unmap_pt(pt_mapping);
 
     mutex_init(&pmap->lock);
     cpumap_zero(&pmap->cpumap);
