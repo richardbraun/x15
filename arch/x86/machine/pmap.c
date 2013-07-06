@@ -81,11 +81,11 @@ struct pmap_pt_level {
  * before the VM system is initialized.
  *
  * List of users :
- *  - pmap_zero_mapping (1 page)
+ *  - pmap_zero_mapping (1 page per CPU)
  *  - pmap_pt_mapping (up to PMAP_NR_RPTPS, 1 per CPU)
  *  - CGA video memory (1 page)
  */
-#define PMAP_RESERVED_PAGES (1                              \
+#define PMAP_RESERVED_PAGES (MAX_CPUS                       \
                              + (PMAP_NR_RPTPS * MAX_CPUS)   \
                              + 1)
 
@@ -97,7 +97,7 @@ struct pmap_tmp_mapping {
     unsigned long va;
 };
 
-static struct pmap_tmp_mapping pmap_zero_mapping;
+static struct pmap_tmp_mapping pmap_zero_mappings[MAX_CPUS];
 static struct pmap_tmp_mapping pmap_pt_mappings[MAX_CPUS];
 
 
@@ -410,10 +410,10 @@ pmap_bootstrap(void)
     pmap_prot_table[VM_PROT_EXECUTE | VM_PROT_WRITE] = PMAP_PTE_RW;
     pmap_prot_table[VM_PROT_ALL] = PMAP_PTE_RW;
 
-    mutex_init(&pmap_zero_mapping.lock);
-    pmap_zero_mapping.va = pmap_bootalloc(1);
-
     for (i = 0; i < MAX_CPUS; i++) {
+        mutex_init(&pmap_zero_mappings[i].lock);
+        pmap_zero_mappings[i].va = pmap_bootalloc(1);
+
         mutex_init(&pmap_pt_mappings[i].lock);
         pmap_pt_mappings[i].va = pmap_bootalloc(PMAP_NR_RPTPS);
 
@@ -473,21 +473,19 @@ pmap_klimit(void)
 static void
 pmap_zero_page(phys_addr_t pa)
 {
+    struct pmap_tmp_mapping *zero_mapping;
     unsigned long va;
 
-    /*
-     * This function is currently only used by pmap_kgrow, which is already
-     * protected from concurrent execution. Grab a lock for safety. Disable
-     * migration to remove the need to globally flush the TLB.
-     */
-
     thread_pin();
-    mutex_lock(&pmap_zero_mapping.lock);
-    va = pmap_zero_mapping.va;
+    zero_mapping = &pmap_zero_mappings[cpu_id()];
+    mutex_lock(&zero_mapping->lock);
+    va = zero_mapping->va;
     pmap_kenter(va, pa, VM_PROT_WRITE);
     cpu_tlb_flush_va(va);
     memset((void *)va, 0, PAGE_SIZE);
-    mutex_unlock(&pmap_zero_mapping.lock);
+    pmap_kremove(va, va + PAGE_SIZE);
+    cpu_tlb_flush_va(va);
+    mutex_unlock(&zero_mapping->lock);
     thread_unpin();
 }
 
