@@ -27,7 +27,6 @@
 #include <vm/vm_kmem.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_prot.h>
 
 /*
@@ -69,7 +68,7 @@ vm_kmem_bootalloc(size_t size)
         pmap_kgrow(vm_kmem_boot_start);
 
     for (va = start; va < vm_kmem_boot_start; va += PAGE_SIZE) {
-        pa = vm_phys_bootalloc();
+        pa = vm_page_bootalloc();
         pmap_kenter(va, pa, VM_PROT_READ | VM_PROT_WRITE);
     }
 
@@ -94,7 +93,7 @@ vm_kmem_lookup_page(unsigned long va)
     if (pa == 0)
         return NULL;
 
-    return vm_phys_lookup_page(pa);
+    return vm_page_lookup(pa);
 }
 
 static int
@@ -161,7 +160,7 @@ vm_kmem_alloc(size_t size)
         return 0;
 
     for (start = va, end = va + size; start < end; start += PAGE_SIZE) {
-        page = vm_phys_alloc(0);
+        page = vm_page_alloc(0);
 
         if (page == NULL)
             goto error_page;
@@ -193,9 +192,9 @@ vm_kmem_free(unsigned long addr, size_t size)
         if (pa == 0)
             continue;
 
-        page = vm_phys_lookup_page(pa);
+        page = vm_page_lookup(pa);
         assert(page != NULL);
-        vm_phys_free(page, 0);
+        vm_page_free(page, 0);
     }
 
     vm_kmem_free_va(addr, size);

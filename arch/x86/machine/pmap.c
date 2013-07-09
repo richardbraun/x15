@@ -39,7 +39,6 @@
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 #include <vm/vm_prot.h>
-#include <vm/vm_phys.h>
 
 #define PMAP_PTEMAP_INDEX(va, shift) (((va) & PMAP_VA_MASK) >> (shift))
 
@@ -578,10 +577,10 @@ pmap_kgrow(unsigned long end)
             pte = &pt_level->ptes[index];
 
             if (!(*pte & PMAP_PTE_P)) {
-                if (!vm_phys_ready)
-                    pa = vm_phys_bootalloc();
+                if (!vm_page_ready)
+                    pa = vm_page_bootalloc();
                 else {
-                    page = vm_phys_alloc(0);
+                    page = vm_page_alloc(0);
 
                     if (page == NULL)
                         panic("pmap: no page available to grow kernel space");
@@ -799,7 +798,7 @@ pmap_pdpt_alloc(size_t slab_size)
         return 0;
 
     for (start = va, end = va + slab_size; start < end; start += PAGE_SIZE) {
-        page = vm_phys_alloc_seg(0, VM_PHYS_SEG_NORMAL);
+        page = vm_page_alloc_seg(0, VM_PAGE_SEG_NORMAL);
 
         if (page == NULL)
             goto error_page;
@@ -849,7 +848,7 @@ pmap_create(struct pmap **pmapp)
         goto error_pmap;
     }
 
-    root_pages = vm_phys_alloc(PMAP_RPTP_ORDER);
+    root_pages = vm_page_alloc(PMAP_RPTP_ORDER);
 
     if (root_pages == NULL) {
         error = ERROR_NOMEM;
@@ -873,7 +872,7 @@ pmap_create(struct pmap **pmapp)
         pmap->pdpt[i] = (pmap->root_pt + (i * PAGE_SIZE)) | PMAP_PTE_P;
 
     pa = pmap_extract_ptemap(va) + (va & PAGE_MASK);
-    assert(pa < VM_PHYS_NORMAL_LIMIT);
+    assert(pa < VM_PAGE_NORMAL_LIMIT);
     pmap->pdpt_pa = (unsigned long)pa;
 #endif /* X86_PAE */
 
@@ -910,7 +909,7 @@ pmap_create(struct pmap **pmapp)
 
 #ifdef X86_PAE
 error_pdpt:
-    vm_phys_free(root_pages, PMAP_RPTP_ORDER);
+    vm_page_free(root_pages, PMAP_RPTP_ORDER);
 #endif /* X86_PAE */
 error_pages:
     kmem_cache_free(&pmap_cache, pmap);
@@ -943,7 +942,7 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
         if (*pte & PMAP_PTE_P)
             continue;
 
-        page = vm_phys_alloc(0);
+        page = vm_page_alloc(0);
 
         /* Note that other pages allocated on the way are not released */
         if (page == NULL)

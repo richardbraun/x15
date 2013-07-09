@@ -132,35 +132,35 @@
  */
 
 #ifdef __LP64__
-#define VM_MAX_PHYS_SEG 2
-#define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0x100000000, UL)
-#define VM_PHYS_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, UL)
+#define VM_PAGE_MAX_SEGS 2
+#define VM_PAGE_NORMAL_LIMIT    DECL_CONST(0x100000000, UL)
+#define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, UL)
 #else /* __LP64__ */
 #ifdef X86_PAE
-#define VM_MAX_PHYS_SEG 2
-#define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0x100000000, ULL)
-#define VM_PHYS_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, ULL)
+#define VM_PAGE_MAX_SEGS 2
+#define VM_PAGE_NORMAL_LIMIT    DECL_CONST(0x100000000, ULL)
+#define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, ULL)
 #else /* X86_PAE */
-#define VM_MAX_PHYS_SEG 1
-#define VM_PHYS_NORMAL_LIMIT    DECL_CONST(0xfffff000, UL)
+#define VM_PAGE_MAX_SEGS 1
+#define VM_PAGE_NORMAL_LIMIT    DECL_CONST(0xfffff000, UL)
 #endif /* X86_PAE */
 #endif /* __LP64__ */
 
 /*
  * Physical segment indexes.
  */
-#define VM_PHYS_SEG_NORMAL      0
-#define VM_PHYS_SEG_HIGHMEM     1
+#define VM_PAGE_SEG_NORMAL      0
+#define VM_PAGE_SEG_HIGHMEM     1
 
 /*
  * Number of physical segment lists.
  */
-#define VM_NR_PHYS_SEGLIST VM_MAX_PHYS_SEG
+#define VM_PAGE_NR_SEGLISTS VM_PAGE_MAX_SEGS
 
 /*
  * Segment list priorities.
  */
-#define VM_PHYS_SEGLIST_NORMAL  0
-#define VM_PHYS_SEGLIST_HIGHMEM 1
+#define VM_PAGE_SEGLIST_NORMAL  0
+#define VM_PAGE_SEGLIST_HIGHMEM 1
 
 #endif /* _X86_PARAM_H */

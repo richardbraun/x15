@@ -65,7 +65,6 @@
 #include <machine/trap.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_setup.h>
 
 /*
@@ -278,7 +277,7 @@ boot_main(void)
     vm_setup();
     boot_save_data();
     biosmem_free_usable();
-    vm_phys_info();
+    vm_page_info();
     pic_setup();
     pit_setup();
     cpu_mp_setup();

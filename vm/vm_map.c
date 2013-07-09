@@ -49,7 +49,6 @@
 #include <vm/vm_map.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_prot.h>
 
 /*
@@ -202,7 +201,7 @@ vm_map_kentry_alloc(size_t slab_size)
                                 + VM_MAP_KENTRY_SIZE));
 
     for (i = 0; i < slab_size; i += PAGE_SIZE) {
-        page = vm_phys_alloc(0);
+        page = vm_page_alloc(0);
 
         if (page == NULL)
             panic("vm_map: no physical page for kentry cache");
@@ -229,9 +228,9 @@ vm_map_kentry_free(unsigned long va, size_t slab_size)
     for (i = 0; i < slab_size; i += PAGE_SIZE) {
         pa = pmap_extract(kernel_pmap, va + i);
         assert(pa != 0);
-        page = vm_phys_lookup_page(pa);
+        page = vm_page_lookup(pa);
         assert(page != NULL);
-        vm_phys_free(page, 0);
+        vm_page_free(page, 0);
     }
 
     pmap_kremove(va, va + slab_size);
@@ -279,7 +278,7 @@ vm_map_kentry_setup(void)
     table_va = vm_map_kentry_entry.start + VM_MAP_KENTRY_SIZE;
 
     for (i = 0; i < nr_pages; i++) {
-        page = vm_phys_alloc(0);
+        page = vm_page_alloc(0);
 
         if (page == NULL)
             panic("vm_map: unable to allocate page for kentry table");

@@ -32,7 +32,6 @@
 #include <machine/multiboot.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
-#include <vm/vm_phys.h>
 
 /*
  * Maximum number of entries in the BIOS memory map.
@@ -527,10 +526,10 @@ biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
         if (entry->type != BIOSMEM_TYPE_AVAILABLE)
             continue;
 
-#ifndef VM_PHYS_HIGHMEM_LIMIT
-        if (entry->base_addr >= VM_PHYS_NORMAL_LIMIT)
+#ifndef VM_PAGE_HIGHMEM_LIMIT
+        if (entry->base_addr >= VM_PAGE_NORMAL_LIMIT)
             break;
-#endif /* VM_PHYS_HIGHMEM_LIMIT */
+#endif /* VM_PAGE_HIGHMEM_LIMIT */
 
         start = vm_page_round(entry->base_addr);
 
@@ -539,10 +538,10 @@ biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
 
         entry_end = entry->base_addr + entry->length;
 
-#ifndef VM_PHYS_HIGHMEM_LIMIT
-        if (entry_end > VM_PHYS_NORMAL_LIMIT)
-            entry_end = VM_PHYS_NORMAL_LIMIT;
-#endif /* VM_PHYS_HIGHMEM_LIMIT */
+#ifndef VM_PAGE_HIGHMEM_LIMIT
+        if (entry_end > VM_PAGE_NORMAL_LIMIT)
+            entry_end = VM_PAGE_NORMAL_LIMIT;
+#endif /* VM_PAGE_HIGHMEM_LIMIT */
 
         end = vm_page_trunc(entry_end);
 
@@ -591,7 +590,7 @@ biosmem_load_segment(const char *name, unsigned long long max_phys_end,
     if ((avail_end < phys_start) || (avail_end > phys_end))
         avail_end = phys_end;
 
-    vm_phys_load(name, phys_start, phys_end, avail_start, avail_end,
+    vm_page_load(name, phys_start, phys_end, avail_start, avail_end,
                  seg_index, seglist_prio);
 }
 
@@ -612,24 +611,24 @@ biosmem_setup(void)
                    : 1ULL << cpu->phys_addr_width;
 
     phys_start = BIOSMEM_BASE;
-    phys_end = VM_PHYS_NORMAL_LIMIT;
+    phys_end = VM_PAGE_NORMAL_LIMIT;
     error = biosmem_map_find_avail(&phys_start, &phys_end);
 
     if (!error)
         biosmem_load_segment("normal", max_phys_end, phys_start, phys_end,
                              biosmem_heap_free, biosmem_heap_end,
-                             VM_PHYS_SEG_NORMAL, VM_PHYS_SEGLIST_NORMAL);
+                             VM_PAGE_SEG_NORMAL, VM_PAGE_SEGLIST_NORMAL);
 
-#ifdef VM_PHYS_HIGHMEM_LIMIT
-    phys_start = VM_PHYS_NORMAL_LIMIT;
-    phys_end = VM_PHYS_HIGHMEM_LIMIT;
+#ifdef VM_PAGE_HIGHMEM_LIMIT
+    phys_start = VM_PAGE_NORMAL_LIMIT;
+    phys_end = VM_PAGE_HIGHMEM_LIMIT;
     error = biosmem_map_find_avail(&phys_start, &phys_end);
 
     if (!error)
         biosmem_load_segment("highmem", max_phys_end, phys_start, phys_end,
                              phys_start, phys_end,
-                             VM_PHYS_SEG_HIGHMEM, VM_PHYS_SEGLIST_HIGHMEM);
-#endif /* VM_PHYS_HIGHMEM_LIMIT */
+                             VM_PAGE_SEG_HIGHMEM, VM_PAGE_SEGLIST_HIGHMEM);
+#endif /* VM_PAGE_HIGHMEM_LIMIT */
 }
 
 static void __init
@@ -668,9 +667,9 @@ biosmem_free_usable_range(phys_addr_t start, phys_addr_t end)
     struct vm_page *page;
 
     while (start < end) {
-        page = vm_phys_lookup_page(start);
+        page = vm_page_lookup(start);
         assert(page != NULL);
-        vm_phys_manage(page);
+        vm_page_manage(page);
         start += PAGE_SIZE;
     }
 }
@@ -710,13 +709,13 @@ biosmem_free_usable(void)
             continue;
 
         /* High memory is always loaded during setup */
-        if (entry->base_addr >= VM_PHYS_NORMAL_LIMIT)
+        if (entry->base_addr >= VM_PAGE_NORMAL_LIMIT)
             break;
 
         entry_end = entry->base_addr + entry->length;
 
-        if (entry_end > VM_PHYS_NORMAL_LIMIT)
-            entry_end = VM_PHYS_NORMAL_LIMIT;
+        if (entry_end > VM_PAGE_NORMAL_LIMIT)
+            entry_end = VM_PAGE_NORMAL_LIMIT;
 
         start = vm_page_round(entry->base_addr);
         end = vm_page_trunc(entry_end);

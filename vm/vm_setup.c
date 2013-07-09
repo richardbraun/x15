@@ -20,14 +20,14 @@
 #include <machine/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kmem.h>
-#include <vm/vm_phys.h>
+#include <vm/vm_page.h>
 #include <vm/vm_setup.h>
 
 void __init
 vm_setup(void)
 {
     vm_kmem_setup();
-    vm_phys_setup();
+    vm_page_setup();
     kmem_setup();
     vm_map_setup();
     pmap_setup();
