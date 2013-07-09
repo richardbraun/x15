@@ -515,25 +515,25 @@ vm_page_setup(void)
 {
     struct vm_page_boot_seg *boot_seg;
     struct vm_page_seg *seg;
-    struct vm_page *map, *start, *end;
-    size_t pages, map_size;
+    struct vm_page *table, *start, *end;
+    size_t pages, table_size;
     unsigned int i;
 
     /*
-     * Compute the memory map size.
+     * Compute the page table size.
      */
     pages = 0;
 
     for (i = 0; i < vm_page_segs_size; i++)
         pages += vm_page_atop(vm_page_seg_size(&vm_page_segs[i]));
 
-    map_size = P2ROUND(pages * sizeof(struct vm_page), PAGE_SIZE);
+    table_size = P2ROUND(pages * sizeof(struct vm_page), PAGE_SIZE);
     printk("vm_page: page table size: %zu entries (%zuk)\n", pages,
-           map_size >> 10);
-    map = (struct vm_page *)vm_kmem_bootalloc(map_size);
+           table_size >> 10);
+    table = (struct vm_page *)vm_kmem_bootalloc(table_size);
 
     /*
-     * Initialize the segments, associating them to the memory map. When
+     * Initialize the segments, associating them to the page table. When
      * the segments are initialized, all their pages are set allocated,
      * with a block size of one (order 0). They are then released, which
      * populates the free lists.
@@ -541,7 +541,7 @@ vm_page_setup(void)
     for (i = 0; i < vm_page_segs_size; i++) {
         seg = &vm_page_segs[i];
         boot_seg = &vm_page_boot_segs[i];
-        vm_page_seg_init(seg, map);
+        vm_page_seg_init(seg, table);
 
         start = seg->pages + vm_page_atop(boot_seg->avail_start - seg->start);
         end = seg->pages + vm_page_atop(boot_seg->avail_end - seg->start);
@@ -551,7 +551,7 @@ vm_page_setup(void)
             start++;
         }
 
-        map += vm_page_atop(vm_page_seg_size(seg));
+        table += vm_page_atop(vm_page_seg_size(seg));
     }
 
     vm_page_ready = 1;
