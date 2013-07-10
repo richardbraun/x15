@@ -580,7 +580,7 @@ pmap_kgrow(unsigned long end)
                 if (!vm_page_ready)
                     pa = vm_page_bootalloc();
                 else {
-                    page = vm_page_alloc(0);
+                    page = vm_page_alloc(0, VM_PAGE_PMAP);
 
                     if (page == NULL)
                         panic("pmap: no page available to grow kernel space");
@@ -798,7 +798,7 @@ pmap_pdpt_alloc(size_t slab_size)
         return 0;
 
     for (start = va, end = va + slab_size; start < end; start += PAGE_SIZE) {
-        page = vm_page_alloc_seg(0, VM_PAGE_SEG_NORMAL);
+        page = vm_page_alloc_seg(0, VM_PAGE_SEG_NORMAL, VM_PAGE_PMAP);
 
         if (page == NULL)
             goto error_page;
@@ -848,7 +848,7 @@ pmap_create(struct pmap **pmapp)
         goto error_pmap;
     }
 
-    root_pages = vm_page_alloc(PMAP_RPTP_ORDER);
+    root_pages = vm_page_alloc(PMAP_RPTP_ORDER, VM_PAGE_PMAP);
 
     if (root_pages == NULL) {
         error = ERROR_NOMEM;
@@ -942,7 +942,7 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
         if (*pte & PMAP_PTE_P)
             continue;
 
-        page = vm_page_alloc(0);
+        page = vm_page_alloc(0, VM_PAGE_PMAP);
 
         /* Note that other pages allocated on the way are not released */
         if (page == NULL)

@@ -42,6 +42,7 @@
 #include <kern/string.h>
 #include <kern/types.h>
 #include <machine/cpu.h>
+#include <machine/pmap.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 
@@ -151,6 +152,7 @@ static void __init
 vm_page_init(struct vm_page *page, unsigned short seg_index,
              unsigned short order, phys_addr_t pa)
 {
+    page->type = VM_PAGE_RESERVED;
     page->seg_index = seg_index;
     page->order = order;
     page->phys_addr = pa;
@@ -383,13 +385,15 @@ vm_page_seg_init(struct vm_page_seg *seg, struct vm_page *pages)
     seg->nr_free_pages = 0;
     i = seg - vm_page_segs;
 
+    /* Initially, all pages are set allocated and reserved */
     for (pa = seg->start; pa < seg->end; pa += PAGE_SIZE)
         vm_page_init(&pages[vm_page_atop(pa - seg->start)], i,
                      VM_PAGE_ORDER_ALLOCATED, pa);
 }
 
 static struct vm_page *
-vm_page_seg_alloc(struct vm_page_seg *seg, unsigned int order)
+vm_page_seg_alloc(struct vm_page_seg *seg, unsigned int order,
+                  unsigned short type)
 {
     struct vm_page_cpu_pool *cpu_pool;
     struct vm_page *page;
@@ -419,6 +423,8 @@ vm_page_seg_alloc(struct vm_page_seg *seg, unsigned int order)
         mutex_unlock(&seg->lock);
     }
 
+    assert(page->type == VM_PAGE_FREE);
+    page->type = type;
     return page;
 }
 
@@ -428,7 +434,10 @@ vm_page_seg_free(struct vm_page_seg *seg, struct vm_page *page,
 {
     struct vm_page_cpu_pool *cpu_pool;
 
+    assert(page->type != VM_PAGE_FREE);
     assert(order < VM_PAGE_NR_FREE_LISTS);
+
+    page->type = VM_PAGE_FREE;
 
     if (order == 0) {
         cpu_pool = vm_page_cpu_pool_get(seg);
@@ -515,22 +524,25 @@ vm_page_setup(void)
 {
     struct vm_page_boot_seg *boot_seg;
     struct vm_page_seg *seg;
-    struct vm_page *table, *start, *end;
-    size_t pages, table_size;
+    struct vm_page *table, *page, *end;
+    size_t nr_pages, table_size;
+    unsigned long va;
     unsigned int i;
+    phys_addr_t pa;
 
     /*
      * Compute the page table size.
      */
-    pages = 0;
+    nr_pages = 0;
 
     for (i = 0; i < vm_page_segs_size; i++)
-        pages += vm_page_atop(vm_page_seg_size(&vm_page_segs[i]));
+        nr_pages += vm_page_atop(vm_page_seg_size(&vm_page_segs[i]));
 
-    table_size = P2ROUND(pages * sizeof(struct vm_page), PAGE_SIZE);
-    printk("vm_page: page table size: %zu entries (%zuk)\n", pages,
+    table_size = P2ROUND(nr_pages * sizeof(struct vm_page), PAGE_SIZE);
+    printk("vm_page: page table size: %zu entries (%zuk)\n", nr_pages,
            table_size >> 10);
     table = (struct vm_page *)vm_kmem_bootalloc(table_size);
+    va = (unsigned long)table;
 
     /*
      * Initialize the segments, associating them to the page table. When
@@ -543,15 +555,24 @@ vm_page_setup(void)
         boot_seg = &vm_page_boot_segs[i];
         vm_page_seg_init(seg, table);
 
-        start = seg->pages + vm_page_atop(boot_seg->avail_start - seg->start);
+        page = seg->pages + vm_page_atop(boot_seg->avail_start - seg->start);
         end = seg->pages + vm_page_atop(boot_seg->avail_end - seg->start);
 
-        while (start < end) {
-            vm_page_seg_free_to_buddy(seg, start, 0);
-            start++;
+        while (page < end) {
+            page->type = VM_PAGE_FREE;
+            vm_page_seg_free_to_buddy(seg, page, 0);
+            page++;
         }
 
         table += vm_page_atop(vm_page_seg_size(seg));
+    }
+
+    while (va < (unsigned long)table) {
+        pa = pmap_extract(kernel_pmap, va);
+        page = vm_page_lookup(pa);
+        assert((page != NULL) && (page->type == VM_PAGE_RESERVED));
+        page->type = VM_PAGE_TABLE;
+        va += PAGE_SIZE;
     }
 
     vm_page_ready = 1;
@@ -561,7 +582,9 @@ void __init
 vm_page_manage(struct vm_page *page)
 {
     assert(page->seg_index < ARRAY_SIZE(vm_page_segs));
+    assert(page->type == VM_PAGE_RESERVED);
 
+    page->type = VM_PAGE_FREE;
     vm_page_seg_free_to_buddy(&vm_page_segs[page->seg_index], page, 0);
 }
 
@@ -582,7 +605,7 @@ vm_page_lookup(phys_addr_t pa)
 }
 
 struct vm_page *
-vm_page_alloc(unsigned int order)
+vm_page_alloc(unsigned int order, unsigned short type)
 {
     struct vm_page_seg *seg;
     struct list *seg_list;
@@ -592,7 +615,7 @@ vm_page_alloc(unsigned int order)
          seg_list >= vm_page_seg_lists;
          seg_list--)
         list_for_each_entry(seg_list, seg, node) {
-            page = vm_page_seg_alloc(seg, order);
+            page = vm_page_seg_alloc(seg, order, type);
 
             if (page != NULL)
                 return page;
@@ -602,11 +625,12 @@ vm_page_alloc(unsigned int order)
 }
 
 struct vm_page *
-vm_page_alloc_seg(unsigned int order, unsigned int seg_index)
+vm_page_alloc_seg(unsigned int order, unsigned int seg_index,
+                  unsigned short type)
 {
     assert(seg_index < vm_page_segs_size);
 
-    return vm_page_seg_alloc(&vm_page_segs[seg_index], order);
+    return vm_page_seg_alloc(&vm_page_segs[seg_index], order, type);
 }
 
 void

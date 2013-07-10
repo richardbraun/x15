@@ -160,7 +160,7 @@ vm_kmem_alloc(size_t size)
         return 0;
 
     for (start = va, end = va + size; start < end; start += PAGE_SIZE) {
-        page = vm_page_alloc(0);
+        page = vm_page_alloc(0, VM_PAGE_KMEM);
 
         if (page == NULL)
             goto error_page;

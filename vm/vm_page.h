@@ -44,10 +44,25 @@
 extern int vm_page_ready;
 
 /*
+ * Page usage types.
+ *
+ * Types aren't actually used. They merely provide statistics and debugging
+ * information.
+ */
+#define VM_PAGE_FREE        0   /* Page unused */
+#define VM_PAGE_RESERVED    1   /* Page reserved at boot time */
+#define VM_PAGE_TABLE       2   /* Page is part of the page table */
+#define VM_PAGE_PMAP        3   /* Page stores pmap-specific data */
+#define VM_PAGE_KENTRY      4   /* Page stores kentry data (see vm_map) */
+#define VM_PAGE_KMEM        5   /* Page stores kernel data (e.g. kmem slabs) */
+#define VM_PAGE_OBJECT      6   /* Page is part of an object */
+
+/*
  * Physical page descriptor.
  */
 struct vm_page {
     struct list node;
+    unsigned short type;
     unsigned short seg_index;
     unsigned short order;
     phys_addr_t phys_addr;
@@ -102,14 +117,15 @@ struct vm_page * vm_page_lookup(phys_addr_t pa);
 /*
  * Allocate a block of 2^order physical pages.
  */
-struct vm_page * vm_page_alloc(unsigned int order);
+struct vm_page * vm_page_alloc(unsigned int order, unsigned short type);
 
 /*
  * Allocate physical pages from a specific segment.
  *
  * This function should only be called by architecture specific functions.
  */
-struct vm_page * vm_page_alloc_seg(unsigned int order, unsigned int seg_index);
+struct vm_page * vm_page_alloc_seg(unsigned int order, unsigned int seg_index,
+                                   unsigned short type);
 
 /*
  * Release a block of 2^order physical pages.
