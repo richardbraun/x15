@@ -879,6 +879,11 @@ pmap_create(struct pmap **pmapp)
     kpt = pt_level->ptes;
     index = PMAP_PTEMAP_INDEX(VM_PMAP_PTEMAP_ADDRESS, pt_level->shift);
 
+    mutex_init(&pmap->lock);
+    cpumap_zero(&pmap->cpumap);
+
+    /* The pmap list lock also protects the shared root page table entries */
+    mutex_lock(&pmap_list_lock);
     pt_mapping = pmap_map_pt(pmap->root_pt_pa);
     pt = (pmap_pte_t *)pt_mapping->va;
 
@@ -895,11 +900,6 @@ pmap_create(struct pmap **pmapp)
     }
 
     pmap_unmap_pt(pt_mapping);
-
-    mutex_init(&pmap->lock);
-    cpumap_zero(&pmap->cpumap);
-
-    mutex_lock(&pmap_list_lock);
     list_insert_tail(&pmap_list, &pmap->node);
     mutex_unlock(&pmap_list_lock);
 
