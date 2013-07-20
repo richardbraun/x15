@@ -69,6 +69,12 @@ struct vm_page {
     void *slab_priv;
 };
 
+static inline unsigned short
+vm_page_type(const struct vm_page *page)
+{
+    return page->type;
+}
+
 static inline phys_addr_t
 vm_page_to_pa(const struct vm_page *page)
 {
