@@ -86,6 +86,9 @@ vm_page_to_pa(const struct vm_page *page)
  *
  * The avail_start and avail_end parameters are used to maintain a simple
  * heap for bootstrap allocations.
+ *
+ * All addresses must be page-aligned, and the start address must be
+ * strictly greater than 0.
  */
 void vm_page_load(const char *name, phys_addr_t start, phys_addr_t end,
                   phys_addr_t avail_start, phys_addr_t avail_end,

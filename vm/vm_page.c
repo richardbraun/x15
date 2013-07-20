@@ -478,6 +478,11 @@ vm_page_load(const char *name, phys_addr_t start, phys_addr_t end,
     unsigned int i;
 
     assert(name != NULL);
+    assert(vm_page_aligned(start));
+    assert(vm_page_aligned(end));
+    assert(vm_page_aligned(avail_start));
+    assert(vm_page_aligned(avail_end));
+    assert(start >= PAGE_SIZE);
     assert(start < end);
     assert(seg_index < ARRAY_SIZE(vm_page_segs));
     assert(seglist_prio < ARRAY_SIZE(vm_page_seg_lists));
