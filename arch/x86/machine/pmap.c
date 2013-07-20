@@ -603,7 +603,7 @@ pmap_kgrow(unsigned long end)
                 }
 
                 pmap_zero_page(pa);
-                pmap_pte_set(pte, pa, PMAP_PTE_G | PMAP_PTE_RW, level);
+                pmap_pte_set(pte, pa, PMAP_PTE_RW, level);
 
                 if (level == PMAP_NR_LEVELS)
                     pmap_kgrow_update_pmaps(index);
