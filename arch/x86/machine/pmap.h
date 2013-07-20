@@ -161,38 +161,6 @@ void pmap_ap_bootstrap(void);
 unsigned long pmap_bootalloc(unsigned int nr_pages);
 
 /*
- * Return the address below which using the kernel pmap functions is safe.
- *
- * Its value is adjusted by calling pmap_kgrow().
- */
-unsigned long pmap_klimit(void);
-
-/*
- * Preallocate page tables so that addresses up to the given one can be mapped
- * safely with the kernel pmap functions.
- *
- * This function should only be called by the VM system, which makes sure it's
- * not called concurrently.
- */
-void pmap_kgrow(unsigned long end);
-
-/*
- * Create a mapping on the kernel physical map.
- *
- * If protection is VM_PROT_NONE, this function behaves as if it were
- * VM_PROT_READ. Page tables for the new mapping must be preallocated with
- * pmap_kgrow().
- *
- * This function is an optimized version of pmap_enter() for the kernel pmap.
- */
-void pmap_kenter(unsigned long va, phys_addr_t pa, int prot);
-
-/*
- * Remove mappings from the kernel physical map.
- */
-void pmap_kremove(unsigned long start, unsigned long end);
-
-/*
  * Set the protection of mappings in a physical map.
  */
 void pmap_protect(struct pmap *pmap, unsigned long start, unsigned long end,
@@ -212,8 +180,8 @@ phys_addr_t pmap_extract(struct pmap *pmap, unsigned long va);
  * date on all processors using it.
  *
  * Functions that require updating are :
- *  - pmap_kenter
- *  - pmap_kremove
+ *  - pmap_enter
+ *  - pmap_remove
  *  - pmap_protect
  *
  * If the kernel has reached a state where IPIs may be used to update remote
@@ -243,13 +211,17 @@ int pmap_create(struct pmap **pmapp);
  * Create a mapping on a physical map.
  *
  * If protection is VM_PROT_NONE, this function behaves as if it were
- * VM_PROT_READ.
- *
- * This function may be used on the kernel pmap, but not for the purpose of
- * mapping kernel memory, i.e. data structures used by the kernel memory
- * allocator should be mapped with pmap_kenter().
+ * VM_PROT_READ. There must not be an existing valid mapping for the given
+ * virtual address.
  */
 int pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot);
+
+/*
+ * Remove mappings from a physical map.
+ *
+ * Non existent mappings are allowed in the given range.
+ */
+void pmap_remove(struct pmap *pmap, unsigned long start, unsigned long end);
 
 /*
  * Load the given pmap on the current processor.

@@ -108,7 +108,7 @@ cga_setup(void)
     unsigned long va;
 
     va = pmap_bootalloc(1);
-    pmap_kenter(va, CGA_MEMORY, VM_PROT_READ | VM_PROT_WRITE);
+    pmap_enter(kernel_pmap, va, CGA_MEMORY, VM_PROT_READ | VM_PROT_WRITE);
     pmap_update(kernel_pmap, va, va + PAGE_SIZE);
     cga_memory = (uint8_t *)va;
 

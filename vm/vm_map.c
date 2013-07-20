@@ -192,6 +192,7 @@ vm_map_kentry_alloc(size_t slab_size)
     struct vm_page *page;
     unsigned long va;
     size_t i;
+    int error;
 
     assert(slab_size == vm_map_kentry_slab_size);
 
@@ -206,7 +207,11 @@ vm_map_kentry_alloc(size_t slab_size)
         if (page == NULL)
             panic("vm_map: no physical page for kentry cache");
 
-        pmap_kenter(va + i, vm_page_to_pa(page), VM_PROT_READ | VM_PROT_WRITE);
+        error = pmap_enter(kernel_pmap, va + i, vm_page_to_pa(page),
+                           VM_PROT_READ | VM_PROT_WRITE);
+
+        if (error)
+            panic("vm_map: unable to create physical mapping for kentry cache");
     }
 
     pmap_update(kernel_pmap, va, va + slab_size);
@@ -233,7 +238,7 @@ vm_map_kentry_free(unsigned long va, size_t slab_size)
         vm_page_free(page, 0);
     }
 
-    pmap_kremove(va, va + slab_size);
+    pmap_remove(kernel_pmap, va, va + slab_size);
     pmap_update(kernel_pmap, va, va + slab_size);
     vm_map_kentry_free_va(va, slab_size);
 }
@@ -283,8 +288,11 @@ vm_map_kentry_setup(void)
         if (page == NULL)
             panic("vm_map: unable to allocate page for kentry table");
 
-        pmap_kenter(table_va + (i * PAGE_SIZE), vm_page_to_pa(page),
-                    VM_PROT_READ | VM_PROT_WRITE);
+        error = pmap_enter(kernel_pmap, table_va + (i * PAGE_SIZE),
+                           vm_page_to_pa(page), VM_PROT_READ | VM_PROT_WRITE);
+
+        if (error)
+            panic("vm_map: unable to create physical mapping for kentry table");
     }
 
     pmap_update(kernel_pmap, table_va, table_va + (nr_pages * PAGE_SIZE));
@@ -770,10 +778,6 @@ vm_map_insert(struct vm_map *map, struct vm_map_entry *entry,
 
 out:
     map->size += request->size;
-
-    if ((map == kernel_map) && (pmap_klimit() < entry->end))
-        pmap_kgrow(entry->end);
-
     return 0;
 }
 
