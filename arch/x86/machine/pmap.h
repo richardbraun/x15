@@ -110,9 +110,11 @@ typedef unsigned long pmap_pte_t;
 struct pmap {
     struct mutex lock;
     struct list node;
-    unsigned long root_pt;
+    phys_addr_t root_pt_pa;
 #ifdef X86_PAE
     pmap_pte_t *pdpt;
+
+    /* The page-directory-pointer base is always 32-bits wide */
     unsigned long pdpt_pa;
 #endif /* X86_PAE */
 
