@@ -611,14 +611,25 @@ pmap_kgrow(unsigned long end)
         }
     }
 
-    pmap_update(kernel_pmap, 0, (unsigned long)-1);
+    pmap_update(kernel_pmap, VM_PMAP_PTEMAP_ADDRESS,
+                VM_PMAP_PTEMAP_ADDRESS + VM_PMAP_PTEMAP_SIZE);
     pmap_kernel_limit = end + 1;
 }
+
+#define pmap_assert_range(pmap, start, end)                                 \
+MACRO_BEGIN                                                                 \
+    assert(vm_page_aligned(start) && vm_page_aligned(end));                 \
+    assert((start) < (end));                                                \
+    assert((((pmap) == kernel_pmap) && ((start) >= VM_PMAP_PTEMAP_ADDRESS)) \
+           || (((pmap) != kernel_pmap) && ((end) <= VM_MAX_ADDRESS)));      \
+MACRO_END
 
 void
 pmap_kenter(unsigned long va, phys_addr_t pa, int prot)
 {
     pmap_pte_t *pte;
+
+    pmap_assert_range(kernel_pmap, va, va + PAGE_SIZE);
 
     pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L1_SHIFT);
     pmap_pte_set(pte, pa, PMAP_PTE_G | pmap_prot_table[prot & VM_PROT_ALL], 1);
@@ -628,6 +639,8 @@ void
 pmap_kremove(unsigned long start, unsigned long end)
 {
     pmap_pte_t *pte;
+
+    pmap_assert_range(kernel_pmap, start, end);
 
     while (start < end) {
         pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L1_SHIFT);
@@ -654,6 +667,8 @@ void
 pmap_protect(struct pmap *pmap, unsigned long start, unsigned long end,
              int prot)
 {
+    pmap_assert_range(pmap, start, end);
+
     if ((pmap == kernel_pmap) || (pmap == pmap_current())) {
         pmap_protect_ptemap(start, end, prot);
         return;
@@ -684,6 +699,8 @@ pmap_extract_ptemap(unsigned long va)
 phys_addr_t
 pmap_extract(struct pmap *pmap, unsigned long va)
 {
+    pmap_assert_range(pmap, va, va + PAGE_SIZE);
+
     if ((pmap == kernel_pmap) || (pmap == pmap_current()))
         return pmap_extract_ptemap(va);
 
@@ -718,6 +735,8 @@ pmap_update(struct pmap *pmap, unsigned long start, unsigned long end)
     unsigned long flags;
     unsigned int cpu;
     int i;
+
+    pmap_assert_range(pmap, start, end);
 
     if (cpu_count() == 1) {
         pmap_update_local(pmap, start, end);
@@ -974,6 +993,8 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
 int
 pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
 {
+    pmap_assert_range(pmap, va, va + PAGE_SIZE);
+
     if ((pmap == kernel_pmap) || (pmap == pmap_current()))
         return pmap_enter_ptemap(pmap, va, pa, prot);
 
