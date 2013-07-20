@@ -225,7 +225,7 @@ pmap_boot_enter(pmap_pte_t *root_pt, unsigned long va, phys_addr_t pa)
         index = (va >> pt_level->shift) & ((1UL << pt_level->bits) - 1);
         pte = &pt[index];
 
-        if (*pte & PMAP_PTE_P)
+        if (*pte != 0)
             ptp = (void *)(unsigned long)(*pte & PMAP_PA_MASK);
         else {
             ptp = biosmem_bootalloc(1);
@@ -366,7 +366,7 @@ pmap_setup_global_pages(void)
             pt_level = &pmap_pt_levels[level - 1];
             pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(va, pt_level->shift)];
 
-            if (!(*pte & PMAP_PTE_P)) {
+            if (*pte == 0) {
                 pte = NULL;
                 va = P2END(va, 1UL << pt_level->shift);
                 break;
@@ -527,6 +527,21 @@ pmap_unmap_pt(struct pmap_tmp_mapping *pt_mapping)
     thread_unpin();
 }
 
+static inline void
+pmap_pte_set(pmap_pte_t *pte, phys_addr_t pa, pmap_pte_t pte_bits,
+             unsigned int level)
+{
+    assert(level > 0);
+    *pte = ((pa & PMAP_PA_MASK) | PMAP_PTE_P | pte_bits)
+           & pmap_pt_levels[level - 1].mask;
+}
+
+static inline void
+pmap_pte_clear(pmap_pte_t *pte)
+{
+    *pte = 0;
+}
+
 static void
 pmap_kgrow_update_pmaps(unsigned int index)
 {
@@ -575,7 +590,7 @@ pmap_kgrow(unsigned long end)
             index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
             pte = &pt_level->ptes[index];
 
-            if (!(*pte & PMAP_PTE_P)) {
+            if (*pte == 0) {
                 if (!vm_page_ready)
                     pa = vm_page_bootalloc();
                 else {
@@ -588,8 +603,7 @@ pmap_kgrow(unsigned long end)
                 }
 
                 pmap_zero_page(pa);
-                *pte = (pa | PMAP_PTE_G | PMAP_PTE_RW | PMAP_PTE_P)
-                       & pt_level->mask;
+                pmap_pte_set(pte, pa, PMAP_PTE_G | PMAP_PTE_RW, level);
 
                 if (level == PMAP_NR_LEVELS)
                     pmap_kgrow_update_pmaps(index);
@@ -607,9 +621,7 @@ pmap_kenter(unsigned long va, phys_addr_t pa, int prot)
     pmap_pte_t *pte;
 
     pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L1_SHIFT);
-    *pte = ((pa & PMAP_PA_MASK) | PMAP_PTE_G | PMAP_PTE_P
-            | pmap_prot_table[prot & VM_PROT_ALL])
-           & pmap_pt_levels[0].mask;
+    pmap_pte_set(pte, pa, PMAP_PTE_G | pmap_prot_table[prot & VM_PROT_ALL], 1);
 }
 
 void
@@ -619,7 +631,7 @@ pmap_kremove(unsigned long start, unsigned long end)
 
     while (start < end) {
         pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L1_SHIFT);
-        *pte = 0;
+        pmap_pte_clear(pte);
         start += PAGE_SIZE;
     }
 }
@@ -662,7 +674,7 @@ pmap_extract_ptemap(unsigned long va)
         pt_level = &pmap_pt_levels[level - 1];
         pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(va, pt_level->shift)];
 
-        if (!(*pte & PMAP_PTE_P))
+        if (*pte == 0)
             return 0;
     }
 
@@ -925,7 +937,7 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
     pmap_pte_t *pte, pte_bits;
     phys_addr_t pt_pa;
 
-    pte_bits = PMAP_PTE_RW | PMAP_PTE_P;
+    pte_bits = PMAP_PTE_RW;
 
     /*
      * Page tables describing user mappings are protected from user access by
@@ -938,7 +950,7 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
         pt_level = &pmap_pt_levels[level - 1];
         pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(va, pt_level->shift)];
 
-        if (*pte & PMAP_PTE_P)
+        if (*pte != 0)
             continue;
 
         page = vm_page_alloc(0, VM_PAGE_PMAP);
@@ -949,18 +961,13 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
 
         pt_pa = vm_page_to_pa(page);
         pmap_zero_page(pt_pa);
-        *pte = (pt_pa | pte_bits) & pt_level->mask;
+        pmap_pte_set(pte, pt_pa, pte_bits, level);
     }
 
-    pte_bits = pmap_prot_table[prot & VM_PROT_ALL] | PMAP_PTE_P;
-
-    if (pmap == kernel_pmap)
-        pte_bits |= PMAP_PTE_G;
-    else
-        pte_bits |= PMAP_PTE_US;
-
     pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L1_SHIFT);
-    *pte = ((pa & PMAP_PA_MASK) | pte_bits) & pmap_pt_levels[0].mask;
+    pte_bits = ((pmap == kernel_pmap) ? PMAP_PTE_G : PMAP_PTE_US)
+               | pmap_prot_table[prot & VM_PROT_ALL];
+    pmap_pte_set(pte, pa, pte_bits, 1);
     return 0;
 }
 
