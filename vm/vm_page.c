@@ -159,6 +159,17 @@ vm_page_init(struct vm_page *page, unsigned short seg_index,
     page->slab_priv = NULL;
 }
 
+static void
+vm_page_set_type(struct vm_page *page, unsigned int order, unsigned short type)
+{
+    unsigned int i, nr_pages;
+
+    nr_pages = 1 << order;
+
+    for (i = 0; i < nr_pages; i++)
+        page[i].type = type;
+}
+
 static void __init
 vm_page_free_list_init(struct vm_page_free_list *free_list)
 {
@@ -424,7 +435,7 @@ vm_page_seg_alloc(struct vm_page_seg *seg, unsigned int order,
     }
 
     assert(page->type == VM_PAGE_FREE);
-    page->type = type;
+    vm_page_set_type(page, order, type);
     return page;
 }
 
@@ -437,7 +448,7 @@ vm_page_seg_free(struct vm_page_seg *seg, struct vm_page *page,
     assert(page->type != VM_PAGE_FREE);
     assert(order < VM_PAGE_NR_FREE_LISTS);
 
-    page->type = VM_PAGE_FREE;
+    vm_page_set_type(page, order, VM_PAGE_FREE);
 
     if (order == 0) {
         cpu_pool = vm_page_cpu_pool_get(seg);
