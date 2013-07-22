@@ -772,7 +772,7 @@ error_page:
 }
 #endif /* X86_PAE */
 
-void
+void __init
 pmap_setup(void)
 {
     kmem_cache_init(&pmap_cache, "pmap", sizeof(struct pmap),
