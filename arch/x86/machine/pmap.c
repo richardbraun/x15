@@ -124,7 +124,7 @@ static pmap_pte_t pmap_kpdpt[PMAP_NR_RPTPS] __aligned(PMAP_PDPT_ALIGN);
  * Table of page translation properties.
  */
 static struct pmap_pt_level pmap_pt_levels[] = {
-    { PMAP_L1_BITS, PMAP_L1_SHIFT, PMAP_PTEMAP_BASE, PMAP_L2_NR_PTES, PMAP_L1_MASK },
+    { PMAP_L1_BITS, PMAP_L1_SHIFT, PMAP_PTEMAP_BASE, PMAP_L1_NR_PTES, PMAP_L1_MASK },
     { PMAP_L2_BITS, PMAP_L2_SHIFT, PMAP_L2_PTEMAP,   PMAP_L2_NR_PTES, PMAP_L2_MASK },
 #if PMAP_NR_LEVELS > 2
     { PMAP_L3_BITS, PMAP_L3_SHIFT, PMAP_L3_PTEMAP,   PMAP_L3_NR_PTES, PMAP_L3_MASK },
