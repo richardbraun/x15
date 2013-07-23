@@ -455,12 +455,16 @@ pmap_bootalloc(unsigned int nr_pages)
     return page;
 }
 
-#define pmap_assert_range(pmap, start, end)                                 \
-MACRO_BEGIN                                                                 \
-    assert(vm_page_aligned(start) && vm_page_aligned(end));                 \
-    assert((start) < (end));                                                \
-    assert((((pmap) == kernel_pmap) && ((start) >= VM_PMAP_PTEMAP_ADDRESS)) \
-           || (((pmap) != kernel_pmap) && ((end) <= VM_MAX_ADDRESS)));      \
+/*
+ * Check address range with regard to physical map.
+ *
+ * Note that there is no addressing restriction on the kernel pmap.
+ */
+#define pmap_assert_range(pmap, start, end)                         \
+MACRO_BEGIN                                                         \
+    assert(vm_page_aligned(start) && vm_page_aligned(end));         \
+    assert((start) < (end));                                        \
+    assert(((pmap) == kernel_pmap) || ((end) <= VM_MAX_ADDRESS));   \
 MACRO_END
 
 static inline void
