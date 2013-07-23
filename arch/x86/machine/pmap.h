@@ -128,6 +128,18 @@ struct pmap {
 extern struct pmap *kernel_pmap;
 
 /*
+ * Per physical page data specific to the pmap module.
+ *
+ * On this architecture, the number of page table entries is stored in page
+ * table page descriptors.
+ */
+struct pmap_page {
+    unsigned short nr_ptes;
+};
+
+#define PMAP_DEFINE_PAGE
+
+/*
  * Early initialization of the MMU.
  *
  * This function is called before paging is enabled by the boot module. It

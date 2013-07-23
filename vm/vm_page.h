@@ -25,6 +25,7 @@
 #include <kern/macros.h>
 #include <kern/param.h>
 #include <kern/types.h>
+#include <machine/pmap.h>
 
 /*
  * Address/page conversion and rounding macros (not inline functions to
@@ -66,7 +67,13 @@ struct vm_page {
     unsigned short seg_index;
     unsigned short order;
     phys_addr_t phys_addr;
-    void *slab_priv;
+
+    union {
+#ifdef PMAP_DEFINE_PAGE
+        struct pmap_page pmap_page;
+#endif /* PMAP_DEFINE_PAGE */
+        void *slab_priv;
+    };
 };
 
 static inline unsigned short

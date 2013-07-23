@@ -152,11 +152,11 @@ static void __init
 vm_page_init(struct vm_page *page, unsigned short seg_index,
              unsigned short order, phys_addr_t pa)
 {
+    memset(page, 0, sizeof(*page));
     page->type = VM_PAGE_RESERVED;
     page->seg_index = seg_index;
     page->order = order;
     page->phys_addr = pa;
-    page->slab_priv = NULL;
 }
 
 static void
