@@ -159,7 +159,7 @@ vm_page_init(struct vm_page *page, unsigned short seg_index,
     page->phys_addr = pa;
 }
 
-static void
+void
 vm_page_set_type(struct vm_page *page, unsigned int order, unsigned short type)
 {
     unsigned int i, nr_pages;

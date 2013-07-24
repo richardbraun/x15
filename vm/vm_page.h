@@ -82,6 +82,9 @@ vm_page_type(const struct vm_page *page)
     return page->type;
 }
 
+void vm_page_set_type(struct vm_page *page, unsigned int order,
+                      unsigned short type);
+
 static inline phys_addr_t
 vm_page_to_pa(const struct vm_page *page)
 {

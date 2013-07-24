@@ -806,7 +806,29 @@ pmap_setup_inc_nr_ptes(pmap_pte_t *pte)
 
     page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
     assert(page != NULL);
-    page->pmap_page.nr_ptes++;
+
+    /*
+     * PTPs of type VM_PAGE_PMAP were allocated after the VM system was
+     * initialized. Their PTEs count doesn't need fixing.
+     */
+    if (vm_page_type(page) != VM_PAGE_PMAP) {
+        assert(vm_page_type(page) == VM_PAGE_RESERVED);
+        page->pmap_page.nr_ptes++;
+    }
+}
+
+static void __init
+pmap_setup_set_ptp_type(pmap_pte_t *pte)
+{
+    struct vm_page *page;
+
+    page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
+    assert(page != NULL);
+
+    if (vm_page_type(page) != VM_PAGE_PMAP) {
+        assert(vm_page_type(page) == VM_PAGE_RESERVED);
+        vm_page_set_type(page, 0, VM_PAGE_PMAP);
+    }
 }
 
 static void __init
@@ -817,6 +839,9 @@ pmap_setup_count_ptes(void)
      * is done when walking the recursive mapping.
      */
     pmap_walk_vas(0, pmap_setup_inc_nr_ptes);
+
+    /* Now that accounting is finished, properly fix up PTPs types */
+    pmap_walk_vas(0, pmap_setup_set_ptp_type);
 }
 
 void __init
