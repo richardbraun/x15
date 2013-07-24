@@ -346,24 +346,36 @@ pmap_ap_setup_paging(void)
     return root_pt;
 }
 
+/*
+ * Helper function for initialization procedures that require post-fixing
+ * page properties.
+ */
 static void __init
-pmap_setup_global_pages(void)
+pmap_walk_vas(unsigned long start, void (*f)(pmap_pte_t *pte))
 {
     const struct pmap_pt_level *pt_level;
-    unsigned long va;
     unsigned int level;
     pmap_pte_t *pte;
 
-    va = VM_MAX_KERNEL_ADDRESS;
+    assert(vm_page_aligned(start));
+#ifdef __LP64__
+    assert((start <= VM_MAX_ADDRESS) || (start >= VM_PMAP_PTEMAP_ADDRESS));
+#endif /* __LP64__ */
 
-    while (va >= VM_MAX_KERNEL_ADDRESS) {
+    do {
+#ifdef __LP64__
+        /* Handle long mode canonical form */
+        if (start == ((PMAP_VA_MASK >> 1) + 1))
+            start = ~(PMAP_VA_MASK >> 1);
+#endif /* __LP64__ */
+
         for (level = PMAP_NR_LEVELS; level > 0; level--) {
             pt_level = &pmap_pt_levels[level - 1];
-            pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(va, pt_level->shift)];
+            pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(start, pt_level->shift)];
 
             if (*pte == 0) {
                 pte = NULL;
-                va = P2END(va, 1UL << pt_level->shift);
+                start = P2END(start, 1UL << pt_level->shift);
                 break;
             }
         }
@@ -371,10 +383,21 @@ pmap_setup_global_pages(void)
         if (pte == NULL)
             continue;
 
-        *pte |= PMAP_PTE_G;
-        va += PAGE_SIZE;
-    }
+        f(pte);
+        start += PAGE_SIZE;
+    } while (start != 0);
+}
 
+static void __init
+pmap_setup_global_page(pmap_pte_t *pte)
+{
+    *pte |= PMAP_PTE_G;
+}
+
+static void __init
+pmap_setup_global_pages(void)
+{
+    pmap_walk_vas(VM_MAX_KERNEL_ADDRESS, pmap_setup_global_page);
     pmap_pt_levels[0].mask |= PMAP_PTE_G;
     cpu_enable_global_pages();
 }
