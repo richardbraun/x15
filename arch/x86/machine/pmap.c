@@ -800,46 +800,23 @@ error_page:
 #endif /* X86_PAE */
 
 static void __init
+pmap_setup_inc_nr_ptes(pmap_pte_t *pte)
+{
+    struct vm_page *page;
+
+    page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
+    assert(page != NULL);
+    page->pmap_page.nr_ptes++;
+}
+
+static void __init
 pmap_setup_count_ptes(void)
 {
-    const struct pmap_pt_level *pt_level;
-    struct vm_page *page;
-    unsigned long va;
-    unsigned int level;
-    pmap_pte_t *pte;
-
-    va = 0;
-
     /*
-     * Only count entries at lowest level. Accounting on upper PTPs is done
-     * when walking the recursive mapping.
+     * This call count entries at the lowest level. Accounting on upper PTPs
+     * is done when walking the recursive mapping.
      */
-    do {
-#ifdef __LP64__
-        /* Handle long mode canonical form */
-        if (va == ((PMAP_VA_MASK >> 1) + 1))
-            va = ~(PMAP_VA_MASK >> 1);
-#endif /* __LP64__ */
-
-        for (level = PMAP_NR_LEVELS; level > 0; level--) {
-            pt_level = &pmap_pt_levels[level - 1];
-            pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(va, pt_level->shift)];
-
-            if (*pte == 0) {
-                pte = NULL;
-                va = P2END(va, 1UL << pt_level->shift);
-                break;
-            }
-        }
-
-        if (pte == NULL)
-            continue;
-
-        page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
-        assert(page != NULL);
-        page->pmap_page.nr_ptes++;
-        va += PAGE_SIZE;
-    } while (va != 0);
+    pmap_walk_vas(0, pmap_setup_inc_nr_ptes);
 }
 
 void __init
