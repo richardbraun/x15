@@ -110,7 +110,7 @@ typedef unsigned long pmap_pte_t;
 struct pmap {
     struct mutex lock;
     struct list node;
-    phys_addr_t root_pt_pa;
+    phys_addr_t root_ptp_pa;
 #ifdef X86_PAE
     pmap_pte_t *pdpt;
 
