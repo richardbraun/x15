@@ -39,51 +39,58 @@
 /*
  * Page translation hierarchy properties.
  */
-#define PMAP_L1_MASK    (PMAP_PA_MASK | PMAP_PTE_D | PMAP_PTE_A \
+
+/*
+ * Masks define valid bits at each page translation level.
+ *
+ * Additional bits such as the global bit can be added at runtime for optional
+ * features.
+ */
+#define PMAP_L0_MASK    (PMAP_PA_MASK | PMAP_PTE_D | PMAP_PTE_A \
                          | PMAP_PTE_PCD | PMAP_PTE_PWT | PMAP_PTE_US \
                          | PMAP_PTE_RW | PMAP_PTE_P)
-#define PMAP_L2_MASK    (PMAP_PA_MASK | PMAP_PTE_A | PMAP_PTE_PCD \
+#define PMAP_L1_MASK    (PMAP_PA_MASK | PMAP_PTE_A | PMAP_PTE_PCD \
                          | PMAP_PTE_PWT | PMAP_PTE_US | PMAP_PTE_RW \
                          | PMAP_PTE_P)
 
 #ifdef __LP64__
 #define PMAP_RPTP_ORDER 0
 #define PMAP_NR_LEVELS  4
+#define PMAP_L0_BITS    9
 #define PMAP_L1_BITS    9
 #define PMAP_L2_BITS    9
 #define PMAP_L3_BITS    9
-#define PMAP_L4_BITS    9
 #define PMAP_VA_MASK    DECL_CONST(0x0000ffffffffffff, UL)
 #define PMAP_PA_MASK    DECL_CONST(0x000ffffffffff000, UL)
-#define PMAP_L3_MASK    PMAP_L2_MASK
-#define PMAP_L4_MASK    PMAP_L2_MASK
+#define PMAP_L2_MASK    PMAP_L1_MASK
+#define PMAP_L3_MASK    PMAP_L1_MASK
 #else /* __LP64__ */
 #ifdef X86_PAE
 #define PMAP_RPTP_ORDER 2   /* Assume two levels with a 4-page root table */
 #define PMAP_NR_LEVELS  2
-#define PMAP_L1_BITS    9
-#define PMAP_L2_BITS    11
+#define PMAP_L0_BITS    9
+#define PMAP_L1_BITS    11
 #define PMAP_VA_MASK    DECL_CONST(0xffffffff, UL)
 #define PMAP_PA_MASK    DECL_CONST(0x000ffffffffff000, ULL)
 #else /* X86_PAE */
 #define PMAP_RPTP_ORDER 0
 #define PMAP_NR_LEVELS  2
+#define PMAP_L0_BITS    10
 #define PMAP_L1_BITS    10
-#define PMAP_L2_BITS    10
 #define PMAP_VA_MASK    DECL_CONST(0xffffffff, UL)
 #define PMAP_PA_MASK    DECL_CONST(0xfffff000, UL)
 #endif /* X86_PAE */
 #endif /* __LP64__ */
 
-#define PMAP_L1_SHIFT   12
+#define PMAP_L0_SHIFT   12
+#define PMAP_L1_SHIFT   (PMAP_L0_SHIFT + PMAP_L0_BITS)
 #define PMAP_L2_SHIFT   (PMAP_L1_SHIFT + PMAP_L1_BITS)
 #define PMAP_L3_SHIFT   (PMAP_L2_SHIFT + PMAP_L2_BITS)
-#define PMAP_L4_SHIFT   (PMAP_L3_SHIFT + PMAP_L3_BITS)
 
-#define PMAP_L1_NR_PTES (1 << PMAP_L1_BITS)
-#define PMAP_L2_NR_PTES (1 << PMAP_L2_BITS)
-#define PMAP_L3_NR_PTES (1 << PMAP_L3_BITS)
-#define PMAP_L4_NR_PTES (1 << PMAP_L4_BITS)
+#define PMAP_L0_PTES_PER_PTP    (1 << PMAP_L0_BITS)
+#define PMAP_L1_PTES_PER_PTP    (1 << PMAP_L1_BITS)
+#define PMAP_L2_PTES_PER_PTP    (1 << PMAP_L2_BITS)
+#define PMAP_L3_PTES_PER_PTP    (1 << PMAP_L3_BITS)
 
 #define PMAP_NR_RPTPS   (1 << PMAP_RPTP_ORDER)
 

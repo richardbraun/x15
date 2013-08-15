@@ -52,15 +52,10 @@
 /*
  * Base addresses of the page tables for each level in the recursive mapping.
  */
-#define PMAP_L1_PTEMAP  PMAP_PTEMAP_BASE
-#define PMAP_L2_PTEMAP  (PMAP_L1_PTEMAP + PMAP_LX_INDEX(PMAP_L1_SHIFT))
-#define PMAP_L3_PTEMAP  (PMAP_L2_PTEMAP + PMAP_LX_INDEX(PMAP_L2_SHIFT))
-#define PMAP_L4_PTEMAP  (PMAP_L3_PTEMAP + PMAP_LX_INDEX(PMAP_L3_SHIFT))
-
-/*
- * Flags related to page protection.
- */
-#define PMAP_PTE_PROT_MASK PMAP_PTE_RW
+#define PMAP_L0_PTEMAP_BASE PMAP_PTEMAP_BASE
+#define PMAP_L1_PTEMAP_BASE (PMAP_L0_PTEMAP_BASE + PMAP_LX_INDEX(PMAP_L0_SHIFT))
+#define PMAP_L2_PTEMAP_BASE (PMAP_L1_PTEMAP_BASE + PMAP_LX_INDEX(PMAP_L1_SHIFT))
+#define PMAP_L3_PTEMAP_BASE (PMAP_L2_PTEMAP_BASE + PMAP_LX_INDEX(PMAP_L2_SHIFT))
 
 /*
  * Properties of a page translation level.
@@ -68,9 +63,25 @@
 struct pmap_pt_level {
     unsigned int bits;
     unsigned int shift;
-    pmap_pte_t *ptes;   /* PTEs in the recursive mapping */
-    unsigned int nr_ptes;
+    pmap_pte_t *ptemap_base;
+    unsigned int ptes_per_ptp;
     pmap_pte_t mask;
+};
+
+/*
+ * Table of page translation properties.
+ */
+static struct pmap_pt_level pmap_pt_levels[] = {
+    { PMAP_L0_BITS, PMAP_L0_SHIFT, PMAP_L0_PTEMAP_BASE, PMAP_L0_PTES_PER_PTP,
+      PMAP_L0_MASK },
+    { PMAP_L1_BITS, PMAP_L1_SHIFT, PMAP_L1_PTEMAP_BASE, PMAP_L1_PTES_PER_PTP,
+      PMAP_L1_MASK },
+#if PMAP_NR_LEVELS == 4
+    { PMAP_L2_BITS, PMAP_L2_SHIFT, PMAP_L2_PTEMAP_BASE, PMAP_L2_PTES_PER_PTP,
+      PMAP_L2_MASK },
+    { PMAP_L3_BITS, PMAP_L3_SHIFT, PMAP_L3_PTEMAP_BASE, PMAP_L3_PTES_PER_PTP,
+      PMAP_L3_MASK }
+#endif /* PMAP_NR_LEVELS == 4 */
 };
 
 /*
@@ -121,24 +132,15 @@ static pmap_pte_t pmap_kpdpt[PMAP_NR_RPTPS] __aligned(PMAP_PDPT_ALIGN);
 #endif /* X86_PAE */
 
 /*
- * Table of page translation properties.
+ * Flags related to page protection.
  */
-static struct pmap_pt_level pmap_pt_levels[] = {
-    { PMAP_L1_BITS, PMAP_L1_SHIFT, PMAP_PTEMAP_BASE, PMAP_L1_NR_PTES, PMAP_L1_MASK },
-    { PMAP_L2_BITS, PMAP_L2_SHIFT, PMAP_L2_PTEMAP,   PMAP_L2_NR_PTES, PMAP_L2_MASK },
-#if PMAP_NR_LEVELS > 2
-    { PMAP_L3_BITS, PMAP_L3_SHIFT, PMAP_L3_PTEMAP,   PMAP_L3_NR_PTES, PMAP_L3_MASK },
-#if PMAP_NR_LEVELS > 3
-    { PMAP_L4_BITS, PMAP_L4_SHIFT, PMAP_L4_PTEMAP,   PMAP_L4_NR_PTES, PMAP_L4_MASK }
-#endif /* PMAP_NR_LEVELS > 3 */
-#endif /* PMAP_NR_LEVELS > 2 */
-};
+#define PMAP_PTE_PROT_MASK PMAP_PTE_RW
 
 /*
  * Table used to convert machine independent protection flags to architecture
  * specific PTE bits.
  */
-static pmap_pte_t pmap_prot_table[8];
+static pmap_pte_t pmap_prot_table[VM_PROT_ALL + 1];
 
 /*
  * Maximum number of mappings for which individual TLB invalidations can be
@@ -239,7 +241,7 @@ pmap_boot_enter(pmap_pte_t *root_ptp, unsigned long va, phys_addr_t pa)
     if (pa == 0)
         return;
 
-    pte = &pt[(va >> PMAP_L1_SHIFT) & ((1UL << PMAP_L1_BITS) - 1)];
+    pte = &pt[(va >> PMAP_L0_SHIFT) & ((1UL << PMAP_L0_BITS) - 1)];
     *pte = (pa & PMAP_PA_MASK) | PMAP_PTE_RW | PMAP_PTE_P;
 }
 
@@ -374,7 +376,7 @@ pmap_walk_vas(unsigned long start, void (*f)(pmap_pte_t *pte))
         for (level = PMAP_NR_LEVELS - 1; level < PMAP_NR_LEVELS; level--) {
             pt_level = &pmap_pt_levels[level];
             index = PMAP_PTEMAP_INDEX(start, pt_level->shift);
-            pte = &pt_level->ptes[index];
+            pte = &pt_level->ptemap_base[index];
 
             if (*pte == 0) {
                 pte = NULL;
@@ -522,7 +524,7 @@ pmap_kenter(unsigned long va, phys_addr_t pa, int prot)
 
     pmap_assert_range(kernel_pmap, va, va + PAGE_SIZE);
 
-    pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L1_SHIFT);
+    pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L0_SHIFT);
     pmap_pte_set(pte, pa, PMAP_PTE_G | pmap_prot_table[prot & VM_PROT_ALL], 0);
 }
 
@@ -534,7 +536,7 @@ pmap_kremove(unsigned long start, unsigned long end)
     pmap_assert_range(kernel_pmap, start, end);
 
     while (start < end) {
-        pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L1_SHIFT);
+        pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L0_SHIFT);
         pmap_pte_clear(pte);
         start += PAGE_SIZE;
     }
@@ -607,7 +609,7 @@ pmap_protect_ptemap(unsigned long start, unsigned long end, int prot)
     flags = pmap_prot_table[prot & VM_PROT_ALL];
 
     while (start < end) {
-        pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L1_SHIFT);
+        pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L0_SHIFT);
         *pte = (*pte & ~PMAP_PTE_PROT_MASK) | flags;
         start += PAGE_SIZE;
     }
@@ -639,7 +641,7 @@ pmap_extract_ptemap(unsigned long va)
     for (level = PMAP_NR_LEVELS - 1; level < PMAP_NR_LEVELS; level--) {
         pt_level = &pmap_pt_levels[level];
         index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
-        pte = &pt_level->ptes[index];
+        pte = &pt_level->ptemap_base[index];
 
         if (*pte == 0)
             return 0;
@@ -914,7 +916,7 @@ pmap_create(struct pmap **pmapp)
 #endif /* X86_PAE */
 
     pt_level = &pmap_pt_levels[PMAP_NR_LEVELS - 1];
-    kpt = pt_level->ptes;
+    kpt = pt_level->ptemap_base;
     index = PMAP_PTEMAP_INDEX(VM_PMAP_PTEMAP_ADDRESS, pt_level->shift);
 
     mutex_init(&pmap->lock);
@@ -927,7 +929,7 @@ pmap_create(struct pmap **pmapp)
 
     memset(pt, 0, index * sizeof(pmap_pte_t));
     index += PMAP_NR_RPTPS;
-    memcpy(&pt[index], &kpt[index], (pt_level->nr_ptes - index)
+    memcpy(&pt[index], &kpt[index], (pt_level->ptes_per_ptp - index)
                                     * sizeof(pmap_pte_t));
 
     for (i = 0; i < PMAP_NR_RPTPS; i++) {
@@ -963,6 +965,7 @@ pmap_enter_ptemap_sync_kernel(unsigned long index)
     pmap_pte_t *root_ptp;
 
     pt_level = &pmap_pt_levels[PMAP_NR_LEVELS - 1];
+    assert(index < pt_level->ptes_per_ptp);
     current = pmap_current();
 
     mutex_lock(&pmap_list_lock);
@@ -974,7 +977,7 @@ pmap_enter_ptemap_sync_kernel(unsigned long index)
         root_ptp_mapping = pmap_map_root_ptp(pmap->root_ptp_pa);
         root_ptp = (pmap_pte_t *)root_ptp_mapping->va;
         assert(root_ptp[index] == 0);
-        root_ptp[index] = pt_level->ptes[index];
+        root_ptp[index] = pt_level->ptemap_base[index];
         pmap_unmap_root_ptp(root_ptp_mapping);
     }
 
@@ -1009,7 +1012,7 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
     for (level = PMAP_NR_LEVELS - 1; level != 0; level--) {
         pt_level = &pmap_pt_levels[level];
         index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
-        pte = &pt_level->ptes[index];
+        pte = &pt_level->ptemap_base[index];
 
         if (*pte != 0)
             continue;
@@ -1035,7 +1038,7 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
 
     }
 
-    pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L1_SHIFT);
+    pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L0_SHIFT);
     pte_bits = ((pmap == kernel_pmap) ? PMAP_PTE_G : PMAP_PTE_US)
                | pmap_prot_table[prot & VM_PROT_ALL];
     pmap_pte_set(pte, pa, pte_bits, 0);
@@ -1062,7 +1065,7 @@ pmap_remove_ptemap(struct pmap *pmap, unsigned long start, unsigned long end)
     pmap_assert_range(pmap, start, end);
 
     while (start < end) {
-        pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L1_SHIFT);
+        pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L0_SHIFT);
         pmap_pte_clear(pte);
         start += PAGE_SIZE;
     }
