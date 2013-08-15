@@ -206,7 +206,8 @@ static void __boot
 pmap_boot_enter(pmap_pte_t *root_ptp, unsigned long va, phys_addr_t pa)
 {
     const struct pmap_pt_level *pt_level, *pt_levels;
-    unsigned int level, index;
+    unsigned long index;
+    unsigned int level;
     pmap_pte_t *pt, *ptp, *pte;
 
     if (pa != (pa & PMAP_PA_MASK))
@@ -215,8 +216,8 @@ pmap_boot_enter(pmap_pte_t *root_ptp, unsigned long va, phys_addr_t pa)
     pt_levels = (void *)BOOT_VTOP((unsigned long)pmap_pt_levels);
     pt = root_ptp;
 
-    for (level = PMAP_NR_LEVELS; level > 1; level--) {
-        pt_level = &pt_levels[level - 1];
+    for (level = PMAP_NR_LEVELS - 1; level != 0; level--) {
+        pt_level = &pt_levels[level];
         index = (va >> pt_level->shift) & ((1UL << pt_level->bits) - 1);
         pte = &pt[index];
 
@@ -247,8 +248,8 @@ pmap_setup_ptemap(pmap_pte_t *root_ptp)
 {
     const struct pmap_pt_level *pt_level, *pt_levels;
     phys_addr_t pa;
-    unsigned long va;
-    unsigned int i, index;
+    unsigned long va, index;
+    unsigned int i;
 
     pt_levels = (void *)BOOT_VTOP((unsigned long)pmap_pt_levels);
     pt_level = &pt_levels[PMAP_NR_LEVELS - 1];
@@ -354,6 +355,7 @@ static void __init
 pmap_walk_vas(unsigned long start, void (*f)(pmap_pte_t *pte))
 {
     const struct pmap_pt_level *pt_level;
+    unsigned long index;
     unsigned int level;
     pmap_pte_t *pte;
 
@@ -369,9 +371,10 @@ pmap_walk_vas(unsigned long start, void (*f)(pmap_pte_t *pte))
             start = ~(PMAP_VA_MASK >> 1);
 #endif /* __LP64__ */
 
-        for (level = PMAP_NR_LEVELS; level > 0; level--) {
-            pt_level = &pmap_pt_levels[level - 1];
-            pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(start, pt_level->shift)];
+        for (level = PMAP_NR_LEVELS - 1; level < PMAP_NR_LEVELS; level--) {
+            pt_level = &pmap_pt_levels[level];
+            index = PMAP_PTEMAP_INDEX(start, pt_level->shift);
+            pte = &pt_level->ptes[index];
 
             if (*pte == 0) {
                 pte = NULL;
@@ -494,9 +497,9 @@ static inline void
 pmap_pte_set(pmap_pte_t *pte, phys_addr_t pa, pmap_pte_t pte_bits,
              unsigned int level)
 {
-    assert(level > 0);
+    assert(level < PMAP_NR_LEVELS);
     *pte = ((pa & PMAP_PA_MASK) | PMAP_PTE_P | pte_bits)
-           & pmap_pt_levels[level - 1].mask;
+           & pmap_pt_levels[level].mask;
 }
 
 static inline void
@@ -520,7 +523,7 @@ pmap_kenter(unsigned long va, phys_addr_t pa, int prot)
     pmap_assert_range(kernel_pmap, va, va + PAGE_SIZE);
 
     pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L1_SHIFT);
-    pmap_pte_set(pte, pa, PMAP_PTE_G | pmap_prot_table[prot & VM_PROT_ALL], 1);
+    pmap_pte_set(pte, pa, PMAP_PTE_G | pmap_prot_table[prot & VM_PROT_ALL], 0);
 }
 
 static void
@@ -629,12 +632,14 @@ static phys_addr_t
 pmap_extract_ptemap(unsigned long va)
 {
     const struct pmap_pt_level *pt_level;
+    unsigned long index;
     unsigned int level;
     pmap_pte_t *pte;
 
-    for (level = PMAP_NR_LEVELS; level > 0; level--) {
-        pt_level = &pmap_pt_levels[level - 1];
-        pte = &pt_level->ptes[PMAP_PTEMAP_INDEX(va, pt_level->shift)];
+    for (level = PMAP_NR_LEVELS - 1; level < PMAP_NR_LEVELS; level--) {
+        pt_level = &pmap_pt_levels[level];
+        index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
+        pte = &pt_level->ptes[index];
 
         if (*pte == 0)
             return 0;
@@ -869,8 +874,8 @@ pmap_create(struct pmap **pmapp)
     struct pmap *pmap;
     pmap_pte_t *pt, *kpt;
     phys_addr_t pa;
-    unsigned long va;
-    unsigned int i, index;
+    unsigned long va, index;
+    unsigned int i;
     int error;
 
     pmap = kmem_cache_alloc(&pmap_cache);
@@ -950,7 +955,7 @@ error_pmap:
 }
 
 static void
-pmap_enter_ptemap_sync_kernel(unsigned int index)
+pmap_enter_ptemap_sync_kernel(unsigned long index)
 {
     const struct pmap_pt_level *pt_level;
     struct pmap_tmp_mapping *root_ptp_mapping;
@@ -987,7 +992,8 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
 {
     const struct pmap_pt_level *pt_level;
     struct vm_page *page;
-    unsigned int level, index;
+    unsigned long index;
+    unsigned int level;
     pmap_pte_t *pte, pte_bits;
     phys_addr_t ptp_pa;
 
@@ -1000,8 +1006,8 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
     if (pmap != kernel_pmap)
         pte_bits |= PMAP_PTE_US;
 
-    for (level = PMAP_NR_LEVELS; level > 1; level--) {
-        pt_level = &pmap_pt_levels[level - 1];
+    for (level = PMAP_NR_LEVELS - 1; level != 0; level--) {
+        pt_level = &pmap_pt_levels[level];
         index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
         pte = &pt_level->ptes[index];
 
@@ -1024,7 +1030,7 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
         pmap_zero_page(ptp_pa);
         pmap_pte_set(pte, ptp_pa, pte_bits, level);
 
-        if ((pmap == kernel_pmap) && (level == PMAP_NR_LEVELS))
+        if ((pmap == kernel_pmap) && (level == (PMAP_NR_LEVELS - 1)))
             pmap_enter_ptemap_sync_kernel(index);
 
     }
@@ -1032,7 +1038,7 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
     pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L1_SHIFT);
     pte_bits = ((pmap == kernel_pmap) ? PMAP_PTE_G : PMAP_PTE_US)
                | pmap_prot_table[prot & VM_PROT_ALL];
-    pmap_pte_set(pte, pa, pte_bits, 1);
+    pmap_pte_set(pte, pa, pte_bits, 0);
     return 0;
 }
 
