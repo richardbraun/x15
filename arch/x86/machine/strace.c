@@ -132,7 +132,7 @@ strace_copy_section(const struct elf_shdr *shdr)
     copy = kmem_alloc(shdr->size);
 
     if (copy == NULL) {
-        printk("strace: unable to allocate section copy");
+        printk("strace: unable to allocate section copy\n");
         goto error_copy;
     }
 
@@ -181,12 +181,12 @@ strace_setup(const struct multiboot_raw_info *mbi)
     table = vm_kmem_map_pa(mbi->shdr_addr, size, &map_addr, &map_size);
 
     if (table == NULL) {
-        printk("strace: unable to map section headers table");
+        printk("strace: unable to map section headers table\n");
         goto no_syms;
     }
 
     if (mbi->shdr_strndx >= mbi->shdr_num) {
-        printk("strace: invalid section names index");
+        printk("strace: invalid section names index\n");
         goto error_shstrndx;
     }
 
@@ -195,21 +195,21 @@ strace_setup(const struct multiboot_raw_info *mbi)
                               &shstrtab_map_addr, &shstrtab_map_size);
 
     if (shstrtab == NULL) {
-        printk("strace: unable to map section names");
+        printk("strace: unable to map section names\n");
         goto error_shstrtab;
     }
 
     symtab_hdr = strace_lookup_section(mbi, table, shstrtab, ".symtab");
 
     if (symtab_hdr == NULL) {
-        printk("strace: unable to find symbol table");
+        printk("strace: unable to find symbol table\n");
         goto error_symtab_lookup;
     }
 
     strtab_hdr = strace_lookup_section(mbi, table, shstrtab, ".strtab");
 
     if (strtab_hdr == NULL) {
-        printk("strace: unable to find symbol string table");
+        printk("strace: unable to find symbol string table\n");
         goto error_strtab_lookup;
     }
 
