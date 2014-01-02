@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2010, 2012, 2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #ifndef _KERN_KERNEL_H
 #define _KERN_KERNEL_H
 
+#include <kern/macros.h>
+
 /*
  * Kernel properties.
  */
@@ -29,13 +31,13 @@
  *
  * Interrupts must be disabled when calling this function.
  */
-void kernel_main(void);
+void __noreturn kernel_main(void);
 
 /*
  * Entry point for APs.
  *
  * Interrupts must be disabled when calling this function.
  */
-void kernel_ap_main(void);
+void __noreturn kernel_ap_main(void);
 
 #endif /* _KERN_KERNEL_H */
