@@ -105,7 +105,7 @@ static struct pmap_pt_level pmap_pt_levels[] __read_mostly = {
 struct pmap_tmp_mapping {
     struct mutex lock;
     unsigned long va;
-};
+} __aligned(CPU_L1_SIZE);
 
 static struct pmap_tmp_mapping pmap_zero_mappings[MAX_CPUS];
 static struct pmap_tmp_mapping pmap_root_ptp_mappings[MAX_CPUS];
