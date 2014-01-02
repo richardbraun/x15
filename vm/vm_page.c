@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -124,12 +124,13 @@ struct vm_page_boot_seg {
     phys_addr_t avail_end;
 };
 
-int vm_page_ready;
+/* TODO Accessor */
+int vm_page_ready __read_mostly;
 
 /*
  * Segment lists, ordered by priority.
  */
-static struct list vm_page_seg_lists[VM_PAGE_NR_SEGLISTS];
+static struct list vm_page_seg_lists[VM_PAGE_NR_SEGLISTS] __read_mostly;
 
 /*
  * Segment table.
@@ -144,7 +145,7 @@ static struct vm_page_boot_seg vm_page_boot_segs[VM_PAGE_MAX_SEGS] __initdata;
 /*
  * Number of loaded segments.
  */
-static unsigned int vm_page_segs_size;
+static unsigned int vm_page_segs_size __read_mostly;
 
 static int vm_page_load_initialized __initdata = 0;
 

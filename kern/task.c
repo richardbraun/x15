@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
+#include <kern/param.h>
 #include <kern/spinlock.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
@@ -31,7 +32,7 @@
  * Kernel task and storage.
  */
 static struct task kernel_task_store;
-struct task *kernel_task = &kernel_task_store;
+struct task *kernel_task __read_mostly = &kernel_task_store;
 
 /*
  * Cache for allocated tasks.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2011-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@
  * Kernel map and storage.
  */
 static struct vm_map kernel_map_store;
-struct vm_map *kernel_map = &kernel_map_store;
+struct vm_map *kernel_map __read_mostly = &kernel_map_store;
 
 /*
  * Heap boundaries during bootstrap.

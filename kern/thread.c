@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -234,12 +234,14 @@ static struct kmem_cache thread_stack_cache;
 /*
  * Table used to quickly map policies to classes.
  */
-static unsigned char thread_policy_table[THREAD_NR_SCHED_POLICIES];
+static unsigned char thread_policy_table[THREAD_NR_SCHED_POLICIES]
+    __read_mostly;
 
 /*
  * Scheduling class operations.
  */
-static struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES];
+static struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES]
+    __read_mostly;
 
 /*
  * Map of run queues for which a processor is running.

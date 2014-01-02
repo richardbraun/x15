@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2011-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -96,12 +96,12 @@ static int vm_map_insert(struct vm_map *map, struct vm_map_entry *entry,
 /*
  * Statically allocated map entry for the first kernel map entry.
  */
-static struct vm_map_entry vm_map_kernel_entry;
+static struct vm_map_entry vm_map_kernel_entry __read_mostly;
 
 /*
  * Statically allocated map entry for the kentry area.
  */
-static struct vm_map_entry vm_map_kentry_entry;
+static struct vm_map_entry vm_map_kentry_entry __read_mostly;
 
 /*
  * Kentry slab free list.
@@ -112,7 +112,7 @@ static struct vm_map_kentry_slab *vm_map_kentry_free_slabs;
 #ifdef NDEBUG
 #define vm_map_kentry_slab_size 0
 #else /* NDEBUG */
-static size_t vm_map_kentry_slab_size;
+static size_t vm_map_kentry_slab_size __read_mostly;
 #endif /* NDEBUG */
 
 /*

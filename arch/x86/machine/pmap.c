@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012, 2013 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ struct pmap_pt_level {
 /*
  * Table of page translation properties.
  */
-static struct pmap_pt_level pmap_pt_levels[] = {
+static struct pmap_pt_level pmap_pt_levels[] __read_mostly = {
     { PMAP_L0_BITS, PMAP_L0_SHIFT, PMAP_L0_PTEMAP_BASE, PMAP_L0_PTES_PER_PTP,
       PMAP_L0_MASK },
     { PMAP_L1_BITS, PMAP_L1_SHIFT, PMAP_L1_PTEMAP_BASE, PMAP_L1_PTES_PER_PTP,
@@ -111,7 +111,7 @@ static struct pmap_tmp_mapping pmap_zero_mappings[MAX_CPUS];
 static struct pmap_tmp_mapping pmap_root_ptp_mappings[MAX_CPUS];
 
 static struct pmap kernel_pmap_store;
-struct pmap *kernel_pmap = &kernel_pmap_store;
+struct pmap *kernel_pmap __read_mostly = &kernel_pmap_store;
 
 /*
  * Reserved pages of virtual memory available for early allocation.
@@ -140,7 +140,7 @@ static pmap_pte_t pmap_kpdpt[PMAP_NR_RPTPS] __aligned(PMAP_PDPT_ALIGN);
  * Table used to convert machine independent protection flags to architecture
  * specific PTE bits.
  */
-static pmap_pte_t pmap_prot_table[VM_PROT_ALL + 1];
+static pmap_pte_t pmap_prot_table[VM_PROT_ALL + 1] __read_mostly;
 
 /*
  * Maximum number of mappings for which individual TLB invalidations can be

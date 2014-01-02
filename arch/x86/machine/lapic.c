@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012 Richard Braun.
+ * Copyright (c) 2011-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -181,12 +181,12 @@ struct lapic_map {
 /*
  * Address where local APIC registers are mapped.
  */
-static volatile struct lapic_map *lapic_map;
+static volatile struct lapic_map *lapic_map __read_mostly;
 
 /*
  * Base frequency of the local APIC timer.
  */
-static uint32_t lapic_bus_freq;
+static uint32_t lapic_bus_freq __read_mostly;
 
 static uint32_t
 lapic_read(const volatile struct lapic_register *r)

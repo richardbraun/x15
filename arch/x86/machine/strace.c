@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include <kern/init.h>
 #include <kern/kmem.h>
+#include <kern/param.h>
 #include <kern/printk.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
@@ -33,9 +34,9 @@
 #define STRACE_ADDR_FORMAT "%#010lx"
 #endif /* __LP64__ */
 
-static struct elf_sym *strace_symtab;
-static struct elf_sym *strace_symtab_end;
-static char *strace_strtab;
+static struct elf_sym *strace_symtab __read_mostly;
+static struct elf_sym *strace_symtab_end __read_mostly;
+static char *strace_strtab __read_mostly;
 
 static const char *
 strace_lookup(unsigned long addr, unsigned long *offset, unsigned long *size)

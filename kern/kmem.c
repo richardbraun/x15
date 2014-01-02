@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -124,7 +124,7 @@
  *
  * See struct kmem_cpu_pool_type for a description of the values.
  */
-static struct kmem_cpu_pool_type kmem_cpu_pool_types[] = {
+static struct kmem_cpu_pool_type kmem_cpu_pool_types[] __read_mostly = {
     {  32768,   1, 0,           NULL },
     {   4096,   8, CPU_L1_SIZE, NULL },
     {    256,  64, CPU_L1_SIZE, NULL },

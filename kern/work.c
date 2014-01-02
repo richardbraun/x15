@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <kern/list.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
+#include <kern/param.h>
 #include <kern/printk.h>
 #include <kern/rdxtree.h>
 #include <kern/spinlock.h>
@@ -97,7 +98,7 @@ static struct work_pool work_pool_highprio;
 
 static struct kmem_cache work_thread_cache;
 
-static unsigned int work_max_threads;
+static unsigned int work_max_threads __read_mostly;
 
 static int
 work_pool_alloc_id(struct work_pool *pool, struct work_thread *worker,

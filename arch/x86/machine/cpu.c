@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,7 +77,7 @@ static struct cpu cpu_array[MAX_CPUS];
  * processors are present.
  */
 static unsigned int cpu_boot_array_size __initdata;
-unsigned int cpu_array_size;
+unsigned int cpu_array_size __read_mostly;
 
 /*
  * Barrier for processor synchronization on kernel entry.
@@ -87,7 +87,7 @@ static unsigned int cpu_mp_synced __initdata;
 /*
  * Interrupt descriptor table.
  */
-static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8);
+static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8) __read_mostly;
 
 /*
  * Double fault handler, and stack for the main processor.

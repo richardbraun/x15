@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
+#include <kern/param.h>
 #include <kern/printk.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
@@ -88,7 +89,7 @@ void trap_isr_lapic_spurious(void);
  *
  * The additional entry is the default entry used for unhandled traps.
  */
-static struct trap_handler trap_handlers[CPU_IDT_SIZE + 1];
+static struct trap_handler trap_handlers[CPU_IDT_SIZE + 1] __read_mostly;
 
 static void __init
 trap_handler_init(struct trap_handler *handler, int flags, trap_handler_fn_t fn)

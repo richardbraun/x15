@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@
  */
 #define CGA_TABULATION_SPACES 8
 
-static uint8_t *cga_memory;
+static uint8_t *cga_memory __read_mostly;
 static uint16_t cga_cursor;
 
 static uint16_t
