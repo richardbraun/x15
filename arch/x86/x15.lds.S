@@ -66,6 +66,9 @@ SECTIONS
     _data = .;
 
     .data ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.data))) {
+        . = ALIGN(CPU_L1_SIZE);
+        *(.data.read_mostly)
+        . = ALIGN(CPU_L1_SIZE);
         *(.data)
     } : data
 
