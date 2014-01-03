@@ -177,8 +177,8 @@ struct thread_ts_runq {
  */
 struct thread_runq {
     struct spinlock lock;
-    struct thread *current;
     unsigned int nr_threads;
+    struct thread *current;
 
     /* Real-time related members */
     struct thread_rt_runq rt_runq;
@@ -333,8 +333,8 @@ static void __init
 thread_runq_init(struct thread_runq *runq, struct thread *booter)
 {
     spinlock_init(&runq->lock);
-    runq->current = booter;
     runq->nr_threads = 0;
+    runq->current = booter;
     thread_runq_init_rt(runq);
     thread_runq_init_ts(runq);
     runq->balancer = NULL;
