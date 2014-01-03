@@ -125,7 +125,7 @@
  * Run queue properties for real-time threads.
  */
 struct thread_rt_runq {
-    unsigned int bitmap;
+    unsigned long long bitmap;
     struct list threads[THREAD_SCHED_RT_PRIO_MAX + 1];
 };
 
@@ -549,7 +549,7 @@ thread_sched_rt_add(struct thread_runq *runq, struct thread *thread)
     list_insert_tail(threads, &thread->rt_data.node);
 
     if (list_singular(threads))
-        rt_runq->bitmap |= (1U << thread->rt_data.priority);
+        rt_runq->bitmap |= (1ULL << thread->rt_data.priority);
 
     if ((thread->sched_class == runq->current->sched_class)
         && (thread->rt_data.priority > runq->current->rt_data.priority))
@@ -567,7 +567,7 @@ thread_sched_rt_remove(struct thread_runq *runq, struct thread *thread)
     list_remove(&thread->rt_data.node);
 
     if (list_empty(threads))
-        rt_runq->bitmap &= ~(1U << thread->rt_data.priority);
+        rt_runq->bitmap &= ~(1ULL << thread->rt_data.priority);
 }
 
 static void
@@ -589,7 +589,7 @@ thread_sched_rt_get_next(struct thread_runq *runq)
     if (rt_runq->bitmap == 0)
         return NULL;
 
-    priority = THREAD_SCHED_RT_PRIO_MAX - __builtin_clz(rt_runq->bitmap);
+    priority = THREAD_SCHED_RT_PRIO_MAX - __builtin_clzll(rt_runq->bitmap);
     threads = &rt_runq->threads[priority];
     assert(!list_empty(threads));
     thread = list_first_entry(threads, struct thread, rt_data.node);
@@ -1616,6 +1616,7 @@ thread_setup_balancer(struct thread_runq *runq)
     attr.task = NULL;
     attr.policy = THREAD_SCHED_POLICY_RR;
     attr.priority = THREAD_SCHED_RT_PRIO_MIN;
+    attr.priority = THREAD_SCHED_RT_PRIO_MAX;
     error = thread_create(&balancer, &attr, thread_balance, runq);
     cpumap_destroy(cpumap);
 

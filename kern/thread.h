@@ -99,7 +99,7 @@ struct thread_ts_runq;
  * Real-time priority properties.
  */
 #define THREAD_SCHED_RT_PRIO_MIN        0
-#define THREAD_SCHED_RT_PRIO_MAX        31
+#define THREAD_SCHED_RT_PRIO_MAX        63
 
 /*
  * Scheduling data for a real-time thread.
