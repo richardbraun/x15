@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ void
 condition_wait(struct condition *condition, struct mutex *mutex)
 {
     struct mutex_waiter waiter;
-    unsigned long state;
+    unsigned int state;
 
     waiter.thread = thread_self();
 
@@ -68,7 +68,7 @@ condition_signal(struct condition *condition)
 {
     struct mutex_waiter *waiter;
     struct mutex *mutex;
-    unsigned long state;
+    unsigned int state;
 
     spinlock_lock(&condition->lock);
 
@@ -104,7 +104,7 @@ condition_broadcast(struct condition *condition)
 {
     struct list waiters;
     struct mutex *mutex;
-    unsigned long state;
+    unsigned int state;
 
     spinlock_lock(&condition->lock);
 

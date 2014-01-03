@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #include <machine/cpu.h>
 
 struct spinlock {
-    unsigned long locked;
+    unsigned int locked;
 };
 
 /*
@@ -32,7 +32,7 @@ struct spinlock {
 static inline int
 spinlock_tryacquire(struct spinlock *lock)
 {
-    return atomic_swap(&lock->locked, 1);
+    return atomic_swap_uint(&lock->locked, 1);
 }
 
 static inline void
@@ -45,9 +45,9 @@ spinlock_acquire(struct spinlock *lock)
 static inline void
 spinlock_release(struct spinlock *lock)
 {
-    unsigned long locked;
+    unsigned int locked;
 
-    locked = atomic_swap(&lock->locked, 0);
+    locked = atomic_swap_uint(&lock->locked, 0);
     assert(locked);
 }
 

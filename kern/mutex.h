@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ mutex_init(struct mutex *mutex)
 static inline int
 mutex_trylock(struct mutex *mutex)
 {
-    unsigned long state;
+    unsigned int state;
 
     state = mutex_tryacquire(mutex);
 
@@ -62,7 +62,7 @@ mutex_trylock(struct mutex *mutex)
 static inline void
 mutex_lock(struct mutex *mutex)
 {
-    unsigned long state;
+    unsigned int state;
 
     state = mutex_tryacquire(mutex);
 
@@ -77,7 +77,7 @@ mutex_lock(struct mutex *mutex)
 static inline void
 mutex_unlock(struct mutex *mutex)
 {
-    unsigned long state;
+    unsigned int state;
 
     state = mutex_release(mutex);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ bitmap_set_atomic(unsigned long *bm, int bit)
     if (bit >= LONG_BIT)
         bitmap_lookup(bm, bit);
 
-    atomic_or(bm, bitmap_mask(bit));
+    atomic_or_ulong(bm, bitmap_mask(bit));
 }
 
 static inline void
@@ -91,7 +91,7 @@ bitmap_clear_atomic(unsigned long *bm, int bit)
     if (bit >= LONG_BIT)
         bitmap_lookup(bm, bit);
 
-    atomic_and(bm, ~bitmap_mask(bit));
+    atomic_and_ulong(bm, ~bitmap_mask(bit));
 }
 
 static inline int

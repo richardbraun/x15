@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ struct mutex_waiter {
 };
 
 struct mutex {
-    unsigned long state;
+    unsigned int state;
     struct spinlock lock;
     struct list waiters;
 };
@@ -43,24 +43,24 @@ void mutex_lock_slow(struct mutex *mutex);
 
 void mutex_unlock_slow(struct mutex *mutex);
 
-static inline unsigned long
+static inline unsigned int
 mutex_tryacquire(struct mutex *mutex)
 {
-    return atomic_cas(&mutex->state, MUTEX_UNLOCKED, MUTEX_LOCKED);
+    return atomic_cas_uint(&mutex->state, MUTEX_UNLOCKED, MUTEX_LOCKED);
 }
 
-static inline unsigned long
+static inline unsigned int
 mutex_tryacquire_slow(struct mutex *mutex)
 {
-    return atomic_swap(&mutex->state, MUTEX_CONTENDED);
+    return atomic_swap_uint(&mutex->state, MUTEX_CONTENDED);
 }
 
-static inline unsigned long
+static inline unsigned int
 mutex_release(struct mutex *mutex)
 {
-    unsigned long state;
+    unsigned int state;
 
-    state = atomic_swap(&mutex->state, MUTEX_UNLOCKED);
+    state = atomic_swap_uint(&mutex->state, MUTEX_UNLOCKED);
     assert((state == MUTEX_LOCKED) || (state == MUTEX_CONTENDED));
     return state;
 }
@@ -80,7 +80,7 @@ mutex_queue_list(struct mutex *mutex, struct list *waiters)
 static inline void
 mutex_wait(struct mutex *mutex, struct mutex_waiter *waiter)
 {
-    unsigned long state;
+    unsigned int state;
 
     do {
         thread_sleep(&mutex->lock);
@@ -105,9 +105,9 @@ static inline void
 mutex_trydowngrade(struct mutex *mutex)
 {
     if (list_empty(&mutex->waiters)) {
-        unsigned long state;
+        unsigned int state;
 
-        state = atomic_swap(&mutex->state, MUTEX_LOCKED);
+        state = atomic_swap_uint(&mutex->state, MUTEX_LOCKED);
         assert(state == MUTEX_CONTENDED);
     }
 }

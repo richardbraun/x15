@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -273,13 +273,13 @@ thread_self(void)
 static inline void
 thread_set_flag(struct thread *thread, unsigned long flag)
 {
-    atomic_or(&thread->flags, flag);
+    atomic_or_ulong(&thread->flags, flag);
 }
 
 static inline void
 thread_clear_flag(struct thread *thread, unsigned long flag)
 {
-    atomic_and(&thread->flags, ~flag);
+    atomic_and_ulong(&thread->flags, ~flag);
 }
 
 static inline int

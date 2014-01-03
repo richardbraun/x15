@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012, 2013 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #include <machine/cpu.h>
 #include <machine/strace.h>
 
-static unsigned long panic_done;
+static unsigned int panic_done;
 
 void
 panic(const char *format, ...)
@@ -31,7 +31,7 @@ panic(const char *format, ...)
     va_list list;
     unsigned long already_done;
 
-    already_done = atomic_swap(&panic_done, 1);
+    already_done = atomic_swap_uint(&panic_done, 1);
 
     if (already_done)
         for (;;)

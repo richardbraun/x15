@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ void
 mutex_lock_slow(struct mutex *mutex)
 {
     struct mutex_waiter waiter;
-    unsigned long state;
+    unsigned int state;
 
     spinlock_lock(&mutex->lock);
 
