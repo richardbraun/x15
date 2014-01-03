@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,62 +21,118 @@
 #ifndef _X86_ATOMIC_H
 #define _X86_ATOMIC_H
 
+#define ATOMIC_ADD(ptr, delta)      \
+    asm volatile("lock add %1, %0"  \
+                 : "+m" (*(ptr))    \
+                 : "r" (delta))
+
+#define ATOMIC_AND(ptr, bits)       \
+    asm volatile("lock and %1, %0"  \
+                 : "+m" (*(ptr))    \
+                 : "r" (bits))
+
+#define ATOMIC_OR(ptr, bits)        \
+    asm volatile("lock or %1, %0"   \
+                 : "+m" (*(ptr))    \
+                 : "r" (bits))
+
+/* The xchg instruction doesn't need a lock prefix */
+#define ATOMIC_SWAP(ptr, oldval, newval)        \
+    asm volatile("xchg %1, %0"                  \
+                 : "+m" (*(ptr)), "=r" (oldval) \
+                 : "1" (newval)                 \
+                 : "memory")
+
+#define ATOMIC_CAS(ptr, oldval, predicate, newval)  \
+    asm volatile("lock cmpxchg %3, %0"              \
+                 : "+m" (*(ptr)), "=a" (oldval)     \
+                 : "1" (predicate), "r" (newval)    \
+                 : "memory")
+
 static inline void
-atomic_add(volatile unsigned long *ptr, long delta)
+atomic_add_uint(volatile unsigned int *ptr, int delta)
 {
-    asm volatile("lock add %1, %0"
-                 : "+m" (*ptr)
-                 : "r" (delta));
+    ATOMIC_ADD(ptr, delta);
 }
 
 static inline void
-atomic_and(volatile unsigned long *ptr, unsigned long bits)
+atomic_and_uint(volatile unsigned int *ptr, unsigned int bits)
 {
-    asm volatile("lock and %1, %0"
-                 : "+m" (*ptr)
-                 : "r" (bits));
+    ATOMIC_AND(ptr, bits);
 }
 
 static inline void
-atomic_or(volatile unsigned long *ptr, unsigned long bits)
+atomic_or_uint(volatile unsigned int *ptr, unsigned int bits)
 {
-    asm volatile("lock or %1, %0"
-                 : "+m" (*ptr)
-                 : "r" (bits));
+    ATOMIC_OR(ptr, bits);
+}
+
+/*
+ * Implies a full memory barrier.
+ */
+static inline unsigned int
+atomic_swap_uint(volatile unsigned int *ptr, unsigned int newval)
+{
+    unsigned int oldval;
+
+    ATOMIC_SWAP(ptr, oldval, newval);
+    return oldval;
+}
+
+/*
+ * Implies a full memory barrier.
+ */
+static inline unsigned int
+atomic_cas_uint(volatile unsigned int *ptr, unsigned int predicate,
+                unsigned int newval)
+{
+    unsigned int oldval;
+
+    ATOMIC_CAS(ptr, oldval, predicate, newval);
+    return oldval;
+}
+
+static inline void
+atomic_add_ulong(volatile unsigned long *ptr, long delta)
+{
+    ATOMIC_ADD(ptr, delta);
+}
+
+static inline void
+atomic_and_ulong(volatile unsigned long *ptr, unsigned long bits)
+{
+    ATOMIC_AND(ptr, bits);
+}
+
+static inline void
+atomic_or_ulong(volatile unsigned long *ptr, unsigned long bits)
+{
+    ATOMIC_OR(ptr, bits);
 }
 
 /*
  * Implies a full memory barrier.
  */
 static inline unsigned long
-atomic_swap(volatile unsigned long *ptr, unsigned long newval)
+atomic_swap_ulong(volatile unsigned long *ptr, unsigned long newval)
 {
-    unsigned long prev;
+    unsigned long oldval;
 
-    /* The xchg instruction doesn't need a lock prefix */
-    asm volatile("xchg %1, %0"
-                 : "+m" (*ptr), "=r" (prev)
-                 : "1" (newval)
-                 : "memory");
-
-    return prev;
+    ATOMIC_SWAP(ptr, oldval, newval);
+    return oldval;
 }
 
 /*
  * Implies a full memory barrier.
  */
 static inline unsigned long
-atomic_cas(volatile unsigned long *ptr, unsigned long oldval,
-           unsigned long newval)
+atomic_cas_ulong(volatile unsigned long *ptr, unsigned long predicate,
+                 unsigned long newval)
 {
-    unsigned long prev;
+    unsigned long oldval;
 
-    asm volatile("lock cmpxchg %3, %0"
-                 : "+m" (*ptr), "=a" (prev)
-                 : "1" (oldval), "r" (newval)
-                 : "memory");
-
-    return prev;
+    ATOMIC_CAS(ptr, oldval, predicate, newval);
+    return oldval;
 }
 
 #endif /* _X86_ATOMIC_H */
