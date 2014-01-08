@@ -67,13 +67,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_setup.h>
 
-/*
- * Macros used by the very early panic function.
- */
-#define BOOT_CGAMEM     ((uint16_t *)0xb8000)
-#define BOOT_CGACHARS   (80 * 25)
-#define BOOT_CGACOLOR   0x7
-
 char boot_stacks[MAX_CPUS][BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
 unsigned int boot_ap_id __bootdata;
 
@@ -81,6 +74,8 @@ unsigned int boot_ap_id __bootdata;
 pmap_pte_t boot_pml4[PMAP_L3_PTES_PER_PTP] __aligned(PAGE_SIZE) __bootdata;
 pmap_pte_t boot_pdpt[PMAP_L2_PTES_PER_PTP] __aligned(PAGE_SIZE) __bootdata;
 pmap_pte_t boot_pdir[4 * PMAP_L1_PTES_PER_PTP] __aligned(PAGE_SIZE) __bootdata;
+char boot_panic_long_mode_msg[] __bootdata
+    = "boot: processor doesn't support long mode";
 #endif /* __LP64__ */
 
 /*
@@ -89,21 +84,27 @@ pmap_pte_t boot_pdir[4 * PMAP_L1_PTES_PER_PTP] __aligned(PAGE_SIZE) __bootdata;
 static struct multiboot_raw_info boot_raw_mbi __bootdata;
 static struct multiboot_info boot_mbi __initdata;
 
+static char boot_panic_intro_msg[] __bootdata = "panic: ";
+static char boot_panic_loader_msg[] __bootdata
+    = "boot: not started by a multiboot compliant boot loader";
+static char boot_panic_meminfo_msg[] __bootdata
+    = "boot: missing basic memory information";
+
 void __boot
 boot_panic(const char *msg)
 {
     uint16_t *ptr, *end;
     const char *s;
 
-    ptr = BOOT_CGAMEM;
+    ptr = (uint16_t *)BOOT_CGAMEM;
     end = ptr + BOOT_CGACHARS;
 
-    s = (void *)BOOT_VTOP((unsigned long)"panic: ");
+    s = boot_panic_intro_msg;
 
     while ((ptr < end) && (*s != '\0'))
         *ptr++ = (BOOT_CGACOLOR << 8) | *s++;
 
-    s = BOOT_VTOP(msg);
+    s = msg;
 
     while ((ptr < end) && (*s != '\0'))
         *ptr++ = (BOOT_CGACOLOR << 8) | *s++;
@@ -120,10 +121,10 @@ pmap_pte_t * __boot
 boot_setup_paging(const struct multiboot_raw_info *mbi, unsigned long eax)
 {
     if (eax != MULTIBOOT_LOADER_MAGIC)
-        boot_panic("not started by a multiboot compliant boot loader");
+        boot_panic(boot_panic_loader_msg);
 
     if (!(mbi->flags & MULTIBOOT_LOADER_MEMORY))
-        boot_panic("missing basic memory information");
+        boot_panic(boot_panic_meminfo_msg);
 
     /*
      * Save the multiboot data passed by the boot loader, initialize the

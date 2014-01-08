@@ -22,6 +22,13 @@
 #include <machine/param.h>
 
 /*
+ * Macros used by the very early panic functions.
+ */
+#define BOOT_CGAMEM     0xb8000
+#define BOOT_CGACHARS   (80 * 25)
+#define BOOT_CGACOLOR   0x7
+
+/*
  * The kernel is physically loaded at BOOT_OFFSET by the boot loader. It
  * is divided in two parts: the .boot section which uses physical addresses
  * and the main kernel code and data at KERNEL_OFFSET.
@@ -86,8 +93,8 @@ void boot_mp_trampoline(void);
 /*
  * Print the given message and halt the system immediately.
  *
- * This function allows early initialization code to print something helpful
- * before printk is available.
+ * The given string must be accessible before paging is enabled, which can
+ * easily be done by declaring it as boot data.
  */
 void __noreturn boot_panic(const char *s);
 

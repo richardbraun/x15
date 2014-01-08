@@ -119,6 +119,9 @@ struct pmap *kernel_pmap __read_mostly = &kernel_pmap_store;
 static unsigned long pmap_boot_heap __initdata;
 static unsigned long pmap_boot_heap_end __initdata;
 
+static char pmap_panic_inval_msg[] __bootdata
+    = "pmap: invalid physical address";
+
 #ifdef X86_PAE
 /*
  * Alignment required on page directory pointer tables.
@@ -213,7 +216,7 @@ pmap_boot_enter(pmap_pte_t *root_ptp, unsigned long va, phys_addr_t pa)
     pmap_pte_t *pt, *ptp, *pte;
 
     if (pa != (pa & PMAP_PA_MASK))
-        boot_panic("pmap: invalid physical address");
+        boot_panic(pmap_panic_inval_msg);
 
     pt_levels = (void *)BOOT_VTOP((unsigned long)pmap_pt_levels);
     pt = root_ptp;

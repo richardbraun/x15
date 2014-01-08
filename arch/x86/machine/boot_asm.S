@@ -134,8 +134,32 @@ ASM_ENTRY(boot_check_long_mode)
 ASM_END(boot_check_long_mode)
 
 ASM_ENTRY(boot_no_long_mode)
+ movl $boot_panic_long_mode_msg, %esi
+ movl $BOOT_CGAMEM, %edi
+ movl $(BOOT_CGAMEM + (BOOT_CGACHARS * 2)), %edx
+ movw $(BOOT_CGACOLOR << 8), %ax
+
+1:
+ movb (%esi), %al
+ testb %al, %al
+ jz 1f
+ movw %ax, (%edi)
+ incl %esi
+ add $2, %edi
+ cmpl %edx, %edi
+ jae 2f
+ jmp 1b
+
+1:
+ cmpl %edx, %edi
+ jae 2f
+ movw $((BOOT_CGACOLOR << 8) + ' ), (%edi)
+ add $2, %edi
+ jmp 1b
+
+2:
  hlt
- jmp boot_no_long_mode
+ jmp 2b
 ASM_END(boot_no_long_mode)
 
 ASM_ENTRY(boot_setup_long_mode)

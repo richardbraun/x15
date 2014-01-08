@@ -81,6 +81,13 @@ static uint32_t biosmem_heap_start __bootdata;
 static uint32_t biosmem_heap_free __bootdata;
 static uint32_t biosmem_heap_end __bootdata;
 
+static char biosmem_panic_setup_msg[] __bootdata
+    = "biosmem: unable to set up the early memory allocator";
+static char biosmem_panic_inval_msg[] __bootdata
+    = "biosmem: attempt to allocate 0 page";
+static char biosmem_panic_nomem_msg[] __bootdata
+    = "biosmem: unable to allocate memory";
+
 static void __boot
 biosmem_map_build(const struct multiboot_raw_info *mbi)
 {
@@ -243,7 +250,7 @@ biosmem_setup_allocator(struct multiboot_raw_info *mbi)
     max_heap_end = vm_page_trunc(max_heap_end);
 
     if (max_heap_start >= max_heap_end)
-        boot_panic("biosmem: unable to find memory for the boot allocator");
+        boot_panic(biosmem_panic_setup_msg);
 
     biosmem_heap_start = max_heap_start;
     biosmem_heap_free = max_heap_start;
@@ -309,14 +316,14 @@ biosmem_bootalloc(unsigned int nr_pages)
     char *ptr;
 
     if (nr_pages == 0)
-        boot_panic("biosmem: attempt to allocate 0 pages");
+        boot_panic(biosmem_panic_inval_msg);
 
     free = biosmem_heap_free;
     page = free;
     free += PAGE_SIZE * nr_pages;
 
     if ((free <= biosmem_heap_start) || (free > biosmem_heap_end))
-        boot_panic("biosmem: unable to allocate memory");
+        boot_panic(biosmem_panic_nomem_msg);
 
     biosmem_heap_free = free;
 
