@@ -117,6 +117,7 @@ struct pmap *kernel_pmap __read_mostly = &kernel_pmap_store;
  * Reserved pages of virtual memory available for early allocation.
  */
 static unsigned long pmap_boot_heap __initdata;
+static unsigned long pmap_boot_heap_current __initdata;
 static unsigned long pmap_boot_heap_end __initdata;
 
 static char pmap_panic_inval_msg[] __bootdata
@@ -206,6 +207,8 @@ static struct kmem_cache pmap_cache;
 #ifdef X86_PAE
 static struct kmem_cache pmap_pdpt_cache;
 #endif /* X86_PAE */
+
+static int pmap_ready __read_mostly;
 
 static void __boot
 pmap_boot_enter(pmap_pte_t *root_ptp, unsigned long va, phys_addr_t pa)
@@ -357,33 +360,40 @@ pmap_ap_setup_paging(void)
  * page properties.
  */
 static void __init
-pmap_walk_vas(unsigned long start, void (*f)(pmap_pte_t *pte))
+pmap_walk_vas(unsigned long start, unsigned long end, int skip_null,
+              void (*f)(pmap_pte_t *pte))
 {
     const struct pmap_pt_level *pt_level;
-    unsigned long index;
+    unsigned long va, index;
     unsigned int level;
     pmap_pte_t *pte;
 
+    if (start == 0)
+        start = PAGE_SIZE;
+
     assert(vm_page_aligned(start));
+    assert(start < end);
 #ifdef __LP64__
     assert((start <= VM_MAX_ADDRESS) || (start >= VM_PMAP_PTEMAP_ADDRESS));
 #endif /* __LP64__ */
 
+    va = start;
+
     do {
 #ifdef __LP64__
         /* Handle long mode canonical form */
-        if (start == ((PMAP_VA_MASK >> 1) + 1))
-            start = ~(PMAP_VA_MASK >> 1);
+        if (va == ((PMAP_VA_MASK >> 1) + 1))
+            va = ~(PMAP_VA_MASK >> 1);
 #endif /* __LP64__ */
 
         for (level = PMAP_NR_LEVELS - 1; level < PMAP_NR_LEVELS; level--) {
             pt_level = &pmap_pt_levels[level];
-            index = PMAP_PTEMAP_INDEX(start, pt_level->shift);
+            index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
             pte = &pt_level->ptemap_base[index];
 
-            if (*pte == 0) {
+            if ((*pte == 0) && (skip_null || (level != 0))) {
                 pte = NULL;
-                start = P2END(start, 1UL << pt_level->shift);
+                va = P2END(va, 1UL << pt_level->shift);
                 break;
             }
         }
@@ -392,8 +402,8 @@ pmap_walk_vas(unsigned long start, void (*f)(pmap_pte_t *pte))
             continue;
 
         f(pte);
-        start += PAGE_SIZE;
-    } while (start != 0);
+        va += PAGE_SIZE;
+    } while ((va < end) && (va >= start));
 }
 
 static void __init
@@ -405,7 +415,8 @@ pmap_setup_global_page(pmap_pte_t *pte)
 static void __init
 pmap_setup_global_pages(void)
 {
-    pmap_walk_vas(VM_MAX_KERNEL_ADDRESS, pmap_setup_global_page);
+    pmap_walk_vas(VM_MAX_KERNEL_ADDRESS, (unsigned long)-1, 1,
+                  pmap_setup_global_page);
     pmap_pt_levels[0].mask |= PMAP_PTE_G;
     cpu_enable_global_pages();
 }
@@ -421,6 +432,7 @@ pmap_bootstrap(void)
     cpu_percpu_set_pmap(kernel_pmap);
 
     pmap_boot_heap = (unsigned long)&_end;
+    pmap_boot_heap_current = pmap_boot_heap;
     pmap_boot_heap_end = pmap_boot_heap + (PMAP_RESERVED_PAGES * PAGE_SIZE);
 
     pmap_prot_table[VM_PROT_NONE] = 0;
@@ -476,13 +488,13 @@ pmap_bootalloc(unsigned int nr_pages)
 
     assert(nr_pages > 0);
 
+    page = pmap_boot_heap_current;
     size = nr_pages * PAGE_SIZE;
+    pmap_boot_heap_current += size;
 
-    assert((pmap_boot_heap + size) > pmap_boot_heap);
-    assert((pmap_boot_heap + size) <= pmap_boot_heap_end);
+    assert(pmap_boot_heap_current > pmap_boot_heap);
+    assert(pmap_boot_heap_current <= pmap_boot_heap_end);
 
-    page = pmap_boot_heap;
-    pmap_boot_heap += size;
     return page;
 }
 
@@ -816,15 +828,7 @@ pmap_setup_inc_nr_ptes(pmap_pte_t *pte)
 
     page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
     assert(page != NULL);
-
-    /*
-     * PTPs of type VM_PAGE_PMAP were allocated after the VM system was
-     * initialized. Their PTEs count doesn't need fixing.
-     */
-    if (vm_page_type(page) != VM_PAGE_PMAP) {
-        assert(vm_page_type(page) == VM_PAGE_RESERVED);
-        page->pmap_page.nr_ptes++;
-    }
+    page->pmap_page.nr_ptes++;
 }
 
 static void __init
@@ -844,14 +848,14 @@ pmap_setup_set_ptp_type(pmap_pte_t *pte)
 static void __init
 pmap_setup_count_ptes(void)
 {
-    /*
-     * This call count entries at the lowest level. Accounting on upper PTPs
-     * is done when walking the recursive mapping.
-     */
-    pmap_walk_vas(0, pmap_setup_inc_nr_ptes);
+    pmap_walk_vas(0, pmap_boot_heap, 1, pmap_setup_inc_nr_ptes);
+    pmap_walk_vas(0, pmap_boot_heap, 1, pmap_setup_set_ptp_type);
 
-    /* Now that accounting is finished, properly fix up PTPs types */
-    pmap_walk_vas(0, pmap_setup_set_ptp_type);
+    /* Account for the reserved mappings, whether they exist or not */
+    pmap_walk_vas(pmap_boot_heap, pmap_boot_heap_end, 0,
+                  pmap_setup_inc_nr_ptes);
+    pmap_walk_vas(pmap_boot_heap, pmap_boot_heap_end, 0,
+                  pmap_setup_set_ptp_type);
 }
 
 void __init
@@ -867,8 +871,9 @@ pmap_setup(void)
                     PMAP_NR_RPTPS * sizeof(pmap_pte_t), PMAP_PDPT_ALIGN,
                     NULL, pmap_pdpt_alloc, NULL, 0);
 #endif /* X86_PAE */
-}
 
+    pmap_ready = 1;
+}
 
 int
 pmap_create(struct pmap **pmapp)
@@ -993,6 +998,20 @@ pmap_enter_ptemap_sync_kernel(unsigned long index)
      */
 }
 
+static void
+pmap_enter_ptemap_inc_nr_ptes(const pmap_pte_t *pte)
+{
+    struct vm_page *page;
+
+    if (!pmap_ready)
+        return;
+
+    page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
+    assert(page != NULL);
+    assert(vm_page_type(page) == VM_PAGE_PMAP);
+    page->pmap_page.nr_ptes++;
+}
+
 static int
 pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
 {
@@ -1033,6 +1052,7 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
             ptp_pa = vm_page_to_pa(page);
         }
 
+        pmap_enter_ptemap_inc_nr_ptes(pte);
         pmap_zero_page(ptp_pa);
         pmap_pte_set(pte, ptp_pa, pte_bits, level);
 
@@ -1042,6 +1062,7 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
     }
 
     pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L0_SHIFT);
+    pmap_enter_ptemap_inc_nr_ptes(pte);
     pte_bits = ((pmap == kernel_pmap) ? PMAP_PTE_G : PMAP_PTE_US)
                | pmap_prot_table[prot & VM_PROT_ALL];
     pmap_pte_set(pte, pa, pte_bits, 0);
@@ -1061,6 +1082,20 @@ pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
 }
 
 static void
+pmap_remove_ptemap_dec_nr_ptes(const pmap_pte_t *pte)
+{
+    struct vm_page *page;
+
+    if (!pmap_ready)
+        return;
+
+    page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
+    assert(page != NULL);
+    assert(vm_page_type(page) == VM_PAGE_PMAP);
+    page->pmap_page.nr_ptes--;
+}
+
+static void
 pmap_remove_ptemap(struct pmap *pmap, unsigned long start, unsigned long end)
 {
     pmap_pte_t *pte;
@@ -1069,6 +1104,7 @@ pmap_remove_ptemap(struct pmap *pmap, unsigned long start, unsigned long end)
 
     while (start < end) {
         pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L0_SHIFT);
+        pmap_remove_ptemap_dec_nr_ptes(pte);
         pmap_pte_clear(pte);
         start += PAGE_SIZE;
     }
