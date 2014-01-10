@@ -1020,7 +1020,7 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
         if (*pte != 0)
             continue;
 
-        if (!vm_page_ready) {
+        if (!vm_page_ready()) {
             assert(pmap == kernel_pmap);
             ptp_pa = vm_page_bootalloc();
         } else {

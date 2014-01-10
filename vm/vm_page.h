@@ -39,12 +39,6 @@
 #define vm_page_aligned(addr)   P2ALIGNED(addr, PAGE_SIZE)
 
 /*
- * True if the vm_page module is completely initialized, false otherwise
- * (in which case only vm_page_bootalloc() can be used for allocations).
- */
-extern int vm_page_ready;
-
-/*
  * Page usage types.
  *
  * Types aren't actually used. They merely provide statistics and debugging
@@ -103,6 +97,13 @@ vm_page_to_pa(const struct vm_page *page)
 void vm_page_load(const char *name, phys_addr_t start, phys_addr_t end,
                   phys_addr_t avail_start, phys_addr_t avail_end,
                   unsigned int seg_index, unsigned int seglist_prio);
+
+/*
+ * Return true if the vm_page module is completely initialized, false
+ * otherwise, in which case only vm_page_bootalloc() can be used for
+ * allocations.
+ */
+int vm_page_ready(void);
 
 /*
  * Allocate one physical page.

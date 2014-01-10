@@ -123,8 +123,7 @@ struct vm_page_boot_seg {
     phys_addr_t avail_end;
 };
 
-/* TODO Accessor */
-int vm_page_ready __read_mostly;
+static int vm_page_is_ready __read_mostly;
 
 /*
  * Segment lists, ordered by priority.
@@ -506,6 +505,12 @@ vm_page_load(const char *name, phys_addr_t start, phys_addr_t end,
     vm_page_segs_size++;
 }
 
+int
+vm_page_ready(void)
+{
+    return vm_page_is_ready;
+}
+
 phys_addr_t __init
 vm_page_bootalloc(void)
 {
@@ -585,7 +590,7 @@ vm_page_setup(void)
         va += PAGE_SIZE;
     }
 
-    vm_page_ready = 1;
+    vm_page_is_ready = 1;
 }
 
 void __init
