@@ -80,11 +80,10 @@ struct vm_page_cpu_pool {
 };
 
 /*
- * Special order value.
- *
- * When a page is free, its order is the index of its free list.
+ * Special order value for pages that aren't in a free list. Such pages are
+ * either allocated, or part of a free block of pages but not the head page.
  */
-#define VM_PAGE_ORDER_ALLOCATED VM_PAGE_NR_FREE_LISTS
+#define VM_PAGE_ORDER_UNLISTED ((unsigned short)-1)
 
 /*
  * Doubly-linked list of free blocks.
@@ -150,13 +149,12 @@ static unsigned int vm_page_segs_size __read_mostly;
 static int vm_page_load_initialized __initdata = 0;
 
 static void __init
-vm_page_init(struct vm_page *page, unsigned short seg_index,
-             unsigned short order, phys_addr_t pa)
+vm_page_init(struct vm_page *page, unsigned short seg_index, phys_addr_t pa)
 {
     memset(page, 0, sizeof(*page));
     page->type = VM_PAGE_RESERVED;
     page->seg_index = seg_index;
-    page->order = order;
+    page->order = VM_PAGE_ORDER_UNLISTED;
     page->phys_addr = pa;
 }
 
@@ -182,7 +180,7 @@ static inline void
 vm_page_free_list_insert(struct vm_page_free_list *free_list,
                          struct vm_page *page)
 {
-    assert(page->order == VM_PAGE_ORDER_ALLOCATED);
+    assert(page->order == VM_PAGE_ORDER_UNLISTED);
 
     free_list->size++;
     list_insert_head(&free_list->blocks, &page->node);
@@ -192,9 +190,7 @@ static inline void
 vm_page_free_list_remove(struct vm_page_free_list *free_list,
                          struct vm_page *page)
 {
-    assert(free_list->size != 0);
-    assert(!list_empty(&free_list->blocks));
-    assert(page->order < VM_PAGE_NR_FREE_LISTS);
+    assert(page->order != VM_PAGE_ORDER_UNLISTED);
 
     free_list->size--;
     list_remove(&page->node);
@@ -221,7 +217,7 @@ vm_page_seg_alloc_from_buddy(struct vm_page_seg *seg, unsigned int order)
 
     page = list_first_entry(&free_list->blocks, struct vm_page, node);
     vm_page_free_list_remove(free_list, page);
-    page->order = VM_PAGE_ORDER_ALLOCATED;
+    page->order = VM_PAGE_ORDER_UNLISTED;
 
     while (i > order) {
         i--;
@@ -244,7 +240,7 @@ vm_page_seg_free_to_buddy(struct vm_page_seg *seg, struct vm_page *page,
 
     assert(page >= seg->pages);
     assert(page < seg->pages_end);
-    assert(page->order == VM_PAGE_ORDER_ALLOCATED);
+    assert(page->order == VM_PAGE_ORDER_UNLISTED);
     assert(order < VM_PAGE_NR_FREE_LISTS);
 
     nr_pages = (1 << order);
@@ -262,7 +258,7 @@ vm_page_seg_free_to_buddy(struct vm_page_seg *seg, struct vm_page *page,
             break;
 
         vm_page_free_list_remove(&seg->free_lists[order], buddy);
-        buddy->order = VM_PAGE_ORDER_ALLOCATED;
+        buddy->order = VM_PAGE_ORDER_UNLISTED;
         order++;
         pa &= -vm_page_ptoa(1 << order);
         page = &seg->pages[vm_page_atop(pa - seg->start)];
@@ -397,10 +393,8 @@ vm_page_seg_init(struct vm_page_seg *seg, struct vm_page *pages)
     seg->nr_free_pages = 0;
     i = seg - vm_page_segs;
 
-    /* Initially, all pages are set allocated and reserved */
     for (pa = seg->start; pa < seg->end; pa += PAGE_SIZE)
-        vm_page_init(&pages[vm_page_atop(pa - seg->start)], i,
-                     VM_PAGE_ORDER_ALLOCATED, pa);
+        vm_page_init(&pages[vm_page_atop(pa - seg->start)], i, pa);
 }
 
 static struct vm_page *
@@ -563,9 +557,8 @@ vm_page_setup(void)
 
     /*
      * Initialize the segments, associating them to the page table. When
-     * the segments are initialized, all their pages are set allocated,
-     * with a block size of one (order 0). They are then released, which
-     * populates the free lists.
+     * the segments are initialized, all their pages are set allocated.
+     * They are then released, which populates the free lists.
      */
     for (i = 0; i < vm_page_segs_size; i++) {
         seg = &vm_page_segs[i];
