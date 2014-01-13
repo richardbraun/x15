@@ -239,9 +239,9 @@ void thread_wakeup(struct thread *thread);
 /*
  * Start running threads on the local processor.
  *
- * Interrupts must be enabled when calling this function.
+ * Interrupts must be disabled when calling this function.
  */
-void __noreturn thread_run(void);
+void __noreturn thread_run_scheduler(void);
 
 /*
  * Make the calling thread release the processor.

@@ -1324,17 +1324,14 @@ thread_bootstrap_common(unsigned int cpu)
 
     cpumap_set(&thread_active_runqs, cpu);
 
-    booter = &thread_booters[cpu];
-
     /* Initialize only what's needed during bootstrap */
+    booter = &thread_booters[cpu];
     booter->flags = 0;
     booter->preempt = 1;
     booter->sched_class = THREAD_SCHED_CLASS_IDLE;
     cpumap_fill(&booter->cpumap);
     booter->task = kernel_task;
-
     thread_runq_init(&thread_runqs[cpu], booter);
-    tcb_set_current(&booter->tcb);
 }
 
 void __init
@@ -1380,12 +1377,13 @@ thread_bootstrap(void)
     thread_ts_highest_round = THREAD_TS_INITIAL_ROUND;
 
     thread_bootstrap_common(0);
+    tcb_set_current(&thread_booters[0].tcb);
 }
 
 void __init
 thread_ap_bootstrap(void)
 {
-    thread_bootstrap_common(cpu_id());
+    tcb_set_current(&thread_booters[cpu_id()].tcb);
 }
 
 static void
@@ -1706,7 +1704,10 @@ thread_setup_runq(struct thread_runq *runq)
 void __init
 thread_setup(void)
 {
-    int i;
+    int cpu;
+
+    for (cpu = 1; (unsigned int)cpu < cpu_count(); cpu++)
+        thread_bootstrap_common(cpu);
 
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
                     CPU_L1_SIZE, NULL, NULL, NULL, 0);
@@ -1715,8 +1716,8 @@ thread_setup(void)
 
     thread_setup_reaper();
 
-    cpumap_for_each(&thread_active_runqs, i)
-        thread_setup_runq(&thread_runqs[i]);
+    cpumap_for_each(&thread_active_runqs, cpu)
+        thread_setup_runq(&thread_runqs[cpu]);
 }
 
 int
@@ -1878,12 +1879,12 @@ thread_wakeup(struct thread *thread)
 }
 
 void __init
-thread_run(void)
+thread_run_scheduler(void)
 {
     struct thread_runq *runq;
     struct thread *thread;
 
-    assert(cpu_intr_enabled());
+    assert(!cpu_intr_enabled());
 
     runq = thread_runq_local();
     llsync_register_cpu(thread_runq_id(runq));
@@ -1891,7 +1892,6 @@ thread_run(void)
     assert(thread == runq->current);
     assert(thread->preempt == 1);
 
-    cpu_intr_disable();
     spinlock_lock(&runq->lock);
     thread = thread_runq_get_next(thread_runq_local());
 

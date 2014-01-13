@@ -71,18 +71,8 @@ static struct cpu cpu_array[MAX_CPUS];
 
 /*
  * Number of configured processors.
- *
- * The boot version is used until all processors are configured, since some
- * modules depend on cpu_count() to adjust their behaviour when several
- * processors are present.
  */
-static unsigned int cpu_boot_array_size __initdata;
 unsigned int cpu_array_size __read_mostly;
-
-/*
- * Barrier for processor synchronization on kernel entry.
- */
-static unsigned int cpu_mp_synced __initdata;
 
 /*
  * Interrupt descriptor table.
@@ -418,7 +408,6 @@ cpu_setup(void)
         cpu_array[i].state = CPU_STATE_OFF;
     }
 
-    cpu_boot_array_size = 1;
     cpu_array_size = 1;
     cpu_array[0].double_fault_stack = (unsigned long)cpu_double_fault_stack;
     cpu_init(&cpu_array[0]);
@@ -459,6 +448,8 @@ cpu_info(const struct cpu *cpu)
 void __init
 cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
 {
+    static int skip_warning __initdata;
+
     if (is_bsp) {
         if (cpu_array[0].apic_id != CPU_INVALID_APIC_ID)
             panic("cpu: another processor pretends to be the BSP");
@@ -467,17 +458,28 @@ cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
         return;
     }
 
-    if (cpu_boot_array_size == ARRAY_SIZE(cpu_array)) {
-        printk("cpu: ignoring processor beyond id %u\n", MAX_CPUS - 1);
+    if (cpu_array_size == ARRAY_SIZE(cpu_array)) {
+        if (!skip_warning) {
+            printk("cpu: ignoring processor beyond id %u\n", MAX_CPUS - 1);
+            skip_warning = 1;
+        }
+
         return;
     }
 
-    cpu_array[cpu_boot_array_size].apic_id = apic_id;
-    cpu_boot_array_size++;
+    cpu_array[cpu_array_size].apic_id = apic_id;
+    cpu_array_size++;
 }
 
-static void __init
-cpu_mp_start_aps(void)
+void __init
+cpu_mp_probe(void)
+{
+    acpimp_setup();
+    printk("cpu: %u processor(s) configured\n", cpu_array_size);
+}
+
+void __init
+cpu_mp_setup(void)
 {
     uint16_t reset_vector[2];
     struct cpu *cpu;
@@ -486,7 +488,7 @@ cpu_mp_start_aps(void)
     size_t map_size;
     unsigned int i;
 
-    if (cpu_boot_array_size == 1)
+    if (cpu_array_size == 1)
         return;
 
     assert(BOOT_MP_TRAMPOLINE_ADDR < BIOSMEM_BASE);
@@ -522,7 +524,7 @@ cpu_mp_start_aps(void)
      * Preallocate stacks now, as the kernel mappings shouldn't change while
      * the APs are starting.
      */
-    for (i = 1; i < cpu_boot_array_size; i++) {
+    for (i = 1; i < cpu_array_size; i++) {
         cpu = &cpu_array[i];
         cpu->double_fault_stack = vm_kmem_alloc(STACK_SIZE);
 
@@ -530,7 +532,7 @@ cpu_mp_start_aps(void)
             panic("cpu: unable to allocate double fault stack for cpu%u", i);
     }
 
-    for (i = 1; i < cpu_boot_array_size; i++) {
+    for (i = 1; i < cpu_array_size; i++) {
         cpu = &cpu_array[i];
         boot_ap_id = i;
 
@@ -548,27 +550,7 @@ cpu_mp_start_aps(void)
             cpu_pause();
     }
 
-    cpu_array_size = cpu_boot_array_size;
-}
-
-static void __init
-cpu_mp_info(void)
-{
-    printk("cpu: %u processor(s) configured\n", cpu_array_size);
-}
-
-void __init
-cpu_mp_setup(void)
-{
-    acpimp_setup();
-    cpu_mp_start_aps();
-    cpu_mp_info();
-}
-
-void __init
-cpu_mp_sync(void)
-{
-    cpu_mp_synced = 1;
+    pmap_mp_setup();
 }
 
 void __init
@@ -577,13 +559,6 @@ cpu_ap_setup(void)
     cpu_init(&cpu_array[boot_ap_id]);
     cpu_check(cpu_current());
     lapic_ap_setup();
-}
-
-void __init
-cpu_ap_sync(void)
-{
-    while (!cpu_mp_synced)
-        cpu_pause();
 }
 
 void

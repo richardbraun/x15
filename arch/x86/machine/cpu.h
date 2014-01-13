@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -603,22 +603,17 @@ void cpu_mp_register_lapic(unsigned int apic_id, int is_bsp);
  *
  * On return, cpu_count() gives the actual number of managed processors.
  */
-void cpu_mp_setup(void);
+void cpu_mp_probe(void);
 
 /*
- * Synchronize with APs on kernel entry.
+ * Start application processors.
  */
-void cpu_mp_sync(void);
+void cpu_mp_setup(void);
 
 /*
  * CPU initialization on APs.
  */
 void cpu_ap_setup(void);
-
-/*
- * Synchronize with BSP on kernel entry.
- */
-void cpu_ap_sync(void);
 
 /*
  * Send a scheduling interrupt to a remote processor.

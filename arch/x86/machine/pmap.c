@@ -195,6 +195,7 @@ struct pmap_update_data {
 } __aligned(CPU_L1_SIZE);
 
 static struct pmap_update_data pmap_update_data[MAX_CPUS];
+static int pmap_allow_remote_updates __read_mostly;
 
 /*
  * Global list of physical maps.
@@ -707,7 +708,7 @@ pmap_update(struct pmap *pmap, unsigned long start, unsigned long end)
 
     pmap_assert_range(pmap, start, end);
 
-    if (cpu_count() == 1) {
+    if (!pmap_allow_remote_updates) {
         pmap_update_local(pmap, start, end);
         return;
     }
@@ -873,6 +874,15 @@ pmap_setup(void)
 #endif /* X86_PAE */
 
     pmap_ready = 1;
+}
+
+void __init
+pmap_mp_setup(void)
+{
+    if (cpu_count() == 1)
+        return;
+
+    pmap_allow_remote_updates = 1;
 }
 
 int

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -220,6 +220,13 @@ void pmap_update_intr(struct trap_frame *frame);
  * allocations can be performed safely.
  */
 void pmap_setup(void);
+
+/*
+ * Set up the pmap module for multiprocessor operations.
+ *
+ * This function basically enables pmap updates across processors.
+ */
+void pmap_mp_setup(void);
 
 /*
  * Create a pmap for a user task.
