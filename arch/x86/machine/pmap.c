@@ -92,7 +92,7 @@ static struct pmap_pt_level pmap_pt_levels[] __read_mostly = {
  *
  * List of users :
  *  - pmap_zero_mapping (1 page per CPU)
- *  - pmap_root_ptp_mapping (PMAP_NR_RPTPS pages per CPU)
+ *  - pmap_ptp_mapping (PMAP_NR_RPTPS pages per CPU)
  *  - CGA video memory (1 page)
  */
 #define PMAP_RESERVED_PAGES (MAX_CPUS                       \
@@ -108,7 +108,7 @@ struct pmap_tmp_mapping {
 } __aligned(CPU_L1_SIZE);
 
 static struct pmap_tmp_mapping pmap_zero_mappings[MAX_CPUS];
-static struct pmap_tmp_mapping pmap_root_ptp_mappings[MAX_CPUS];
+static struct pmap_tmp_mapping pmap_ptp_mappings[MAX_CPUS];
 
 static struct pmap kernel_pmap_store;
 struct pmap *kernel_pmap __read_mostly = &kernel_pmap_store;
@@ -449,8 +449,8 @@ pmap_bootstrap(void)
         mutex_init(&pmap_zero_mappings[i].lock);
         pmap_zero_mappings[i].va = pmap_bootalloc(1);
 
-        mutex_init(&pmap_root_ptp_mappings[i].lock);
-        pmap_root_ptp_mappings[i].va = pmap_bootalloc(PMAP_NR_RPTPS);
+        mutex_init(&pmap_ptp_mappings[i].lock);
+        pmap_ptp_mappings[i].va = pmap_bootalloc(PMAP_NR_RPTPS);
 
         spinlock_init(&pmap_update_data[i].queue.lock);
         list_init(&pmap_update_data[i].queue.cpu_requests);
@@ -578,42 +578,55 @@ pmap_zero_page(phys_addr_t pa)
 }
 
 static struct pmap_tmp_mapping *
-pmap_map_root_ptp(phys_addr_t pa)
+pmap_map_ptp(phys_addr_t pa, unsigned int nr_pages)
 {
-    struct pmap_tmp_mapping *root_ptp_mapping;
+    struct pmap_tmp_mapping *ptp_mapping;
     unsigned long va;
     unsigned int i, offset;
 
-    thread_pin();
-    root_ptp_mapping  = &pmap_root_ptp_mappings[cpu_id()];
-    mutex_lock(&root_ptp_mapping->lock);
+#if PMAP_NR_RPTPS != 1
+    assert((nr_pages == 1) || (nr_pages == PMAP_NR_RPTPS));
+#else
+    assert(nr_pages == 1);
+#endif
 
-    for (i = 0; i < PMAP_NR_RPTPS; i++) {
+    thread_pin();
+    ptp_mapping  = &pmap_ptp_mappings[cpu_id()];
+    mutex_lock(&ptp_mapping->lock);
+
+    for (i = 0; i < nr_pages; i++) {
         offset = i * PAGE_SIZE;
-        va = root_ptp_mapping->va + offset;
+        va = ptp_mapping->va + offset;
         pmap_kenter(va, pa + offset, VM_PROT_READ | VM_PROT_WRITE);
         cpu_tlb_flush_va(va);
     }
 
-    return root_ptp_mapping;
+    return ptp_mapping;
 }
 
 static void
-pmap_unmap_root_ptp(struct pmap_tmp_mapping *root_ptp_mapping)
+pmap_unmap_ptp(struct pmap_tmp_mapping *ptp_mapping, unsigned int nr_pages)
 {
     unsigned long va;
     unsigned int i;
 
     assert(thread_pinned());
-    mutex_assert_locked(&root_ptp_mapping->lock);
 
-    va = root_ptp_mapping->va;
+#if PMAP_NR_RPTPS != 1
+    assert((nr_pages == 1) || (nr_pages == PMAP_NR_RPTPS));
+#else
+    assert(nr_pages == 1);
+#endif
+
+    mutex_assert_locked(&ptp_mapping->lock);
+
+    va = ptp_mapping->va;
     pmap_kremove(va, va + (PMAP_NR_RPTPS * PAGE_SIZE));
 
-    for (i = 0; i < PMAP_NR_RPTPS; i++)
+    for (i = 0; i < nr_pages; i++)
         cpu_tlb_flush_va(va + (i * PAGE_SIZE));
 
-    mutex_unlock(&root_ptp_mapping->lock);
+    mutex_unlock(&ptp_mapping->lock);
     thread_unpin();
 }
 
@@ -942,7 +955,7 @@ pmap_create(struct pmap **pmapp)
 
     /* The pmap list lock also protects the shared root page table entries */
     mutex_lock(&pmap_list_lock);
-    root_ptp_mapping = pmap_map_root_ptp(pmap->root_ptp_pa);
+    root_ptp_mapping = pmap_map_ptp(pmap->root_ptp_pa, PMAP_NR_RPTPS);
     pt = (pmap_pte_t *)root_ptp_mapping->va;
 
     memset(pt, 0, index * sizeof(pmap_pte_t));
@@ -957,7 +970,7 @@ pmap_create(struct pmap **pmapp)
         pt[index] = (pa | PMAP_PTE_RW | PMAP_PTE_P) & pt_level->mask;
     }
 
-    pmap_unmap_root_ptp(root_ptp_mapping);
+    pmap_unmap_ptp(root_ptp_mapping, PMAP_NR_RPTPS);
     list_insert_tail(&pmap_list, &pmap->node);
     mutex_unlock(&pmap_list_lock);
 
@@ -992,11 +1005,11 @@ pmap_enter_ptemap_sync_kernel(unsigned long index)
         if (pmap == current)
             continue;
 
-        root_ptp_mapping = pmap_map_root_ptp(pmap->root_ptp_pa);
+        root_ptp_mapping = pmap_map_ptp(pmap->root_ptp_pa, PMAP_NR_RPTPS);
         root_ptp = (pmap_pte_t *)root_ptp_mapping->va;
         assert(root_ptp[index] == 0);
         root_ptp[index] = pt_level->ptemap_base[index];
-        pmap_unmap_root_ptp(root_ptp_mapping);
+        pmap_unmap_ptp(root_ptp_mapping, PMAP_NR_RPTPS);
     }
 
     mutex_unlock(&pmap_list_lock);
