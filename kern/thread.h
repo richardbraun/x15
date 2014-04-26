@@ -184,6 +184,52 @@ struct thread_attr {
 };
 
 /*
+ * Initialize thread creation attributes with default values.
+ *
+ * It is guaranteed that these default values include :
+ *  - no processor affinity
+ *  - task is inherited from parent thread
+ *  - policy is time-sharing
+ *  - priority is time-sharing default
+ *
+ * If the policy is changed, the priority, if applicable, must be updated
+ * as well.
+ */
+static inline void
+thread_attr_init(struct thread_attr *attr, const char *name)
+{
+    attr->name = name;
+    attr->cpumap = NULL;
+    attr->task = NULL;
+    attr->policy = THREAD_SCHED_POLICY_TS;
+    attr->priority = THREAD_SCHED_TS_PRIO_DEFAULT;
+}
+
+static inline void
+thread_attr_set_cpumap(struct thread_attr *attr, struct cpumap *cpumap)
+{
+    attr->cpumap = cpumap;
+}
+
+static inline void
+thread_attr_set_task(struct thread_attr *attr, struct task *task)
+{
+    attr->task = task;
+}
+
+static inline void
+thread_attr_set_policy(struct thread_attr *attr, unsigned char policy)
+{
+    attr->policy = policy;
+}
+
+static inline void
+thread_attr_set_priority(struct thread_attr *attr, unsigned short priority)
+{
+    attr->priority = priority;
+}
+
+/*
  * Early initialization of the thread module.
  *
  * These function make it possible to use migration and preemption control
