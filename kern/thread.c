@@ -1614,7 +1614,6 @@ thread_setup_balancer(struct thread_runq *runq)
     attr.task = NULL;
     attr.policy = THREAD_SCHED_POLICY_RR;
     attr.priority = THREAD_SCHED_RT_PRIO_MIN;
-    attr.priority = THREAD_SCHED_RT_PRIO_MAX;
     error = thread_create(&balancer, &attr, thread_balance, runq);
     cpumap_destroy(cpumap);
 
