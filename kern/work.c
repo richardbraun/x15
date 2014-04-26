@@ -242,6 +242,7 @@ work_thread_create(struct work_pool *pool)
     char name[THREAD_NAME_SIZE];
     struct thread_attr attr;
     struct work_thread *worker;
+    unsigned short priority;
     int error;
 
     worker = kmem_cache_alloc(&work_thread_cache);
@@ -258,13 +259,11 @@ work_thread_create(struct work_pool *pool)
 
     snprintf(name, sizeof(name), "x15_work_process:%s:%llu", pool->name,
              worker->id);
-    attr.name = name;
-    attr.cpumap = NULL;
-    attr.task = NULL;
-    attr.policy = THREAD_SCHED_POLICY_TS;
-    attr.priority = (pool->flags & WORK_PF_HIGHPRIO)
-                    ? WORK_PRIO_HIGH
-                    : WORK_PRIO_NORMAL;
+    priority = (pool->flags & WORK_PF_HIGHPRIO)
+               ? WORK_PRIO_HIGH
+               : WORK_PRIO_NORMAL;
+    thread_attr_init(&attr, name);
+    thread_attr_set_priority(&attr, priority);
     error = thread_create(&worker->thread, &attr, work_process, worker);
 
     if (error)
