@@ -99,6 +99,7 @@
 #include <kern/string.h>
 #include <kern/task.h>
 #include <kern/thread.h>
+#include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/mb.h>
 #include <machine/pmap.h>
@@ -270,6 +271,16 @@ static struct {
 } thread_ts_highest_round_struct;
 
 #define thread_ts_highest_round (thread_ts_highest_round_struct.value)
+
+/*
+ * Number of TSD keys actually allocated.
+ */
+static unsigned int thread_nr_keys __read_mostly;
+
+/*
+ * Destructors installed for each key.
+ */
+static thread_dtor_fn_t thread_dtors[THREAD_KEYS_MAX] __read_mostly;
 
 /*
  * List of threads pending for destruction by the reaper.
@@ -1443,6 +1454,7 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     thread->sched_class = thread_policy_table[attr->policy];
     cpumap_copy(&thread->cpumap, cpumap);
     thread_init_sched(thread, attr->priority);
+    memset(thread->tsd, 0, sizeof(thread->tsd));
     thread->task = task;
     thread->stack = stack;
     strlcpy(thread->name, attr->name, sizeof(thread->name));
@@ -1935,4 +1947,18 @@ thread_tick(void)
     thread_sched_ops[thread->sched_class].tick(runq, thread);
 
     spinlock_unlock(&runq->lock);
+}
+
+void
+thread_key_create(unsigned int *keyp, thread_dtor_fn_t dtor)
+{
+    unsigned int key;
+
+    key = atomic_fetchadd_uint(&thread_nr_keys, 1);
+
+    if (key >= THREAD_KEYS_MAX)
+        panic("thread: maximum number of keys exceeded");
+
+    thread_dtors[key] = dtor;
+    *keyp = key;
 }
