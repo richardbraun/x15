@@ -1494,12 +1494,21 @@ thread_destroy(struct thread *thread)
 {
     struct thread_runq *runq;
     unsigned long flags, state;
+    unsigned int i;
 
     do {
         runq = thread_lock_runq(thread, &flags);
         state = thread->state;
         thread_unlock_runq(runq, flags);
     } while (state != THREAD_DEAD);
+
+    for (i = 0; i < thread_nr_keys; i++) {
+        if ((thread->tsd[i] == NULL)
+            || (thread_dtors[i] == NULL))
+            continue;
+
+        thread_dtors[i](thread->tsd[i]);
+    }
 
     task_remove_thread(thread->task, thread);
     kmem_cache_free(&thread_stack_cache, thread->stack);
