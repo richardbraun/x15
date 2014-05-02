@@ -1341,6 +1341,7 @@ thread_bootstrap_common(unsigned int cpu)
     booter->preempt = 1;
     booter->sched_class = THREAD_SCHED_CLASS_IDLE;
     cpumap_fill(&booter->cpumap);
+    memset(booter->tsd, 0, sizeof(booter->tsd));
     booter->task = kernel_task;
     thread_runq_init(&thread_runqs[cpu], booter);
 }
