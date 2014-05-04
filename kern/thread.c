@@ -1496,6 +1496,7 @@ thread_destroy(struct thread *thread)
     struct thread_runq *runq;
     unsigned long flags, state;
     unsigned int i;
+    void *ptr;
 
     do {
         runq = thread_lock_runq(thread, &flags);
@@ -1503,12 +1504,23 @@ thread_destroy(struct thread *thread)
         thread_unlock_runq(runq, flags);
     } while (state != THREAD_DEAD);
 
-    for (i = 0; i < thread_nr_keys; i++) {
+    i = 0;
+
+    while (i < thread_nr_keys) {
         if ((thread->tsd[i] == NULL)
             || (thread_dtors[i] == NULL))
             continue;
 
+        /*
+         * Follow the POSIX description of TSD: set the key to NULL before
+         * calling the destructor and repeat as long as it's not NULL.
+         */
+        ptr = thread->tsd[i];
+        thread->tsd[i] = NULL;
         thread_dtors[i](thread->tsd[i]);
+
+        if (thread->tsd[i] == NULL)
+            i++;
     }
 
     task_remove_thread(thread->task, thread);
