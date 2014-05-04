@@ -1517,7 +1517,7 @@ thread_destroy(struct thread *thread)
          */
         ptr = thread->tsd[i];
         thread->tsd[i] = NULL;
-        thread_dtors[i](thread->tsd[i]);
+        thread_dtors[i](ptr);
 
         if (thread->tsd[i] == NULL)
             i++;
