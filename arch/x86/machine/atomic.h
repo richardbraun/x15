@@ -42,6 +42,11 @@
                  : "+m" (*(ptr))    \
                  : "r" (bits))
 
+#define ATOMIC_XOR(ptr, bits)        \
+    asm volatile("lock xor %1, %0"   \
+                 : "+m" (*(ptr))    \
+                 : "r" (bits))
+
 /* The xchg instruction doesn't need a lock prefix */
 #define ATOMIC_SWAP(ptr, oldval, newval)        \
     asm volatile("xchg %1, %0"                  \
@@ -83,6 +88,12 @@ static inline void
 atomic_or_uint(volatile unsigned int *ptr, unsigned int bits)
 {
     ATOMIC_OR(ptr, bits);
+}
+
+static inline void
+atomic_xor_uint(volatile unsigned int *ptr, unsigned int bits)
+{
+    ATOMIC_XOR(ptr, bits);
 }
 
 /*
@@ -138,6 +149,12 @@ static inline void
 atomic_or_ulong(volatile unsigned long *ptr, unsigned long bits)
 {
     ATOMIC_OR(ptr, bits);
+}
+
+static inline void
+atomic_xor_ulong(volatile unsigned long *ptr, unsigned long bits)
+{
+    ATOMIC_XOR(ptr, bits);
 }
 
 /*
