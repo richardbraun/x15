@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,6 +50,12 @@ cpumap_copy(struct cpumap *dest, const struct cpumap *src)
     bitmap_copy(dest->cpus, src->cpus, MAX_CPUS);
 }
 
+static inline int
+cpumap_cmp(const struct cpumap *a, const struct cpumap *b)
+{
+    return bitmap_cmp(a->cpus, b->cpus, MAX_CPUS);
+}
+
 static inline void
 cpumap_set(struct cpumap *cpumap, int index)
 {
@@ -78,6 +84,24 @@ static inline int
 cpumap_test(const struct cpumap *cpumap, int index)
 {
     return bitmap_test(cpumap->cpus, index);
+}
+
+static inline void
+cpumap_and(struct cpumap *a, const struct cpumap *b)
+{
+    bitmap_and(a->cpus, b->cpus, MAX_CPUS);
+}
+
+static inline void
+cpumap_or(struct cpumap *a, const struct cpumap *b)
+{
+    bitmap_or(a->cpus, b->cpus, MAX_CPUS);
+}
+
+static inline void
+cpumap_xor(struct cpumap *a, const struct cpumap *b)
+{
+    bitmap_xor(a->cpus, b->cpus, MAX_CPUS);
 }
 
 static inline int
