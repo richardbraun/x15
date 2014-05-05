@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,41 @@
 #include <kern/bitmap.h>
 #include <kern/bitmap_i.h>
 #include <kern/limits.h>
+#include <kern/string.h>
+
+int
+bitmap_cmp(const unsigned long *a, const unsigned long *b, int nr_bits)
+{
+    unsigned long last_a, last_b, mask;
+    int n, rv;
+
+    n = BITMAP_LONGS(nr_bits) - 1;
+
+    if (n != 0) {
+        rv = memcmp(a, b, n * sizeof(unsigned long));
+
+        if (rv != 0)
+            return rv;
+
+        nr_bits -= n * LONG_BIT;
+    }
+
+    last_a = a[n];
+    last_b = b[n];
+
+    if (nr_bits != LONG_BIT) {
+        mask = (1UL << nr_bits) - 1;
+        last_a &= mask;
+        last_b &= mask;
+    }
+
+    if (last_a == last_b)
+        return 0;
+    else if (last_a < last_b)
+        return -1;
+    else
+        return 1;
+}
 
 static inline unsigned long
 bitmap_find_next_compute_complement(unsigned long word, int nr_bits)

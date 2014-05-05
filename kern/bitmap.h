@@ -31,6 +31,8 @@
 
 #define BITMAP_DECLARE(name, nr_bits) unsigned long name[BITMAP_LONGS(nr_bits)]
 
+int bitmap_cmp(const unsigned long *a, const unsigned long *b, int nr_bits);
+
 static inline void
 bitmap_zero(unsigned long *bm, int nr_bits)
 {
@@ -101,6 +103,39 @@ bitmap_test(const unsigned long *bm, int bit)
         bitmap_lookup(bm, bit);
 
     return ((*bm & bitmap_mask(bit)) != 0);
+}
+
+static inline void
+bitmap_and(unsigned long *a, const unsigned long *b, int nr_bits)
+{
+    int i, n;
+
+    n = BITMAP_LONGS(nr_bits);
+
+    for (i = 0; i < n; i++)
+        a[i] &= b[i];
+}
+
+static inline void
+bitmap_or(unsigned long *a, const unsigned long *b, int nr_bits)
+{
+    int i, n;
+
+    n = BITMAP_LONGS(nr_bits);
+
+    for (i = 0; i < n; i++)
+        a[i] |= b[i];
+}
+
+static inline void
+bitmap_xor(unsigned long *a, const unsigned long *b, int nr_bits)
+{
+    int i, n;
+
+    n = BITMAP_LONGS(nr_bits);
+
+    for (i = 0; i < n; i++)
+        a[i] ^= b[i];
 }
 
 static inline int
