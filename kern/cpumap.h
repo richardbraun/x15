@@ -140,6 +140,11 @@ cpumap_find_first_zero(const struct cpumap *cpumap)
 void cpumap_setup(void);
 
 /*
+ * Return a cpumap representing all active processors.
+ */
+const struct cpumap * cpumap_all(void);
+
+/*
  * Allocate a CPU map.
  *
  * The new map is uninitialized.

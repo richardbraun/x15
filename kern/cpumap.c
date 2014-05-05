@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,15 +19,33 @@
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/kmem.h>
+#include <kern/param.h>
 #include <kern/stddef.h>
+#include <machine/cpu.h>
+
+static struct cpumap cpumap_active_cpus __read_mostly;
 
 static struct kmem_cache cpumap_cache;
 
 void
 cpumap_setup(void)
 {
+    unsigned int i, nr_cpus;
+
     kmem_cache_init(&cpumap_cache, "cpumap", sizeof(struct cpumap),
                     0, NULL, NULL, NULL, 0);
+
+    cpumap_zero(&cpumap_active_cpus);
+    nr_cpus = cpu_count();
+
+    for (i = 0; i < nr_cpus; i++)
+        cpumap_set(&cpumap_active_cpus, i);
+}
+
+const struct cpumap *
+cpumap_all(void)
+{
+    return &cpumap_active_cpus;
 }
 
 int
