@@ -504,12 +504,10 @@ pmap_bootalloc(unsigned int nr_pages)
  *
  * Note that there is no addressing restriction on the kernel pmap.
  */
-#define pmap_assert_range(pmap, start, end)                         \
-MACRO_BEGIN                                                         \
-    assert(vm_page_aligned(start) && vm_page_aligned(end));         \
-    assert((start) < (end));                                        \
-    assert(((pmap) == kernel_pmap) || ((end) <= VM_MAX_ADDRESS));   \
-MACRO_END
+#define pmap_assert_range(pmap, start, end)     \
+    assert(((start) < (end))                    \
+           && (((pmap) == kernel_pmap)          \
+               || ((end) <= VM_MAX_ADDRESS)))   \
 
 static inline void
 pmap_pte_set(pmap_pte_t *pte, phys_addr_t pa, pmap_pte_t pte_bits,
