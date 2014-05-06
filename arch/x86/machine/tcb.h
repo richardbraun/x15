@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,8 +39,10 @@ struct tcb {
  *
  * Prepare the given stack for execution. The context is defined so that it
  * will call fn() with interrupts disabled when loaded.
+ *
+ * In addition, initialize any thread-local machine-specific data.
  */
-void tcb_init(struct tcb *tcb, void *stack, void (*fn)(void));
+int tcb_init(struct tcb *tcb, void *stack, void (*fn)(void));
 
 /*
  * Low level context switch function.

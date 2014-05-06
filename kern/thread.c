@@ -1421,13 +1421,14 @@ thread_init_sched(struct thread *thread, unsigned short priority)
     thread_sched_ops[thread->sched_class].init_thread(thread, priority);
 }
 
-static void
+static int
 thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
             void (*fn)(void *), void *arg)
 {
     struct thread *caller;
     struct task *task;
     struct cpumap *cpumap;
+    int error;
 
     caller = thread_self();
 
@@ -1445,7 +1446,6 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
      * Locking the run queue increases the preemption counter once more,
      * making its value 2.
      */
-    tcb_init(&thread->tcb, stack, thread_main);
     thread->flags = 0;
     thread->runq = NULL;
     thread->state = THREAD_SLEEPING;
@@ -1462,7 +1462,18 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     thread->fn = fn;
     thread->arg = arg;
 
+    /*
+     * This call may initialize thread-local data, do it once the thread is
+     * mostly initialized.
+     */
+    error = tcb_init(&thread->tcb, stack, thread_main);
+
+    if (error)
+        return error;
+
     task_add_thread(task, thread);
+
+    return 0;
 }
 
 static struct thread_runq *
@@ -1712,7 +1723,11 @@ thread_setup_idler(struct thread_runq *runq)
     thread_attr_init(&attr, name);
     thread_attr_set_cpumap(&attr, cpumap);
     thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_IDLE);
-    thread_init(idler, stack, &attr, thread_idle, runq);
+    error = thread_init(idler, stack, &attr, thread_idle, runq);
+
+    if (error)
+        panic("thread: unable to initialize idler thread");
+
     cpumap_destroy(cpumap);
 
     /* An idler thread needs special tuning */
@@ -1777,7 +1792,10 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
         goto error_stack;
     }
 
-    thread_init(thread, stack, attr, fn, arg);
+    error = thread_init(thread, stack, attr, fn, arg);
+
+    if (error)
+        goto error_init;
 
     /*
      * The new thread address must be written before the thread is started
@@ -1789,6 +1807,8 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
 
     return 0;
 
+error_init:
+    kmem_cache_free(&thread_stack_cache, stack);
 error_stack:
     kmem_cache_free(&thread_cache, thread);
 error_thread:

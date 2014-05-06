@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 void __noreturn tcb_context_load(struct tcb *tcb);
 void __noreturn tcb_start(void);
 
-void
+int
 tcb_init(struct tcb *tcb, void *stack, void (*fn)(void))
 {
     void **ptr;
@@ -39,6 +39,8 @@ tcb_init(struct tcb *tcb, void *stack, void (*fn)(void))
 
     ptr = (void **)tcb->sp;
     *ptr = fn;
+
+    return 0;
 }
 
 void __init
