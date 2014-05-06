@@ -141,6 +141,9 @@ void cpumap_setup(void);
 
 /*
  * Return a cpumap representing all active processors.
+ *
+ * Until the cpumap module is initialized, the cpumap returned by this
+ * function describes the BSP only.
  */
 const struct cpumap * cpumap_all(void);
 

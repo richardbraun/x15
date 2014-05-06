@@ -23,7 +23,7 @@
 #include <kern/stddef.h>
 #include <machine/cpu.h>
 
-static struct cpumap cpumap_active_cpus __read_mostly;
+static struct cpumap cpumap_active_cpus __read_mostly = { { 1 } };
 
 static struct kmem_cache cpumap_cache;
 
