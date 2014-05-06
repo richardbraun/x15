@@ -315,9 +315,15 @@ void thread_yield(void);
 void thread_tick(void);
 
 static inline struct thread *
+thread_from_tcb(struct tcb *tcb)
+{
+    return structof(tcb, struct thread, tcb);
+}
+
+static inline struct thread *
 thread_self(void)
 {
-    return structof(tcb_current(), struct thread, tcb);
+    return thread_from_tcb(tcb_current());
 }
 
 /*
