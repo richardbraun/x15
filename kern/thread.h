@@ -450,15 +450,30 @@ typedef void (*thread_dtor_fn_t)(void *);
 void thread_key_create(unsigned int *keyp, thread_dtor_fn_t dtor);
 
 /*
+ * Set the pointer associated with a key for the given thread.
+ */
+static inline void
+thread_tsd_set(struct thread *thread, unsigned int key, void *ptr)
+{
+    thread->tsd[key] = ptr;
+}
+
+/*
+ * Return the pointer associated with a key for the given thread.
+ */
+static inline void *
+thread_tsd_get(struct thread *thread, unsigned int key)
+{
+    return thread->tsd[key];
+}
+
+/*
  * Set the pointer associated with a key for the calling thread.
  */
 static inline void
 thread_set_specific(unsigned int key, void *ptr)
 {
-    struct thread *self;
-
-    self = thread_self();
-    self->tsd[key] = ptr;
+    thread_tsd_set(thread_self(), key, ptr);
 }
 
 /*
@@ -467,10 +482,7 @@ thread_set_specific(unsigned int key, void *ptr)
 static inline void *
 thread_get_specific(unsigned int key)
 {
-    struct thread *self;
-
-    self = thread_self();
-    return self->tsd[key];
+    return thread_tsd_get(thread_self(), key);
 }
 
 #endif /* _KERN_THREAD_H */
