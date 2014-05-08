@@ -347,8 +347,13 @@ lapic_intr_timer(struct trap_frame *frame)
 void
 lapic_intr_error(struct trap_frame *frame)
 {
+    uint32_t esr;
+
     (void)frame;
-    panic("lapic: unhandled error interrupt");
+    esr = lapic_read(&lapic_map->esr);
+    printk("lapic: error on cpu%u: esr:%08x\n", cpu_id(), esr);
+    lapic_write(&lapic_map->esr, 0);
+    lapic_eoi();
 }
 
 void
