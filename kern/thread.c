@@ -1652,7 +1652,7 @@ thread_setup_balancer(struct thread_runq *runq)
     snprintf(name, sizeof(name), "x15_thread_balance/%u", thread_runq_id(runq));
     thread_attr_init(&attr, name);
     thread_attr_set_cpumap(&attr, cpumap);
-    thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_RR);
+    thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_FIFO);
     thread_attr_set_priority(&attr, THREAD_SCHED_RT_PRIO_MIN);
     error = thread_create(&balancer, &attr, thread_balance, runq);
     cpumap_destroy(cpumap);
