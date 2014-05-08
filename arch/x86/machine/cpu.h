@@ -491,6 +491,14 @@ cpu_has_global_pages(void)
     return cpu_current()->features2 & CPU_FEATURE2_PGE;
 }
 
+/*
+ * Enable the use of global pages in the TLB.
+ *
+ * As a side effect, this function causes a complete TLB flush if global
+ * pages were previously disabled.
+ *
+ * Implies a full memory barrier.
+ */
 static __always_inline void
 cpu_enable_global_pages(void)
 {
@@ -512,7 +520,7 @@ cpu_set_msr(uint32_t msr, uint32_t low, uint32_t high)
 /*
  * Flush non-global TLB entries.
  *
- * Implies a compiler barrier.
+ * Implies a full memory barrier.
  */
 static __always_inline void
 cpu_tlb_flush(void)
@@ -523,7 +531,7 @@ cpu_tlb_flush(void)
 /*
  * Flush all TLB entries, including global ones.
  *
- * Implies a compiler barrier.
+ * Implies a full memory barrier.
  */
 static __always_inline void
 cpu_tlb_flush_all(void)
@@ -549,7 +557,7 @@ cpu_tlb_flush_all(void)
 /*
  * Flush a single page table entry in the TLB.
  *
- * Implies a compiler barrier.
+ * Implies a full memory barrier.
  */
 static __always_inline void
 cpu_tlb_flush_va(unsigned long va)
