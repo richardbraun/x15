@@ -22,7 +22,6 @@
 #include <kern/assert.h>
 #include <kern/init.h>
 #include <kern/macros.h>
-#include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
 #include <kern/thread.h>
