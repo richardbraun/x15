@@ -636,6 +636,9 @@ vm_page_alloc(unsigned int order, unsigned short type)
                 return page;
         }
 
+    if (type == VM_PAGE_PMAP)
+        panic("vm_page: unable to allocate pmap page");
+
     return NULL;
 }
 

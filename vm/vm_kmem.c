@@ -16,6 +16,7 @@
  */
 
 #include <kern/assert.h>
+#include <kern/cpumap.h>
 #include <kern/init.h>
 #include <kern/panic.h>
 #include <kern/param.h>
@@ -53,7 +54,6 @@ vm_kmem_bootalloc(size_t size)
 {
     unsigned long start, va;
     phys_addr_t pa;
-    int error;
 
     assert(size > 0);
 
@@ -67,13 +67,11 @@ vm_kmem_bootalloc(size_t size)
 
     for (va = start; va < vm_kmem_boot_start; va += PAGE_SIZE) {
         pa = vm_page_bootalloc();
-        error = pmap_enter(kernel_pmap, va, pa, VM_PROT_READ | VM_PROT_WRITE);
-
-        if (error)
-            panic("vm_kmem: unable to create physical mapping for boot page");
+        pmap_enter(kernel_pmap, va, pa, VM_PROT_READ | VM_PROT_WRITE,
+                   PMAP_PEF_GLOBAL);
     }
 
-    pmap_update(kernel_pmap, start, vm_kmem_boot_start);
+    pmap_update(kernel_pmap);
     return start;
 }
 
@@ -139,13 +137,18 @@ vm_kmem_alloc_va(size_t size)
 void
 vm_kmem_free_va(unsigned long addr, size_t size)
 {
-    unsigned long end;
+    const struct cpumap *cpumap;
+    unsigned long va, end;
 
     assert(vm_kmem_free_check(addr, size) == 0);
 
+    cpumap = cpumap_all();
     end = addr + vm_page_round(size);
-    pmap_remove(kernel_pmap, addr, end);
-    pmap_update(kernel_pmap, addr, end);
+
+    for (va = addr; va < end; va += PAGE_SIZE)
+        pmap_remove(kernel_pmap, va, cpumap);
+
+    pmap_update(kernel_pmap);
     vm_map_remove(kernel_map, addr, end);
 }
 
@@ -154,7 +157,6 @@ vm_kmem_alloc(size_t size)
 {
     struct vm_page *page;
     unsigned long va, start, end;
-    int error;
 
     va = vm_kmem_alloc_va(size);
 
@@ -167,18 +169,13 @@ vm_kmem_alloc(size_t size)
         if (page == NULL)
             goto error_page;
 
-        error = pmap_enter(kernel_pmap, start, vm_page_to_pa(page),
-                           VM_PROT_READ | VM_PROT_WRITE);
-
-        if (error)
-            goto error_enter;
+        pmap_enter(kernel_pmap, start, vm_page_to_pa(page),
+                   VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
     }
 
-    pmap_update(kernel_pmap, va, end);
+    pmap_update(kernel_pmap);
     return va;
 
-error_enter:
-    vm_page_free(page, 0);
 error_page:
     vm_kmem_free(va, size);
     return 0;
@@ -215,7 +212,6 @@ vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
     unsigned long offset, map_addr;
     size_t map_size;
     phys_addr_t start;
-    int error;
 
     start = vm_page_trunc(addr);
     map_size = vm_page_round(addr + size) - start;
@@ -224,15 +220,11 @@ vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
     if (map_addr == 0)
         return NULL;
 
-    for (offset = 0; offset < map_size; offset += PAGE_SIZE) {
-        error = pmap_enter(kernel_pmap, map_addr + offset, start + offset,
-                           VM_PROT_READ | VM_PROT_WRITE);
+    for (offset = 0; offset < map_size; offset += PAGE_SIZE)
+        pmap_enter(kernel_pmap, map_addr + offset, start + offset,
+                   VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
 
-        if (error)
-            goto error_enter;
-    }
-
-    pmap_update(kernel_pmap, map_addr, map_addr + map_size);
+    pmap_update(kernel_pmap);
 
     if (map_addrp != NULL)
         *map_addrp = map_addr;
@@ -241,10 +233,6 @@ vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
         *map_sizep = map_size;
 
     return (void *)(map_addr + (unsigned long)(addr & PAGE_MASK));
-
-error_enter:
-    vm_kmem_free_va(map_addr, map_size);
-    return NULL;
 }
 
 void

@@ -192,7 +192,6 @@ vm_map_kentry_alloc(size_t slab_size)
     struct vm_page *page;
     unsigned long va;
     size_t i;
-    int error;
 
     assert(slab_size == vm_map_kentry_slab_size);
 
@@ -207,22 +206,21 @@ vm_map_kentry_alloc(size_t slab_size)
         if (page == NULL)
             panic("vm_map: no physical page for kentry cache");
 
-        error = pmap_enter(kernel_pmap, va + i, vm_page_to_pa(page),
-                           VM_PROT_READ | VM_PROT_WRITE);
-
-        if (error)
-            panic("vm_map: unable to create physical mapping for kentry cache");
+        pmap_enter(kernel_pmap, va + i, vm_page_to_pa(page),
+                   VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
     }
 
-    pmap_update(kernel_pmap, va, va + slab_size);
+    pmap_update(kernel_pmap);
     return va;
 }
 
 static void
 vm_map_kentry_free(unsigned long va, size_t slab_size)
 {
+    const struct cpumap *cpumap;
     struct vm_page *page;
     phys_addr_t pa;
+    unsigned long end;
     size_t i;
 
     assert(va >= vm_map_kentry_entry.start);
@@ -238,8 +236,15 @@ vm_map_kentry_free(unsigned long va, size_t slab_size)
         vm_page_free(page, 0);
     }
 
-    pmap_remove(kernel_pmap, va, va + slab_size);
-    pmap_update(kernel_pmap, va, va + slab_size);
+    cpumap = cpumap_all();
+    end = va + slab_size;
+
+    while (va < end) {
+        pmap_remove(kernel_pmap, va, cpumap);
+        va += PAGE_SIZE;
+    }
+
+    pmap_update(kernel_pmap);
     vm_map_kentry_free_va(va, slab_size);
 }
 
@@ -288,14 +293,11 @@ vm_map_kentry_setup(void)
         if (page == NULL)
             panic("vm_map: unable to allocate page for kentry table");
 
-        error = pmap_enter(kernel_pmap, table_va + (i * PAGE_SIZE),
-                           vm_page_to_pa(page), VM_PROT_READ | VM_PROT_WRITE);
-
-        if (error)
-            panic("vm_map: unable to create physical mapping for kentry table");
+        pmap_enter(kernel_pmap, table_va + (i * PAGE_SIZE), vm_page_to_pa(page),
+                   VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
     }
 
-    pmap_update(kernel_pmap, table_va, table_va + (nr_pages * PAGE_SIZE));
+    pmap_update(kernel_pmap);
 
     mutex_init(&vm_map_kentry_free_slabs_lock);
     slabs = (struct vm_map_kentry_slab *)table_va;

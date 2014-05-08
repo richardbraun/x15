@@ -16,6 +16,7 @@
  */
 
 #include <kern/assert.h>
+#include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/init.h>
@@ -26,6 +27,7 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/spinlock.h>
+#include <kern/sprintf.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
 #include <kern/thread.h>
@@ -110,9 +112,6 @@ struct pmap_tmp_mapping {
 static struct pmap_tmp_mapping pmap_zero_mappings[MAX_CPUS];
 static struct pmap_tmp_mapping pmap_ptp_mappings[MAX_CPUS];
 
-static struct pmap kernel_pmap_store;
-struct pmap *kernel_pmap __read_mostly = &kernel_pmap_store;
-
 /*
  * Reserved pages of virtual memory available for early allocation.
  */
@@ -123,6 +122,30 @@ static unsigned long pmap_boot_heap_end __initdata;
 static char pmap_panic_inval_msg[] __bootdata
     = "pmap: invalid physical address";
 
+/*
+ * Per-CPU page tables.
+ */
+struct pmap_cpu_table {
+    struct mutex lock;
+    struct list node;
+    phys_addr_t root_ptp_pa;
+
+#ifdef X86_PAE
+    pmap_pte_t *pdpt;
+
+    /* The page-directory-pointer base is always 32-bits wide */
+    unsigned long pdpt_pa;
+#endif /* X86_PAE */
+};
+
+struct pmap {
+    struct pmap_cpu_table *cpu_tables[MAX_CPUS];
+};
+
+static struct pmap kernel_pmap_store __read_mostly;
+struct pmap *kernel_pmap __read_mostly = &kernel_pmap_store;
+static struct pmap_cpu_table kernel_pmap_cpu_tables[MAX_CPUS] __read_mostly;
+
 #ifdef X86_PAE
 /*
  * Alignment required on page directory pointer tables.
@@ -130,9 +153,10 @@ static char pmap_panic_inval_msg[] __bootdata
 #define PMAP_PDPT_ALIGN 32
 
 /*
- * "Hidden" kernel root page table for PAE mode.
+ * "Hidden" kernel root page tables for PAE mode.
  */
-static pmap_pte_t pmap_kpdpt[PMAP_NR_RPTPS] __aligned(PMAP_PDPT_ALIGN);
+static pmap_pte_t pmap_cpu_kpdpts[MAX_CPUS][PMAP_NR_RPTPS] __read_mostly
+    __aligned(PMAP_PDPT_ALIGN);
 #endif /* X86_PAE */
 
 /*
@@ -153,61 +177,124 @@ static pmap_pte_t pmap_prot_table[VM_PROT_ALL + 1] __read_mostly;
 #define PMAP_UPDATE_MAX_MAPPINGS 64
 
 /*
- * Structures related to TLB invalidation.
+ * Structures related to inter-processor page table updates.
  */
 
 /*
- * Request sent by a processor.
+ * Per processor request, queued on a remote processor.
+ *
+ * A request refers to the operation list it's embedded within. The number of
+ * mappings is used to determine whether it's best to flush individual TLB
+ * entries or globally flush the TLB.
  */
 struct pmap_update_request {
-    struct pmap *pmap;
-    unsigned long start;
-    unsigned long end;
-} __aligned(CPU_L1_SIZE);
-
-/*
- * Per processor request, queued on remote processor.
- *
- * A processor receiving such a request is able to locate the invalidation
- * data from the address of the request, without an explicit pointer.
- */
-struct pmap_update_cpu_request {
     struct list node;
+    struct mutex lock;
+    struct condition cond;
+    unsigned int nr_mappings;
     int done;
 } __aligned(CPU_L1_SIZE);
+
+#define PMAP_UPDATE_OP_ENTER    1
+#define PMAP_UPDATE_OP_REMOVE   2
+#define PMAP_UPDATE_OP_PROTECT  3
+
+struct pmap_update_enter_args {
+    unsigned long va;
+    phys_addr_t pa;
+    int prot;
+    int flags;
+};
+
+struct pmap_update_remove_args {
+    unsigned long start;
+    unsigned long end;
+};
+
+struct pmap_update_protect_args {
+    unsigned long start;
+    unsigned long end;
+    int prot;
+};
+
+struct pmap_update_op {
+    struct cpumap cpumap;
+    unsigned int operation;
+
+    union {
+        struct pmap_update_enter_args enter_args;
+        struct pmap_update_remove_args remove_args;
+        struct pmap_update_protect_args protect_args;
+    };
+};
+
+/*
+ * Maximum number of operations that can be batched before an implicit
+ * update.
+ */
+#define PMAP_UPDATE_MAX_OPS 32
+
+/*
+ * List of update operations.
+ *
+ * Operation lists are thread-local and apply to a single pmap. One list
+ * includes operations that must be applied when updating a pmap. Updating
+ * can be implicit, e.g. when a list has reached its maximum size, or
+ * explicit, when pmap_update() is called.
+ *
+ * The cpumap is the union of all processors affected by at least one
+ * operation.
+ */
+struct pmap_update_oplist {
+    struct pmap_update_request requests[MAX_CPUS];
+
+    struct cpumap cpumap;
+    struct pmap *pmap;
+    unsigned int nr_ops;
+    struct pmap_update_op ops[PMAP_UPDATE_MAX_OPS];
+};
+
+static unsigned int pmap_oplist_tsd_key __read_mostly;
+
+/*
+ * Statically allocated data for the main booter thread.
+ */
+static struct cpumap pmap_booter_cpumap __initdata;
+static struct pmap_update_oplist pmap_booter_oplist __initdata;
+
+/*
+ * Each regular thread gets an operation list from this cache.
+ */
+static struct kmem_cache pmap_update_oplist_cache;
 
 /*
  * Queue holding update requests from remote processors.
  */
 struct pmap_update_queue {
-    struct spinlock lock;
-    struct list cpu_requests;
-} __aligned(CPU_L1_SIZE);
+    struct mutex lock;
+    struct condition cond;
+    struct list requests;
+};
 
 /*
- * Per processor TLB invalidation data.
+ * Syncer thread.
+ *
+ * There is one such thread per processor. They are the recipients of
+ * update requests, providing thread context for the mapping operations
+ * they perform.
  */
-struct pmap_update_data {
-    struct pmap_update_request request;
-    struct pmap_update_cpu_request cpu_requests[MAX_CPUS];
-    struct cpumap cpumap;
+struct pmap_syncer {
+    struct thread *thread;
     struct pmap_update_queue queue;
 } __aligned(CPU_L1_SIZE);
 
-static struct pmap_update_data pmap_update_data[MAX_CPUS];
-static int pmap_allow_remote_updates __read_mostly;
+static void pmap_sync(void *arg);
 
-/*
- * Global list of physical maps.
- */
-static struct mutex pmap_list_lock;
-static struct list pmap_list;
+static struct pmap_syncer pmap_syncers[MAX_CPUS];
+
+static int pmap_do_remote_updates __read_mostly;
 
 static struct kmem_cache pmap_cache;
-
-#ifdef X86_PAE
-static struct kmem_cache pmap_pdpt_cache;
-#endif /* X86_PAE */
 
 static int pmap_ready __read_mostly;
 
@@ -274,7 +361,7 @@ pmap_setup_ptemap(pmap_pte_t *root_ptp)
 pmap_pte_t * __boot
 pmap_setup_paging(void)
 {
-    struct pmap *pmap;
+    struct pmap_cpu_table *cpu_table;
     pmap_pte_t *root_ptp;
     unsigned long va;
     phys_addr_t pa;
@@ -321,16 +408,16 @@ pmap_setup_paging(void)
 
     pmap_setup_ptemap(root_ptp);
 
-    pmap = (void *)BOOT_VTOP((unsigned long)&kernel_pmap_store);
-    pmap->root_ptp_pa = (unsigned long)root_ptp;
+    cpu_table = (void *)BOOT_VTOP((unsigned long)&kernel_pmap_cpu_tables[0]);
+    cpu_table->root_ptp_pa = (unsigned long)root_ptp;
 
 #ifdef X86_PAE
-    pmap->pdpt = pmap_kpdpt;
-    pmap->pdpt_pa = BOOT_VTOP((unsigned long)pmap_kpdpt);
-    root_ptp = (void *)pmap->pdpt_pa;
+    cpu_table->pdpt = pmap_cpu_kpdpts[0];
+    cpu_table->pdpt_pa = BOOT_VTOP((unsigned long)pmap_cpu_kpdpts[0]);
+    root_ptp = (void *)cpu_table->pdpt_pa;
 
     for (i = 0; i < PMAP_NR_RPTPS; i++)
-        root_ptp[i] = (pmap->root_ptp_pa + (i * PAGE_SIZE)) | PMAP_PTE_P;
+        root_ptp[i] = (cpu_table->root_ptp_pa + (i * PAGE_SIZE)) | PMAP_PTE_P;
 
     cpu_enable_pae();
 #endif /* X86_PAE */
@@ -341,16 +428,18 @@ pmap_setup_paging(void)
 pmap_pte_t * __boot
 pmap_ap_setup_paging(void)
 {
+    struct pmap_cpu_table *cpu_table;
     struct pmap *pmap;
     pmap_pte_t *root_ptp;
 
     pmap = (void *)BOOT_VTOP((unsigned long)&kernel_pmap_store);
+    cpu_table = (void *)BOOT_VTOP((unsigned long)pmap->cpu_tables[boot_ap_id]);
 
 #ifdef X86_PAE
-    root_ptp = (void *)pmap->pdpt_pa;
+    root_ptp = (void *)cpu_table->pdpt_pa;
     cpu_enable_pae();
 #else /* X86_PAE */
-    root_ptp = (void *)pmap->root_ptp_pa;
+    root_ptp = (void *)cpu_table->root_ptp_pa;
 #endif /* X86_PAE */
 
     return root_ptp;
@@ -422,14 +511,107 @@ pmap_setup_global_pages(void)
     cpu_enable_global_pages();
 }
 
+static void
+pmap_update_oplist_ctor(void *arg)
+{
+    struct pmap_update_oplist *oplist;
+    unsigned int i;
+
+    oplist = arg;
+
+    for (i = 0; i < cpu_count(); i++) {
+        mutex_init(&oplist->requests[i].lock);
+        condition_init(&oplist->requests[i].cond);
+        oplist->requests[i].nr_mappings = 0;
+        oplist->requests[i].done = 0;
+    }
+
+    cpumap_zero(&oplist->cpumap);
+    oplist->pmap = NULL;
+    oplist->nr_ops = 0;
+}
+
+static int
+pmap_update_oplist_create(struct pmap_update_oplist **oplistp)
+{
+    struct pmap_update_oplist *oplist;
+
+    oplist = kmem_cache_alloc(&pmap_update_oplist_cache);
+
+    if (oplist == NULL)
+        return ERROR_NOMEM;
+
+    *oplistp = oplist;
+    return 0;
+}
+
+static void
+pmap_update_oplist_destroy(void *arg)
+{
+    struct pmap_update_oplist *oplist;
+
+    oplist = arg;
+    kmem_cache_free(&pmap_update_oplist_cache, oplist);
+}
+
+static struct pmap_update_oplist *
+pmap_update_oplist_get(void)
+{
+    struct pmap_update_oplist *oplist;
+
+    oplist = thread_get_specific(pmap_oplist_tsd_key);
+    assert(oplist != NULL);
+    return oplist;
+}
+
+static void
+pmap_update_oplist_prepare(struct pmap_update_oplist *oplist,
+                           struct pmap *pmap)
+{
+    if (oplist->pmap != pmap) {
+        if (oplist->pmap != NULL)
+            pmap_update(oplist->pmap);
+
+        oplist->pmap = pmap;
+    } else if (oplist->nr_ops == ARRAY_SIZE(oplist->ops)) {
+        pmap_update(pmap);
+    }
+}
+
+static void
+pmap_update_oplist_inc_nr_ops(struct pmap_update_oplist *oplist,
+                              struct pmap_update_op *op)
+{
+    cpumap_or(&oplist->cpumap, &op->cpumap);
+    oplist->nr_ops++;
+}
+
+static void
+pmap_update_oplist_inc_nr_mappings(struct pmap_update_oplist *oplist,
+                                   struct pmap_update_op *op)
+{
+    struct pmap_update_request *request;
+    int cpu;
+
+    cpumap_for_each(&op->cpumap, cpu) {
+        request = &oplist->requests[cpu];
+        request->nr_mappings++;
+    }
+}
+
 void __init
 pmap_bootstrap(void)
 {
-    unsigned int i;
+    struct pmap_cpu_table *cpu_table;
+    unsigned long va;
+    unsigned int cpu;
 
-    mutex_init(&kernel_pmap->lock);
-    cpumap_zero(&kernel_pmap->cpumap);
-    cpumap_set(&kernel_pmap->cpumap, 0);
+    for (cpu = 0; cpu < ARRAY_SIZE(kernel_pmap->cpu_tables); cpu++) {
+        cpu_table = &kernel_pmap_cpu_tables[cpu];
+        kernel_pmap->cpu_tables[cpu] = cpu_table;
+        mutex_init(&cpu_table->lock);
+    }
+
     cpu_percpu_set_pmap(kernel_pmap);
 
     pmap_boot_heap = (unsigned long)&_end;
@@ -445,40 +627,47 @@ pmap_bootstrap(void)
     pmap_prot_table[VM_PROT_EXECUTE | VM_PROT_WRITE] = PMAP_PTE_RW;
     pmap_prot_table[VM_PROT_ALL] = PMAP_PTE_RW;
 
-    for (i = 0; i < MAX_CPUS; i++) {
-        mutex_init(&pmap_zero_mappings[i].lock);
-        pmap_zero_mappings[i].va = pmap_bootalloc(1);
+    for (cpu = 0; cpu < MAX_CPUS; cpu++) {
+        mutex_init(&pmap_zero_mappings[cpu].lock);
+        pmap_zero_mappings[cpu].va = pmap_bootalloc(1);
 
-        mutex_init(&pmap_ptp_mappings[i].lock);
-        pmap_ptp_mappings[i].va = pmap_bootalloc(PMAP_NR_RPTPS);
-
-        spinlock_init(&pmap_update_data[i].queue.lock);
-        list_init(&pmap_update_data[i].queue.cpu_requests);
+        mutex_init(&pmap_ptp_mappings[cpu].lock);
+        pmap_ptp_mappings[cpu].va = pmap_bootalloc(PMAP_NR_RPTPS);
     }
 
-    mutex_init(&pmap_list_lock);
-    list_init(&pmap_list);
-    list_insert_tail(&pmap_list, &kernel_pmap->node);
+    pmap_update_oplist_ctor(&pmap_booter_oplist);
+    thread_key_create(&pmap_oplist_tsd_key, pmap_update_oplist_destroy);
+    thread_set_specific(pmap_oplist_tsd_key, &pmap_booter_oplist);
 
-    pmap_protect(kernel_pmap, (unsigned long)&_text, (unsigned long)&_rodata,
-                 VM_PROT_READ | VM_PROT_EXECUTE);
-    pmap_protect(kernel_pmap, (unsigned long)&_rodata, (unsigned long)&_data,
-                 VM_PROT_READ);
+    cpumap_zero(&pmap_booter_cpumap);
+    cpumap_set(&pmap_booter_cpumap, 0);
+
+    for (va = (unsigned long)&_text;
+         va < (unsigned long)&_rodata;
+         va += PAGE_SIZE)
+        pmap_protect(kernel_pmap, va, VM_PROT_READ | VM_PROT_EXECUTE,
+                     &pmap_booter_cpumap);
+
+    for (va = (unsigned long)&_rodata;
+         va < (unsigned long)&_data;
+         va += PAGE_SIZE)
+        pmap_protect(kernel_pmap, va, VM_PROT_READ, &pmap_booter_cpumap);
 
     if (cpu_has_global_pages())
         pmap_setup_global_pages();
 
-    cpu_tlb_flush();
+    pmap_update(kernel_pmap);
 }
 
 void __init
 pmap_ap_bootstrap(void)
 {
-    cpumap_set(&kernel_pmap->cpumap, cpu_id());
     cpu_percpu_set_pmap(kernel_pmap);
 
     if (cpu_has_global_pages())
         cpu_enable_global_pages();
+    else
+        cpu_tlb_flush();
 }
 
 unsigned long __init
@@ -628,211 +817,6 @@ pmap_unmap_ptp(struct pmap_tmp_mapping *ptp_mapping, unsigned int nr_pages)
     thread_unpin();
 }
 
-static void
-pmap_protect_ptemap(unsigned long start, unsigned long end, int prot)
-{
-    pmap_pte_t *pte, flags;
-
-    flags = pmap_prot_table[prot & VM_PROT_ALL];
-
-    while (start < end) {
-        pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L0_SHIFT);
-        *pte = (*pte & ~PMAP_PTE_PROT_MASK) | flags;
-        start += PAGE_SIZE;
-    }
-}
-
-void
-pmap_protect(struct pmap *pmap, unsigned long start, unsigned long end,
-             int prot)
-{
-    pmap_assert_range(pmap, start, end);
-
-    if ((pmap == kernel_pmap) || (pmap == pmap_current())) {
-        pmap_protect_ptemap(start, end, prot);
-        return;
-    }
-
-    /* TODO Complete pmap_protect() */
-    panic("pmap: pmap_protect not completely implemented yet");
-}
-
-static phys_addr_t
-pmap_extract_ptemap(unsigned long va)
-{
-    const struct pmap_pt_level *pt_level;
-    unsigned long index;
-    unsigned int level;
-    pmap_pte_t *pte;
-
-    for (level = PMAP_NR_LEVELS - 1; level < PMAP_NR_LEVELS; level--) {
-        pt_level = &pmap_pt_levels[level];
-        index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
-        pte = &pt_level->ptemap_base[index];
-
-        if (*pte == 0)
-            return 0;
-    }
-
-    return *pte & PMAP_PA_MASK;
-}
-
-phys_addr_t
-pmap_extract(struct pmap *pmap, unsigned long va)
-{
-    pmap_assert_range(pmap, va, va + PAGE_SIZE);
-
-    if ((pmap == kernel_pmap) || (pmap == pmap_current()))
-        return pmap_extract_ptemap(va);
-
-    /* TODO Complete pmap_extract() */
-    panic("pmap: pmap_extract not completely implemented yet");
-}
-
-static void
-pmap_update_local(struct pmap *pmap, unsigned long start, unsigned long end)
-{
-    if ((pmap != pmap_current()) && (pmap != kernel_pmap))
-        return;
-
-    if (vm_page_atop(end - start) > PMAP_UPDATE_MAX_MAPPINGS) {
-        if (pmap == kernel_pmap)
-            cpu_tlb_flush_all();
-        else
-            cpu_tlb_flush();
-    } else {
-        while (start < end) {
-            cpu_tlb_flush_va(start);
-            start += PAGE_SIZE;
-        }
-    }
-}
-
-void
-pmap_update(struct pmap *pmap, unsigned long start, unsigned long end)
-{
-    struct pmap_update_data *pud;
-    struct pmap_update_queue *queue;
-    unsigned long flags;
-    unsigned int cpu;
-    int i;
-
-    pmap_assert_range(pmap, start, end);
-
-    if (!pmap_allow_remote_updates) {
-        pmap_update_local(pmap, start, end);
-        return;
-    }
-
-    assert(cpu_intr_enabled());
-
-    thread_preempt_disable();
-
-    cpu = cpu_id();
-    pud = &pmap_update_data[cpu];
-    pud->request.pmap = pmap;
-    pud->request.start = start;
-    pud->request.end = end;
-
-    cpumap_copy(&pud->cpumap, &pmap->cpumap);
-
-    cpumap_for_each(&pud->cpumap, i)
-        if ((unsigned int)i != cpu) {
-            pud->cpu_requests[i].done = 0;
-            queue = &pmap_update_data[i].queue;
-
-            spinlock_lock_intr_save(&queue->lock, &flags);
-            list_insert_tail(&queue->cpu_requests, &pud->cpu_requests[i].node);
-            spinlock_unlock_intr_restore(&queue->lock, flags);
-        }
-
-    if (pmap == kernel_pmap)
-        lapic_ipi_broadcast(TRAP_PMAP_UPDATE);
-    else
-        cpumap_for_each(&pud->cpumap, i)
-            if ((unsigned int)i != cpu)
-                lapic_ipi_send(i, TRAP_PMAP_UPDATE);
-
-    pmap_update_local(pmap, start, end);
-
-    cpumap_for_each(&pud->cpumap, i)
-        if ((unsigned int)i != cpu)
-            while (!pud->cpu_requests[i].done)
-                cpu_pause();
-
-    thread_preempt_enable();
-}
-
-void
-pmap_update_intr(struct trap_frame *frame)
-{
-    struct pmap_update_cpu_request *cpu_request, *array;
-    struct pmap_update_data *pud;
-    struct list cpu_requests, *node;
-    unsigned int cpu;
-
-    (void)frame;
-
-    lapic_eoi();
-
-    cpu = cpu_id();
-    pud = &pmap_update_data[cpu];
-
-    spinlock_lock(&pud->queue.lock);
-    list_set_head(&cpu_requests, &pud->queue.cpu_requests);
-    list_init(&pud->queue.cpu_requests);
-    spinlock_unlock(&pud->queue.lock);
-
-    while (!list_empty(&cpu_requests)) {
-        node = list_first(&cpu_requests);
-        cpu_request = list_entry(node, struct pmap_update_cpu_request, node);
-        list_remove(&cpu_request->node);
-
-        array = cpu_request - cpu;
-        pud = structof(array, struct pmap_update_data, cpu_requests);
-        pmap_update_local(pud->request.pmap, pud->request.start,
-                          pud->request.end);
-        cpu_request->done = 1;
-    }
-}
-
-#ifdef X86_PAE
-static unsigned long
-pmap_pdpt_alloc(size_t slab_size)
-{
-    struct vm_page *page;
-    unsigned long va, start, end;
-    int error;
-
-    va = vm_kmem_alloc_va(slab_size);
-
-    if (va == 0)
-        return 0;
-
-    for (start = va, end = va + slab_size; start < end; start += PAGE_SIZE) {
-        page = vm_page_alloc_seg(0, VM_PAGE_SEG_NORMAL, VM_PAGE_PMAP);
-
-        if (page == NULL)
-            goto error_page;
-
-        error = pmap_enter(kernel_pmap, start, vm_page_to_pa(page),
-                           VM_PROT_READ | VM_PROT_WRITE);
-
-        if (error)
-            goto error_enter;
-    }
-
-    pmap_update(kernel_pmap, va, end);
-    return va;
-
-error_enter:
-    vm_page_free(page, 0);
-error_page:
-    vm_kmem_free(va, slab_size);
-    return 0;
-}
-#endif /* X86_PAE */
-
 static void __init
 pmap_setup_inc_nr_ptes(pmap_pte_t *pte)
 {
@@ -877,146 +861,182 @@ pmap_setup(void)
 
     kmem_cache_init(&pmap_cache, "pmap", sizeof(struct pmap),
                     0, NULL, NULL, NULL, 0);
-
-#ifdef X86_PAE
-    kmem_cache_init(&pmap_pdpt_cache, "pmap_pdpt",
-                    PMAP_NR_RPTPS * sizeof(pmap_pte_t), PMAP_PDPT_ALIGN,
-                    NULL, pmap_pdpt_alloc, NULL, 0);
-#endif /* X86_PAE */
+    kmem_cache_init(&pmap_update_oplist_cache, "pmap_update_oplist",
+                    sizeof(struct pmap_update_oplist), CPU_L1_SIZE,
+                    pmap_update_oplist_ctor, NULL, NULL, 0);
 
     pmap_ready = 1;
+}
+
+static void __init
+pmap_copy_cpu_table_recursive(phys_addr_t pa, unsigned int level,
+                              unsigned long start_va)
+{
+    const struct pmap_pt_level *pt_level;
+    struct pmap_tmp_mapping *mapping;
+    struct vm_page *page;
+    pmap_pte_t *spt, *dpt;
+    phys_addr_t lower_pa;
+    unsigned int i, nr_ptps, first = first, last = last;
+    unsigned long va;
+    int is_root;
+
+    pt_level = &pmap_pt_levels[level];
+    spt = &pt_level->ptemap_base[PMAP_PTEMAP_INDEX(start_va, pt_level->shift)];
+
+    if (level == PMAP_NR_LEVELS - 1) {
+        is_root = 1;
+        nr_ptps = PMAP_NR_RPTPS;
+        first = PMAP_PTEMAP_INDEX(VM_PMAP_PTEMAP_ADDRESS, pt_level->shift);
+        last = first + (PMAP_NR_RPTPS - 1);
+    } else {
+        is_root = 0;
+        nr_ptps = 1;
+    }
+
+    mapping = pmap_map_ptp(pa, nr_ptps);
+    dpt = (pmap_pte_t *)mapping->va;
+
+    if (level == 0)
+        memcpy(dpt, spt, pt_level->ptes_per_ptp * sizeof(pmap_pte_t));
+    else {
+        memset(dpt, 0, pt_level->ptes_per_ptp * sizeof(pmap_pte_t));
+
+        for (i = 0, va = start_va;
+             i < pt_level->ptes_per_ptp;
+             i++, va = P2END(va, 1UL << pt_level->shift)) {
+#ifdef __LP64__
+            /* Handle long mode canonical form */
+            if (va == ((PMAP_VA_MASK >> 1) + 1))
+                va = ~(PMAP_VA_MASK >> 1);
+#endif /* __LP64__ */
+
+            if (spt[i] == 0)
+                continue;
+
+            /* Install the recursive mapping */
+            if (is_root && (i >= first) && (i <= last)) {
+                dpt[i] = (spt[i] & ~PMAP_PA_MASK)
+                         | ((pa + ((i - first) * PAGE_SIZE)) & PMAP_PA_MASK);
+                continue;
+            }
+
+            page = vm_page_alloc(0, VM_PAGE_PMAP);
+            assert(page != NULL);
+            lower_pa = vm_page_to_pa(page);
+            dpt[i] = (spt[i] & ~PMAP_PA_MASK) | (lower_pa & PMAP_PA_MASK);
+
+            pmap_unmap_ptp(mapping, nr_ptps);
+
+            pmap_copy_cpu_table_recursive(lower_pa, level - 1, va);
+
+            mapping = pmap_map_ptp(pa, nr_ptps);
+            dpt = (pmap_pte_t *)mapping->va;
+        }
+    }
+
+    pmap_unmap_ptp(mapping, nr_ptps);
+}
+
+static void __init
+pmap_copy_cpu_table(unsigned int cpu)
+{
+    struct pmap_cpu_table *cpu_table;
+    struct vm_page *page;
+    phys_addr_t pa;
+
+    cpu_table = kernel_pmap->cpu_tables[cpu];
+    page = vm_page_alloc(PMAP_RPTP_ORDER, VM_PAGE_PMAP);
+    assert(page != NULL);
+    pa = vm_page_to_pa(page);
+    pmap_copy_cpu_table_recursive(pa, PMAP_NR_LEVELS - 1, 0);
+    cpu_table->root_ptp_pa = pa;
+
+#ifdef X86_PAE
+    unsigned int i;
+
+    cpu_table->pdpt = pmap_cpu_kpdpts[cpu];
+    cpu_table->pdpt_pa = BOOT_VTOP((unsigned long)pmap_cpu_kpdpts[cpu]);
+
+    for (i = 0; i < PMAP_NR_RPTPS; i++)
+        cpu_table->pdpt[i] = (cpu_table->root_ptp_pa + (i * PAGE_SIZE)) | PMAP_PTE_P;
+#endif /* X86_PAE */
 }
 
 void __init
 pmap_mp_setup(void)
 {
-    if (cpu_count() == 1)
-        return;
+    char name[THREAD_NAME_SIZE];
+    struct thread_attr attr;
+    struct pmap_update_queue *queue;
+    struct pmap_syncer *syncer;
+    struct cpumap *cpumap;
+    unsigned int cpu;
+    int error;
 
-    pmap_allow_remote_updates = 1;
+    error = cpumap_create(&cpumap);
+
+    if (error)
+        panic("pmap: unable to create syncer cpumap");
+
+    for (cpu = 0; cpu < cpu_count(); cpu++) {
+        syncer = &pmap_syncers[cpu];
+        queue = &syncer->queue;
+        mutex_init(&queue->lock);
+        condition_init(&queue->cond);
+        list_init(&queue->requests);
+        snprintf(name, sizeof(name), "x15_pmap_sync/%u", cpu);
+        cpumap_zero(cpumap);
+        cpumap_set(cpumap, cpu);
+        thread_attr_init(&attr, name);
+        thread_attr_set_cpumap(&attr, cpumap);
+        thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_FIFO);
+        thread_attr_set_priority(&attr, THREAD_SCHED_RT_PRIO_MIN);
+        error = thread_create(&syncer->thread, &attr, pmap_sync, syncer);
+
+        if (error)
+            panic("pmap: unable to create syncer thread");
+    }
+
+    cpumap_destroy(cpumap);
+
+    for (cpu = 1; cpu < cpu_count(); cpu++)
+        pmap_copy_cpu_table(cpu);
+
+    pmap_do_remote_updates = 1;
+}
+
+int
+pmap_thread_init(struct thread *thread)
+{
+    struct pmap_update_oplist *oplist;
+    int error;
+
+    error = pmap_update_oplist_create(&oplist);
+
+    if (error)
+        return error;
+
+    thread_tsd_set(thread, pmap_oplist_tsd_key, oplist);
+    return 0;
 }
 
 int
 pmap_create(struct pmap **pmapp)
 {
-    const struct pmap_pt_level *pt_level;
-    struct pmap_tmp_mapping *root_ptp_mapping;
-    struct vm_page *root_pages;
     struct pmap *pmap;
-    pmap_pte_t *pt, *kpt;
-    phys_addr_t pa;
-    unsigned long va, index;
     unsigned int i;
-    int error;
 
     pmap = kmem_cache_alloc(&pmap_cache);
 
-    if (pmap == NULL) {
-        error = ERROR_NOMEM;
-        goto error_pmap;
-    }
+    if (pmap == NULL)
+        return ERROR_NOMEM;
 
-    root_pages = vm_page_alloc(PMAP_RPTP_ORDER, VM_PAGE_PMAP);
-
-    if (root_pages == NULL) {
-        error = ERROR_NOMEM;
-        goto error_pages;
-    }
-
-    pmap->root_ptp_pa = vm_page_to_pa(root_pages);
-
-#ifdef X86_PAE
-    pmap->pdpt = kmem_cache_alloc(&pmap_pdpt_cache);
-
-    if (pmap->pdpt == NULL) {
-        error = ERROR_NOMEM;
-        goto error_pdpt;
-    }
-
-    va = (unsigned long)pmap->pdpt;
-    assert(P2ALIGNED(va, PMAP_PDPT_ALIGN));
-
-    for (i = 0; i < PMAP_NR_RPTPS; i++)
-        pmap->pdpt[i] = (pmap->root_ptp_pa + (i * PAGE_SIZE)) | PMAP_PTE_P;
-
-    pa = pmap_extract_ptemap(va) + (va & PAGE_MASK);
-    assert(pa < VM_PAGE_NORMAL_LIMIT);
-    pmap->pdpt_pa = (unsigned long)pa;
-#endif /* X86_PAE */
-
-    pt_level = &pmap_pt_levels[PMAP_NR_LEVELS - 1];
-    kpt = pt_level->ptemap_base;
-    index = PMAP_PTEMAP_INDEX(VM_PMAP_PTEMAP_ADDRESS, pt_level->shift);
-
-    mutex_init(&pmap->lock);
-    cpumap_zero(&pmap->cpumap);
-
-    /* The pmap list lock also protects the shared root page table entries */
-    mutex_lock(&pmap_list_lock);
-    root_ptp_mapping = pmap_map_ptp(pmap->root_ptp_pa, PMAP_NR_RPTPS);
-    pt = (pmap_pte_t *)root_ptp_mapping->va;
-
-    memset(pt, 0, index * sizeof(pmap_pte_t));
-    index += PMAP_NR_RPTPS;
-    memcpy(&pt[index], &kpt[index], (pt_level->ptes_per_ptp - index)
-                                    * sizeof(pmap_pte_t));
-
-    for (i = 0; i < PMAP_NR_RPTPS; i++) {
-        va = VM_PMAP_PTEMAP_ADDRESS + (i * (1UL << pt_level->shift));
-        index = (va >> pt_level->shift) & ((1UL << pt_level->bits) - 1);
-        pa = pmap->root_ptp_pa + (i * PAGE_SIZE);
-        pt[index] = (pa | PMAP_PTE_RW | PMAP_PTE_P) & pt_level->mask;
-    }
-
-    pmap_unmap_ptp(root_ptp_mapping, PMAP_NR_RPTPS);
-    list_insert_tail(&pmap_list, &pmap->node);
-    mutex_unlock(&pmap_list_lock);
+    for (i = 0; i < ARRAY_SIZE(pmap->cpu_tables); i++)
+        pmap->cpu_tables[i] = NULL;
 
     *pmapp = pmap;
     return 0;
-
-#ifdef X86_PAE
-error_pdpt:
-    vm_page_free(root_pages, PMAP_RPTP_ORDER);
-#endif /* X86_PAE */
-error_pages:
-    kmem_cache_free(&pmap_cache, pmap);
-error_pmap:
-    return error;
-}
-
-static void
-pmap_enter_ptemap_sync_kernel(unsigned long index)
-{
-    const struct pmap_pt_level *pt_level;
-    struct pmap_tmp_mapping *root_ptp_mapping;
-    struct pmap *pmap, *current;
-    pmap_pte_t *root_ptp;
-
-    pt_level = &pmap_pt_levels[PMAP_NR_LEVELS - 1];
-    assert(index < pt_level->ptes_per_ptp);
-    current = pmap_current();
-
-    mutex_lock(&pmap_list_lock);
-
-    list_for_each_entry(&pmap_list, pmap, node) {
-        if (pmap == current)
-            continue;
-
-        root_ptp_mapping = pmap_map_ptp(pmap->root_ptp_pa, PMAP_NR_RPTPS);
-        root_ptp = (pmap_pte_t *)root_ptp_mapping->va;
-        assert(root_ptp[index] == 0);
-        root_ptp[index] = pt_level->ptemap_base[index];
-        pmap_unmap_ptp(root_ptp_mapping, PMAP_NR_RPTPS);
-    }
-
-    mutex_unlock(&pmap_list_lock);
-
-    /*
-     * Since kernel page table pages can only be added, it is certain there
-     * could be no previous translation for them in the recursive mapping.
-     * As a result, there is no need to flush TLBs.
-     */
 }
 
 static void
@@ -1033,7 +1053,7 @@ pmap_enter_ptemap_inc_nr_ptes(const pmap_pte_t *pte)
     page->pmap_page.nr_ptes++;
 }
 
-static int
+static void
 pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
 {
     const struct pmap_pt_level *pt_level;
@@ -1065,21 +1085,13 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
             ptp_pa = vm_page_bootalloc();
         } else {
             page = vm_page_alloc(0, VM_PAGE_PMAP);
-
-            /* TODO Release page table pages */
-            if (page == NULL)
-                return ERROR_NOMEM;
-
+            assert(page != NULL);
             ptp_pa = vm_page_to_pa(page);
         }
 
         pmap_enter_ptemap_inc_nr_ptes(pte);
         pmap_zero_page(ptp_pa);
         pmap_pte_set(pte, ptp_pa, pte_bits, level);
-
-        if ((pmap == kernel_pmap) && (level == (PMAP_NR_LEVELS - 1)))
-            pmap_enter_ptemap_sync_kernel(index);
-
     }
 
     pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L0_SHIFT);
@@ -1087,19 +1099,52 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
     pte_bits = ((pmap == kernel_pmap) ? PMAP_PTE_G : PMAP_PTE_US)
                | pmap_prot_table[prot & VM_PROT_ALL];
     pmap_pte_set(pte, pa, pte_bits, 0);
-    return 0;
 }
 
-int
-pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
+static void
+pmap_enter_local(struct pmap *pmap, unsigned long va, phys_addr_t pa,
+                 int prot, int flags)
 {
+    (void)flags;
+
+    if ((pmap == kernel_pmap) || (pmap == pmap_current())) {
+        pmap_enter_ptemap(pmap, va, pa, prot);
+        return;
+    }
+
+    /* TODO Handle unloaded pmaps */
+    panic("pmap: unable to handle unloaded pmap, not implemented yet");
+}
+
+void
+pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
+           int prot, int flags)
+{
+    struct pmap_update_oplist *oplist;
+    struct pmap_update_op *op;
+
     pmap_assert_range(pmap, va, va + PAGE_SIZE);
 
-    if ((pmap == kernel_pmap) || (pmap == pmap_current()))
-        return pmap_enter_ptemap(pmap, va, pa, prot);
+    oplist = pmap_update_oplist_get();
+    pmap_update_oplist_prepare(oplist, pmap);
 
-    /* TODO Complete pmap_enter() */
-    panic("pmap: pmap_enter not completely implemented yet");
+    op = &oplist->ops[oplist->nr_ops];
+
+    if (flags & PMAP_PEF_GLOBAL)
+        cpumap_copy(&op->cpumap, cpumap_all());
+    else {
+        cpumap_zero(&op->cpumap);
+        cpumap_set(&op->cpumap, cpu_id());
+    }
+
+    op->operation = PMAP_UPDATE_OP_ENTER;
+    op->enter_args.va = va;
+    op->enter_args.pa = pa;
+    op->enter_args.prot = prot;
+    op->enter_args.flags = flags & ~PMAP_PEF_GLOBAL;
+
+    pmap_update_oplist_inc_nr_ops(oplist, op);
+    pmap_update_oplist_inc_nr_mappings(oplist, op);
 }
 
 static void
@@ -1121,7 +1166,7 @@ pmap_remove_ptemap(struct pmap *pmap, unsigned long start, unsigned long end)
 {
     pmap_pte_t *pte;
 
-    pmap_assert_range(pmap, start, end);
+    (void)pmap;
 
     while (start < end) {
         pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L0_SHIFT);
@@ -1133,59 +1178,360 @@ pmap_remove_ptemap(struct pmap *pmap, unsigned long start, unsigned long end)
     /* TODO Release page table pages */
 }
 
-void
-pmap_remove(struct pmap *pmap, unsigned long start, unsigned long end)
+static void
+pmap_remove_local(struct pmap *pmap, unsigned long start, unsigned long end)
 {
     if ((pmap == kernel_pmap) || (pmap == pmap_current())) {
         pmap_remove_ptemap(pmap, start, end);
         return;
     }
 
-    /* TODO Complete pmap_remove() */
-    panic("pmap: pmap_remove not completely implemented yet");
+    /* TODO Handle unloaded pmaps */
+    panic("pmap: unable to handle unloaded pmap, not implemented yet");
+}
+
+void
+pmap_remove(struct pmap *pmap, unsigned long va, const struct cpumap *cpumap)
+{
+    struct pmap_update_oplist *oplist;
+    struct pmap_update_op *op;
+
+    pmap_assert_range(pmap, va, va + PAGE_SIZE);
+
+    oplist = pmap_update_oplist_get();
+    pmap_update_oplist_prepare(oplist, pmap);
+
+    /* Attempt naive merge with previous operation */
+    if (oplist->nr_ops != 0) {
+        op = &oplist->ops[oplist->nr_ops - 1];
+
+        if ((op->operation == PMAP_UPDATE_OP_REMOVE)
+            && (op->remove_args.end == va)
+            && (cpumap_cmp(&op->cpumap, cpumap) == 0)) {
+            op->remove_args.end = va + PAGE_SIZE;
+            goto out;
+        }
+    }
+
+    op = &oplist->ops[oplist->nr_ops];
+    cpumap_copy(&op->cpumap, cpumap);
+    op->operation = PMAP_UPDATE_OP_REMOVE;
+    op->remove_args.start = va;
+    op->remove_args.end = va + PAGE_SIZE;
+
+    pmap_update_oplist_inc_nr_ops(oplist, op);
+
+out:
+    pmap_update_oplist_inc_nr_mappings(oplist, op);
+}
+
+static void
+pmap_protect_ptemap(unsigned long start, unsigned long end, int prot)
+{
+    pmap_pte_t *pte, flags;
+
+    flags = pmap_prot_table[prot & VM_PROT_ALL];
+
+    while (start < end) {
+        pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L0_SHIFT);
+        *pte = (*pte & ~PMAP_PTE_PROT_MASK) | flags;
+        start += PAGE_SIZE;
+    }
+}
+
+static void
+pmap_protect_local(struct pmap *pmap, unsigned long start, unsigned long end,
+                   int prot)
+{
+    if ((pmap == kernel_pmap) || (pmap == pmap_current())) {
+        pmap_protect_ptemap(start, end, prot);
+        return;
+    }
+
+    /* TODO Handle unloaded pmaps */
+    panic("pmap: unable to handle unloaded pmap, not implemented yet");
+}
+
+void
+pmap_protect(struct pmap *pmap, unsigned long va, int prot,
+             const struct cpumap *cpumap)
+{
+    struct pmap_update_oplist *oplist;
+    struct pmap_update_op *op;
+
+    pmap_assert_range(pmap, va, va + PAGE_SIZE);
+
+    oplist = pmap_update_oplist_get();
+    pmap_update_oplist_prepare(oplist, pmap);
+
+    /* Attempt naive merge with previous operation */
+    if (oplist->nr_ops != 0) {
+        op = &oplist->ops[oplist->nr_ops - 1];
+
+        if ((op->operation == PMAP_UPDATE_OP_PROTECT)
+            && (op->protect_args.end == va)
+            && (op->protect_args.prot == prot)
+            && (cpumap_cmp(&op->cpumap, cpumap) == 0)) {
+            op->protect_args.end = va + PAGE_SIZE;
+            goto out;
+        }
+    }
+
+    op = &oplist->ops[oplist->nr_ops];
+    cpumap_copy(&op->cpumap, cpumap);
+    op->operation = PMAP_UPDATE_OP_PROTECT;
+    op->protect_args.start = va;
+    op->protect_args.end = va + PAGE_SIZE;
+    op->protect_args.prot = prot;
+
+    pmap_update_oplist_inc_nr_ops(oplist, op);
+
+out:
+    pmap_update_oplist_inc_nr_mappings(oplist, op);
+}
+
+static phys_addr_t
+pmap_extract_ptemap(unsigned long va)
+{
+    const struct pmap_pt_level *pt_level;
+    unsigned long index;
+    unsigned int level;
+    pmap_pte_t *pte;
+
+    for (level = PMAP_NR_LEVELS - 1; level < PMAP_NR_LEVELS; level--) {
+        pt_level = &pmap_pt_levels[level];
+        index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
+        pte = &pt_level->ptemap_base[index];
+
+        if (*pte == 0)
+            return 0;
+    }
+
+    return *pte & PMAP_PA_MASK;
+}
+
+phys_addr_t
+pmap_extract(struct pmap *pmap, unsigned long va)
+{
+    pmap_assert_range(pmap, va, va + PAGE_SIZE);
+
+    if ((pmap == kernel_pmap) || (pmap == pmap_current()))
+        return pmap_extract_ptemap(va);
+
+    /* TODO Handle unloaded pmaps */
+    panic("pmap: unable to handle unloaded pmap, not implemented yet");
+}
+
+static void
+pmap_flush_tlb(struct pmap *pmap, unsigned long start, unsigned long end)
+{
+    if ((pmap != pmap_current()) && (pmap != kernel_pmap))
+        return;
+
+    while (start < end) {
+        cpu_tlb_flush_va(start);
+        start += PAGE_SIZE;
+    }
+}
+
+static void
+pmap_flush_tlb_all(struct pmap *pmap)
+{
+    if ((pmap != pmap_current()) && (pmap != kernel_pmap))
+        return;
+
+    if (pmap == kernel_pmap)
+        cpu_tlb_flush_all();
+    else
+        cpu_tlb_flush();
+}
+
+static void
+pmap_update_enter(struct pmap *pmap, int flush_tlb_entries,
+                  const struct pmap_update_enter_args *args)
+{
+    pmap_enter_local(pmap, args->va, args->pa, args->prot, args->flags);
+
+    if (flush_tlb_entries)
+        pmap_flush_tlb(pmap, args->va, args->va + PAGE_SIZE);
+}
+
+static void
+pmap_update_remove(struct pmap *pmap, int flush_tlb_entries,
+                   const struct pmap_update_remove_args *args)
+{
+    pmap_remove_local(pmap, args->start, args->end);
+
+    if (flush_tlb_entries)
+        pmap_flush_tlb(pmap, args->start, args->end);
+}
+
+static void
+pmap_update_protect(struct pmap *pmap, int flush_tlb_entries,
+                    const struct pmap_update_protect_args *args)
+{
+    pmap_protect_local(pmap, args->start, args->end, args->prot);
+
+    if (flush_tlb_entries)
+        pmap_flush_tlb(pmap, args->start, args->end);
+}
+
+static void
+pmap_update_local(const struct pmap_update_oplist *oplist,
+                  unsigned int nr_mappings)
+{
+    const struct pmap_update_op *op;
+    unsigned int i, cpu;
+    int flush_tlb_entries;
+
+    cpu = cpu_id();
+    flush_tlb_entries = (nr_mappings <= PMAP_UPDATE_MAX_MAPPINGS);
+
+    for (i = 0; i < oplist->nr_ops; i++) {
+        op = &oplist->ops[i];
+
+        if (!cpumap_test(&op->cpumap, cpu))
+            continue;
+
+        switch (op->operation) {
+        case PMAP_UPDATE_OP_ENTER:
+            pmap_update_enter(oplist->pmap, flush_tlb_entries,
+                              &op->enter_args);
+            break;
+        case PMAP_UPDATE_OP_REMOVE:
+            pmap_update_remove(oplist->pmap, flush_tlb_entries,
+                               &op->remove_args);
+            break;
+        case PMAP_UPDATE_OP_PROTECT:
+            pmap_update_protect(oplist->pmap, flush_tlb_entries,
+                                &op->protect_args);
+            break;
+        default:
+            assert(!"invalid update operation");
+        }
+    }
+
+    if (!flush_tlb_entries)
+        pmap_flush_tlb_all(oplist->pmap);
+}
+
+void
+pmap_update(struct pmap *pmap)
+{
+    struct pmap_update_oplist *oplist;
+    struct pmap_update_request *request;
+    struct pmap_update_queue *queue;
+    int cpu;
+
+    oplist = pmap_update_oplist_get();
+
+    if (pmap != oplist->pmap)
+        return;
+
+    assert(oplist->nr_ops != 0);
+
+    if (!pmap_do_remote_updates) {
+        request = &oplist->requests[cpu_id()];
+        pmap_update_local(oplist, request->nr_mappings);
+
+        cpumap_for_each(&oplist->cpumap, cpu) {
+            request = &oplist->requests[cpu];
+            request->nr_mappings = 0;
+        }
+
+        goto out;
+    }
+
+    cpumap_for_each(&oplist->cpumap, cpu) {
+        request = &oplist->requests[cpu];
+        queue = &pmap_syncers[cpu].queue;
+
+        assert(!request->done);
+        assert(request->nr_mappings != 0);
+
+        mutex_lock(&queue->lock);
+        list_insert_tail(&queue->requests, &request->node);
+        condition_signal(&queue->cond);
+        mutex_unlock(&queue->lock);
+    }
+
+    cpumap_for_each(&oplist->cpumap, cpu) {
+        request = &oplist->requests[cpu];
+
+        mutex_lock(&request->lock);
+
+        while (!request->done)
+            condition_wait(&request->cond, &request->lock);
+
+        request->nr_mappings = 0;
+        request->done = 0;
+
+        mutex_unlock(&request->lock);
+    }
+
+out:
+    cpumap_zero(&oplist->cpumap);
+    oplist->pmap = NULL;
+    oplist->nr_ops = 0;
+}
+
+static void
+pmap_sync(void *arg)
+{
+    const struct pmap_update_oplist *oplist;
+    struct pmap_update_queue *queue;
+    struct pmap_update_request *request, *requests;
+    struct pmap_syncer *self;
+    unsigned int cpu;
+
+    self = arg;
+    queue = &self->queue;
+    cpu = self - pmap_syncers;
+
+    for (;;) {
+        mutex_lock(&queue->lock);
+
+        while (list_empty(&queue->requests))
+            condition_wait(&queue->cond, &queue->lock);
+
+        request = list_first_entry(&queue->requests,
+                                   struct pmap_update_request, node);
+        list_remove(&request->node);
+
+        mutex_unlock(&queue->lock);
+
+        requests = request - cpu;
+        oplist = structof(requests, struct pmap_update_oplist, requests);
+        pmap_update_local(oplist, request->nr_mappings);
+
+        mutex_lock(&request->lock);
+        request->done = 1;
+        condition_signal(&request->cond);
+        mutex_unlock(&request->lock);
+    }
 }
 
 void
 pmap_load(struct pmap *pmap)
 {
-    struct pmap *prev;
-    unsigned int cpu;
+    struct pmap_cpu_table *cpu_table;
 
     assert(!cpu_intr_enabled());
     assert(!thread_preempt_enabled());
 
-    prev = pmap_current();
-
-    if (prev == pmap)
+    if (pmap_current() == pmap)
         return;
 
-    cpu = cpu_id();
+    /* TODO Lazy TLB invalidation */
 
-    /*
-     * The kernel pmap is considered always loaded on every processor. As a
-     * result, its CPU map is never changed. In addition, don't bother
-     * flushing the TLB when switching to a kernel thread, which results in
-     * a form of lazy TLB invalidation.
-     *
-     * TODO As an exception, force switching when the currently loaded pmap
-     * is about to be destroyed.
-     */
-    if (prev == kernel_pmap) {
-        cpu_percpu_set_pmap(pmap);
-        cpumap_set_atomic(&pmap->cpumap, cpu);
-    } else if (pmap == kernel_pmap) {
-        cpumap_clear_atomic(&prev->cpumap, cpu);
-        cpu_percpu_set_pmap(kernel_pmap);
-        return;
-    } else {
-        cpumap_clear_atomic(&prev->cpumap, cpu);
-        cpu_percpu_set_pmap(pmap);
-        cpumap_set_atomic(&pmap->cpumap, cpu);
-    }
+    cpu_percpu_set_pmap(pmap);
+
+    /* TODO Implement per-CPU page tables for non-kernel pmaps */
+    cpu_table = pmap->cpu_tables[cpu_id()];
 
 #ifdef X86_PAE
-    cpu_set_cr3(pmap->pdpt_pa);
+    cpu_set_cr3(cpu_table->pdpt_pa);
 #else /* X86_PAE */
-    cpu_set_cr3(pmap->root_ptp_pa);
+    cpu_set_cr3(cpu_table->root_ptp_pa);
 #endif /* X86_PAE */
 }

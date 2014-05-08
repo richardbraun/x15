@@ -96,12 +96,19 @@
 
 #ifndef __ASSEMBLER__
 
+#include <kern/cpumap.h>
 #include <kern/list.h>
 #include <kern/mutex.h>
 #include <kern/stdint.h>
+#include <kern/thread.h>
 #include <kern/types.h>
 #include <machine/cpu.h>
 #include <machine/trap.h>
+
+/*
+ * Mapping creation flags.
+ */
+#define PMAP_PEF_GLOBAL 0x1 /* Create a mapping on all processors */
 
 #ifdef X86_PAE
 typedef uint64_t pmap_pte_t;
@@ -111,23 +118,8 @@ typedef unsigned long pmap_pte_t;
 
 /*
  * Physical address map.
- *
- * TODO Define locking protocol.
  */
-struct pmap {
-    struct mutex lock;
-    struct list node;
-    phys_addr_t root_ptp_pa;
-#ifdef X86_PAE
-    pmap_pte_t *pdpt;
-
-    /* The page-directory-pointer base is always 32-bits wide */
-    unsigned long pdpt_pa;
-#endif /* X86_PAE */
-
-    /* Processors on which this pmap is loaded */
-    struct cpumap cpumap;
-};
+struct pmap;
 
 /*
  * The kernel pmap.
@@ -180,40 +172,6 @@ void pmap_ap_bootstrap(void);
 unsigned long pmap_bootalloc(unsigned int nr_pages);
 
 /*
- * Set the protection of mappings in a physical map.
- */
-void pmap_protect(struct pmap *pmap, unsigned long start, unsigned long end,
-                  int prot);
-
-/*
- * Extract a mapping from a physical map.
- *
- * This function walks the page tables to retreive the physical address
- * mapped at the given virtual address. If there is no mapping for the
- * virtual address, 0 is returned (implying that page 0 is always reserved).
- */
-phys_addr_t pmap_extract(struct pmap *pmap, unsigned long va);
-
-/*
- * Perform the required TLB invalidations so that a physical map is up to
- * date on all processors using it.
- *
- * Functions that require updating are :
- *  - pmap_enter
- *  - pmap_remove
- *  - pmap_protect
- *
- * If the kernel has reached a state where IPIs may be used to update remote
- * processor TLBs, interrupts must be enabled when calling this function.
- */
-void pmap_update(struct pmap *pmap, unsigned long start, unsigned long end);
-
-/*
- * Interrupt handler for inter-processor update requests.
- */
-void pmap_update_intr(struct trap_frame *frame);
-
-/*
  * Set up the pmap module.
  *
  * This function should only be called by the VM system, once kernel
@@ -224,9 +182,16 @@ void pmap_setup(void);
 /*
  * Set up the pmap module for multiprocessor operations.
  *
- * This function basically enables pmap updates across processors.
+ * This function copies the current page tables so that each processor has
+ * its own set of page tables. As a result, it must be called right before
+ * starting APs to make sure all processors have the same mappings.
  */
 void pmap_mp_setup(void);
+
+/*
+ * Initialize pmap thread-specific data for the given thread.
+ */
+int pmap_thread_init(struct thread *thread);
 
 /*
  * Create a pmap for a user task.
@@ -239,15 +204,51 @@ int pmap_create(struct pmap **pmapp);
  * If protection is VM_PROT_NONE, this function behaves as if it were
  * VM_PROT_READ. There must not be an existing valid mapping for the given
  * virtual address.
+ *
+ * If the mapping is local, it is the responsibility of the caller to take
+ * care of migration.
  */
-int pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot);
+void pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
+                int prot, int flags);
 
 /*
- * Remove mappings from a physical map.
- *
- * Non existent mappings are allowed in the given range.
+ * Remove a mapping from a physical map.
  */
-void pmap_remove(struct pmap *pmap, unsigned long start, unsigned long end);
+void pmap_remove(struct pmap *pmap, unsigned long va,
+                 const struct cpumap *cpumap);
+
+/*
+ * Set the protection of a mapping in a physical map.
+ */
+void pmap_protect(struct pmap *pmap, unsigned long va, int prot,
+                  const struct cpumap *cpumap);
+
+/*
+ * Extract a mapping from a physical map.
+ *
+ * This function walks the page tables to retreive the physical address
+ * mapped at the given virtual address. If there is no mapping for the
+ * virtual address, 0 is returned (implying that page 0 is always reserved).
+ */
+phys_addr_t pmap_extract(struct pmap *pmap, unsigned long va);
+
+/*
+ * Force application of pending modifications on a physical map.
+ *
+ * The functions that may defer physical map modifications are :
+ *  - pmap_enter
+ *  - pmap_remove
+ *  - pmap_protect
+ *
+ * On return, all operations previously performed by the calling thread are
+ * guaranteed to be applied on their respective processors.
+ *
+ * Note that pmap_update() doesn't guarantee that modifications performed
+ * by different threads are applied.
+ *
+ * Implies a full memory barrier.
+ */
+void pmap_update(struct pmap *pmap);
 
 /*
  * Load the given pmap on the current processor.
@@ -256,6 +257,12 @@ void pmap_remove(struct pmap *pmap, unsigned long start, unsigned long end);
  */
 void pmap_load(struct pmap *pmap);
 
+/*
+ * Return the pmap currently loaded on the processor.
+ *
+ * Since threads may borrow pmaps, this can be different than the pmap
+ * of the caller.
+ */
 static inline struct pmap *
 pmap_current(void)
 {

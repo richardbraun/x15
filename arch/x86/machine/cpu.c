@@ -520,10 +520,6 @@ cpu_mp_setup(void)
     io_write_byte(CPU_MP_CMOS_PORT_REG, CPU_MP_CMOS_REG_RESET);
     io_write_byte(CPU_MP_CMOS_PORT_DATA, CPU_MP_CMOS_DATA_RESET_WARM);
 
-    /*
-     * Preallocate stacks now, as the kernel mappings shouldn't change while
-     * the APs are starting.
-     */
     for (i = 1; i < cpu_array_size; i++) {
         cpu = &cpu_array[i];
         cpu->double_fault_stack = vm_kmem_alloc(STACK_SIZE);
@@ -531,6 +527,13 @@ cpu_mp_setup(void)
         if (cpu->double_fault_stack == 0)
             panic("cpu: unable to allocate double fault stack for cpu%u", i);
     }
+
+    /*
+     * This function creates per-CPU copies of the page tables. As a result,
+     * it must be called right before starting APs so that all processors have
+     * the same mappings.
+     */
+    pmap_mp_setup();
 
     for (i = 1; i < cpu_array_size; i++) {
         cpu = &cpu_array[i];
@@ -549,8 +552,6 @@ cpu_mp_setup(void)
         while (cpu->state == CPU_STATE_OFF)
             cpu_pause();
     }
-
-    pmap_mp_setup();
 }
 
 void __init

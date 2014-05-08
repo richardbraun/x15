@@ -41,8 +41,9 @@
 /*
  * Page usage types.
  *
- * Types aren't actually used. They merely provide statistics and debugging
- * information.
+ * Failing to allocate pmap pages will cause a kernel panic.
+ * TODO Obviously, this needs to be addressed, e.g. with a reserved pool of
+ * pages.
  */
 #define VM_PAGE_FREE        0   /* Page unused */
 #define VM_PAGE_RESERVED    1   /* Page reserved at boot time */

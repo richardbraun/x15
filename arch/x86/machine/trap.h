@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2011-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,9 +53,8 @@
  *
  * The local APIC assigns one priority every 16 vectors.
  */
-#define TRAP_LLSYNC_RESET       237
-#define TRAP_THREAD_SCHEDULE    238
-#define TRAP_PMAP_UPDATE        239
+#define TRAP_LLSYNC_RESET       238
+#define TRAP_THREAD_SCHEDULE    239
 #define TRAP_CPU_HALT           240
 #define TRAP_LAPIC_TIMER        253
 #define TRAP_LAPIC_ERROR        254
