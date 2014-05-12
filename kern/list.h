@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2010 Richard Braun.
+ * Copyright (c) 2009-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -157,16 +157,19 @@ list_singular(const struct list *list)
 }
 
 /*
- * Split list2 by moving its nodes up to (but not including) the given
- * node into list1 (which can be in a stale state).
+ * Split list2 by moving its nodes up to, but not including, the given
+ * node into list1, which can be in a stale state.
  *
- * If list2 is empty, or node is list2 or list2->next, nothing is done.
+ * If list2 is empty, or node is list2 or list2->next, list1 is merely
+ * initialized.
  */
 static inline void
 list_split(struct list *list1, struct list *list2, struct list *node)
 {
-    if (list_empty(list2) || (list2->next == node) || list_end(list2, node))
+    if (list_empty(list2) || (list2->next == node) || list_end(list2, node)) {
+        list_init(list1);
         return;
+    }
 
     list1->next = list2->next;
     list1->next->prev = list1;
