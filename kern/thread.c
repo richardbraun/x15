@@ -85,6 +85,7 @@
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
+#include <kern/evcnt.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
@@ -203,6 +204,8 @@ struct thread_runq {
 
     /* Ticks before the next balancing attempt when a run queue is idle */
     unsigned int idle_balance_ticks;
+
+    struct evcnt ev_tick;
 } __aligned(CPU_L1_SIZE);
 
 /*
@@ -340,9 +343,17 @@ thread_runq_init_ts(struct thread_runq *runq)
     thread_ts_runq_init(runq->ts_runq_expired);
 }
 
+static inline unsigned int
+thread_runq_id(struct thread_runq *runq)
+{
+    return runq - thread_runqs;
+}
+
 static void __init
 thread_runq_init(struct thread_runq *runq, struct thread *booter)
 {
+    char name[EVCNT_NAME_SIZE];
+
     spinlock_init(&runq->lock);
     runq->nr_threads = 0;
     runq->current = booter;
@@ -351,12 +362,8 @@ thread_runq_init(struct thread_runq *runq, struct thread *booter)
     runq->balancer = NULL;
     runq->idler = NULL;
     runq->idle_balance_ticks = (unsigned int)-1;
-}
-
-static inline unsigned int
-thread_runq_id(struct thread_runq *runq)
-{
-    return runq - thread_runqs;
+    snprintf(name, sizeof(name), "thread_tick/%u", thread_runq_id(runq));
+    evcnt_register(&runq->ev_tick, name);
 }
 
 static inline struct thread_runq *
@@ -1982,6 +1989,8 @@ thread_tick(void)
     thread = thread_self();
 
     spinlock_lock(&runq->lock);
+
+    evcnt_inc(&runq->ev_tick);
 
     if (runq->nr_threads == 0)
         thread_balance_idle_tick(runq);
