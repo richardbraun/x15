@@ -42,6 +42,7 @@
  * to "enabling paging" do not refer to this initial identity mapping.
  */
 
+#include <kern/evcnt.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/kernel.h>
@@ -266,6 +267,7 @@ boot_save_data(void)
 void __init
 boot_main(void)
 {
+    evcnt_setup();
     trap_setup();
     cpu_setup();
     thread_bootstrap();
