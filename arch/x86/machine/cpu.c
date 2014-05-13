@@ -594,7 +594,7 @@ cpu_thread_schedule_intr(struct trap_frame *frame)
 
     lapic_eoi();
 
-    /* Let the return from interrupt code invoke the scheduler */
+    thread_schedule_intr();
 }
 
 void

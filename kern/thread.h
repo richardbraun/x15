@@ -307,6 +307,11 @@ void __noreturn thread_run_scheduler(void);
 void thread_yield(void);
 
 /*
+ * Report a scheduling interrupt from a remote processor.
+ */
+void thread_schedule_intr(void);
+
+/*
  * Report a periodic timer interrupt on the thread currently running on
  * the local processor.
  *
