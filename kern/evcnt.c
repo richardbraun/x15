@@ -50,12 +50,12 @@ void
 evcnt_info(struct evcnt *evcnt)
 {
     if (evcnt == NULL) {
-        printk("evcnt: name                          count\n");
+        printk("evcnt: name                               count\n");
 
         mutex_lock(&evcnt_mutex);
 
         list_for_each_entry(&evcnt_list, evcnt, node)
-            printk("evcnt: %-19s %15llu\n", evcnt->name, evcnt->count);
+            printk("evcnt: %-24s %15llu\n", evcnt->name, evcnt->count);
 
         mutex_unlock(&evcnt_mutex);
 
