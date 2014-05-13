@@ -68,10 +68,8 @@ evcnt_inc(struct evcnt *evcnt)
 }
 
 /*
- * Display the event counter name and value.
- *
- * If evcnt is NULL, this function displays all registered counters.
+ * Display the registered event counters.
  */
-void evcnt_info(struct evcnt *evcnt);
+void evcnt_info(void);
 
 #endif /* _KERN_EVCNT_H */

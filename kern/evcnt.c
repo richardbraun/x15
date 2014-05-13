@@ -47,20 +47,16 @@ evcnt_register(struct evcnt *evcnt, const char *name)
 }
 
 void
-evcnt_info(struct evcnt *evcnt)
+evcnt_info(void)
 {
-    if (evcnt == NULL) {
-        printk("evcnt: name                               count\n");
+    struct evcnt *evcnt;
 
-        mutex_lock(&evcnt_mutex);
+    printk("evcnt: name                               count\n");
 
-        list_for_each_entry(&evcnt_list, evcnt, node)
-            printk("evcnt: %-24s %15llu\n", evcnt->name, evcnt->count);
+    mutex_lock(&evcnt_mutex);
 
-        mutex_unlock(&evcnt_mutex);
+    list_for_each_entry(&evcnt_list, evcnt, node)
+        printk("evcnt: %-24s %15llu\n", evcnt->name, evcnt->count);
 
-        return;
-    }
-
-    printk("evcnt: name: %s count: %llu\n", evcnt->name, evcnt->count);
+    mutex_unlock(&evcnt_mutex);
 }
