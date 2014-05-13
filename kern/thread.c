@@ -2002,12 +2002,11 @@ thread_tick_intr(void)
     assert(!thread_preempt_enabled());
 
     runq = thread_runq_local();
+    evcnt_inc(&runq->ev_tick);
     llsync_commit_checkpoint(thread_runq_id(runq));
     thread = thread_self();
 
     spinlock_lock(&runq->lock);
-
-    evcnt_inc(&runq->ev_tick);
 
     if (runq->nr_threads == 0)
         thread_balance_idle_tick(runq);
