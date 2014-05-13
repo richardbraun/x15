@@ -317,7 +317,7 @@ void thread_schedule_intr(void);
  *
  * Called from interrupt context.
  */
-void thread_tick(void);
+void thread_tick_intr(void);
 
 static inline struct thread *
 thread_from_tcb(struct tcb *tcb)

@@ -1993,7 +1993,7 @@ thread_schedule_intr(void)
 }
 
 void
-thread_tick(void)
+thread_tick_intr(void)
 {
     struct thread_runq *runq;
     struct thread *thread;

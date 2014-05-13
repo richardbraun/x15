@@ -341,7 +341,7 @@ lapic_intr_timer(struct trap_frame *frame)
     (void)frame;
 
     lapic_eoi();
-    thread_tick();
+    thread_tick_intr();
 }
 
 void
