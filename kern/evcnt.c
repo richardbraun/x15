@@ -28,7 +28,6 @@
 static struct list evcnt_list;
 static struct mutex evcnt_mutex;
 
-
 void __init
 evcnt_setup(void)
 {
