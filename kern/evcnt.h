@@ -56,15 +56,25 @@ void evcnt_register(struct evcnt *evcnt, const char *name);
  * Increment the given counter.
  *
  * It is the responsibility of the caller to synchronize access to the
- * counter. In addition, since counters are 64-bits wide, retrieving them
- * on 32-bits systems might return invalid values, although this should be
- * very rare. As long as users don't rely on them for critical operations,
- * this is completely harmless.
+ * counter.
  */
 static inline void
 evcnt_inc(struct evcnt *evcnt)
 {
     evcnt->count++;
+}
+
+/*
+ * Obtain the current value of the given counter.
+ *
+ * Since counters are 64-bits wide, retrieving them on 32-bits systems might
+ * return invalid values, although this should be very rare. As long as users
+ * don't rely on them for critical operations, this is completely harmless.
+ */
+static inline unsigned long long
+evcnt_read(const struct evcnt *evcnt)
+{
+    return evcnt->count;
 }
 
 /*
