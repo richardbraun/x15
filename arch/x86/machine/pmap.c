@@ -19,6 +19,7 @@
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
+#include <kern/evcnt.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
@@ -286,6 +287,10 @@ struct pmap_update_queue {
 struct pmap_syncer {
     struct thread *thread;
     struct pmap_update_queue queue;
+    struct evcnt ev_update;
+    struct evcnt ev_update_enter;
+    struct evcnt ev_update_remove;
+    struct evcnt ev_update_protect;
 } __aligned(CPU_L1_SIZE);
 
 static void pmap_sync(void *arg);
@@ -599,6 +604,28 @@ pmap_update_oplist_inc_nr_mappings(struct pmap_update_oplist *oplist,
     }
 }
 
+static void __init
+pmap_syncer_init(struct pmap_syncer *syncer)
+{
+    char name[EVCNT_NAME_SIZE];
+    struct pmap_update_queue *queue;
+    unsigned int cpu;
+
+    cpu = syncer - pmap_syncers;
+    queue = &syncer->queue;
+    mutex_init(&queue->lock);
+    condition_init(&queue->cond);
+    list_init(&queue->requests);
+    snprintf(name, sizeof(name), "pmap_update/%u", cpu);
+    evcnt_register(&syncer->ev_update, name);
+    snprintf(name, sizeof(name), "pmap_update_enter/%u", cpu);
+    evcnt_register(&syncer->ev_update_enter, name);
+    snprintf(name, sizeof(name), "pmap_update_remove/%u", cpu);
+    evcnt_register(&syncer->ev_update_remove, name);
+    snprintf(name, sizeof(name), "pmap_update_protect/%u", cpu);
+    evcnt_register(&syncer->ev_update_protect, name);
+}
+
 void __init
 pmap_bootstrap(void)
 {
@@ -634,6 +661,8 @@ pmap_bootstrap(void)
         mutex_init(&pmap_ptp_mappings[cpu].lock);
         pmap_ptp_mappings[cpu].va = pmap_bootalloc(PMAP_NR_RPTPS);
     }
+
+    pmap_syncer_init(&pmap_syncers[0]);
 
     pmap_update_oplist_ctor(&pmap_booter_oplist);
     thread_key_create(&pmap_oplist_tsd_key, pmap_update_oplist_destroy);
@@ -968,11 +997,13 @@ pmap_mp_setup(void)
 {
     char name[THREAD_NAME_SIZE];
     struct thread_attr attr;
-    struct pmap_update_queue *queue;
     struct pmap_syncer *syncer;
     struct cpumap *cpumap;
     unsigned int cpu;
     int error;
+
+    for (cpu = 1; cpu < cpu_count(); cpu++)
+        pmap_syncer_init(&pmap_syncers[cpu]);
 
     error = cpumap_create(&cpumap);
 
@@ -981,10 +1012,6 @@ pmap_mp_setup(void)
 
     for (cpu = 0; cpu < cpu_count(); cpu++) {
         syncer = &pmap_syncers[cpu];
-        queue = &syncer->queue;
-        mutex_init(&queue->lock);
-        condition_init(&queue->cond);
-        list_init(&queue->requests);
         snprintf(name, sizeof(name), "x15_pmap_sync/%u", cpu);
         cpumap_zero(cpumap);
         cpumap_set(cpumap, cpu);
@@ -1381,10 +1408,13 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
                   unsigned int nr_mappings)
 {
     const struct pmap_update_op *op;
+    struct pmap_syncer *syncer;
     unsigned int i, cpu;
     int flush_tlb_entries;
 
     cpu = cpu_id();
+    syncer = &pmap_syncers[cpu];
+    evcnt_inc(&syncer->ev_update);
     flush_tlb_entries = (nr_mappings <= PMAP_UPDATE_MAX_MAPPINGS);
 
     for (i = 0; i < oplist->nr_ops; i++) {
@@ -1395,14 +1425,17 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
 
         switch (op->operation) {
         case PMAP_UPDATE_OP_ENTER:
+            evcnt_inc(&syncer->ev_update_enter);
             pmap_update_enter(oplist->pmap, flush_tlb_entries,
                               &op->enter_args);
             break;
         case PMAP_UPDATE_OP_REMOVE:
+            evcnt_inc(&syncer->ev_update_remove);
             pmap_update_remove(oplist->pmap, flush_tlb_entries,
                                &op->remove_args);
             break;
         case PMAP_UPDATE_OP_PROTECT:
+            evcnt_inc(&syncer->ev_update_protect);
             pmap_update_protect(oplist->pmap, flush_tlb_entries,
                                 &op->protect_args);
             break;
