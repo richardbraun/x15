@@ -94,13 +94,11 @@ static struct pmap_pt_level pmap_pt_levels[] __read_mostly = {
  * before the VM system is initialized.
  *
  * List of users :
- *  - pmap_zero_mapping (1 page per CPU)
- *  - pmap_ptp_mapping (PMAP_NR_RPTPS pages per CPU)
+ *  - pmap_zero_mapping (1 page)
+ *  - pmap_ptp_mapping (PMAP_NR_RPTPS pages)
  *  - CGA video memory (1 page)
  */
-#define PMAP_RESERVED_PAGES (MAX_CPUS                       \
-                             + (PMAP_NR_RPTPS * MAX_CPUS)   \
-                             + 1)
+#define PMAP_RESERVED_PAGES (1 + PMAP_NR_RPTPS + 1)
 
 /*
  * Addresses reserved for temporary mappings.
@@ -654,12 +652,18 @@ pmap_bootstrap(void)
     pmap_prot_table[VM_PROT_EXECUTE | VM_PROT_WRITE] = PMAP_PTE_RW;
     pmap_prot_table[VM_PROT_ALL] = PMAP_PTE_RW;
 
+    va = pmap_bootalloc(1);
+
     for (cpu = 0; cpu < MAX_CPUS; cpu++) {
         mutex_init(&pmap_zero_mappings[cpu].lock);
-        pmap_zero_mappings[cpu].va = pmap_bootalloc(1);
+        pmap_zero_mappings[cpu].va = va;
+    }
 
+    va = pmap_bootalloc(PMAP_NR_RPTPS);
+
+    for (cpu = 0; cpu < MAX_CPUS; cpu++) {
         mutex_init(&pmap_ptp_mappings[cpu].lock);
-        pmap_ptp_mappings[cpu].va = pmap_bootalloc(PMAP_NR_RPTPS);
+        pmap_ptp_mappings[cpu].va = va;
     }
 
     pmap_syncer_init(&pmap_syncers[0]);
