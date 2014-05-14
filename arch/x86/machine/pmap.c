@@ -902,12 +902,12 @@ pmap_setup(void)
 }
 
 static void __init
-pmap_copy_cpu_table_recursive(phys_addr_t pa, unsigned int level,
-                              unsigned long start_va)
+pmap_copy_cpu_table_recursive(struct vm_page *page, phys_addr_t pa,
+                              unsigned long start_va, unsigned int level)
 {
     const struct pmap_pt_level *pt_level;
     struct pmap_tmp_mapping *mapping;
-    struct vm_page *page;
+    const struct vm_page *orig_page;
     pmap_pte_t *spt, *dpt;
     phys_addr_t lower_pa;
     unsigned int i, nr_ptps, first = first, last = last;
@@ -916,6 +916,10 @@ pmap_copy_cpu_table_recursive(phys_addr_t pa, unsigned int level,
 
     pt_level = &pmap_pt_levels[level];
     spt = &pt_level->ptemap_base[PMAP_PTEMAP_INDEX(start_va, pt_level->shift)];
+
+    orig_page = vm_kmem_lookup_page((unsigned long)spt);
+    assert(orig_page != NULL);
+    page->pmap_page.nr_ptes = orig_page->pmap_page.nr_ptes;
 
     if (level == PMAP_NR_LEVELS - 1) {
         is_root = 1;
@@ -961,7 +965,7 @@ pmap_copy_cpu_table_recursive(phys_addr_t pa, unsigned int level,
 
             pmap_unmap_ptp(mapping, nr_ptps);
 
-            pmap_copy_cpu_table_recursive(lower_pa, level - 1, va);
+            pmap_copy_cpu_table_recursive(page, lower_pa, va, level - 1);
 
             mapping = pmap_map_ptp(pa, nr_ptps);
             dpt = (pmap_pte_t *)mapping->va;
@@ -982,7 +986,7 @@ pmap_copy_cpu_table(unsigned int cpu)
     page = vm_page_alloc(PMAP_RPTP_ORDER, VM_PAGE_PMAP);
     assert(page != NULL);
     pa = vm_page_to_pa(page);
-    pmap_copy_cpu_table_recursive(pa, PMAP_NR_LEVELS - 1, 0);
+    pmap_copy_cpu_table_recursive(page, pa, 0, PMAP_NR_LEVELS - 1);
     cpu_table->root_ptp_pa = pa;
 
 #ifdef X86_PAE
