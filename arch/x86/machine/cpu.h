@@ -615,6 +615,13 @@ void cpu_mp_probe(void);
 
 /*
  * Start application processors.
+ *
+ * The x86 architecture uses per-CPU page tables, which are created as a
+ * side effect of this function. In order to synchronize their page tables,
+ * processors must be able to communicate very soon after calling this
+ * function. They communicate through interrupts and threading facilities.
+ * On return, physical mappings must not be altered until inter-processor
+ * communication is available.
  */
 void cpu_mp_setup(void);
 

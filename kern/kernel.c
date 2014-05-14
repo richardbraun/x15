@@ -39,8 +39,17 @@ kernel_main(void)
     llsync_setup();
 
     /*
-     * Enabling application processors must be the last step before starting
-     * the scheduler.
+     * Enabling application processors is done late in the boot process for
+     * two reasons :
+     *  - It's much simpler to bootstrap with interrupts disabled on all
+     *    processors, enabling them only when necessary on the BSP.
+     *  - Depending on the architecture, the pmap module could create per
+     *    processor page tables. Once done, keeping the kernel page tables
+     *    synchronized requires interrupts (and potentially scheduling)
+     *    enabled on all processors.
+     *
+     * Anything done after this call and before running the scheduler must
+     * not alter physical mappings.
      */
     cpu_mp_setup();
 
