@@ -65,7 +65,6 @@
 #include <machine/strace.h>
 #include <machine/trap.h>
 #include <vm/vm_kmem.h>
-#include <vm/vm_page.h>
 #include <vm/vm_setup.h>
 
 char boot_stacks[MAX_CPUS][BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __initdata;
@@ -280,7 +279,6 @@ boot_main(void)
     vm_setup();
     boot_save_data();
     biosmem_free_usable();
-    vm_page_info();
     pic_setup();
     pit_setup();
     cpu_mp_probe();

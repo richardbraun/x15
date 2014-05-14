@@ -25,6 +25,7 @@
 #include <kern/thread.h>
 #include <kern/work.h>
 #include <machine/cpu.h>
+#include <vm/vm_page.h>
 
 void __init
 kernel_main(void)
@@ -52,6 +53,8 @@ kernel_main(void)
      * not alter physical mappings.
      */
     cpu_mp_setup();
+
+    vm_page_info();
 
     thread_run_scheduler();
 
