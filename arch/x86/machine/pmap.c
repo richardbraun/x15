@@ -1183,9 +1183,11 @@ pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
 }
 
 static void
-pmap_remove_ptemap_dec_nr_ptes(const pmap_pte_t *pte)
+pmap_remove_ptemap_dec_nr_ptes(pmap_pte_t *pte, unsigned long va, unsigned int level)
 {
+    const struct pmap_pt_level *pt_level;
     struct vm_page *page;
+    unsigned long index;
 
     if (!pmap_ready)
         return;
@@ -1193,7 +1195,23 @@ pmap_remove_ptemap_dec_nr_ptes(const pmap_pte_t *pte)
     page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
     assert(page != NULL);
     assert(vm_page_type(page) == VM_PAGE_PMAP);
+    assert(page->pmap_page.nr_ptes != 0);
     page->pmap_page.nr_ptes--;
+
+    if (page->pmap_page.nr_ptes != 0)
+        return;
+
+    level++;
+
+    if (level == PMAP_NR_LEVELS)
+        return;
+
+    pt_level = &pmap_pt_levels[level];
+    index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
+    pte = &pt_level->ptemap_base[index];
+    pmap_pte_clear(pte);
+    pmap_remove_ptemap_dec_nr_ptes(pte, va, level);
+    vm_page_free(page, 0);
 }
 
 static void
@@ -1205,12 +1223,10 @@ pmap_remove_ptemap(struct pmap *pmap, unsigned long start, unsigned long end)
 
     while (start < end) {
         pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L0_SHIFT);
-        pmap_remove_ptemap_dec_nr_ptes(pte);
         pmap_pte_clear(pte);
+        pmap_remove_ptemap_dec_nr_ptes(pte, start, 0);
         start += PAGE_SIZE;
     }
-
-    /* TODO Release page table pages */
 }
 
 static void
