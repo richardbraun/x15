@@ -1,0 +1,123 @@
+/*
+ * Copyright (c) 2014 Richard Braun.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * The purpose of this test module is to check that the pmap module properly
+ * synchronizes page tables across processors. Two threads are created and
+ * bound to processors 0 and 1 respectively. The first thread allocates a
+ * page and writes it, making sure physical mappings are up-to-date locally.
+ * It then transfers the page address to the second thread which validates
+ * the content of the page, an operation that can only be done if the page
+ * tables of the current processor have been updated.
+ */
+
+#include <kern/assert.h>
+#include <kern/condition.h>
+#include <kern/cpumap.h>
+#include <kern/mutex.h>
+#include <kern/panic.h>
+#include <kern/param.h>
+#include <kern/printk.h>
+#include <kern/stddef.h>
+#include <kern/string.h>
+#include <kern/thread.h>
+#include <test/test.h>
+#include <vm/vm_kmem.h>
+
+static struct condition test_condition;
+static struct mutex test_lock;
+static unsigned long test_va;
+
+static void
+test_run1(void *arg)
+{
+    void *ptr;
+
+    (void)arg;
+
+    printk("allocating page\n");
+    ptr = (void *)vm_kmem_alloc(PAGE_SIZE);
+    printk("writing page\n");
+    memset(ptr, 'a', PAGE_SIZE);
+
+    printk("passing page to second thread (%p)\n", ptr);
+
+    mutex_lock(&test_lock);
+    test_va = (unsigned long)ptr;
+    condition_signal(&test_condition);
+    mutex_unlock(&test_lock);
+}
+
+static void
+test_run2(void *arg)
+{
+    const char *ptr;
+    unsigned int i;
+
+    (void)arg;
+
+    printk("waiting for page\n");
+
+    mutex_lock(&test_lock);
+
+    while (test_va == 0)
+        condition_wait(&test_condition, &test_lock);
+
+    ptr = (const char *)test_va;
+
+    mutex_unlock(&test_lock);
+
+    printk("page received (%p), checking page\n", ptr);
+
+    for (i = 0; i < PAGE_SIZE; i++)
+        if (ptr[i] != 'a')
+            panic("invalid content");
+
+    vm_kmem_free((unsigned long)ptr, PAGE_SIZE);
+    printk("done\n");
+}
+
+void
+test_setup(void)
+{
+    struct thread_attr attr;
+    struct thread *thread;
+    struct cpumap *cpumap;
+    int error;
+
+    condition_init(&test_condition);
+    mutex_init(&test_lock);
+    test_va = 0;
+
+    error = cpumap_create(&cpumap);
+    assert(!error);
+
+    cpumap_zero(cpumap);
+    cpumap_set(cpumap, 0);
+    thread_attr_init(&attr, "x15_test_run1");
+    thread_attr_set_cpumap(&attr, cpumap);
+    error = thread_create(&thread, &attr, test_run1, NULL);
+    assert(!error);
+
+    cpumap_zero(cpumap);
+    cpumap_set(cpumap, 1);
+    thread_attr_init(&attr, "x15_test_run2");
+    thread_attr_set_cpumap(&attr, cpumap);
+    error = thread_create(&thread, &attr, test_run2, NULL);
+    assert(!error);
+
+    cpumap_destroy(cpumap);
+}

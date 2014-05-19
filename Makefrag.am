@@ -67,3 +67,10 @@ x15_SOURCES +=              \
 	vm/vm_prot.h        \
 	vm/vm_setup.c       \
 	vm/vm_setup.h
+
+x15_SOURCES +=              \
+        test/test.h
+
+if TEST_PMAP_UPDATE
+x15_SOURCES += test/test_pmap_update.c
+endif TEST_PMAP_UPDATE

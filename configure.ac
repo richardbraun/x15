@@ -24,6 +24,12 @@ AC_ARG_ENABLE([debug],
               [AS_HELP_STRING([--disable-debug],
                               [disable the debugging facilities])])
 
+AC_ARG_ENABLE([test-module],
+              [AS_HELP_STRING([--enable-test-module=TEST_MODULE],
+                              [run the given test module instead of booting])],
+              [enable_test_module=$enableval],
+              [enable_test_module=no])
+
 AC_ARG_WITH([max-cpus],
             [AS_HELP_STRING([--with-max-cpus=MAX_CPUS],
                             [set the maximum number of supported processors])],
@@ -32,8 +38,21 @@ AC_ARG_WITH([max-cpus],
 
 AC_DEFINE([__KERNEL__], [1], [kernel code])
 AC_DEFINE_UNQUOTED([ARCH], [$arch], [arch])
+
 AS_IF([test x"$enable_debug" = xno],
       [AC_DEFINE([NDEBUG], [1], [disable debugging])])
+
+m4_define([ENABLE_TEST_MODULE],
+          [AS_CASE(["$enable_test_module"],
+                   [pmap_update], [test_pmap_update=yes],
+                   [AC_MSG_ERROR([invalid test module])])
+          AC_DEFINE([RUN_TEST_MODULE], [1],
+                    [run test module instead of booting])
+          AC_MSG_NOTICE([test module enabled: $enable_test_module])])
+
+AS_IF([test x"$enable_test_module" != xno], [ENABLE_TEST_MODULE])
+AM_CONDITIONAL([TEST_PMAP_UPDATE], [test x"$test_pmap_update" = xyes])
+
 AC_DEFINE_UNQUOTED([MAX_CPUS], [$opt_max_cpus],
                    [maximum number of supported processors])
 
