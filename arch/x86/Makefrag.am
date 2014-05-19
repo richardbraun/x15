@@ -1,4 +1,32 @@
-x86_FILES =                             \
+EXTRA_DIST += arch/x86/x15.lds.S
+
+if X86
+
+# Store unwind information in .debug_frame instead of .eh_frame. Unwind
+# tables aren't used at runtime, so using a debug section reduces the kernel
+# code size.
+AM_CFLAGS += -fno-asynchronous-unwind-tables
+
+# For now, use frame pointers for convenient stack tracing.
+AM_CFLAGS += -fno-omit-frame-pointer
+
+# Never generate instructions that are unhandled in kernel mode.
+AM_CFLAGS += -mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-avx
+
+x15_LDFLAGS += -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
+
+if I386
+AM_CPPFLAGS += -m32
+x15_LDFLAGS += -m32
+endif I386
+
+if AMD64
+AM_CPPFLAGS += -m64
+AM_CFLAGS += -mcmodel=kernel -mno-red-zone
+x15_LDFLAGS += -m64
+endif AMD64
+
+x15_SOURCES +=                          \
 	arch/x86/machine/acpimp.c       \
 	arch/x86/machine/acpimp.h       \
 	arch/x86/machine/asm.h          \
@@ -36,35 +64,5 @@ x86_FILES =                             \
 	arch/x86/machine/trap.c         \
 	arch/x86/machine/trap.h         \
 	arch/x86/machine/types.h
-
-EXTRA_DIST += arch/x86/x15.lds.S $(x86_FILES)
-
-if X86
-
-# Store unwind information in .debug_frame instead of .eh_frame. Unwind
-# tables aren't used at runtime, so using a debug section reduces the kernel
-# code size.
-AM_CFLAGS += -fno-asynchronous-unwind-tables
-
-# For now, use frame pointers for convenient stack tracing.
-AM_CFLAGS += -fno-omit-frame-pointer
-
-# Never generate instructions that are unhandled in kernel mode.
-AM_CFLAGS += -mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-avx
-
-x15_LDFLAGS += -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
-
-if I386
-AM_CPPFLAGS += -m32
-x15_LDFLAGS += -m32
-endif I386
-
-if AMD64
-AM_CPPFLAGS += -m64
-AM_CFLAGS += -mcmodel=kernel -mno-red-zone
-x15_LDFLAGS += -m64
-endif AMD64
-
-x15_SOURCES += $(x86_FILES)
 
 endif X86
