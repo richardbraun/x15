@@ -239,6 +239,13 @@ X15 Options
 `--disable-debug'
      Disable all debugging facilities. By default, debugging is enabled.
 
+`--enable-test-module=TEST_MODULE'
+     Run a test module instead of booting the system. Test module source
+     files can be found in the test directory, and test module names
+     inferred from their file name. For example, a test module implemented
+     in a file named `test_pmap_update_mp.c' would be selected with the
+     option `--enable-test-module=pmap_update_mp'.
+
 `--with-max-cpus=MAX_CPUS'
      Set the maximum number of supported processors.
 
