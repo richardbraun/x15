@@ -45,6 +45,7 @@ AS_IF([test x"$enable_debug" = xno],
 m4_define([ENABLE_TEST_MODULE],
           [AS_CASE(["$enable_test_module"],
                    [pmap_update_mp], [test_pmap_update_mp=yes],
+                   [x86_pmap_remove_ptp], [test_x86_pmap_remove_ptp=yes],
                    [AC_MSG_ERROR([invalid test module])])
           AC_DEFINE([RUN_TEST_MODULE], [1],
                     [run test module instead of booting])
@@ -53,6 +54,8 @@ m4_define([ENABLE_TEST_MODULE],
 AS_IF([test x"$enable_test_module" != xno], [ENABLE_TEST_MODULE])
 AM_CONDITIONAL([TEST_PMAP_UPDATE_MP],
                [test x"$test_pmap_update_mp" = xyes])
+AM_CONDITIONAL([TEST_X86_PMAP_REMOVE_PTP],
+               [test x"$test_x86_pmap_remove_ptp" = xyes])
 
 AC_DEFINE_UNQUOTED([MAX_CPUS], [$opt_max_cpus],
                    [maximum number of supported processors])

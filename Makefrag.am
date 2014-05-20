@@ -74,3 +74,7 @@ x15_SOURCES +=              \
 if TEST_PMAP_UPDATE_MP
 x15_SOURCES += test/test_pmap_update_mp.c
 endif TEST_PMAP_UPDATE_MP
+
+if TEST_X86_PMAP_REMOVE_PTP
+x15_SOURCES += test/test_x86_pmap_remove_ptp.c
+endif TEST_X86_PMAP_REMOVE_PTP
