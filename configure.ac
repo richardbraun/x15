@@ -46,8 +46,10 @@ m4_define([ENABLE_TEST_MODULE],
           [AS_CASE(["$enable_test_module"],
                    [llsync_defer], [test_llsync_defer=yes],
                    [pmap_update_mp], [test_pmap_update_mp=yes],
-                   [x86_pmap_remove_ptp], [test_x86_pmap_remove_ptp=yes
-                                           opt_max_cpus=1],
+                   [x86_pmap_remove_ptp],
+                       [test_x86_pmap_remove_ptp=yes
+                        AC_MSG_NOTICE([forcing max_cpus to 1])
+                        opt_max_cpus=1],
                    [AC_MSG_ERROR([invalid test module])])
           AC_DEFINE([RUN_TEST_MODULE], [1],
                     [run test module instead of booting])
@@ -63,6 +65,7 @@ AM_CONDITIONAL([TEST_X86_PMAP_REMOVE_PTP],
 
 AC_DEFINE_UNQUOTED([MAX_CPUS], [$opt_max_cpus],
                    [maximum number of supported processors])
+AC_MSG_NOTICE([maximum number of supported processors: $opt_max_cpus])
 
 AH_BOTTOM([#include <kern/config.h>])
 AC_CONFIG_HEADER([config.h])
