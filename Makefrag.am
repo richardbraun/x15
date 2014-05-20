@@ -71,6 +71,10 @@ x15_SOURCES +=              \
 x15_SOURCES +=              \
         test/test.h
 
+if TEST_LLSYNC_DEFER
+x15_SOURCES += test/test_llsync_defer.c
+endif TEST_LLSYNC_DEFER
+
 if TEST_PMAP_UPDATE_MP
 x15_SOURCES += test/test_pmap_update_mp.c
 endif TEST_PMAP_UPDATE_MP

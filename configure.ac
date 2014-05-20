@@ -44,6 +44,7 @@ AS_IF([test x"$enable_debug" = xno],
 
 m4_define([ENABLE_TEST_MODULE],
           [AS_CASE(["$enable_test_module"],
+                   [llsync_defer], [test_llsync_defer=yes],
                    [pmap_update_mp], [test_pmap_update_mp=yes],
                    [x86_pmap_remove_ptp], [test_x86_pmap_remove_ptp=yes
                                            opt_max_cpus=1],
@@ -53,6 +54,8 @@ m4_define([ENABLE_TEST_MODULE],
           AC_MSG_NOTICE([test module enabled: $enable_test_module])])
 
 AS_IF([test x"$enable_test_module" != xno], [ENABLE_TEST_MODULE])
+AM_CONDITIONAL([TEST_LLSYNC_DEFER],
+               [test x"$test_llsync_defer" = xyes])
 AM_CONDITIONAL([TEST_PMAP_UPDATE_MP],
                [test x"$test_pmap_update_mp" = xyes])
 AM_CONDITIONAL([TEST_X86_PMAP_REMOVE_PTP],
