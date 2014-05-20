@@ -45,7 +45,8 @@ AS_IF([test x"$enable_debug" = xno],
 m4_define([ENABLE_TEST_MODULE],
           [AS_CASE(["$enable_test_module"],
                    [pmap_update_mp], [test_pmap_update_mp=yes],
-                   [x86_pmap_remove_ptp], [test_x86_pmap_remove_ptp=yes],
+                   [x86_pmap_remove_ptp], [test_x86_pmap_remove_ptp=yes
+                                           opt_max_cpus=1],
                    [AC_MSG_ERROR([invalid test module])])
           AC_DEFINE([RUN_TEST_MODULE], [1],
                     [run test module instead of booting])

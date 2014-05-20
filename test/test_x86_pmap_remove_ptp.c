@@ -28,6 +28,11 @@
  * same physical mapping as at the beginning, and attempts another write
  * access. If the TLB isn't correctly handled, the second physical mapping
  * creation fails because of stale entries when accessing intermediate PTPs.
+ *
+ * Note that, because of the complex optimizations around translation caching
+ * in modern processors, this test may report false positives. So far, best
+ * results are achieved with QEMU (without KVM), which seems to have reliable
+ * behaviour.
  */
 
 #include <kern/assert.h>
@@ -60,7 +65,7 @@ test_run(void *arg)
     flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
                          VM_ADV_DEFAULT, 0);
     error = vm_map_enter(kernel_map, NULL, 0, &va,
-                         PAGE_SIZE, (1UL << 22), flags);
+                         (1UL << 22), (1UL << 22), flags);
     assert(!error);
     pmap_enter(kernel_pmap, va, vm_page_to_pa(page),
                VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
@@ -93,9 +98,25 @@ test_setup(void)
 {
     struct thread_attr attr;
     struct thread *thread;
+    struct cpumap *cpumap;
     int error;
 
+    /*
+     * Bind to BSP and run at maximum priority to prevent anything else
+     * from doing a complete TLB flush, meddling with the test.
+     */
+
+    error = cpumap_create(&cpumap);
+    assert(!error);
+
+    cpumap_zero(cpumap);
+    cpumap_set(cpumap, 0);
     thread_attr_init(&attr, "x15_test_run");
+    thread_attr_set_cpumap(&attr, cpumap);
+    thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_FIFO);
+    thread_attr_set_priority(&attr, THREAD_SCHED_RT_PRIO_MAX);
     error = thread_create(&thread, &attr, test_run, NULL);
     assert(!error);
+
+    cpumap_destroy(cpumap);
 }
