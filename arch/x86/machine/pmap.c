@@ -522,7 +522,7 @@ pmap_update_oplist_ctor(void *arg)
 
     oplist = arg;
 
-    for (i = 0; i < cpu_count(); i++) {
+    for (i = 0; i < ARRAY_SIZE(oplist->requests); i++) {
         mutex_init(&oplist->requests[i].lock);
         condition_init(&oplist->requests[i].cond);
         oplist->requests[i].nr_mappings = 0;
