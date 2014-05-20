@@ -578,6 +578,7 @@ pmap_update_oplist_prepare(struct pmap_update_oplist *oplist,
         oplist->pmap = pmap;
     } else if (oplist->nr_ops == ARRAY_SIZE(oplist->ops)) {
         pmap_update(pmap);
+        oplist->pmap = pmap;
     }
 }
 
