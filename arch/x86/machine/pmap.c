@@ -1005,6 +1005,7 @@ void __init
 pmap_mp_setup(void)
 {
     char name[THREAD_NAME_SIZE];
+    struct pmap_update_oplist *oplist;
     struct thread_attr attr;
     struct pmap_syncer *syncer;
     struct cpumap *cpumap;
@@ -1032,6 +1033,10 @@ pmap_mp_setup(void)
 
         if (error)
             panic("pmap: unable to create syncer thread");
+
+        oplist = thread_tsd_get(syncer->thread, pmap_oplist_tsd_key);
+        thread_tsd_set(syncer->thread, pmap_oplist_tsd_key, NULL);
+        kmem_cache_free(&pmap_update_oplist_cache, oplist);
     }
 
     cpumap_destroy(cpumap);
