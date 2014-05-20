@@ -1189,48 +1189,62 @@ pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
 }
 
 static void
-pmap_remove_ptemap_dec_nr_ptes(pmap_pte_t *pte, unsigned long va, unsigned int level)
+pmap_remove_ptemap(unsigned long va)
 {
     const struct pmap_pt_level *pt_level;
     struct vm_page *page;
+    pmap_pte_t *pte, *prev_pte;
     unsigned long index;
+    unsigned int level;
 
     if (!pmap_ready)
         return;
 
-    page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
-    assert(page != NULL);
-    assert(vm_page_type(page) == VM_PAGE_PMAP);
-    assert(page->pmap_page.nr_ptes != 0);
-    page->pmap_page.nr_ptes--;
+    page = NULL;
+    prev_pte = NULL;
 
-    if (page->pmap_page.nr_ptes != 0)
-        return;
+    for (level = 0; level != PMAP_NR_LEVELS; level++) {
+        pt_level = &pmap_pt_levels[level];
+        index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
+        pte = &pt_level->ptemap_base[index];
+        pmap_pte_clear(pte);
 
-    level++;
+        /*
+         * Although the caller takes care of flushing the TLB for level 0
+         * entries, it is mandatory to immediately flush entries for addresses
+         * inside the recursive mapping because, following the removal of a
+         * PTP, new PTPs, with different physical addresses, may be inserted
+         * as a result of mapping creation. Unconditionally flushing TLB
+         * entries referring to PTPs guarantees complete consistency of the
+         * page table structure.
+         *
+         * Note that this isn't needed when inserting PTPs because the TLB
+         * caches valid translations only.
+         */
+        if (prev_pte != NULL)
+            cpu_tlb_flush_va((unsigned long)prev_pte);
 
-    if (level == PMAP_NR_LEVELS)
-        return;
+        if (page != NULL)
+            vm_page_free(page, 0);
 
-    pt_level = &pmap_pt_levels[level];
-    index = PMAP_PTEMAP_INDEX(va, pt_level->shift);
-    pte = &pt_level->ptemap_base[index];
-    pmap_pte_clear(pte);
-    pmap_remove_ptemap_dec_nr_ptes(pte, va, level);
-    vm_page_free(page, 0);
+        page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
+        assert(page != NULL);
+        assert(vm_page_type(page) == VM_PAGE_PMAP);
+        assert(page->pmap_page.nr_ptes != 0);
+        page->pmap_page.nr_ptes--;
+
+        if (page->pmap_page.nr_ptes != 0)
+            return;
+
+        prev_pte = pte;
+    }
 }
 
 static void
-pmap_remove_ptemap(struct pmap *pmap, unsigned long start, unsigned long end)
+pmap_remove_ptemap_range(unsigned long start, unsigned long end)
 {
-    pmap_pte_t *pte;
-
-    (void)pmap;
-
     while (start < end) {
-        pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(start, PMAP_L0_SHIFT);
-        pmap_pte_clear(pte);
-        pmap_remove_ptemap_dec_nr_ptes(pte, start, 0);
+        pmap_remove_ptemap(start);
         start += PAGE_SIZE;
     }
 }
@@ -1239,7 +1253,7 @@ static void
 pmap_remove_local(struct pmap *pmap, unsigned long start, unsigned long end)
 {
     if ((pmap == kernel_pmap) || (pmap == pmap_current())) {
-        pmap_remove_ptemap(pmap, start, end);
+        pmap_remove_ptemap_range(start, end);
         return;
     }
 
