@@ -269,14 +269,14 @@ lapic_ap_setup(void)
 }
 
 static void
-lapic_ipi(uint32_t dest, uint32_t icr)
+lapic_ipi(uint32_t apic_id, uint32_t icr)
 {
     uint32_t value;
 
     if ((icr & LAPIC_ICR_DEST_MASK) == 0) {
         value = lapic_read(&lapic_map->icr_high);
         value &= ~LAPIC_DEST_MASK;
-        value |= dest << LAPIC_DEST_SHIFT;
+        value |= apic_id << LAPIC_DEST_SHIFT;
         lapic_write(&lapic_map->icr_high, value);
     }
 
@@ -298,33 +298,33 @@ lapic_ipi_wait(void)
 }
 
 void
-lapic_ipi_init_assert(uint32_t dest)
+lapic_ipi_init_assert(uint32_t apic_id)
 {
-    lapic_ipi(dest, LAPIC_ICR_TRIGGER_LEVEL | LAPIC_ICR_LEVEL_ASSERT
-                    | LAPIC_ICR_DELIVERY_INIT);
+    lapic_ipi(apic_id, LAPIC_ICR_TRIGGER_LEVEL | LAPIC_ICR_LEVEL_ASSERT
+                       | LAPIC_ICR_DELIVERY_INIT);
     lapic_ipi_wait();
 }
 
 void
-lapic_ipi_init_deassert(uint32_t dest)
+lapic_ipi_init_deassert(uint32_t apic_id)
 {
-    lapic_ipi(dest, LAPIC_ICR_TRIGGER_LEVEL | LAPIC_ICR_DELIVERY_INIT);
+    lapic_ipi(apic_id, LAPIC_ICR_TRIGGER_LEVEL | LAPIC_ICR_DELIVERY_INIT);
     lapic_ipi_wait();
 }
 
 void
-lapic_ipi_startup(uint32_t dest, uint32_t vector)
+lapic_ipi_startup(uint32_t apic_id, uint32_t vector)
 {
-    lapic_ipi(dest, LAPIC_ICR_DELIVERY_STARTUP
-                    | (vector & LAPIC_ICR_VECTOR_MASK));
+    lapic_ipi(apic_id, LAPIC_ICR_DELIVERY_STARTUP
+                       | (vector & LAPIC_ICR_VECTOR_MASK));
     lapic_ipi_wait();
 }
 
 void
-lapic_ipi_send(uint32_t dest, uint32_t vector)
+lapic_ipi_send(uint32_t apic_id, uint32_t vector)
 {
     lapic_ipi_wait();
-    lapic_ipi(dest, vector & LAPIC_ICR_VECTOR_MASK);
+    lapic_ipi(apic_id, vector & LAPIC_ICR_VECTOR_MASK);
 }
 
 void

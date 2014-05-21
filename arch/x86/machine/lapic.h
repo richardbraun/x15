@@ -39,14 +39,14 @@ void lapic_ap_setup(void);
 /*
  * Functions used when initializing an AP.
  */
-void lapic_ipi_init_assert(uint32_t dest);
-void lapic_ipi_init_deassert(uint32_t dest);
-void lapic_ipi_startup(uint32_t dest, uint32_t vector);
+void lapic_ipi_init_assert(uint32_t apic_id);
+void lapic_ipi_init_deassert(uint32_t apic_id);
+void lapic_ipi_startup(uint32_t apic_id, uint32_t vector);
 
 /*
  * Fixed/broadcast inter-processor interrupts.
  */
-void lapic_ipi_send(uint32_t dest, uint32_t vector);
+void lapic_ipi_send(uint32_t apic_id, uint32_t vector);
 void lapic_ipi_broadcast(uint32_t vector);
 
 /*
