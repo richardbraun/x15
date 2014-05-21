@@ -47,16 +47,28 @@ evcnt_register(struct evcnt *evcnt, const char *name)
 }
 
 void
-evcnt_info(void)
+evcnt_info(const char *pattern)
 {
     struct evcnt *evcnt;
+    size_t length, pattern_length;
+
+    pattern_length = (pattern == NULL) ? 0 : strlen(pattern);
 
     printk("evcnt: name                               count\n");
 
     mutex_lock(&evcnt_mutex);
 
-    list_for_each_entry(&evcnt_list, evcnt, node)
+    list_for_each_entry(&evcnt_list, evcnt, node) {
+        if (pattern_length != 0) {
+            length = strlen(evcnt->name);
+
+            if ((length < pattern_length)
+                || (memcmp(evcnt->name, pattern, pattern_length) != 0))
+                continue;
+        }
+
         printk("evcnt: %-24s %15llu\n", evcnt->name, evcnt->count);
+    }
 
     mutex_unlock(&evcnt_mutex);
 }

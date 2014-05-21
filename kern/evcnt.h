@@ -79,7 +79,11 @@ evcnt_read(const struct evcnt *evcnt)
 
 /*
  * Display the registered event counters.
+ *
+ * A pattern can be used to filter the output. The result will only include
+ * counters for which the beginning of their name matches the pattern.
+ * If NULL, all counters are reported.
  */
-void evcnt_info(void);
+void evcnt_info(const char *pattern);
 
 #endif /* _KERN_EVCNT_H */
