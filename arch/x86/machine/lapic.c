@@ -13,9 +13,6 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- *
- * TODO Review waits/EOIs.
  */
 
 #include <kern/init.h>
@@ -271,19 +268,10 @@ lapic_ap_setup(void)
 static void
 lapic_ipi(uint32_t apic_id, uint32_t icr)
 {
-    uint32_t value;
+    if ((icr & LAPIC_ICR_DEST_MASK) == 0)
+        lapic_write(&lapic_map->icr_high, apic_id << LAPIC_DEST_SHIFT);
 
-    if ((icr & LAPIC_ICR_DEST_MASK) == 0) {
-        value = lapic_read(&lapic_map->icr_high);
-        value &= ~LAPIC_DEST_MASK;
-        value |= apic_id << LAPIC_DEST_SHIFT;
-        lapic_write(&lapic_map->icr_high, value);
-    }
-
-    value = lapic_read(&lapic_map->icr_low);
-    value &= LAPIC_ICR_RESERVED;
-    value |= icr;
-    lapic_write(&lapic_map->icr_low, value);
+    lapic_write(&lapic_map->icr_low, icr & ~LAPIC_ICR_RESERVED);
 }
 
 static void
