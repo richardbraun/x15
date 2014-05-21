@@ -32,6 +32,7 @@
  * TODO Gracefully handle large amounts of deferred works.
  */
 
+#include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/list.h>
