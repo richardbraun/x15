@@ -89,6 +89,7 @@
 
 #ifndef __ASSEMBLER__
 
+#include <kern/assert.h>
 #include <kern/macros.h>
 #include <kern/param.h>
 #include <kern/stddef.h>
@@ -475,8 +476,15 @@ static __always_inline unsigned int
 cpu_count(void)
 {
     extern unsigned int cpu_array_size;
-
     return cpu_array_size;
+}
+
+static inline struct cpu *
+cpu_from_id(unsigned int cpu)
+{
+    extern struct cpu cpu_array[MAX_CPUS];
+    assert(cpu < ARRAY_SIZE(cpu_array));
+    return &cpu_array[cpu];
 }
 
 static __always_inline void
@@ -636,7 +644,7 @@ void cpu_ap_setup(void);
 static inline void
 cpu_send_thread_schedule(unsigned int cpu)
 {
-    lapic_ipi_send(cpu, TRAP_THREAD_SCHEDULE);
+    lapic_ipi_send(cpu_from_id(cpu)->apic_id, TRAP_THREAD_SCHEDULE);
 }
 
 /*
@@ -650,7 +658,7 @@ void cpu_thread_schedule_intr(struct trap_frame *frame);
 static inline void
 cpu_send_llsync_reset(unsigned int cpu)
 {
-    lapic_ipi_send(cpu, TRAP_LLSYNC_RESET);
+    lapic_ipi_send(cpu_from_id(cpu)->apic_id, TRAP_LLSYNC_RESET);
 }
 
 /*
