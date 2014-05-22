@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,9 @@
 
 #include <kern/stddef.h>
 #include <kern/string.h>
+#include <kern/param.h>
 
+#ifndef ARCH_STRING_MEMCPY
 void *
 memcpy(void *dest, const void *src, size_t n)
 {
@@ -36,7 +38,9 @@ memcpy(void *dest, const void *src, size_t n)
 
     return dest;
 }
+#endif /* ARCH_STRING_MEMCPY */
 
+#ifndef ARCH_STRING_MEMMOVE
 void *
 memmove(void *dest, const void *src, size_t n)
 {
@@ -60,7 +64,9 @@ memmove(void *dest, const void *src, size_t n)
 
     return dest;
 }
+#endif /* ARCH_STRING_MEMMOVE */
 
+#ifndef ARCH_STRING_MEMSET
 void *
 memset(void *s, int c, size_t n)
 {
@@ -74,7 +80,9 @@ memset(void *s, int c, size_t n)
 
     return s;
 }
+#endif /* ARCH_STRING_MEMSET */
 
+#ifndef ARCH_STRING_MEMCMP
 int
 memcmp(const void *s1, const void *s2, size_t n)
 {
@@ -90,7 +98,9 @@ memcmp(const void *s1, const void *s2, size_t n)
 
     return 0;
 }
+#endif /* ARCH_STRING_MEMCMP */
 
+#ifndef ARCH_STRING_STRLEN
 size_t
 strlen(const char *s)
 {
@@ -103,7 +113,9 @@ strlen(const char *s)
 
     return i;
 }
+#endif /* ARCH_STRING_STRLEN */
 
+#ifndef ARCH_STRING_STRCPY
 char *
 strcpy(char *dest, const char *src)
 {
@@ -118,6 +130,7 @@ strcpy(char *dest, const char *src)
 
     return tmp;
 }
+#endif /* ARCH_STRING_STRCPY */
 
 size_t
 strlcpy(char *dest, const char *src, size_t n)
@@ -137,6 +150,7 @@ out:
     return len;
 }
 
+#ifndef ARCH_STRING_STRCMP
 int
 strcmp(const char *s1, const char *s2)
 {
@@ -152,3 +166,4 @@ strcmp(const char *s1, const char *s2)
 
     return (int)c1 - (int)c2;
 }
+#endif /* ARCH_STRING_STRCMP */
