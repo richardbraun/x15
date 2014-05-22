@@ -44,20 +44,18 @@ memmove(void *dest, const void *src, size_t n)
     char *dest_ptr;
     size_t i;
 
-    if (src == dest)
-        return dest;
-    else if (src < dest) {
-        dest_ptr = (char *)dest + n - 1;
-        src_ptr = (const char *)src + n - 1;
-
-        for (i = 0; i < n; i++)
-            *dest_ptr-- = *src_ptr--;
-    } else if (src > dest) {
+    if (dest <= src) {
         dest_ptr = dest;
         src_ptr = src;
 
-        for  (i = 0; i < n; i++)
+        for (i = 0; i < n; i++)
             *dest_ptr++ = *src_ptr++;
+    } else {
+        dest_ptr = dest + n - 1;
+        src_ptr = src + n - 1;
+
+        for (i = 0; i < n; i++)
+            *dest_ptr-- = *src_ptr--;
     }
 
     return dest;
@@ -142,7 +140,7 @@ out:
 int
 strcmp(const char *s1, const char *s2)
 {
-    unsigned char c1, c2;
+    char c1, c2;
 
     while ((c1 = *s1) == (c2 = *s2)) {
         if (c1 == '\0')
