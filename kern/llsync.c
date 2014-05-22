@@ -35,6 +35,7 @@
 #include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
+#include <kern/evcnt.h>
 #include <kern/init.h>
 #include <kern/list.h>
 #include <kern/llsync.h>
@@ -44,6 +45,7 @@
 #include <kern/param.h>
 #include <kern/printk.h>
 #include <kern/spinlock.h>
+#include <kern/sprintf.h>
 #include <kern/stddef.h>
 #include <kern/work.h>
 #include <machine/cpu.h>
@@ -103,9 +105,19 @@ struct llsync_waiter {
 void __init
 llsync_setup(void)
 {
+    char name[EVCNT_NAME_SIZE];
+    unsigned int cpu;
+
     spinlock_init(&llsync_lock);
     work_queue_init(&llsync_queue0);
     work_queue_init(&llsync_queue1);
+
+    for (cpu = 0; cpu < cpu_count(); cpu++) {
+        snprintf(name, sizeof(name), "llsync_reset/%u", cpu);
+        evcnt_register(&llsync_cpus[cpu].ev_reset, name);
+        snprintf(name, sizeof(name), "llsync_spurious_reset/%u", cpu);
+        evcnt_register(&llsync_cpus[cpu].ev_spurious_reset, name);
+    }
 }
 
 static void
@@ -220,6 +232,7 @@ llsync_reset_checkpoint(unsigned int cpu)
 
     spinlock_lock(&llsync_lock);
 
+    evcnt_inc(&llsync_cpus[cpu].ev_reset);
     llsync_reset_checkpoint_common(cpu);
 
     /*
@@ -228,8 +241,10 @@ llsync_reset_checkpoint(unsigned int cpu)
      * interrupt. In this case, behave as if the reset request was received
      * before unregistering by immediately committing the local checkpoint.
      */
-    if (!llsync_cpus[cpu].registered)
+    if (!llsync_cpus[cpu].registered) {
+        evcnt_inc(&llsync_cpus[cpu].ev_spurious_reset);
         llsync_commit_checkpoint_common(cpu);
+    }
 
     spinlock_unlock(&llsync_lock);
 }

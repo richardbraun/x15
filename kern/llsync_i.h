@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #ifndef _KERN_LLSYNC_I_H
 #define _KERN_LLSYNC_I_H
 
+#include <kern/evcnt.h>
 #include <kern/param.h>
 
 /*
@@ -28,6 +29,8 @@
 struct llsync_cpu {
     int registered;
     int checked;
+    struct evcnt ev_reset;
+    struct evcnt ev_spurious_reset;
 } __aligned(CPU_L1_SIZE);
 
 extern struct llsync_cpu llsync_cpus[MAX_CPUS];
