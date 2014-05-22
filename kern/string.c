@@ -80,7 +80,7 @@ memset(void *s, int c, size_t n)
 int
 memcmp(const void *s1, const void *s2, size_t n)
 {
-    const char *a1, *a2;
+    const unsigned char *a1, *a2;
     size_t i;
 
     a1 = s1;
@@ -88,7 +88,7 @@ memcmp(const void *s1, const void *s2, size_t n)
 
     for (i = 0; i < n; i++)
         if (a1[i] != a2[i])
-            return a2[i] - a1[i];
+            return (int)a1[i] - (int)a2[i];
 
     return 0;
 }
@@ -142,7 +142,7 @@ out:
 int
 strcmp(const char *s1, const char *s2)
 {
-    char c1, c2;
+    unsigned char c1, c2;
 
     while ((c1 = *s1) == (c2 = *s2)) {
         if (c1 == '\0')
@@ -152,5 +152,5 @@ strcmp(const char *s1, const char *s2)
         s2++;
     }
 
-    return (c1 < c2) ? -1 : 1;
+    return (int)c1 - (int)c2;
 }
