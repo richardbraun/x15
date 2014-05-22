@@ -54,7 +54,7 @@ evcnt_info(const char *pattern)
 
     pattern_length = (pattern == NULL) ? 0 : strlen(pattern);
 
-    printk("evcnt: name                               count\n");
+    printk("evcnt: name                                   count\n");
 
     mutex_lock(&evcnt_mutex);
 
@@ -67,7 +67,7 @@ evcnt_info(const char *pattern)
                 continue;
         }
 
-        printk("evcnt: %-24s %15llu\n", evcnt->name, evcnt->count);
+        printk("evcnt: %-26s %17llu\n", evcnt->name, evcnt->count);
     }
 
     mutex_unlock(&evcnt_mutex);
