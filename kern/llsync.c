@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@
 #include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
+#include <kern/init.h>
 #include <kern/list.h>
 #include <kern/llsync.h>
 #include <kern/llsync_i.h>
@@ -99,7 +100,7 @@ struct llsync_waiter {
     int done;
 };
 
-void
+void __init
 llsync_setup(void)
 {
     spinlock_init(&llsync_lock);
