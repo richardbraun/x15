@@ -85,3 +85,54 @@ memcmp(const void *s1, const void *s2, size_t n)
     return (int)c1 - (int)c2;
 }
 #endif /* ARCH_STRING_MEMCMP */
+
+#ifdef ARCH_STRING_STRLEN
+size_t
+strlen(const char *s)
+{
+    size_t n;
+
+    n = (size_t)-1;
+    asm volatile("cld; repne scasb" : "+D" (s), "+c" (n) : "a" (0));
+    return ~n - 1;
+}
+#endif /* ARCH_STRING_STRLEN */
+
+#ifdef ARCH_STRING_STRCPY
+char *
+strcpy(char *dest, const char *src)
+{
+    char *orig_dest;
+
+    orig_dest = dest;
+    asm volatile("cld\n"
+                 "1:\n"
+                 "lodsb\n"
+                 "stosb\n"
+                 "testb %%al, %%al\n"
+                 "jnz 1b\n"
+                 : "+D" (dest), "+S" (src) : : "al");
+    return orig_dest;
+}
+#endif /* ARCH_STRING_STRCPY */
+
+#ifdef ARCH_STRING_STRCMP
+int
+strcmp(const char *s1, const char *s2)
+{
+    unsigned char c1, c2;
+
+    asm volatile("cld\n"
+                 "1:\n"
+                 "lodsb\n"
+                 "scasb\n"
+                 "jne 1f\n"
+                 "testb %%al, %%al\n"
+                 "jnz 1b\n"
+                 "1:\n"
+                 : "+D" (s1), "+S" (s2) : : "al");
+    c1 = *(((const unsigned char *)s1) - 1);
+    c2 = *(((const unsigned char *)s2) - 1);
+    return (int)c1 - (int)c2;
+}
+#endif /* ARCH_STRING_STRCMP */
