@@ -67,19 +67,14 @@ memset(void *s, int c, size_t n)
 int
 memcmp(const void *s1, const void *s2, size_t n)
 {
-    unsigned char zf, c1, c2;
+    unsigned char c1, c2;
 
     if (n == 0)
         return 0;
 
     asm volatile("cld\n"
                  "repe cmpsb\n"
-                 "sete %0\n"
-                 : "=g" (zf), "+D" (s1), "+S" (s2), "+c" (n));
-
-    if (zf)
-        return 0;
-
+                 : "+D" (s1), "+S" (s2), "+c" (n));
     c1 = *(((const unsigned char *)s1) - 1);
     c2 = *(((const unsigned char *)s2) - 1);
     return (int)c1 - (int)c2;
