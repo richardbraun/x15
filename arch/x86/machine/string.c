@@ -26,7 +26,7 @@ memcpy(void *dest, const void *src, size_t n)
     void *orig_dest;
 
     orig_dest = dest;
-    asm volatile("cld; rep movsb" : "+D" (dest), "+S" (src), "+c" (n));
+    asm volatile("rep movsb" : "+D" (dest), "+S" (src), "+c" (n));
     return orig_dest;
 }
 #endif /* ARCH_STRING_MEMCPY */
@@ -40,11 +40,11 @@ memmove(void *dest, const void *src, size_t n)
     orig_dest = dest;
 
     if (dest <= src)
-        asm volatile("cld; rep movsb" : "+D" (dest), "+S" (src), "+c" (n));
+        asm volatile("rep movsb" : "+D" (dest), "+S" (src), "+c" (n));
     else {
         dest += n - 1;
         src += n - 1;
-        asm volatile("std; rep movsb" : "+D" (dest), "+S" (src), "+c" (n));
+        asm volatile("std; rep movsb; cld" : "+D" (dest), "+S" (src), "+c" (n));
     }
 
     return orig_dest;
@@ -58,7 +58,7 @@ memset(void *s, int c, size_t n)
     void *orig_s;
 
     orig_s = s;
-    asm volatile("cld; rep stosb" : "+D" (s), "+c" (n) : "a" (c));
+    asm volatile("rep stosb" : "+D" (s), "+c" (n) : "a" (c));
     return orig_s;
 }
 #endif /* ARCH_STRING_MEMSET */
@@ -72,9 +72,7 @@ memcmp(const void *s1, const void *s2, size_t n)
     if (n == 0)
         return 0;
 
-    asm volatile("cld\n"
-                 "repe cmpsb\n"
-                 : "+D" (s1), "+S" (s2), "+c" (n));
+    asm volatile("repe cmpsb\n" : "+D" (s1), "+S" (s2), "+c" (n));
     c1 = *(((const unsigned char *)s1) - 1);
     c2 = *(((const unsigned char *)s2) - 1);
     return (int)c1 - (int)c2;
@@ -88,7 +86,7 @@ strlen(const char *s)
     size_t n;
 
     n = (size_t)-1;
-    asm volatile("cld; repne scasb" : "+D" (s), "+c" (n) : "a" (0));
+    asm volatile("repne scasb" : "+D" (s), "+c" (n) : "a" (0));
     return ~n - 1;
 }
 #endif /* ARCH_STRING_STRLEN */
@@ -100,8 +98,7 @@ strcpy(char *dest, const char *src)
     char *orig_dest;
 
     orig_dest = dest;
-    asm volatile("cld\n"
-                 "1:\n"
+    asm volatile("1:\n"
                  "lodsb\n"
                  "stosb\n"
                  "testb %%al, %%al\n"
@@ -117,8 +114,7 @@ strcmp(const char *s1, const char *s2)
 {
     unsigned char c1, c2;
 
-    asm volatile("cld\n"
-                 "1:\n"
+    asm volatile("1:\n"
                  "lodsb\n"
                  "scasb\n"
                  "jne 1f\n"
