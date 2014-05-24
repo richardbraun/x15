@@ -13,19 +13,17 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- *
- * TODO Per-processor pools.
  */
 
+#include <kern/assert.h>
+#include <kern/bitmap.h>
 #include <kern/error.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
-#include <kern/mutex.h>
+#include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
-#include <kern/rdxtree.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
@@ -38,8 +36,6 @@
 
 /*
  * Keep at least that many threads alive when a work pool is idle.
- *
- * TODO Use time instead of a raw value to keep threads available.
  */
 #define WORK_THREADS_SPARE 4
 
@@ -51,6 +47,7 @@
  */
 #define WORK_THREADS_RATIO      4
 #define WORK_THREADS_THRESHOLD  512
+#define WORK_MAX_THREADS        MAX(MAX_CPUS, WORK_THREADS_THRESHOLD)
 
 #define WORK_NAME_SIZE 16
 
@@ -61,21 +58,15 @@
 
 struct work_thread {
     struct list node;
-    unsigned long long id;
     struct thread *thread;
     struct work_pool *pool;
+    unsigned int id;
 };
 
 /*
  * Pool of threads and works.
  *
  * Interrupts must be disabled when acquiring the pool lock.
- *
- * The radix tree is only used to allocate worker IDs. It doesn't store
- * anything relevant. The limit placed on the number of worker threads per
- * pool prevents the allocation of many nodes, which keeps memory waste low.
- * TODO The tree implementation could be improved to use nodes of reduced
- * size, storing only allocation bitmaps and not actual pointers.
  */
 struct work_pool {
     struct spinlock lock;
@@ -85,12 +76,11 @@ struct work_pool {
     unsigned int nr_threads;
     unsigned int nr_available_threads;
     struct list available_threads;
-    struct mutex tree_lock;
-    struct rdxtree tree;
+    BITMAP_DECLARE(bitmap, WORK_MAX_THREADS);
     char name[WORK_NAME_SIZE];
 };
 
-static int work_thread_create(struct work_pool *pool);
+static int work_thread_create(struct work_pool *pool, unsigned int id);
 static void work_thread_destroy(struct work_thread *worker);
 
 static struct work_pool work_pool_main;
@@ -100,44 +90,45 @@ static struct kmem_cache work_thread_cache;
 
 static unsigned int work_max_threads __read_mostly;
 
-static int
-work_pool_alloc_id(struct work_pool *pool, struct work_thread *worker,
-                   unsigned long long *idp)
+static unsigned int
+work_pool_alloc_id(struct work_pool *pool)
 {
-    int error;
+    int bit;
 
-    mutex_lock(&pool->tree_lock);
-    error = rdxtree_insert_alloc(&pool->tree, worker, idp);
-    mutex_unlock(&pool->tree_lock);
-
-    return error;
+    assert(pool->nr_threads < work_max_threads);
+    pool->nr_threads++;
+    bit = bitmap_find_first_zero(pool->bitmap, work_max_threads);
+    assert(bit >= 0);
+    bitmap_set(pool->bitmap, bit);
+    return bit;
 }
 
 static void
-work_pool_free_id(struct work_pool *pool, unsigned long long id)
+work_pool_free_id(struct work_pool *pool, unsigned int id)
 {
-    mutex_lock(&pool->tree_lock);
-    rdxtree_remove(&pool->tree, id);
-    mutex_unlock(&pool->tree_lock);
+    assert(pool->nr_threads != 0);
+    pool->nr_threads--;
+    bitmap_clear(pool->bitmap, id);
 }
 
 static void
 work_pool_init(struct work_pool *pool, const char *name, int flags)
 {
+    unsigned int id;
     int error;
 
     spinlock_init(&pool->lock);
     pool->flags = flags;
     work_queue_init(&pool->queue);
     pool->manager = NULL;
-    pool->nr_threads = 1;
+    pool->nr_threads = 0;
     pool->nr_available_threads = 0;
     list_init(&pool->available_threads);
-    mutex_init(&pool->tree_lock);
-    rdxtree_init(&pool->tree);
+    bitmap_zero(pool->bitmap, work_max_threads);
     strlcpy(pool->name, name, sizeof(pool->name));
 
-    error = work_thread_create(pool);
+    id = work_pool_alloc_id(pool);
+    error = work_thread_create(pool, id);
 
     if (error)
         goto error_thread;
@@ -171,6 +162,7 @@ work_process(void *arg)
     struct work_pool *pool;
     struct work *work;
     unsigned long flags;
+    unsigned int id;
     int error;
 
     self = arg;
@@ -212,15 +204,15 @@ work_process(void *arg)
                                           struct work_thread, node);
                 thread_wakeup(worker->thread);
             } else if (pool->nr_threads < work_max_threads) {
-                pool->nr_threads++;
+                id = work_pool_alloc_id(pool);
                 spinlock_unlock_intr_restore(&pool->lock, flags);
 
-                error = work_thread_create(pool);
+                error = work_thread_create(pool, id);
 
                 spinlock_lock_intr_save(&pool->lock, &flags);
 
                 if (error) {
-                    pool->nr_threads--;
+                    work_pool_free_id(pool, id);
                     printk("work: warning: unable to create worker thread\n");
                 }
             }
@@ -231,13 +223,14 @@ work_process(void *arg)
         work->fn(work);
     }
 
-    pool->nr_threads--;
+    work_pool_free_id(pool, self->id);
     spinlock_unlock_intr_restore(&pool->lock, flags);
+
     work_thread_destroy(self);
 }
 
 static int
-work_thread_create(struct work_pool *pool)
+work_thread_create(struct work_pool *pool, unsigned int id)
 {
     char name[THREAD_NAME_SIZE];
     struct thread_attr attr;
@@ -250,14 +243,10 @@ work_thread_create(struct work_pool *pool)
     if (worker == NULL)
         return ERROR_NOMEM;
 
-    error = work_pool_alloc_id(pool, worker, &worker->id);
-
-    if (error)
-        goto error_id;
-
     worker->pool = pool;
+    worker->id = id;
 
-    snprintf(name, sizeof(name), "x15_work_process:%s:%llu", pool->name,
+    snprintf(name, sizeof(name), "x15_work_process:%s:%u", pool->name,
              worker->id);
     priority = (pool->flags & WORK_PF_HIGHPRIO)
                ? WORK_PRIO_HIGH
@@ -272,8 +261,6 @@ work_thread_create(struct work_pool *pool)
     return 0;
 
 error_thread:
-    work_pool_free_id(pool, worker->id);
-error_id:
     kmem_cache_free(&work_thread_cache, worker);
     return error;
 }
@@ -281,7 +268,6 @@ error_id:
 static void
 work_thread_destroy(struct work_thread *worker)
 {
-    work_pool_free_id(worker->pool, worker->id);
     kmem_cache_free(&work_thread_cache, worker);
 }
 
@@ -299,6 +285,7 @@ work_compute_max_threads(void)
         max_threads = nr_cpus * ratio;
     }
 
+    assert(max_threads <= WORK_MAX_THREADS);
     work_max_threads = max_threads;
     printk("work: threads per pool (spare/limit): %u/%u\n",
            WORK_THREADS_SPARE, max_threads);
