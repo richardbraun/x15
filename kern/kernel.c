@@ -20,7 +20,6 @@
 #include <kern/kernel.h>
 #include <kern/llsync.h>
 #include <kern/panic.h>
-#include <kern/rdxtree.h>
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <kern/work.h>
@@ -36,7 +35,6 @@ kernel_main(void)
 {
     assert(!cpu_intr_enabled());
 
-    rdxtree_setup();
     cpumap_setup();
     task_setup();
     thread_setup();
