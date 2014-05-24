@@ -26,7 +26,9 @@ memcpy(void *dest, const void *src, size_t n)
     void *orig_dest;
 
     orig_dest = dest;
-    asm volatile("rep movsb" : "+D" (dest), "+S" (src), "+c" (n));
+    asm volatile("rep movsb"
+                 : "+D" (dest), "+S" (src), "+c" (n)
+                 : : "memory");
     return orig_dest;
 }
 #endif /* ARCH_STRING_MEMCPY */
@@ -40,11 +42,15 @@ memmove(void *dest, const void *src, size_t n)
     orig_dest = dest;
 
     if (dest <= src)
-        asm volatile("rep movsb" : "+D" (dest), "+S" (src), "+c" (n));
+        asm volatile("rep movsb"
+                     : "+D" (dest), "+S" (src), "+c" (n)
+                     : : "memory");
     else {
         dest += n - 1;
         src += n - 1;
-        asm volatile("std; rep movsb; cld" : "+D" (dest), "+S" (src), "+c" (n));
+        asm volatile("std; rep movsb; cld"
+                     : "+D" (dest), "+S" (src), "+c" (n)
+                     : : "memory");
     }
 
     return orig_dest;
@@ -58,7 +64,10 @@ memset(void *s, int c, size_t n)
     void *orig_s;
 
     orig_s = s;
-    asm volatile("rep stosb" : "+D" (s), "+c" (n) : "a" (c));
+    asm volatile("rep stosb"
+                 : "+D" (s), "+c" (n)
+                 : "a" (c)
+                 : "memory");
     return orig_s;
 }
 #endif /* ARCH_STRING_MEMSET */
@@ -72,7 +81,9 @@ memcmp(const void *s1, const void *s2, size_t n)
     if (n == 0)
         return 0;
 
-    asm volatile("repe cmpsb\n" : "+D" (s1), "+S" (s2), "+c" (n));
+    asm volatile("repe cmpsb"
+                 : "+D" (s1), "+S" (s2), "+c" (n)
+                 : : "memory");
     c1 = *(((const unsigned char *)s1) - 1);
     c2 = *(((const unsigned char *)s2) - 1);
     return (int)c1 - (int)c2;
@@ -86,7 +97,10 @@ strlen(const char *s)
     size_t n;
 
     n = (size_t)-1;
-    asm volatile("repne scasb" : "+D" (s), "+c" (n) : "a" (0));
+    asm volatile("repne scasb"
+                 : "+D" (s), "+c" (n)
+                 : "a" (0)
+                 : "memory");
     return ~n - 1;
 }
 #endif /* ARCH_STRING_STRLEN */
@@ -103,7 +117,8 @@ strcpy(char *dest, const char *src)
                  "stosb\n"
                  "testb %%al, %%al\n"
                  "jnz 1b\n"
-                 : "+D" (dest), "+S" (src) : : "al");
+                 : "+D" (dest), "+S" (src)
+                 : : "al", "memory");
     return orig_dest;
 }
 #endif /* ARCH_STRING_STRCPY */
@@ -121,7 +136,8 @@ strcmp(const char *s1, const char *s2)
                  "testb %%al, %%al\n"
                  "jnz 1b\n"
                  "1:\n"
-                 : "+D" (s1), "+S" (s2) : : "al");
+                 : "+D" (s1), "+S" (s2)
+                 : : "al", "memory");
     c1 = *(((const unsigned char *)s1) - 1);
     c2 = *(((const unsigned char *)s2) - 1);
     return (int)c1 - (int)c2;
