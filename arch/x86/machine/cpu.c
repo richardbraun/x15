@@ -85,6 +85,12 @@ static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8) __read_mostly;
 static unsigned long cpu_double_fault_handler;
 static char cpu_double_fault_stack[STACK_SIZE] __aligned(DATA_ALIGN);
 
+unsigned long __init
+cpu_get_boot_stack(void)
+{
+    return cpu_array[boot_ap_id].boot_stack;
+}
+
 static void
 cpu_seg_set_null(char *table, unsigned int selector)
 {
@@ -406,6 +412,7 @@ cpu_setup(void)
         cpu_array[i].id = i;
         cpu_array[i].apic_id = CPU_INVALID_APIC_ID;
         cpu_array[i].state = CPU_STATE_OFF;
+        cpu_array[i].boot_stack = 0;
     }
 
     cpu_array_size = 1;
@@ -522,6 +529,11 @@ cpu_mp_setup(void)
 
     for (i = 1; i < cpu_array_size; i++) {
         cpu = &cpu_array[i];
+        cpu->boot_stack = vm_kmem_alloc(STACK_SIZE);
+
+        if (cpu->boot_stack == 0)
+            panic("cpu: unable to allocate boot stack for cpu%u", i);
+
         cpu->double_fault_stack = vm_kmem_alloc(STACK_SIZE);
 
         if (cpu->double_fault_stack == 0)

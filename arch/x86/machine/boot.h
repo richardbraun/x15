@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012, 2013 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,9 +43,6 @@
  */
 #define BOOT_VTOP(addr) ((addr) - KERNEL_OFFSET)
 
-#define BOOT_STACK_SHIFT    PAGE_SHIFT
-#define BOOT_STACK_SIZE     (1 << BOOT_STACK_SHIFT)
-
 /*
  * Address where the MP trampoline code is copied and run at.
  *
@@ -73,7 +70,8 @@
 extern char _boot;
 extern char _eboot;
 
-extern char boot_stacks[MAX_CPUS][BOOT_STACK_SIZE];
+extern char boot_stack[STACK_SIZE];
+extern char boot_ap_stack[STACK_SIZE];
 
 /*
  * This variable contains the CPU ID of an AP during early initialization.

@@ -254,6 +254,7 @@ struct cpu {
     struct cpu_tss double_fault_tss;
 #endif /* __LP64__ */
     volatile int state;
+    unsigned long boot_stack;
     unsigned long double_fault_stack;
 } __aligned(CPU_ALIGN);
 
@@ -581,6 +582,11 @@ cpu_delay(unsigned long usecs)
 {
     pit_delay(usecs);
 }
+
+/*
+ * Return the address of the boot stack allocated for the current processor.
+ */
+unsigned long cpu_get_boot_stack(void);
 
 /*
  * Set the given GDT for the current processor, and reload its segment

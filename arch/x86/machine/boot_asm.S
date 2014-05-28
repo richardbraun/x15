@@ -58,7 +58,7 @@ ASM_ENTRY(_start)
  ljmp $8, $1f
 
 1:
- movl $(boot_stacks - KERNEL_OFFSET + BOOT_STACK_SIZE), %esp
+ movl $(boot_stack + STACK_SIZE), %esp
 
 #ifdef __LP64__
  call boot_check_long_mode
@@ -85,7 +85,7 @@ ASM_ENTRY(_start)
 
 #ifdef __LP64__
  movq %rax, %cr3
- movq $(boot_stacks + BOOT_STACK_SIZE), %rsp
+ movq $(boot_stack + STACK_SIZE), %rsp
 #else /* __LP64__ */
  movl %eax, %cr3
  movl %cr0, %eax
@@ -94,7 +94,7 @@ ASM_ENTRY(_start)
  ljmp $8, $1f
 
 1:
- movl $(boot_stacks + BOOT_STACK_SIZE), %esp
+ movl $(boot_stack + STACK_SIZE), %esp
 #endif /* __LP64__ */
 
  xorl %ebp, %ebp
@@ -233,10 +233,7 @@ ASM_ENTRY(boot_ap_start32)
  ljmp $8, $1f
 
 1:
- movl boot_ap_id, %esp
- incl %esp
- shll $BOOT_STACK_SHIFT, %esp
- addl $(boot_stacks - KERNEL_OFFSET), %esp
+ movl $(boot_ap_stack + STACK_SIZE), %esp
 
 #ifdef __LP64__
  call boot_setup_long_mode
@@ -262,14 +259,14 @@ ASM_ENTRY(boot_ap_start32)
 1:
 #endif /* __LP64__ */
 
- movl boot_ap_id, %esp
- incl %esp
- shll $BOOT_STACK_SHIFT, %esp
+ call cpu_get_boot_stack
 
 #ifdef __LP64__
- addq $boot_stacks, %rsp
+ movq %rax, %rsp
+ addq $STACK_SIZE, %rsp
 #else /* __LP64__ */
- addl $boot_stacks, %esp
+ movl %eax, %esp
+ addl $STACK_SIZE, %esp
 #endif /* __LP64__ */
 
  xorl %ebp, %ebp
