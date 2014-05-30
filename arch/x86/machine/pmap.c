@@ -170,29 +170,8 @@ static pmap_pte_t pmap_cpu_kpdpts[MAX_CPUS][PMAP_NR_RPTPS] __read_mostly
 static pmap_pte_t pmap_prot_table[VM_PROT_ALL + 1] __read_mostly;
 
 /*
- * Maximum number of mappings for which individual TLB invalidations can be
- * performed. Global TLB flushes are done beyond this value.
- */
-#define PMAP_UPDATE_MAX_MAPPINGS 64
-
-/*
  * Structures related to inter-processor page table updates.
  */
-
-/*
- * Per processor request, queued on a remote processor.
- *
- * A request refers to the operation list it's embedded within. The number of
- * mappings is used to determine whether it's best to flush individual TLB
- * entries or globally flush the TLB.
- */
-struct pmap_update_request {
-    struct list node;
-    struct mutex lock;
-    struct condition cond;
-    unsigned int nr_mappings;
-    int done;
-} __aligned(CPU_L1_SIZE);
 
 #define PMAP_UPDATE_OP_ENTER    1
 #define PMAP_UPDATE_OP_REMOVE   2
@@ -236,22 +215,20 @@ struct pmap_update_op {
 /*
  * List of update operations.
  *
- * Operation lists are thread-local and apply to a single pmap. One list
- * includes operations that must be applied when updating a pmap. Updating
- * can be implicit, e.g. when a list has reached its maximum size, or
- * explicit, when pmap_update() is called.
+ * A list of update operations is a container of operations that are pending
+ * for a pmap. Updating can be implicit, e.g. when a list has reached its
+ * maximum size, or explicit, when pmap_update() is called. Operation lists
+ * are thread-local objects.
  *
  * The cpumap is the union of all processors affected by at least one
  * operation.
  */
 struct pmap_update_oplist {
-    struct pmap_update_request requests[MAX_CPUS];
-
     struct cpumap cpumap;
     struct pmap *pmap;
     unsigned int nr_ops;
     struct pmap_update_op ops[PMAP_UPDATE_MAX_OPS];
-};
+} __aligned(CPU_L1_SIZE);
 
 static unsigned int pmap_oplist_tsd_key __read_mostly;
 
@@ -294,6 +271,41 @@ struct pmap_syncer {
 static void pmap_sync(void *arg);
 
 static struct pmap_syncer pmap_syncers[MAX_CPUS];
+
+/*
+ * Maximum number of mappings for which individual TLB invalidations can be
+ * performed. Global TLB flushes are done beyond this value.
+ */
+#define PMAP_UPDATE_MAX_MAPPINGS 64
+
+/*
+ * Per processor request, queued on a remote processor.
+ *
+ * The number of mappings is used to determine whether it's best to flush
+ * individual TLB entries or globally flush the TLB.
+ */
+struct pmap_update_request {
+    struct list node;
+    struct mutex lock;
+    struct condition cond;
+    const struct pmap_update_oplist *oplist;
+    unsigned int nr_mappings;
+    int done;
+} __aligned(CPU_L1_SIZE);
+
+/*
+ * Per processor array of requests.
+ *
+ * When an operation list is to be applied, the thread triggering the update
+ * acquires the processor-local array of requests and uses it to queue requests
+ * on remote processors.
+ */
+struct pmap_update_request_array {
+    struct pmap_update_request requests[MAX_CPUS];
+    struct mutex lock;
+} __aligned(CPU_L1_SIZE);
+
+static struct pmap_update_request_array pmap_update_request_arrays[MAX_CPUS];
 
 static int pmap_do_remote_updates __read_mostly;
 
@@ -518,17 +530,8 @@ static void
 pmap_update_oplist_ctor(void *arg)
 {
     struct pmap_update_oplist *oplist;
-    unsigned int i;
 
     oplist = arg;
-
-    for (i = 0; i < ARRAY_SIZE(oplist->requests); i++) {
-        mutex_init(&oplist->requests[i].lock);
-        condition_init(&oplist->requests[i].cond);
-        oplist->requests[i].nr_mappings = 0;
-        oplist->requests[i].done = 0;
-    }
-
     cpumap_zero(&oplist->cpumap);
     oplist->pmap = NULL;
     oplist->nr_ops = 0;
@@ -582,25 +585,100 @@ pmap_update_oplist_prepare(struct pmap_update_oplist *oplist,
     }
 }
 
-static void
-pmap_update_oplist_inc_nr_ops(struct pmap_update_oplist *oplist,
-                              struct pmap_update_op *op)
+static struct pmap_update_op *
+pmap_update_oplist_prev_op(struct pmap_update_oplist *oplist)
 {
+    if (oplist->nr_ops == 0)
+        return NULL;
+
+    return &oplist->ops[oplist->nr_ops - 1];
+}
+
+static struct pmap_update_op *
+pmap_update_oplist_prepare_op(struct pmap_update_oplist *oplist)
+{
+    assert(oplist->nr_ops < ARRAY_SIZE(oplist->ops));
+    return &oplist->ops[oplist->nr_ops];
+}
+
+static void
+pmap_update_oplist_finish_op(struct pmap_update_oplist *oplist)
+{
+    struct pmap_update_op *op;
+
+    assert(oplist->nr_ops < ARRAY_SIZE(oplist->ops));
+    op = &oplist->ops[oplist->nr_ops];
     cpumap_or(&oplist->cpumap, &op->cpumap);
     oplist->nr_ops++;
 }
 
+static unsigned int
+pmap_update_oplist_count_mappings(const struct pmap_update_oplist *oplist,
+                                  unsigned int cpu)
+{
+    const struct pmap_update_op *op;
+    unsigned int i, nr_mappings;
+
+    nr_mappings = 0;
+
+    for (i = 0; i < oplist->nr_ops; i++) {
+        op = &oplist->ops[i];
+
+        if (!cpumap_test(&op->cpumap, cpu))
+            continue;
+
+        switch (op->operation) {
+        case PMAP_UPDATE_OP_ENTER:
+            nr_mappings++;
+            break;
+        case PMAP_UPDATE_OP_REMOVE:
+            nr_mappings += (op->remove_args.end - op->remove_args.start)
+                           / PAGE_SIZE;
+            break;
+        case PMAP_UPDATE_OP_PROTECT:
+            nr_mappings += (op->protect_args.end - op->protect_args.start)
+                           / PAGE_SIZE;
+            break;
+        default:
+            assert(!"invalid update operation");
+        }
+    }
+
+    assert(nr_mappings != 0);
+    return nr_mappings;
+}
+
 static void
-pmap_update_oplist_inc_nr_mappings(struct pmap_update_oplist *oplist,
-                                   struct pmap_update_op *op)
+pmap_update_request_array_init(struct pmap_update_request_array *array)
 {
     struct pmap_update_request *request;
-    int cpu;
+    unsigned int i;
 
-    cpumap_for_each(&op->cpumap, cpu) {
-        request = &oplist->requests[cpu];
-        request->nr_mappings++;
+    for (i = 0; i < ARRAY_SIZE(array->requests); i++) {
+        request = &array->requests[i];
+        mutex_init(&request->lock);
+        condition_init(&request->cond);
     }
+
+    mutex_init(&array->lock);
+}
+
+static struct pmap_update_request_array *
+pmap_update_request_array_acquire(void)
+{
+    struct pmap_update_request_array *array;
+
+    thread_pin();
+    array = &pmap_update_request_arrays[cpu_id()];
+    mutex_lock(&array->lock);
+    return array;
+}
+
+static void
+pmap_update_request_array_release(struct pmap_update_request_array *array)
+{
+    mutex_unlock(&array->lock);
+    thread_unpin();
 }
 
 static void __init
@@ -630,11 +708,11 @@ pmap_bootstrap(void)
 {
     struct pmap_cpu_table *cpu_table;
     unsigned long va;
-    unsigned int cpu;
+    unsigned int i;
 
-    for (cpu = 0; cpu < ARRAY_SIZE(kernel_pmap->cpu_tables); cpu++) {
-        cpu_table = &kernel_pmap_cpu_tables[cpu];
-        kernel_pmap->cpu_tables[cpu] = cpu_table;
+    for (i = 0; i < ARRAY_SIZE(kernel_pmap->cpu_tables); i++) {
+        cpu_table = &kernel_pmap_cpu_tables[i];
+        kernel_pmap->cpu_tables[i] = cpu_table;
         mutex_init(&cpu_table->lock);
     }
 
@@ -655,17 +733,20 @@ pmap_bootstrap(void)
 
     va = pmap_bootalloc(1);
 
-    for (cpu = 0; cpu < MAX_CPUS; cpu++) {
-        mutex_init(&pmap_zero_mappings[cpu].lock);
-        pmap_zero_mappings[cpu].va = va;
+    for (i = 0; i < ARRAY_SIZE(pmap_zero_mappings); i++) {
+        mutex_init(&pmap_zero_mappings[i].lock);
+        pmap_zero_mappings[i].va = va;
     }
 
     va = pmap_bootalloc(PMAP_NR_RPTPS);
 
-    for (cpu = 0; cpu < MAX_CPUS; cpu++) {
-        mutex_init(&pmap_ptp_mappings[cpu].lock);
-        pmap_ptp_mappings[cpu].va = va;
+    for (i = 0; i < ARRAY_SIZE(pmap_ptp_mappings); i++) {
+        mutex_init(&pmap_ptp_mappings[i].lock);
+        pmap_ptp_mappings[i].va = va;
     }
+
+    for (i = 0; i < ARRAY_SIZE(pmap_update_request_arrays); i++)
+        pmap_update_request_array_init(&pmap_update_request_arrays[i]);
 
     pmap_syncer_init(&pmap_syncers[0]);
 
@@ -1164,12 +1245,13 @@ pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
     struct pmap_update_oplist *oplist;
     struct pmap_update_op *op;
 
+    va = vm_page_trunc(va);
+    pa = vm_page_trunc(pa);
     pmap_assert_range(pmap, va, va + PAGE_SIZE);
 
     oplist = pmap_update_oplist_get();
     pmap_update_oplist_prepare(oplist, pmap);
-
-    op = &oplist->ops[oplist->nr_ops];
+    op = pmap_update_oplist_prepare_op(oplist);
 
     if (flags & PMAP_PEF_GLOBAL)
         cpumap_copy(&op->cpumap, cpumap_all());
@@ -1183,9 +1265,7 @@ pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
     op->enter_args.pa = pa;
     op->enter_args.prot = prot;
     op->enter_args.flags = flags & ~PMAP_PEF_GLOBAL;
-
-    pmap_update_oplist_inc_nr_ops(oplist, op);
-    pmap_update_oplist_inc_nr_mappings(oplist, op);
+    pmap_update_oplist_finish_op(oplist);
 }
 
 static void
@@ -1267,33 +1347,29 @@ pmap_remove(struct pmap *pmap, unsigned long va, const struct cpumap *cpumap)
     struct pmap_update_oplist *oplist;
     struct pmap_update_op *op;
 
+    va = vm_page_trunc(va);
     pmap_assert_range(pmap, va, va + PAGE_SIZE);
 
     oplist = pmap_update_oplist_get();
     pmap_update_oplist_prepare(oplist, pmap);
 
     /* Attempt naive merge with previous operation */
-    if (oplist->nr_ops != 0) {
-        op = &oplist->ops[oplist->nr_ops - 1];
+    op = pmap_update_oplist_prev_op(oplist);
 
-        if ((op->operation == PMAP_UPDATE_OP_REMOVE)
-            && (op->remove_args.end == va)
-            && (cpumap_cmp(&op->cpumap, cpumap) == 0)) {
-            op->remove_args.end = va + PAGE_SIZE;
-            goto out;
-        }
+    if ((op != NULL)
+        && (op->operation == PMAP_UPDATE_OP_REMOVE)
+        && (op->remove_args.end == va)
+        && (cpumap_cmp(&op->cpumap, cpumap) == 0)) {
+        op->remove_args.end = va + PAGE_SIZE;
+        return;
     }
 
-    op = &oplist->ops[oplist->nr_ops];
+    op = pmap_update_oplist_prepare_op(oplist);
     cpumap_copy(&op->cpumap, cpumap);
     op->operation = PMAP_UPDATE_OP_REMOVE;
     op->remove_args.start = va;
     op->remove_args.end = va + PAGE_SIZE;
-
-    pmap_update_oplist_inc_nr_ops(oplist, op);
-
-out:
-    pmap_update_oplist_inc_nr_mappings(oplist, op);
+    pmap_update_oplist_finish_op(oplist);
 }
 
 static void
@@ -1330,35 +1406,31 @@ pmap_protect(struct pmap *pmap, unsigned long va, int prot,
     struct pmap_update_oplist *oplist;
     struct pmap_update_op *op;
 
+    va = vm_page_trunc(va);
     pmap_assert_range(pmap, va, va + PAGE_SIZE);
 
     oplist = pmap_update_oplist_get();
     pmap_update_oplist_prepare(oplist, pmap);
 
     /* Attempt naive merge with previous operation */
-    if (oplist->nr_ops != 0) {
-        op = &oplist->ops[oplist->nr_ops - 1];
+    op = pmap_update_oplist_prev_op(oplist);
 
-        if ((op->operation == PMAP_UPDATE_OP_PROTECT)
-            && (op->protect_args.end == va)
-            && (op->protect_args.prot == prot)
-            && (cpumap_cmp(&op->cpumap, cpumap) == 0)) {
-            op->protect_args.end = va + PAGE_SIZE;
-            goto out;
-        }
+    if ((op != NULL)
+        && (op->operation == PMAP_UPDATE_OP_PROTECT)
+        && (op->protect_args.end == va)
+        && (op->protect_args.prot == prot)
+        && (cpumap_cmp(&op->cpumap, cpumap) == 0)) {
+        op->protect_args.end = va + PAGE_SIZE;
+        return;
     }
 
-    op = &oplist->ops[oplist->nr_ops];
+    op = pmap_update_oplist_prepare_op(oplist);
     cpumap_copy(&op->cpumap, cpumap);
     op->operation = PMAP_UPDATE_OP_PROTECT;
     op->protect_args.start = va;
     op->protect_args.end = va + PAGE_SIZE;
     op->protect_args.prot = prot;
-
-    pmap_update_oplist_inc_nr_ops(oplist, op);
-
-out:
-    pmap_update_oplist_inc_nr_mappings(oplist, op);
+    pmap_update_oplist_finish_op(oplist);
 }
 
 static phys_addr_t
@@ -1384,6 +1456,7 @@ pmap_extract_ptemap(unsigned long va)
 phys_addr_t
 pmap_extract(struct pmap *pmap, unsigned long va)
 {
+    va = vm_page_trunc(va);
     pmap_assert_range(pmap, va, va + PAGE_SIZE);
 
     if ((pmap == kernel_pmap) || (pmap == pmap_current()))
@@ -1496,8 +1569,10 @@ void
 pmap_update(struct pmap *pmap)
 {
     struct pmap_update_oplist *oplist;
+    struct pmap_update_request_array *array;
     struct pmap_update_request *request;
     struct pmap_update_queue *queue;
+    unsigned int nr_mappings;
     int cpu;
 
     oplist = pmap_update_oplist_get();
@@ -1508,23 +1583,20 @@ pmap_update(struct pmap *pmap)
     assert(oplist->nr_ops != 0);
 
     if (!pmap_do_remote_updates) {
-        request = &oplist->requests[cpu_id()];
-        pmap_update_local(oplist, request->nr_mappings);
-
-        cpumap_for_each(&oplist->cpumap, cpu) {
-            request = &oplist->requests[cpu];
-            request->nr_mappings = 0;
-        }
-
+        nr_mappings = pmap_update_oplist_count_mappings(oplist, cpu_id());
+        pmap_update_local(oplist, nr_mappings);
         goto out;
     }
 
+    array = pmap_update_request_array_acquire();
+
     cpumap_for_each(&oplist->cpumap, cpu) {
-        request = &oplist->requests[cpu];
+        request = &array->requests[cpu];
         queue = &pmap_syncers[cpu].queue;
 
-        assert(!request->done);
-        assert(request->nr_mappings != 0);
+        request->oplist = oplist;
+        request->nr_mappings = pmap_update_oplist_count_mappings(oplist, cpu);
+        request->done = 0;
 
         mutex_lock(&queue->lock);
         list_insert_tail(&queue->requests, &request->node);
@@ -1533,18 +1605,17 @@ pmap_update(struct pmap *pmap)
     }
 
     cpumap_for_each(&oplist->cpumap, cpu) {
-        request = &oplist->requests[cpu];
+        request = &array->requests[cpu];
 
         mutex_lock(&request->lock);
 
         while (!request->done)
             condition_wait(&request->cond, &request->lock);
 
-        request->nr_mappings = 0;
-        request->done = 0;
-
         mutex_unlock(&request->lock);
     }
+
+    pmap_update_request_array_release(array);
 
 out:
     cpumap_zero(&oplist->cpumap);
@@ -1555,15 +1626,12 @@ out:
 static void
 pmap_sync(void *arg)
 {
-    const struct pmap_update_oplist *oplist;
     struct pmap_update_queue *queue;
-    struct pmap_update_request *request, *requests;
+    struct pmap_update_request *request;
     struct pmap_syncer *self;
-    unsigned int cpu;
 
     self = arg;
     queue = &self->queue;
-    cpu = self - pmap_syncers;
 
     for (;;) {
         mutex_lock(&queue->lock);
@@ -1577,9 +1645,7 @@ pmap_sync(void *arg)
 
         mutex_unlock(&queue->lock);
 
-        requests = request - cpu;
-        oplist = structof(requests, struct pmap_update_oplist, requests);
-        pmap_update_local(oplist, request->nr_mappings);
+        pmap_update_local(request->oplist, request->nr_mappings);
 
         mutex_lock(&request->lock);
         request->done = 1;
