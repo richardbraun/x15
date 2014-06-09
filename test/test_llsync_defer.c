@@ -169,7 +169,7 @@ test_read(void *arg)
             }
         }
 
-        llsync_read_leave();
+        llsync_read_exit();
     }
 }
 

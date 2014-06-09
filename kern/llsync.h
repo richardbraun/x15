@@ -55,7 +55,7 @@ llsync_read_enter(void)
 }
 
 static inline void
-llsync_read_leave(void)
+llsync_read_exit(void)
 {
     thread_preempt_enable();
 }
