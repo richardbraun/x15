@@ -53,7 +53,6 @@
  *
  * The local APIC assigns one priority every 16 vectors.
  */
-#define TRAP_LLSYNC_RESET       238
 #define TRAP_THREAD_SCHEDULE    239
 #define TRAP_CPU_HALT           240
 #define TRAP_LAPIC_TIMER        253

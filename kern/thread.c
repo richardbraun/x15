@@ -482,7 +482,7 @@ thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
 
-    llsync_checkin(thread_runq_id(runq));
+    llsync_report_context_switch();
 
     thread_clear_flag(prev, THREAD_YIELD);
     thread_runq_put_prev(runq, prev);
@@ -1463,6 +1463,7 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     thread->state = THREAD_SLEEPING;
     thread->preempt = 2;
     thread->pinned = 0;
+    thread->llsync_read = 0;
     thread->sched_policy = attr->policy;
     thread->sched_class = thread_policy_table[attr->policy];
     cpumap_copy(&thread->cpumap, cpumap);
@@ -1679,14 +1680,14 @@ static void
 thread_idle(void *arg)
 {
     struct thread *self;
-    unsigned int cpu;
+
+    (void)arg;
 
     self = thread_self();
-    cpu = thread_runq_id(arg);
 
     for (;;) {
         thread_preempt_disable();
-        llsync_unregister_cpu(cpu);
+        llsync_unregister();
 
         for (;;) {
             cpu_intr_disable();
@@ -1699,7 +1700,7 @@ thread_idle(void *arg)
             cpu_idle();
         }
 
-        llsync_register_cpu(cpu);
+        llsync_register();
         thread_preempt_enable();
     }
 }
@@ -1735,7 +1736,7 @@ thread_setup_idler(struct thread_runq *runq)
     thread_attr_init(&attr, name);
     thread_attr_set_cpumap(&attr, cpumap);
     thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_IDLE);
-    error = thread_init(idler, stack, &attr, thread_idle, runq);
+    error = thread_init(idler, stack, &attr, thread_idle, NULL);
 
     if (error)
         panic("thread: unable to initialize idler thread");
@@ -1946,7 +1947,7 @@ thread_run_scheduler(void)
     assert(!cpu_intr_enabled());
 
     runq = thread_runq_local();
-    llsync_register_cpu(thread_runq_id(runq));
+    llsync_register();
     thread = thread_self();
     assert(thread == runq->current);
     assert(thread->preempt == 1);
@@ -2003,7 +2004,7 @@ thread_tick_intr(void)
 
     runq = thread_runq_local();
     evcnt_inc(&runq->ev_tick);
-    llsync_commit_checkpoint(thread_runq_id(runq));
+    llsync_report_periodic_event();
     thread = thread_self();
 
     spinlock_lock(&runq->lock);

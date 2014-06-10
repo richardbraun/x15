@@ -658,20 +658,6 @@ cpu_send_thread_schedule(unsigned int cpu)
  */
 void cpu_thread_schedule_intr(struct trap_frame *frame);
 
-/*
- * Request a remote processor to reset its checkpoint.
- */
-static inline void
-cpu_send_llsync_reset(unsigned int cpu)
-{
-    lapic_ipi_send(cpu_from_id(cpu)->apic_id, TRAP_LLSYNC_RESET);
-}
-
-/*
- * Interrupt handler for checkpoint reset requests.
- */
-void cpu_llsync_reset_intr(struct trap_frame *frame);
-
 #endif /* __ASSEMBLER__ */
 
 #endif /* _X86_CPU_H */

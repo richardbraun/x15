@@ -154,6 +154,7 @@ struct thread {
     /* Thread-local members */
     unsigned short preempt;
     unsigned short pinned;
+    unsigned short llsync_read;
 
     /* Common scheduling properties */
     unsigned char sched_policy;
@@ -445,6 +446,40 @@ thread_preempt_disable(void)
     thread->preempt++;
     assert(thread->preempt != 0);
     barrier();
+}
+
+/*
+ * Lockless synchronization read-side critical section nesting counter
+ * control functions.
+ */
+
+static inline int
+thread_llsync_in_read_cs(void)
+{
+    struct thread *thread;
+
+    thread = thread_self();
+    return (thread->llsync_read != 0);
+}
+
+static inline void
+thread_llsync_read_inc(void)
+{
+    struct thread *thread;
+
+    thread = thread_self();
+    thread->llsync_read++;
+    assert(thread->llsync_read != 0);
+}
+
+static inline void
+thread_llsync_read_dec(void)
+{
+    struct thread *thread;
+
+    thread = thread_self();
+    assert(thread->llsync_read != 0);
+    thread->llsync_read--;
 }
 
 /*

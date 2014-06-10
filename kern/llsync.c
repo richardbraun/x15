@@ -50,50 +50,20 @@
 #include <kern/work.h>
 #include <machine/cpu.h>
 
+/*
+ * Initial global checkpoint ID.
+ *
+ * Set to a high value to make sure overflows are correctly handled.
+ */
+#define LLSYNC_INITIAL_GCID ((unsigned int)-10)
+
+/*
+ * Number of pending works beyond which to issue a warning.
+ */
 #define LLSYNC_NR_PENDING_WORKS_WARN 10000
 
-struct llsync_cpu llsync_cpus[MAX_CPUS];
-
-/*
- * Global lock protecting the remaining module data.
- *
- * Interrupts must be disabled when acquiring this lock.
- */
-static struct spinlock llsync_lock;
-
-/*
- * Map of processors regularly checking in.
- */
-static struct cpumap llsync_registered_cpus;
-static unsigned int llsync_nr_registered_cpus;
-
-/*
- * Map of processors for which a checkpoint commit is pending.
- *
- * To reduce contention, checking in only affects a single per-processor
- * cache line. Special events (currently the system timer interrupt only)
- * trigger checkpoint commits, which report the local state to this CPU
- * map, thereby acquiring the global lock.
- */
-static struct cpumap llsync_pending_checkpoints;
-static unsigned int llsync_nr_pending_checkpoints;
-
-/*
- * Queues of deferred works.
- *
- * The queue number matches the number of global checkpoints that occurred
- * since works contained in it were added. After two global checkpoints,
- * works are scheduled for processing.
- */
-static struct work_queue llsync_queue0;
-static struct work_queue llsync_queue1;
-
-/*
- * Number of works not yet scheduled for processing.
- *
- * Mostly unused, except for debugging.
- */
-static unsigned long llsync_nr_pending_works;
+struct llsync_data llsync_data;
+struct llsync_cpu_data llsync_cpu_data[MAX_CPUS];
 
 struct llsync_waiter {
     struct work work;
@@ -105,161 +75,165 @@ struct llsync_waiter {
 void __init
 llsync_setup(void)
 {
-    char name[EVCNT_NAME_SIZE];
-    unsigned int cpu;
-
-    spinlock_init(&llsync_lock);
-    work_queue_init(&llsync_queue0);
-    work_queue_init(&llsync_queue1);
-
-    for (cpu = 0; cpu < cpu_count(); cpu++) {
-        snprintf(name, sizeof(name), "llsync_reset/%u", cpu);
-        evcnt_register(&llsync_cpus[cpu].ev_reset, name);
-        snprintf(name, sizeof(name), "llsync_spurious_reset/%u", cpu);
-        evcnt_register(&llsync_cpus[cpu].ev_spurious_reset, name);
-    }
+    spinlock_init(&llsync_data.lock);
+    work_queue_init(&llsync_data.queue0);
+    work_queue_init(&llsync_data.queue1);
+    evcnt_register(&llsync_data.ev_global_checkpoint,
+                   "llsync_global_checkpoint");
+    evcnt_register(&llsync_data.ev_periodic_checkin,
+                   "llsync_periodic_checkin");
+    evcnt_register(&llsync_data.ev_failed_periodic_checkin,
+                   "llsync_failed_periodic_checkin");
+    llsync_data.gcid.value = LLSYNC_INITIAL_GCID;
 }
 
 static void
-llsync_reset_checkpoint_common(unsigned int cpu)
-{
-    assert(!cpumap_test(&llsync_pending_checkpoints, cpu));
-    cpumap_set(&llsync_pending_checkpoints, cpu);
-    llsync_cpus[cpu].checked = 0;
-}
-
-static void
-llsync_process_global_checkpoint(unsigned int cpu)
+llsync_process_global_checkpoint(void)
 {
     struct work_queue queue;
     unsigned int nr_works;
-    int i;
 
-    if (llsync_nr_registered_cpus == 0) {
-        work_queue_concat(&llsync_queue1, &llsync_queue0);
-        work_queue_init(&llsync_queue0);
+    assert(cpumap_find_first(&llsync_data.pending_checkpoints) == -1);
+    assert(llsync_data.nr_pending_checkpoints == 0);
+
+    if (llsync_data.nr_registered_cpus == 0) {
+        work_queue_concat(&llsync_data.queue1, &llsync_data.queue0);
+        work_queue_init(&llsync_data.queue0);
+    } else {
+        cpumap_copy(&llsync_data.pending_checkpoints, &llsync_data.registered_cpus);
+        llsync_data.nr_pending_checkpoints = llsync_data.nr_registered_cpus;
     }
 
-    work_queue_transfer(&queue, &llsync_queue1);
-    work_queue_transfer(&llsync_queue1, &llsync_queue0);
-    work_queue_init(&llsync_queue0);
-
-    llsync_nr_pending_checkpoints = llsync_nr_registered_cpus;
-
-    if (llsync_cpus[cpu].registered)
-        llsync_reset_checkpoint_common(cpu);
-
-    cpumap_for_each(&llsync_registered_cpus, i)
-        if ((unsigned int)i != cpu)
-            cpu_send_llsync_reset(i);
-
+    work_queue_transfer(&queue, &llsync_data.queue1);
+    work_queue_transfer(&llsync_data.queue1, &llsync_data.queue0);
+    work_queue_init(&llsync_data.queue0);
     nr_works = work_queue_nr_works(&queue);
 
     if (nr_works != 0) {
-        llsync_nr_pending_works -= nr_works;
+        llsync_data.nr_pending_works -= nr_works;
         work_queue_schedule(&queue, 0);
     }
+
+    llsync_data.gcid.value++;
+    evcnt_inc(&llsync_data.ev_global_checkpoint);
 }
 
 static void
-llsync_commit_checkpoint_common(unsigned int cpu)
+llsync_commit_checkpoint(unsigned int cpu)
 {
     int pending;
 
-    pending = cpumap_test(&llsync_pending_checkpoints, cpu);
+    pending = cpumap_test(&llsync_data.pending_checkpoints, cpu);
 
     if (!pending)
         return;
 
-    cpumap_clear(&llsync_pending_checkpoints, cpu);
-    llsync_nr_pending_checkpoints--;
+    cpumap_clear(&llsync_data.pending_checkpoints, cpu);
+    llsync_data.nr_pending_checkpoints--;
 
-    if (llsync_nr_pending_checkpoints == 0)
-        llsync_process_global_checkpoint(cpu);
+    if (llsync_data.nr_pending_checkpoints == 0)
+        llsync_process_global_checkpoint();
 }
 
 void
-llsync_register_cpu(unsigned int cpu)
+llsync_register(void)
 {
+    struct llsync_cpu_data *cpu_data;
     unsigned long flags;
+    unsigned int cpu;
 
-    spinlock_lock_intr_save(&llsync_lock, &flags);
+    cpu = cpu_id();
+    cpu_data = llsync_get_cpu_data(cpu);
 
-    assert(!llsync_cpus[cpu].registered);
-    llsync_cpus[cpu].registered = 1;
+    spinlock_lock_intr_save(&llsync_data.lock, &flags);
 
-    assert(!cpumap_test(&llsync_registered_cpus, cpu));
-    cpumap_set(&llsync_registered_cpus, cpu);
-    llsync_nr_registered_cpus++;
+    assert(!cpu_data->registered);
+    cpu_data->registered = 1;
+    cpu_data->gcid = llsync_data.gcid.value;
 
-    assert(!cpumap_test(&llsync_pending_checkpoints, cpu));
+    assert(!cpumap_test(&llsync_data.registered_cpus, cpu));
+    cpumap_set(&llsync_data.registered_cpus, cpu);
+    llsync_data.nr_registered_cpus++;
 
-    if ((llsync_nr_registered_cpus == 1)
-        && (llsync_nr_pending_checkpoints == 0))
-        llsync_process_global_checkpoint(cpu);
+    assert(!cpumap_test(&llsync_data.pending_checkpoints, cpu));
 
-    spinlock_unlock_intr_restore(&llsync_lock, flags);
+    if ((llsync_data.nr_registered_cpus == 1)
+        && (llsync_data.nr_pending_checkpoints == 0))
+        llsync_process_global_checkpoint();
+
+    spinlock_unlock_intr_restore(&llsync_data.lock, flags);
 }
 
 void
-llsync_unregister_cpu(unsigned int cpu)
+llsync_unregister(void)
 {
+    struct llsync_cpu_data *cpu_data;
     unsigned long flags;
+    unsigned int cpu;
 
-    spinlock_lock_intr_save(&llsync_lock, &flags);
+    cpu = cpu_id();
+    cpu_data = llsync_get_cpu_data(cpu);
 
-    assert(llsync_cpus[cpu].registered);
-    llsync_cpus[cpu].registered = 0;
+    spinlock_lock_intr_save(&llsync_data.lock, &flags);
 
-    assert(cpumap_test(&llsync_registered_cpus, cpu));
-    cpumap_clear(&llsync_registered_cpus, cpu);
-    llsync_nr_registered_cpus--;
+    assert(cpu_data->registered);
+    cpu_data->registered = 0;
+
+    assert(cpumap_test(&llsync_data.registered_cpus, cpu));
+    cpumap_clear(&llsync_data.registered_cpus, cpu);
+    llsync_data.nr_registered_cpus--;
 
     /*
      * Processor registration qualifies as a checkpoint. Since unregistering
      * a processor also disables commits until it's registered again, perform
      * one now.
      */
-    llsync_commit_checkpoint_common(cpu);
+    llsync_commit_checkpoint(cpu);
 
-    spinlock_unlock_intr_restore(&llsync_lock, flags);
+    spinlock_unlock_intr_restore(&llsync_data.lock, flags);
 }
 
 void
-llsync_reset_checkpoint(unsigned int cpu)
+llsync_report_periodic_event(void)
 {
+    struct llsync_cpu_data *cpu_data;
+    unsigned int cpu, gcid;
+
     assert(!cpu_intr_enabled());
+    assert(!thread_preempt_enabled());
 
-    spinlock_lock(&llsync_lock);
+    cpu = cpu_id();
+    cpu_data = llsync_get_cpu_data(cpu);
 
-    evcnt_inc(&llsync_cpus[cpu].ev_reset);
-    llsync_reset_checkpoint_common(cpu);
-
-    /*
-     * It may happen that this processor was registered at the time a global
-     * checkpoint occurred, but unregistered itself before receiving the reset
-     * interrupt. In this case, behave as if the reset request was received
-     * before unregistering by immediately committing the local checkpoint.
-     */
-    if (!llsync_cpus[cpu].registered) {
-        evcnt_inc(&llsync_cpus[cpu].ev_spurious_reset);
-        llsync_commit_checkpoint_common(cpu);
-    }
-
-    spinlock_unlock(&llsync_lock);
-}
-
-void
-llsync_commit_checkpoint(unsigned int cpu)
-{
-    assert(!cpu_intr_enabled());
-
-    if (!(llsync_cpus[cpu].registered && llsync_cpus[cpu].checked))
+    if (!cpu_data->registered)
         return;
 
-    spinlock_lock(&llsync_lock);
-    llsync_commit_checkpoint_common(cpu);
-    spinlock_unlock(&llsync_lock);
+    spinlock_lock(&llsync_data.lock);
+
+    gcid = llsync_data.gcid.value;
+    assert((gcid - cpu_data->gcid) <= 1);
+
+    /*
+     * If the local copy of the global checkpoint ID matches the true
+     * value, the current processor has checked in.
+     *
+     * Otherwise, there were no checkpoint since the last global checkpoint.
+     * Check whether this periodic event occurred during a read-side critical
+     * section, and if not, trigger a checkpoint.
+     */
+    if (cpu_data->gcid == gcid)
+        llsync_commit_checkpoint(cpu);
+    else {
+        if (thread_llsync_in_read_cs())
+            evcnt_inc(&llsync_data.ev_failed_periodic_checkin);
+        else {
+            cpu_data->gcid = gcid;
+            evcnt_inc(&llsync_data.ev_periodic_checkin);
+            llsync_commit_checkpoint(cpu);
+        }
+    }
+
+    spinlock_unlock(&llsync_data.lock);
 }
 
 void
@@ -267,15 +241,15 @@ llsync_defer(struct work *work)
 {
     unsigned long flags;
 
-    spinlock_lock_intr_save(&llsync_lock, &flags);
+    spinlock_lock_intr_save(&llsync_data.lock, &flags);
 
-    work_queue_push(&llsync_queue0, work);
-    llsync_nr_pending_works++;
+    work_queue_push(&llsync_data.queue0, work);
+    llsync_data.nr_pending_works++;
 
-    if (llsync_nr_pending_works == LLSYNC_NR_PENDING_WORKS_WARN)
+    if (llsync_data.nr_pending_works == LLSYNC_NR_PENDING_WORKS_WARN)
         printk("llsync: warning: large number of pending works\n");
 
-    spinlock_unlock_intr_restore(&llsync_lock, flags);
+    spinlock_unlock_intr_restore(&llsync_data.lock, flags);
 }
 
 static void

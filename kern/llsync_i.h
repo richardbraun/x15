@@ -18,21 +18,98 @@
 #ifndef _KERN_LLSYNC_I_H
 #define _KERN_LLSYNC_I_H
 
+#include <kern/assert.h>
+#include <kern/cpumap.h>
 #include <kern/evcnt.h>
+#include <kern/macros.h>
 #include <kern/param.h>
+#include <kern/spinlock.h>
+#include <kern/work.h>
+#include <machine/cpu.h>
+
+/*
+ * Global data.
+ *
+ * The queue number matches the number of global checkpoints that occurred
+ * since works contained in it were added. After two global checkpoints,
+ * works are scheduled for processing.
+ *
+ * Interrupts must be disabled when acquiring the global data lock.
+ */
+struct llsync_data {
+    struct spinlock lock;
+    struct cpumap registered_cpus;
+    unsigned int nr_registered_cpus;
+    struct cpumap pending_checkpoints;
+    unsigned int nr_pending_checkpoints;
+    struct work_queue queue0;
+    struct work_queue queue1;
+    unsigned long nr_pending_works;
+    struct evcnt ev_global_checkpoint;
+    struct evcnt ev_periodic_checkin;
+    struct evcnt ev_failed_periodic_checkin;
+
+    /*
+     * Global checkpoint ID.
+     *
+     * This variable can be frequently accessed from many processors so :
+     *  - reserve a whole cache line for it
+     *  - apply optimistic accesses to reduce contention
+     */
+    struct {
+        volatile unsigned int value __aligned(CPU_L1_SIZE);
+    } gcid;
+};
+
+extern struct llsync_data llsync_data;
 
 /*
  * Per-processor data.
  *
- * Interrupts must be disabled on access.
+ * Every processor records whether it is registered and a local copy of the
+ * global checkpoint ID, which is meaningless on unregistered processors.
+ * The true global checkpoint ID is incremented when a global checkpoint occurs,
+ * after which all the local copies become stale. Checking in synchronizes
+ * the local copy of the global checkpoint ID.
+ *
+ * Interrupts and preemption must be disabled on access.
  */
-struct llsync_cpu {
+struct llsync_cpu_data {
     int registered;
-    int checked;
-    struct evcnt ev_reset;
-    struct evcnt ev_spurious_reset;
+    unsigned int gcid;
 } __aligned(CPU_L1_SIZE);
 
-extern struct llsync_cpu llsync_cpus[MAX_CPUS];
+extern struct llsync_cpu_data llsync_cpu_data[MAX_CPUS];
+
+static inline struct llsync_cpu_data *
+llsync_get_cpu_data(unsigned int cpu)
+{
+    return &llsync_cpu_data[cpu];
+}
+
+static inline void
+llsync_checkin(void)
+{
+    struct llsync_cpu_data *cpu_data;
+    unsigned int cpu, gcid;
+
+    assert(!cpu_intr_enabled());
+    assert(!thread_preempt_enabled());
+
+    cpu = cpu_id();
+    cpu_data = llsync_get_cpu_data(cpu);
+
+    if (!cpu_data->registered)
+        return;
+
+    /*
+     * The global checkpoint ID obtained might be obsolete here, in which
+     * case a commit will not determine that a checkpoint actually occurred.
+     * This should seldom happen.
+     */
+    gcid = llsync_data.gcid.value;
+    assert((gcid - cpu_data->gcid) <= 1);
+    cpu_data->gcid = gcid;
+}
 
 #endif /* _KERN_LLSYNC_I_H */

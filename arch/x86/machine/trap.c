@@ -75,7 +75,6 @@ void trap_isr_machine_check(void);
 void trap_isr_simd_fp_exception(void);
 void trap_isr_pic_int7(void);
 void trap_isr_pic_int15(void);
-void trap_isr_llsync_reset(void);
 void trap_isr_thread_schedule(void);
 void trap_isr_cpu_halt(void);
 void trap_isr_lapic_timer(void);
@@ -202,8 +201,6 @@ trap_setup(void)
                  trap_isr_pic_int15, pic_intr_spurious);
 
     /* System defined traps */
-    trap_install(TRAP_LLSYNC_RESET, TRAP_HF_NOPREEMPT,
-                 trap_isr_llsync_reset, cpu_llsync_reset_intr);
     trap_install(TRAP_THREAD_SCHEDULE, TRAP_HF_NOPREEMPT,
                  trap_isr_thread_schedule, cpu_thread_schedule_intr);
     trap_install(TRAP_CPU_HALT, TRAP_HF_NOPREEMPT,
