@@ -205,8 +205,8 @@ struct thread_runq {
     /* Ticks before the next balancing attempt when a run queue is idle */
     unsigned int idle_balance_ticks;
 
-    struct evcnt ev_schedule;
-    struct evcnt ev_tick;
+    struct evcnt ev_schedule_intr;
+    struct evcnt ev_tick_intr;
 } __aligned(CPU_L1_SIZE);
 
 /*
@@ -365,10 +365,10 @@ thread_runq_init(struct thread_runq *runq, struct thread *booter)
     runq->idler = NULL;
     runq->idle_balance_ticks = (unsigned int)-1;
     runq_id = thread_runq_id(runq);
-    snprintf(name, sizeof(name), "thread_schedule/%u", runq_id);
-    evcnt_register(&runq->ev_schedule, name);
-    snprintf(name, sizeof(name), "thread_tick/%u", runq_id);
-    evcnt_register(&runq->ev_tick, name);
+    snprintf(name, sizeof(name), "thread_schedule_intr/%u", runq_id);
+    evcnt_register(&runq->ev_schedule_intr, name);
+    snprintf(name, sizeof(name), "thread_tick_intr/%u", runq_id);
+    evcnt_register(&runq->ev_tick_intr, name);
 }
 
 static inline struct thread_runq *
@@ -1990,7 +1990,7 @@ thread_schedule_intr(void)
     assert(!thread_preempt_enabled());
 
     runq = thread_runq_local();
-    evcnt_inc(&runq->ev_schedule);
+    evcnt_inc(&runq->ev_schedule_intr);
 }
 
 void
@@ -2003,7 +2003,7 @@ thread_tick_intr(void)
     assert(!thread_preempt_enabled());
 
     runq = thread_runq_local();
-    evcnt_inc(&runq->ev_tick);
+    evcnt_inc(&runq->ev_tick_intr);
     llsync_report_periodic_event();
     thread = thread_self();
 
