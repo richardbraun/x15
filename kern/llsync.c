@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * The method used by this module is described in the expired US patent 
+ * The method used by this module is described in the expired US patent
  * 4809168, "Passive Serialization in a Multitasking Environment". It is
  * similar to "Classic RCU (Read-Copy Update)" as found in Linux 2.6, with
  * the notable difference that RCU actively starts grace periods, where
