@@ -42,9 +42,9 @@ struct llsync_data {
     unsigned int nr_registered_cpus;
     struct cpumap pending_checkpoints;
     unsigned int nr_pending_checkpoints;
+    int no_warning;
     struct work_queue queue0;
     struct work_queue queue1;
-    unsigned long nr_pending_works;
     struct evcnt ev_global_checkpoint;
     struct evcnt ev_periodic_checkin;
     struct evcnt ev_failed_periodic_checkin;
@@ -72,11 +72,19 @@ extern struct llsync_data llsync_data;
  * after which all the local copies become stale. Checking in synchronizes
  * the local copy of the global checkpoint ID.
  *
+ * When works are deferred, they are initially added to a processor-local
+ * queue. This queue is regularly flushed to the global data, an operation
+ * that occurs every time a processor may commit a checkpoint. The downside
+ * of this scalability optimization is that it introduces some additional
+ * latency for works that are added to a processor queue between a flush and
+ * a global checkpoint.
+ *
  * Interrupts and preemption must be disabled on access.
  */
 struct llsync_cpu_data {
     int registered;
     unsigned int gcid;
+    struct work_queue queue0;
 } __aligned(CPU_L1_SIZE);
 
 extern struct llsync_cpu_data llsync_cpu_data[MAX_CPUS];
@@ -99,8 +107,10 @@ llsync_checkin(void)
     cpu = cpu_id();
     cpu_data = llsync_get_cpu_data(cpu);
 
-    if (!cpu_data->registered)
+    if (!cpu_data->registered) {
+        assert(work_queue_nr_works(&cpu_data->queue0) == 0);
         return;
+    }
 
     /*
      * The global checkpoint ID obtained might be obsolete here, in which

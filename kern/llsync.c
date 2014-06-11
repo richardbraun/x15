@@ -75,6 +75,8 @@ struct llsync_waiter {
 void __init
 llsync_setup(void)
 {
+    unsigned int i;
+
     spinlock_init(&llsync_data.lock);
     work_queue_init(&llsync_data.queue0);
     work_queue_init(&llsync_data.queue1);
@@ -85,6 +87,9 @@ llsync_setup(void)
     evcnt_register(&llsync_data.ev_failed_periodic_checkin,
                    "llsync_failed_periodic_checkin");
     llsync_data.gcid.value = LLSYNC_INITIAL_GCID;
+
+    for (i = 0; i < ARRAY_SIZE(llsync_cpu_data); i++)
+        work_queue_init(&llsync_cpu_data[i].queue0);
 }
 
 static void
@@ -95,6 +100,15 @@ llsync_process_global_checkpoint(void)
 
     assert(cpumap_find_first(&llsync_data.pending_checkpoints) == -1);
     assert(llsync_data.nr_pending_checkpoints == 0);
+
+    nr_works = work_queue_nr_works(&llsync_data.queue0)
+               + work_queue_nr_works(&llsync_data.queue1);
+
+    /* TODO Handle hysteresis */
+    if (!llsync_data.no_warning && (nr_works >= LLSYNC_NR_PENDING_WORKS_WARN)) {
+        llsync_data.no_warning = 1;
+        printk("llsync: warning: large number of pending works\n");
+    }
 
     if (llsync_data.nr_registered_cpus == 0) {
         work_queue_concat(&llsync_data.queue1, &llsync_data.queue0);
@@ -107,15 +121,22 @@ llsync_process_global_checkpoint(void)
     work_queue_transfer(&queue, &llsync_data.queue1);
     work_queue_transfer(&llsync_data.queue1, &llsync_data.queue0);
     work_queue_init(&llsync_data.queue0);
-    nr_works = work_queue_nr_works(&queue);
 
-    if (nr_works != 0) {
-        llsync_data.nr_pending_works -= nr_works;
+    if (work_queue_nr_works(&queue) != 0)
         work_queue_schedule(&queue, 0);
-    }
 
     llsync_data.gcid.value++;
     evcnt_inc(&llsync_data.ev_global_checkpoint);
+}
+
+static void
+llsync_flush_works(struct llsync_cpu_data *cpu_data)
+{
+    if (work_queue_nr_works(&cpu_data->queue0) == 0)
+        return;
+
+    work_queue_concat(&llsync_data.queue0, &cpu_data->queue0);
+    work_queue_init(&cpu_data->queue0);
 }
 
 static void
@@ -148,6 +169,7 @@ llsync_register(void)
     spinlock_lock_intr_save(&llsync_data.lock, &flags);
 
     assert(!cpu_data->registered);
+    assert(work_queue_nr_works(&cpu_data->queue0) == 0);
     cpu_data->registered = 1;
     cpu_data->gcid = llsync_data.gcid.value;
 
@@ -175,6 +197,8 @@ llsync_unregister(void)
     cpu_data = llsync_get_cpu_data(cpu);
 
     spinlock_lock_intr_save(&llsync_data.lock, &flags);
+
+    llsync_flush_works(cpu_data);
 
     assert(cpu_data->registered);
     cpu_data->registered = 0;
@@ -205,10 +229,14 @@ llsync_report_periodic_event(void)
     cpu = cpu_id();
     cpu_data = llsync_get_cpu_data(cpu);
 
-    if (!cpu_data->registered)
+    if (!cpu_data->registered) {
+        assert(work_queue_nr_works(&cpu_data->queue0) == 0);
         return;
+    }
 
     spinlock_lock(&llsync_data.lock);
+
+    llsync_flush_works(cpu_data);
 
     gcid = llsync_data.gcid.value;
     assert((gcid - cpu_data->gcid) <= 1);
@@ -239,17 +267,15 @@ llsync_report_periodic_event(void)
 void
 llsync_defer(struct work *work)
 {
+    struct llsync_cpu_data *cpu_data;
     unsigned long flags;
 
-    spinlock_lock_intr_save(&llsync_data.lock, &flags);
-
-    work_queue_push(&llsync_data.queue0, work);
-    llsync_data.nr_pending_works++;
-
-    if (llsync_data.nr_pending_works == LLSYNC_NR_PENDING_WORKS_WARN)
-        printk("llsync: warning: large number of pending works\n");
-
-    spinlock_unlock_intr_restore(&llsync_data.lock, flags);
+    thread_preempt_disable();
+    cpu_intr_save(&flags);
+    cpu_data = llsync_get_cpu_data(cpu_id());
+    work_queue_push(&cpu_data->queue0, work);
+    cpu_intr_restore(flags);
+    thread_preempt_enable();
 }
 
 static void
