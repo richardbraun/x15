@@ -50,8 +50,6 @@
 #define WORK_THREADS_THRESHOLD  512
 #define WORK_MAX_THREADS        MAX(MAX_CPUS, WORK_THREADS_THRESHOLD)
 
-#define WORK_POOL_NAME_SIZE 16
-
 /*
  * Work pool flags.
  */
@@ -99,7 +97,6 @@ struct work_pool {
     unsigned int nr_available_threads;
     struct list available_threads;
     BITMAP_DECLARE(bitmap, WORK_MAX_THREADS);
-    char name[WORK_POOL_NAME_SIZE];
 } __aligned(CPU_L1_SIZE);
 
 static int work_thread_create(struct work_pool *pool, unsigned int id);
@@ -165,9 +162,9 @@ work_pool_compute_max_threads(unsigned int nr_cpus)
 }
 
 static void
-work_pool_init(struct work_pool *pool, const char *name, int flags)
+work_pool_init(struct work_pool *pool, int flags)
 {
-    char ev_name[EVCNT_NAME_SIZE];
+    char name[EVCNT_NAME_SIZE];
     const char *suffix;
     unsigned int id, nr_cpus, pool_id, max_threads;
     int error;
@@ -180,9 +177,8 @@ work_pool_init(struct work_pool *pool, const char *name, int flags)
         nr_cpus = 1;
         suffix = (flags & WORK_PF_HIGHPRIO) ? "h" : "";
         pool_id = work_pool_cpu_id(pool);
-        snprintf(ev_name, sizeof(ev_name), "work_transfer/%u%s",
-                 pool_id, suffix);
-        evcnt_register(&pool->ev_transfer, ev_name);
+        snprintf(name, sizeof(name), "work_transfer/%u%s", pool_id, suffix);
+        evcnt_register(&pool->ev_transfer, name);
     }
 
     max_threads = work_pool_compute_max_threads(nr_cpus);
@@ -196,7 +192,6 @@ work_pool_init(struct work_pool *pool, const char *name, int flags)
     pool->nr_available_threads = 0;
     list_init(&pool->available_threads);
     bitmap_zero(pool->bitmap, WORK_MAX_THREADS);
-    strlcpy(pool->name, name, sizeof(pool->name));
 
     id = work_pool_alloc_id(pool);
     error = work_thread_create(pool, id);
@@ -427,22 +422,18 @@ work_thread_destroy(struct work_thread *worker)
 void
 work_setup(void)
 {
-    char name[WORK_POOL_NAME_SIZE];
     unsigned int i;
 
     kmem_cache_init(&work_thread_cache, "work_thread",
                     sizeof(struct work_thread), 0, NULL, NULL, NULL, 0);
 
     for (i = 0; i < cpu_count(); i++) {
-        snprintf(name, sizeof(name), "main%u", i);
-        work_pool_init(&work_pool_cpu_main[i], name, 0);
-        snprintf(name, sizeof(name), "highprio%u", i);
-        work_pool_init(&work_pool_cpu_highprio[i], name, WORK_PF_HIGHPRIO);
+        work_pool_init(&work_pool_cpu_main[i], 0);
+        work_pool_init(&work_pool_cpu_highprio[i], WORK_PF_HIGHPRIO);
     }
 
-    work_pool_init(&work_pool_main, "main", WORK_PF_GLOBAL);
-    work_pool_init(&work_pool_highprio, "highprio",
-                   WORK_PF_GLOBAL | WORK_PF_HIGHPRIO);
+    work_pool_init(&work_pool_main, WORK_PF_GLOBAL);
+    work_pool_init(&work_pool_highprio, WORK_PF_GLOBAL | WORK_PF_HIGHPRIO);
 
     printk("work: threads per pool (per-cpu/global): %u/%u, spare: %u\n",
            work_pool_cpu_main[0].max_threads, work_pool_main.max_threads,
