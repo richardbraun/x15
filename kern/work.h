@@ -143,4 +143,14 @@ void work_setup(void);
 void work_schedule(struct work *work, int flags);
 void work_queue_schedule(struct work_queue *queue, int flags);
 
+/*
+ * Report a periodic event (normally the periodic timer interrupt) on the
+ * current processor.
+ *
+ * Periodic events are used internally for optimizations.
+ *
+ * Interrupts and preemption must be disabled when calling this function.
+ */
+void work_report_periodic_event(void);
+
 #endif /* _KERN_WORK_H */

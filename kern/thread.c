@@ -100,6 +100,7 @@
 #include <kern/string.h>
 #include <kern/task.h>
 #include <kern/thread.h>
+#include <kern/work.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/mb.h>
@@ -2005,6 +2006,7 @@ thread_tick_intr(void)
     runq = thread_runq_local();
     evcnt_inc(&runq->ev_tick_intr);
     llsync_report_periodic_event();
+    work_report_periodic_event();
     thread = thread_self();
 
     spinlock_lock(&runq->lock);
