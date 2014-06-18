@@ -291,10 +291,10 @@ static thread_dtor_fn_t thread_dtors[THREAD_KEYS_MAX] __read_mostly;
  * List of threads pending for destruction by the reaper.
  */
 static struct mutex thread_reap_lock;
-static struct condition thread_reap_condition;
+static struct condition thread_reap_cond;
 static struct list thread_reap_list;
 
-struct thread_reap_waiter {
+struct thread_zombie {
     struct list node;
     struct thread *thread;
 };
@@ -1473,11 +1473,17 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     cpumap_copy(&thread->cpumap, cpumap);
     thread_init_sched(thread, attr->priority);
     memset(thread->tsd, 0, sizeof(thread->tsd));
+    mutex_init(&thread->join_lock);
+    condition_init(&thread->join_cond);
+    thread->exited = 0;
     thread->task = task;
     thread->stack = stack;
     strlcpy(thread->name, attr->name, sizeof(thread->name));
     thread->fn = fn;
     thread->arg = arg;
+
+    if (attr->flags & THREAD_ATTR_DETACHED)
+        thread->flags |= THREAD_DETACHED;
 
     /*
      * This call may initialize thread-local data, do it once the thread is
@@ -1493,74 +1499,11 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     return 0;
 }
 
-static struct thread_runq *
-thread_lock_runq(struct thread *thread, unsigned long *flags)
-{
-    struct thread_runq *runq;
-
-    assert(thread != thread_self());
-
-    for (;;) {
-        runq = thread->runq;
-
-        spinlock_lock_intr_save(&runq->lock, flags);
-
-        if (runq == thread->runq)
-            return runq;
-
-        spinlock_unlock_intr_restore(&runq->lock, *flags);
-    }
-}
-
-static void
-thread_unlock_runq(struct thread_runq *runq, unsigned long flags)
-{
-    spinlock_unlock_intr_restore(&runq->lock, flags);
-}
-
-static void
-thread_destroy(struct thread *thread)
-{
-    struct thread_runq *runq;
-    unsigned long flags, state;
-    unsigned int i;
-    void *ptr;
-
-    do {
-        runq = thread_lock_runq(thread, &flags);
-        state = thread->state;
-        thread_unlock_runq(runq, flags);
-    } while (state != THREAD_DEAD);
-
-    i = 0;
-
-    while (i < thread_nr_keys) {
-        if ((thread->tsd[i] == NULL)
-            || (thread_dtors[i] == NULL))
-            continue;
-
-        /*
-         * Follow the POSIX description of TSD: set the key to NULL before
-         * calling the destructor and repeat as long as it's not NULL.
-         */
-        ptr = thread->tsd[i];
-        thread->tsd[i] = NULL;
-        thread_dtors[i](ptr);
-
-        if (thread->tsd[i] == NULL)
-            i++;
-    }
-
-    task_remove_thread(thread->task, thread);
-    kmem_cache_free(&thread_stack_cache, thread->stack);
-    kmem_cache_free(&thread_cache, thread);
-}
-
 static void
 thread_reap(void *arg)
 {
-    struct thread_reap_waiter *tmp;
-    struct list waiters;
+    struct thread_zombie *zombie;
+    struct list zombies;
 
     (void)arg;
 
@@ -1568,17 +1511,17 @@ thread_reap(void *arg)
         mutex_lock(&thread_reap_lock);
 
         while (list_empty(&thread_reap_list))
-            condition_wait(&thread_reap_condition, &thread_reap_lock);
+            condition_wait(&thread_reap_cond, &thread_reap_lock);
 
-        list_set_head(&waiters, &thread_reap_list);
+        list_set_head(&zombies, &thread_reap_list);
         list_init(&thread_reap_list);
 
         mutex_unlock(&thread_reap_lock);
 
-        while (!list_empty(&waiters)) {
-            tmp = list_first_entry(&waiters, struct thread_reap_waiter, node);
-            list_remove(&tmp->node);
-            thread_destroy(tmp->thread);
+        while (!list_empty(&zombies)) {
+            zombie = list_first_entry(&zombies, struct thread_zombie, node);
+            list_remove(&zombie->node);
+            thread_join(zombie->thread);
         }
     }
 
@@ -1593,7 +1536,7 @@ thread_setup_reaper(void)
     int error;
 
     mutex_init(&thread_reap_lock);
-    condition_init(&thread_reap_condition);
+    condition_init(&thread_reap_cond);
     list_init(&thread_reap_list);
 
     thread_attr_init(&attr, "x15_thread_reap");
@@ -1835,35 +1778,120 @@ error_thread:
 void
 thread_exit(void)
 {
-    struct thread_reap_waiter waiter;
+    struct thread_zombie zombie;
     struct thread_runq *runq;
     struct thread *thread;
     unsigned long flags;
 
     thread = thread_self();
-    waiter.thread = thread;
 
-    mutex_lock(&thread_reap_lock);
+    if (thread_test_flag(thread, THREAD_DETACHED)) {
+        zombie.thread = thread;
 
-    list_insert_tail(&thread_reap_list, &waiter.node);
-    condition_signal(&thread_reap_condition);
+        mutex_lock(&thread_reap_lock);
+        list_insert_tail(&thread_reap_list, &zombie.node);
+        condition_signal(&thread_reap_cond);
+        mutex_unlock(&thread_reap_lock);
+    }
+
+    mutex_lock(&thread->join_lock);
+    thread->exited = 1;
+    condition_signal(&thread->join_cond);
 
     /*
      * Disable preemption before releasing the mutex to make sure the current
      * thread becomes dead as soon as possible. This is important because the
-     * reaper thread actively polls the thread state before destroying it.
+     * joining thread actively polls the thread state before destroying it.
      */
     thread_preempt_disable();
 
-    mutex_unlock(&thread_reap_lock);
+    mutex_unlock(&thread->join_lock);
 
     runq = thread_runq_local();
     spinlock_lock_intr_save(&runq->lock, &flags);
 
     thread->state = THREAD_DEAD;
 
-    runq = thread_runq_schedule(runq, thread);
-    panic("thread: dead thread running");
+    thread_runq_schedule(runq, thread);
+    panic("thread: dead thread walking");
+}
+
+static struct thread_runq *
+thread_lock_runq(struct thread *thread, unsigned long *flags)
+{
+    struct thread_runq *runq;
+
+    assert(thread != thread_self());
+
+    for (;;) {
+        runq = thread->runq;
+
+        spinlock_lock_intr_save(&runq->lock, flags);
+
+        if (runq == thread->runq)
+            return runq;
+
+        spinlock_unlock_intr_restore(&runq->lock, *flags);
+    }
+}
+
+static void
+thread_unlock_runq(struct thread_runq *runq, unsigned long flags)
+{
+    spinlock_unlock_intr_restore(&runq->lock, flags);
+}
+
+static void
+thread_destroy(struct thread *thread)
+{
+    struct thread_runq *runq;
+    unsigned long flags, state;
+    unsigned int i;
+    void *ptr;
+
+    do {
+        runq = thread_lock_runq(thread, &flags);
+        state = thread->state;
+        thread_unlock_runq(runq, flags);
+    } while (state != THREAD_DEAD);
+
+    i = 0;
+
+    while (i < thread_nr_keys) {
+        if ((thread->tsd[i] == NULL)
+            || (thread_dtors[i] == NULL))
+            continue;
+
+        /*
+         * Follow the POSIX description of TSD: set the key to NULL before
+         * calling the destructor and repeat as long as it's not NULL.
+         */
+        ptr = thread->tsd[i];
+        thread->tsd[i] = NULL;
+        thread_dtors[i](ptr);
+
+        if (thread->tsd[i] == NULL)
+            i++;
+    }
+
+    task_remove_thread(thread->task, thread);
+    kmem_cache_free(&thread_stack_cache, thread->stack);
+    kmem_cache_free(&thread_cache, thread);
+}
+
+void
+thread_join(struct thread *thread)
+{
+    assert(thread != thread_self());
+
+    mutex_lock(&thread->join_lock);
+
+    while (!thread->exited)
+        condition_wait(&thread->join_cond, &thread->join_lock);
+
+    mutex_unlock(&thread->join_lock);
+
+    thread_destroy(thread);
 }
 
 void

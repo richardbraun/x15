@@ -30,6 +30,7 @@
 #include <kern/spinlock.h>
 #include <kern/stddef.h>
 #include <kern/thread.h>
+#include <kern/types.h>
 
 void
 condition_wait(struct condition *condition, struct mutex *mutex)

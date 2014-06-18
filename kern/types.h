@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,5 +19,27 @@
 #define _KERN_TYPES_H
 
 #include <machine/types.h>
+
+/*
+ * Types defined here to avoid inclusion loops.
+ */
+
+#include <kern/list.h>
+
+struct spinlock {
+    unsigned int locked;
+};
+
+struct mutex {
+    unsigned int state;
+    struct spinlock lock;
+    struct list waiters;
+};
+
+struct condition {
+    struct spinlock lock;
+    struct mutex *mutex;
+    struct list waiters;
+};
 
 #endif /* _KERN_TYPES_H */

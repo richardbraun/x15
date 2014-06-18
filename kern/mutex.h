@@ -27,6 +27,7 @@
 #include <kern/list.h>
 #include <kern/mutex_i.h>
 #include <kern/spinlock.h>
+#include <kern/types.h>
 
 struct mutex;
 

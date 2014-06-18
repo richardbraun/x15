@@ -19,12 +19,9 @@
 #define _KERN_SPINLOCK_I_H
 
 #include <kern/assert.h>
+#include <kern/types.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
-
-struct spinlock {
-    unsigned int locked;
-};
 
 /*
  * Return 0 on success, 1 if busy.

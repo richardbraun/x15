@@ -22,6 +22,7 @@
 #include <kern/list.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
+#include <kern/types.h>
 #include <machine/atomic.h>
 
 #define MUTEX_UNLOCKED  0
@@ -31,12 +32,6 @@
 struct mutex_waiter {
     struct list node;
     struct thread *thread;
-};
-
-struct mutex {
-    unsigned int state;
-    struct spinlock lock;
-    struct list waiters;
 };
 
 void mutex_lock_slow(struct mutex *mutex);

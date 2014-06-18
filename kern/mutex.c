@@ -19,6 +19,7 @@
 #include <kern/mutex_i.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
+#include <kern/types.h>
 
 void
 mutex_lock_slow(struct mutex *mutex)

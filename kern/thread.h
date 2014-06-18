@@ -39,6 +39,7 @@
 #include <kern/list.h>
 #include <kern/macros.h>
 #include <kern/param.h>
+#include <kern/types.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/tcb.h>
@@ -59,7 +60,8 @@ struct thread_ts_runq;
 /*
  * Thread flags.
  */
-#define THREAD_YIELD 0x1UL /* Must yield the processor ASAP */
+#define THREAD_YIELD    0x1UL /* Must yield the processor ASAP */
+#define THREAD_DETACHED 0x2UL /* Resources automatically released on exit */
 
 /*
  * Thread states.
@@ -172,6 +174,11 @@ struct thread {
     /* Thread-specific data */
     void *tsd[THREAD_KEYS_MAX];
 
+    /* Members related to termination */
+    struct mutex join_lock;
+    struct condition join_cond;
+    int exited;
+
     /* Read-only members */
     struct task *task;
     struct list task_node;
@@ -181,11 +188,14 @@ struct thread {
     void *arg;
 } __aligned(CPU_L1_SIZE);
 
+#define THREAD_ATTR_DETACHED 0x1
+
 /*
  * Thread creation attributes.
  */
 struct thread_attr {
     const char *name;
+    unsigned long flags;
     struct cpumap *cpumap;
     struct task *task;
     unsigned char policy;
@@ -196,6 +206,7 @@ struct thread_attr {
  * Initialize thread creation attributes with default values.
  *
  * It is guaranteed that these default values include :
+ *  - thread is joinable
  *  - no processor affinity
  *  - task is inherited from parent thread
  *  - policy is time-sharing
@@ -208,10 +219,17 @@ static inline void
 thread_attr_init(struct thread_attr *attr, const char *name)
 {
     attr->name = name;
+    attr->flags = 0;
     attr->cpumap = NULL;
     attr->task = NULL;
     attr->policy = THREAD_SCHED_POLICY_TS;
     attr->priority = THREAD_SCHED_TS_PRIO_DEFAULT;
+}
+
+static inline void
+thread_attr_set_detached(struct thread_attr *attr)
+{
+    attr->flags |= THREAD_ATTR_DETACHED;
 }
 
 static inline void
@@ -266,6 +284,11 @@ int thread_create(struct thread **threadp, const struct thread_attr *attr,
  * Terminate the calling thread.
  */
 void __noreturn thread_exit(void);
+
+/*
+ * Wait for the given thread to terminate and release its resources.
+ */
+void thread_join(struct thread *thread);
 
 /*
  * Make the current thread sleep while waiting for an event.

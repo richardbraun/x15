@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,12 +25,9 @@
 #include <kern/mutex.h>
 #include <kern/spinlock.h>
 #include <kern/stddef.h>
+#include <kern/types.h>
 
-struct condition {
-    struct spinlock lock;
-    struct mutex *mutex;
-    struct list waiters;
-};
+struct condition;
 
 #define CONDITION_INITIALIZER(condition) \
     { SPINLOCK_INITIALIZER, NULL, LIST_INITIALIZER((condition).waiters) }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <kern/macros.h>
 #include <kern/spinlock_i.h>
 #include <kern/thread.h>
+#include <kern/types.h>
 #include <machine/cpu.h>
 
 struct spinlock;
