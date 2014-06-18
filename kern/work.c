@@ -91,6 +91,7 @@ struct work_pool {
     unsigned int nr_threads;
     unsigned int nr_available_threads;
     struct list available_threads;
+    struct list dead_threads;
     BITMAP_DECLARE(bitmap, WORK_MAX_THREADS);
 } __aligned(CPU_L1_SIZE);
 
@@ -186,6 +187,7 @@ work_pool_init(struct work_pool *pool, int flags)
     pool->nr_threads = 0;
     pool->nr_available_threads = 0;
     list_init(&pool->available_threads);
+    list_init(&pool->dead_threads);
     bitmap_zero(pool->bitmap, WORK_MAX_THREADS);
 
     id = work_pool_alloc_id(pool);
@@ -303,9 +305,9 @@ work_process(void *arg)
     pool = self->pool;
     lock = (pool->flags & WORK_PF_GLOBAL) ? &pool->lock : NULL;
 
-    for (;;) {
-        work_pool_acquire(pool, &flags);
+    work_pool_acquire(pool, &flags);
 
+    for (;;) {
         if (pool->manager != NULL) {
             list_insert_tail(&pool->available_threads, &self->node);
             pool->nr_available_threads++;
@@ -316,6 +318,27 @@ work_process(void *arg)
 
             list_remove(&self->node);
             pool->nr_available_threads--;
+        }
+
+        if (!list_empty(&pool->dead_threads)) {
+            worker = list_first_entry(&pool->dead_threads,
+                                      struct work_thread, node);
+            list_remove(&worker->node);
+            work_pool_release(pool, flags);
+
+            id = worker->id;
+            work_thread_destroy(worker);
+
+            /*
+             * Release worker ID last so that, if the pool is full, no new
+             * worker can be created unless all the resources of the worker
+             * being destroyed have been freed. This is important to enforce
+             * a strict boundary on the total amount of resources allocated
+             * for a pool at any time.
+             */
+            work_pool_acquire(pool, &flags);
+            work_pool_free_id(pool, id);
+            continue;
         }
 
         if (work_pool_nr_works(pool) == 0) {
@@ -356,12 +379,12 @@ work_process(void *arg)
         work_pool_release(pool, flags);
 
         work->fn(work);
+
+        work_pool_acquire(pool, &flags);
     }
 
-    work_pool_free_id(pool, self->id);
+    list_insert_tail(&pool->dead_threads, &self->node);
     work_pool_release(pool, flags);
-
-    work_thread_destroy(self);
 }
 
 static int
@@ -411,7 +434,6 @@ work_thread_create(struct work_pool *pool, unsigned int id)
     }
 
     thread_attr_init(&attr, name);
-    thread_attr_set_detached(&attr);
     thread_attr_set_priority(&attr, priority);
 
     if (cpumap != NULL)
@@ -436,6 +458,7 @@ error_cpumap:
 static void
 work_thread_destroy(struct work_thread *worker)
 {
+    thread_join(worker->thread);
     kmem_cache_free(&work_thread_cache, worker);
 }
 
