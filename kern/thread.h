@@ -273,6 +273,10 @@ void __noreturn thread_exit(void);
  * The interlock is used to synchronize the thread state with respect to
  * wakeups, i.e. a wakeup request sent by another thread will not be missed
  * if that thread is holding the interlock.
+ * As a special exception, threads that use preemption as a synchronization
+ * mechanism can ommit the interlock and pass a NULL pointer instead.
+ * In any case, the preemption nesting level must strictly be one when calling
+ * this function.
  *
  * This is a low level thread control primitive that should only be called by
  * higher thread synchronization functions.

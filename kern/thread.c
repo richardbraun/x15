@@ -516,6 +516,9 @@ thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
         runq = thread_runq_local();
     }
 
+    assert(prev->preempt == 2);
+    assert(!cpu_intr_enabled());
+    spinlock_assert_locked(&runq->lock);
     return runq;
 }
 
@@ -1871,11 +1874,15 @@ thread_sleep(struct spinlock *interlock)
     unsigned long flags;
 
     thread = thread_self();
+    assert(thread->preempt == 1);
 
-    thread_preempt_disable();
     runq = thread_runq_local();
     spinlock_lock_intr_save(&runq->lock, &flags);
-    spinlock_unlock(interlock);
+
+    if (interlock != NULL) {
+        thread_preempt_disable();
+        spinlock_unlock(interlock);
+    }
 
     thread->state = THREAD_SLEEPING;
 
@@ -1883,9 +1890,13 @@ thread_sleep(struct spinlock *interlock)
     assert(thread->state == THREAD_RUNNING);
 
     spinlock_unlock_intr_restore(&runq->lock, flags);
-    thread_preempt_enable();
 
-    spinlock_lock(interlock);
+    if (interlock != NULL) {
+        spinlock_lock(interlock);
+        thread_preempt_enable_no_resched();
+    }
+
+    assert(thread->preempt == 1);
 }
 
 void
