@@ -411,6 +411,7 @@ work_thread_create(struct work_pool *pool, unsigned int id)
     }
 
     thread_attr_init(&attr, name);
+    thread_attr_set_detached(&attr);
     thread_attr_set_priority(&attr, priority);
 
     if (cpumap != NULL)

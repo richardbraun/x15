@@ -108,6 +108,7 @@ test_setup(void)
     cpumap_zero(cpumap);
     cpumap_set(cpumap, 0);
     thread_attr_init(&attr, "x15_test_run1");
+    thread_attr_set_detached(&attr);
     thread_attr_set_cpumap(&attr, cpumap);
     error = thread_create(&thread, &attr, test_run1, NULL);
     assert(!error);
@@ -115,6 +116,7 @@ test_setup(void)
     cpumap_zero(cpumap);
     cpumap_set(cpumap, 1);
     thread_attr_init(&attr, "x15_test_run2");
+    thread_attr_set_detached(&attr);
     thread_attr_set_cpumap(&attr, cpumap);
     error = thread_create(&thread, &attr, test_run2, NULL);
     assert(!error);

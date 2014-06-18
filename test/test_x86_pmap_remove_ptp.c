@@ -112,6 +112,7 @@ test_setup(void)
     cpumap_zero(cpumap);
     cpumap_set(cpumap, 0);
     thread_attr_init(&attr, "x15_test_run");
+    thread_attr_set_detached(&attr);
     thread_attr_set_cpumap(&attr, cpumap);
     thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_FIFO);
     thread_attr_set_priority(&attr, THREAD_SCHED_RT_PRIO_MAX);
