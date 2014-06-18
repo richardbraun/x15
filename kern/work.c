@@ -66,7 +66,9 @@ struct work_thread {
 /*
  * Pool of threads and works.
  *
- * Interrupts must be disabled when acquiring the pool lock.
+ * Interrupts must be disabled when accessing a work pool. Holding the
+ * lock is required for global pools only, whereas exclusive access on
+ * per-processor pools is achieved by disabling preemption.
  *
  * There are two internal queues of pending works. When first scheduling
  * a work, it is inserted into queue0. After a periodic event, works still
@@ -77,13 +79,6 @@ struct work_thread {
  * becomes less relevant. As a result, periodic events also trigger the
  * transfer of works from queue1 to the matching global pool. Global pools
  * only use one queue.
- *
- * TODO While it's not strictly necessary to hold the lock when accessing a
- * per-processor pool, since disabling interrupts and preemption could be
- * used instead, it's currently enforced by the programming model of the
- * thread module. The thread_sleep() function could be changed to accept a
- * NULL interlock but this requires clearly defining constraints for safe
- * usage.
  */
 struct work_pool {
     struct spinlock lock;
@@ -216,6 +211,28 @@ work_pool_cpu_select(int flags)
            : &work_pool_cpu_main[cpu];
 }
 
+static void
+work_pool_acquire(struct work_pool *pool, unsigned long *flags)
+{
+    if (pool->flags & WORK_PF_GLOBAL)
+        spinlock_lock_intr_save(&pool->lock, flags);
+    else {
+        thread_preempt_disable();
+        cpu_intr_save(flags);
+    }
+}
+
+static void
+work_pool_release(struct work_pool *pool, unsigned long flags)
+{
+    if (pool->flags & WORK_PF_GLOBAL)
+        spinlock_unlock_intr_restore(&pool->lock, flags);
+    else {
+        cpu_intr_restore(flags);
+        thread_preempt_enable();
+    }
+}
+
 static int
 work_pool_nr_works(const struct work_pool *pool)
 {
@@ -277,22 +294,24 @@ work_process(void *arg)
     struct work_thread *self, *worker;
     struct work_pool *pool;
     struct work *work;
+    struct spinlock *lock;
     unsigned long flags;
     unsigned int id;
     int error;
 
     self = arg;
     pool = self->pool;
+    lock = (pool->flags & WORK_PF_GLOBAL) ? &pool->lock : NULL;
 
     for (;;) {
-        spinlock_lock_intr_save(&pool->lock, &flags);
+        work_pool_acquire(pool, &flags);
 
         if (pool->manager != NULL) {
             list_insert_tail(&pool->available_threads, &self->node);
             pool->nr_available_threads++;
 
             do
-                thread_sleep(&pool->lock);
+                thread_sleep(lock);
             while (pool->manager != NULL);
 
             list_remove(&self->node);
@@ -306,7 +325,7 @@ work_process(void *arg)
             pool->manager = self;
 
             do
-                thread_sleep(&pool->lock);
+                thread_sleep(lock);
             while (work_pool_nr_works(pool) == 0);
 
             pool->manager = NULL;
@@ -321,11 +340,11 @@ work_process(void *arg)
                 thread_wakeup(worker->thread);
             } else if (pool->nr_threads < pool->max_threads) {
                 id = work_pool_alloc_id(pool);
-                spinlock_unlock_intr_restore(&pool->lock, flags);
+                work_pool_release(pool, flags);
 
                 error = work_thread_create(pool, id);
 
-                spinlock_lock_intr_save(&pool->lock, &flags);
+                work_pool_acquire(pool, &flags);
 
                 if (error) {
                     work_pool_free_id(pool, id);
@@ -334,13 +353,13 @@ work_process(void *arg)
             }
         }
 
-        spinlock_unlock_intr_restore(&pool->lock, flags);
+        work_pool_release(pool, flags);
 
         work->fn(work);
     }
 
     work_pool_free_id(pool, self->id);
-    spinlock_unlock_intr_restore(&pool->lock, flags);
+    work_pool_release(pool, flags);
 
     work_thread_destroy(self);
 }
@@ -444,13 +463,13 @@ void
 work_schedule(struct work *work, int flags)
 {
     struct work_pool *pool;
-    unsigned long lock_flags;
+    unsigned long cpu_flags;
 
     thread_pin();
     pool = work_pool_cpu_select(flags);
-    spinlock_lock_intr_save(&pool->lock, &lock_flags);
+    work_pool_acquire(pool, &cpu_flags);
     work_pool_push_work(pool, work);
-    spinlock_unlock_intr_restore(&pool->lock, lock_flags);
+    work_pool_release(pool, cpu_flags);
     thread_unpin();
 }
 
@@ -458,13 +477,13 @@ void
 work_queue_schedule(struct work_queue *queue, int flags)
 {
     struct work_pool *pool;
-    unsigned long lock_flags;
+    unsigned long cpu_flags;
 
     thread_pin();
     pool = work_pool_cpu_select(flags);
-    spinlock_lock_intr_save(&pool->lock, &lock_flags);
+    work_pool_acquire(pool, &cpu_flags);
     work_pool_concat_queue(pool, queue);
-    spinlock_unlock_intr_restore(&pool->lock, lock_flags);
+    work_pool_release(pool, cpu_flags);
     thread_unpin();
 }
 
@@ -479,13 +498,8 @@ work_report_periodic_event(void)
 
     cpu = cpu_id();
 
-    spinlock_lock(&work_pool_cpu_main[cpu].lock);
     work_pool_shift_queues(&work_pool_cpu_main[cpu], &queue);
-    spinlock_unlock(&work_pool_cpu_main[cpu].lock);
-
-    spinlock_lock(&work_pool_cpu_highprio[cpu].lock);
     work_pool_shift_queues(&work_pool_cpu_highprio[cpu], &highprio_queue);
-    spinlock_unlock(&work_pool_cpu_highprio[cpu].lock);
 
     if (work_queue_nr_works(&queue) != 0) {
         spinlock_lock(&work_pool_main.lock);
