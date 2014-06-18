@@ -1883,6 +1883,7 @@ void
 thread_join(struct thread *thread)
 {
     assert(thread != thread_self());
+    assert(!thread_test_flag(thread, THREAD_DETACHED));
 
     mutex_lock(&thread->join_lock);
 
