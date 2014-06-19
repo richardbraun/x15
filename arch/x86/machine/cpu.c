@@ -494,8 +494,10 @@ cpu_mp_setup(void)
     size_t map_size;
     unsigned int i;
 
-    if (cpu_array_size == 1)
+    if (cpu_array_size == 1) {
+        pmap_mp_setup();
         return;
+    }
 
     assert(BOOT_MP_TRAMPOLINE_ADDR < BIOSMEM_BASE);
     assert(vm_page_aligned(BOOT_MP_TRAMPOLINE_ADDR));

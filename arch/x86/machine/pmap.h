@@ -185,6 +185,9 @@ void pmap_setup(void);
  * This function copies the current page tables so that each processor has
  * its own set of page tables. As a result, it must be called right before
  * starting APs to make sure all processors have the same mappings.
+ *
+ * This function must be called before starting the scheduler whatever the
+ * number of processors.
  */
 void pmap_mp_setup(void);
 
