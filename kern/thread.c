@@ -1499,6 +1499,84 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     return 0;
 }
 
+static struct thread_runq *
+thread_lock_runq(struct thread *thread, unsigned long *flags)
+{
+    struct thread_runq *runq;
+
+    assert(thread != thread_self());
+
+    for (;;) {
+        runq = thread->runq;
+
+        spinlock_lock_intr_save(&runq->lock, flags);
+
+        if (runq == thread->runq)
+            return runq;
+
+        spinlock_unlock_intr_restore(&runq->lock, *flags);
+    }
+}
+
+static void
+thread_unlock_runq(struct thread_runq *runq, unsigned long flags)
+{
+    spinlock_unlock_intr_restore(&runq->lock, flags);
+}
+
+static void
+thread_destroy(struct thread *thread)
+{
+    struct thread_runq *runq;
+    unsigned long flags, state;
+    unsigned int i;
+    void *ptr;
+
+    do {
+        runq = thread_lock_runq(thread, &flags);
+        state = thread->state;
+        thread_unlock_runq(runq, flags);
+    } while (state != THREAD_DEAD);
+
+    i = 0;
+
+    while (i < thread_nr_keys) {
+        if ((thread->tsd[i] == NULL)
+            || (thread_dtors[i] == NULL))
+            continue;
+
+        /*
+         * Follow the POSIX description of TSD: set the key to NULL before
+         * calling the destructor and repeat as long as it's not NULL.
+         */
+        ptr = thread->tsd[i];
+        thread->tsd[i] = NULL;
+        thread_dtors[i](ptr);
+
+        if (thread->tsd[i] == NULL)
+            i++;
+    }
+
+    task_remove_thread(thread->task, thread);
+    kmem_cache_free(&thread_stack_cache, thread->stack);
+    kmem_cache_free(&thread_cache, thread);
+}
+
+static void
+thread_join_common(struct thread *thread)
+{
+    assert(thread != thread_self());
+
+    mutex_lock(&thread->join_lock);
+
+    while (!thread->exited)
+        condition_wait(&thread->join_cond, &thread->join_lock);
+
+    mutex_unlock(&thread->join_lock);
+
+    thread_destroy(thread);
+}
+
 static void
 thread_reap(void *arg)
 {
@@ -1521,7 +1599,7 @@ thread_reap(void *arg)
         while (!list_empty(&zombies)) {
             zombie = list_first_entry(&zombies, struct thread_zombie, node);
             list_remove(&zombie->node);
-            thread_join(zombie->thread);
+            thread_join_common(zombie->thread);
         }
     }
 
@@ -1816,83 +1894,11 @@ thread_exit(void)
     panic("thread: dead thread walking");
 }
 
-static struct thread_runq *
-thread_lock_runq(struct thread *thread, unsigned long *flags)
-{
-    struct thread_runq *runq;
-
-    assert(thread != thread_self());
-
-    for (;;) {
-        runq = thread->runq;
-
-        spinlock_lock_intr_save(&runq->lock, flags);
-
-        if (runq == thread->runq)
-            return runq;
-
-        spinlock_unlock_intr_restore(&runq->lock, *flags);
-    }
-}
-
-static void
-thread_unlock_runq(struct thread_runq *runq, unsigned long flags)
-{
-    spinlock_unlock_intr_restore(&runq->lock, flags);
-}
-
-static void
-thread_destroy(struct thread *thread)
-{
-    struct thread_runq *runq;
-    unsigned long flags, state;
-    unsigned int i;
-    void *ptr;
-
-    do {
-        runq = thread_lock_runq(thread, &flags);
-        state = thread->state;
-        thread_unlock_runq(runq, flags);
-    } while (state != THREAD_DEAD);
-
-    i = 0;
-
-    while (i < thread_nr_keys) {
-        if ((thread->tsd[i] == NULL)
-            || (thread_dtors[i] == NULL))
-            continue;
-
-        /*
-         * Follow the POSIX description of TSD: set the key to NULL before
-         * calling the destructor and repeat as long as it's not NULL.
-         */
-        ptr = thread->tsd[i];
-        thread->tsd[i] = NULL;
-        thread_dtors[i](ptr);
-
-        if (thread->tsd[i] == NULL)
-            i++;
-    }
-
-    task_remove_thread(thread->task, thread);
-    kmem_cache_free(&thread_stack_cache, thread->stack);
-    kmem_cache_free(&thread_cache, thread);
-}
-
 void
 thread_join(struct thread *thread)
 {
-    assert(thread != thread_self());
     assert(!thread_test_flag(thread, THREAD_DETACHED));
-
-    mutex_lock(&thread->join_lock);
-
-    while (!thread->exited)
-        condition_wait(&thread->join_cond, &thread->join_lock);
-
-    mutex_unlock(&thread->join_lock);
-
-    thread_destroy(thread);
+    thread_join_common(thread);
 }
 
 void
