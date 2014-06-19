@@ -229,7 +229,7 @@ void pmap_protect(struct pmap *pmap, unsigned long va, int prot,
 /*
  * Extract a mapping from a physical map.
  *
- * This function walks the page tables to retreive the physical address
+ * This function walks the page tables to retrieve the physical address
  * mapped at the given virtual address. If there is no mapping for the
  * virtual address, 0 is returned (implying that page 0 is always reserved).
  */
