@@ -98,7 +98,8 @@ vm_kmem_lookup_page(unsigned long va)
 static int
 vm_kmem_alloc_check(size_t size)
 {
-    if (size == 0)
+    if (!vm_page_aligned(size)
+        || (size == 0))
         return -1;
 
     return 0;
@@ -121,8 +122,6 @@ vm_kmem_alloc_va(size_t size)
 
     assert(vm_kmem_alloc_check(size) == 0);
 
-    size = vm_page_round(size);
-
     va = 0;
     flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
                          VM_ADV_DEFAULT, 0);
@@ -137,19 +136,8 @@ vm_kmem_alloc_va(size_t size)
 void
 vm_kmem_free_va(unsigned long addr, size_t size)
 {
-    const struct cpumap *cpumap;
-    unsigned long va, end;
-
     assert(vm_kmem_free_check(addr, size) == 0);
-
-    cpumap = cpumap_all();
-    end = addr + vm_page_round(size);
-
-    for (va = addr; va < end; va += PAGE_SIZE)
-        pmap_remove(kernel_pmap, va, cpumap);
-
-    pmap_update(kernel_pmap);
-    vm_map_remove(kernel_map, addr, end);
+    vm_map_remove(kernel_map, addr, addr + vm_page_round(size));
 }
 
 unsigned long
@@ -158,6 +146,7 @@ vm_kmem_alloc(size_t size)
     struct vm_page *page;
     unsigned long va, start, end;
 
+    size = vm_page_round(size);
     va = vm_kmem_alloc_va(size);
 
     if (va == 0)
@@ -177,31 +166,43 @@ vm_kmem_alloc(size_t size)
     return va;
 
 error_page:
-    vm_kmem_free(va, size);
+    size = start - va;
+
+    if (size != 0) {
+        pmap_update(kernel_pmap);
+        vm_kmem_free(va, size);
+    }
+
+    size = end - start;
+
+    if (size != 0)
+        vm_kmem_free_va(start, size);
+
     return 0;
 }
 
 void
 vm_kmem_free(unsigned long addr, size_t size)
 {
+    const struct cpumap *cpumap;
     struct vm_page *page;
     unsigned long va, end;
     phys_addr_t pa;
 
     size = vm_page_round(size);
     end = addr + size;
+    cpumap = cpumap_all();
 
     for (va = addr; va < end; va += PAGE_SIZE) {
         pa = pmap_extract(kernel_pmap, va);
-
-        if (pa == 0)
-            continue;
-
+        assert(pa != 0);
+        pmap_remove(kernel_pmap, va, cpumap);
         page = vm_page_lookup(pa);
         assert(page != NULL);
         vm_page_free(page, 0);
     }
 
+    pmap_update(kernel_pmap);
     vm_kmem_free_va(addr, size);
 }
 
@@ -238,5 +239,15 @@ vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
 void
 vm_kmem_unmap_pa(unsigned long map_addr, size_t map_size)
 {
+    const struct cpumap *cpumap;
+    unsigned long va, end;
+
+    cpumap = cpumap_all();
+    end = map_addr + map_size;
+
+    for (va = map_addr; va < end; va += PAGE_SIZE)
+        pmap_remove(kernel_pmap, va, cpumap);
+
+    pmap_update(kernel_pmap);
     vm_kmem_free_va(map_addr, map_size);
 }
