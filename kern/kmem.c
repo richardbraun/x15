@@ -470,8 +470,8 @@ kmem_cache_error(struct kmem_cache *cache, void *buf, int error, void *arg)
 static void
 kmem_cache_compute_sizes(struct kmem_cache *cache, int flags)
 {
-    size_t i, buffers, buf_size, slab_size, free_slab_size, optimal_size;
-    size_t waste, waste_min;
+    size_t i, buffers, buf_size, slab_size, free_slab_size;
+    size_t waste, waste_min, optimal_size = optimal_size;
     int embed, optimal_embed = optimal_embed;
 
     buf_size = cache->buf_size;
