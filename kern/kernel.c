@@ -19,7 +19,6 @@
 #include <kern/init.h>
 #include <kern/kernel.h>
 #include <kern/llsync.h>
-#include <kern/panic.h>
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <kern/work.h>
