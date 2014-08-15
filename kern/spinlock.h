@@ -32,8 +32,6 @@
 
 struct spinlock;
 
-#define SPINLOCK_INITIALIZER { 0 }
-
 static inline void
 spinlock_init(struct spinlock *lock)
 {

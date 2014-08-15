@@ -40,11 +40,6 @@ struct list {
 };
 
 /*
- * Static list initializer.
- */
-#define LIST_INITIALIZER(list) { &(list), &(list) }
-
-/*
  * Initialize a list.
  */
 static inline void

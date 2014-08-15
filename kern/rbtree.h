@@ -41,11 +41,6 @@ struct rbtree_node;
  */
 struct rbtree;
 
-/*
- * Static tree initializer.
- */
-#define RBTREE_INITIALIZER { NULL }
-
 #include <kern/rbtree_i.h>
 
 /*

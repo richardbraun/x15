@@ -31,9 +31,6 @@
 
 struct mutex;
 
-#define MUTEX_INITIALIZER(mutex) \
-    { MUTEX_UNLOCKED, SPINLOCK_INITIALIZER, LIST_INITIALIZER((mutex).waiters) }
-
 static inline void
 mutex_init(struct mutex *mutex)
 {
