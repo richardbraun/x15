@@ -31,7 +31,7 @@
 extern void console_write_byte(char c);
 
 static char printk_buffer[PRINTK_BUFSIZE];
-static struct spinlock printk_lock = SPINLOCK_INITIALIZER;
+static struct spinlock printk_lock;
 
 int
 printk(const char *format, ...)
@@ -63,4 +63,10 @@ vprintk(const char *format, va_list ap)
     spinlock_unlock_intr_restore(&printk_lock, flags);
 
     return length;
+}
+
+void
+printk_setup(void)
+{
+    spinlock_init(&printk_lock);
 }

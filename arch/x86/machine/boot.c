@@ -273,6 +273,7 @@ boot_main(void)
     thread_bootstrap();
     pmap_bootstrap();
     cga_setup();
+    printk_setup();
     boot_show_version();
     cpu_check(cpu_current());
     cpu_info(cpu_current());

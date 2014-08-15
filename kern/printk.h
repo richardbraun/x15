@@ -33,5 +33,6 @@
 
 int printk(const char *format, ...) __format_printf(1, 2);
 int vprintk(const char *format, va_list ap) __format_printf(1, 0);
+void printk_setup(void);
 
 #endif /* _KERN_PRINTK_H */
