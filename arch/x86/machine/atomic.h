@@ -16,6 +16,8 @@
  *
  *
  * Atomic operations.
+ *
+ * When referring to atomic operations, "local" means processor-local.
  */
 
 #ifndef _X86_ATOMIC_H
@@ -56,6 +58,45 @@
 
 #define ATOMIC_CAS(ptr, oldval, predicate, newval)  \
     asm volatile("lock cmpxchg %3, %0"              \
+                 : "+m" (*(ptr)), "=a" (oldval)     \
+                 : "1" (predicate), "r" (newval)    \
+                 : "memory")
+
+#define ATOMIC_LOCAL_ADD(ptr, delta)    \
+    asm volatile("add %1, %0"           \
+                 : "+m" (*(ptr))        \
+                 : "r" (delta))
+
+#define ATOMIC_LOCAL_FETCHADD(ptr, oldval, delta)   \
+    asm volatile("xadd %1, %0"                      \
+                 : "+m" (*(ptr)), "=r" (oldval)     \
+                 : "1" (delta)                      \
+                 : "memory")
+
+#define ATOMIC_LOCAL_AND(ptr, bits)       \
+    asm volatile("and %1, %0"  \
+                 : "+m" (*(ptr))    \
+                 : "r" (bits))
+
+#define ATOMIC_LOCAL_OR(ptr, bits)        \
+    asm volatile("or %1, %0"   \
+                 : "+m" (*(ptr))    \
+                 : "r" (bits))
+
+#define ATOMIC_LOCAL_XOR(ptr, bits)        \
+    asm volatile("xor %1, %0"   \
+                 : "+m" (*(ptr))    \
+                 : "r" (bits))
+
+/* The xchg instruction implies a lock prefix */
+#define ATOMIC_LOCAL_SWAP(ptr, oldval, newval)        \
+    asm volatile("xchg %1, %0"                  \
+                 : "+m" (*(ptr)), "=r" (oldval) \
+                 : "1" (newval)                 \
+                 : "memory")
+
+#define ATOMIC_LOCAL_CAS(ptr, oldval, predicate, newval)  \
+    asm volatile("cmpxchg %3, %0"              \
                  : "+m" (*(ptr)), "=a" (oldval)     \
                  : "1" (predicate), "r" (newval)    \
                  : "memory")
@@ -179,6 +220,128 @@ atomic_cas_ulong(volatile unsigned long *ptr, unsigned long predicate,
     unsigned long oldval;
 
     ATOMIC_CAS(ptr, oldval, predicate, newval);
+    return oldval;
+}
+
+static inline void
+atomic_local_add_uint(volatile unsigned int *ptr, int delta)
+{
+    ATOMIC_LOCAL_ADD(ptr, delta);
+}
+
+/*
+ * Implies a compiler barrier.
+ */
+static inline unsigned int
+atomic_local_fetchadd_uint(volatile unsigned int *ptr, int delta)
+{
+    unsigned int oldval;
+
+    ATOMIC_LOCAL_FETCHADD(ptr, oldval, delta);
+    return oldval;
+}
+
+static inline void
+atomic_local_and_uint(volatile unsigned int *ptr, unsigned int bits)
+{
+    ATOMIC_LOCAL_AND(ptr, bits);
+}
+
+static inline void
+atomic_local_or_uint(volatile unsigned int *ptr, unsigned int bits)
+{
+    ATOMIC_LOCAL_OR(ptr, bits);
+}
+
+static inline void
+atomic_local_xor_uint(volatile unsigned int *ptr, unsigned int bits)
+{
+    ATOMIC_LOCAL_XOR(ptr, bits);
+}
+
+/*
+ * Implies a compiler barrier.
+ */
+static inline unsigned int
+atomic_local_swap_uint(volatile unsigned int *ptr, unsigned int newval)
+{
+    unsigned int oldval;
+
+    ATOMIC_LOCAL_SWAP(ptr, oldval, newval);
+    return oldval;
+}
+
+/*
+ * Implies a compiler barrier.
+ */
+static inline unsigned int
+atomic_local_cas_uint(volatile unsigned int *ptr, unsigned int predicate,
+                      unsigned int newval)
+{
+    unsigned int oldval;
+
+    ATOMIC_LOCAL_CAS(ptr, oldval, predicate, newval);
+    return oldval;
+}
+
+static inline void
+atomic_local_add_ulong(volatile unsigned long *ptr, long delta)
+{
+    ATOMIC_LOCAL_ADD(ptr, delta);
+}
+
+/*
+ * Implies a compiler barrier.
+ */
+static inline unsigned long
+atomic_local_fetchadd_ulong(volatile unsigned long *ptr, long delta)
+{
+    unsigned long oldval;
+
+    ATOMIC_LOCAL_FETCHADD(ptr, oldval, delta);
+    return oldval;
+}
+
+static inline void
+atomic_local_and_ulong(volatile unsigned long *ptr, unsigned long bits)
+{
+    ATOMIC_LOCAL_AND(ptr, bits);
+}
+
+static inline void
+atomic_local_or_ulong(volatile unsigned long *ptr, unsigned long bits)
+{
+    ATOMIC_LOCAL_OR(ptr, bits);
+}
+
+static inline void
+atomic_local_xor_ulong(volatile unsigned long *ptr, unsigned long bits)
+{
+    ATOMIC_LOCAL_XOR(ptr, bits);
+}
+
+/*
+ * Implies a compiler barrier.
+ */
+static inline unsigned long
+atomic_local_swap_ulong(volatile unsigned long *ptr, unsigned long newval)
+{
+    unsigned long oldval;
+
+    ATOMIC_LOCAL_SWAP(ptr, oldval, newval);
+    return oldval;
+}
+
+/*
+ * Implies a compiler barrier.
+ */
+static inline unsigned long
+atomic_local_cas_ulong(volatile unsigned long *ptr, unsigned long predicate,
+                       unsigned long newval)
+{
+    unsigned long oldval;
+
+    ATOMIC_LOCAL_CAS(ptr, oldval, predicate, newval);
     return oldval;
 }
 
