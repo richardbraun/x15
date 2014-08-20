@@ -480,7 +480,14 @@ cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
 void __init
 cpu_mp_probe(void)
 {
-    acpimp_setup();
+    int error;
+
+    error = acpimp_setup();
+
+    /* TODO Support UP with legacy PIC */
+    if (error)
+        panic("cpu: ACPI required to initialize local APIC");
+
     printk("cpu: %u processor(s) configured\n", cpu_array_size);
 }
 

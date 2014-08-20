@@ -146,7 +146,7 @@ acpimp_table_required(const struct acpimp_sdth *table)
     return 0;
 }
 
-static int __init
+static void __init
 acpimp_register_table(struct acpimp_sdth *table)
 {
     char sig[ACPIMP_SIG_SIZE];
@@ -157,15 +157,16 @@ acpimp_register_table(struct acpimp_sdth *table)
     for (i = 0; i < ARRAY_SIZE(acpimp_table_addrs); i++)
         if (strcmp(sig, acpimp_table_addrs[i].sig) == 0) {
             if (acpimp_table_addrs[i].table != NULL) {
-                printk("acpimp: table %s already registered, aborting\n", sig);
-                return -1;
+                printk("acpimp: warning: table %s ignored:"
+                       " already registered\n", sig);
+                return;
             }
 
             acpimp_table_addrs[i].table = table;
-            return 0;
+            return;
         }
 
-    panic("acpimp: attempting to register unknown table '%s'", sig);
+    printk("acpimp: warning: table '%s' ignored: unknown table\n", sig);
 }
 
 static struct acpimp_sdth * __init
@@ -187,7 +188,7 @@ acpimp_check_tables(void)
 
     for (i = 0; i < ARRAY_SIZE(acpimp_table_addrs); i++)
         if (acpimp_table_addrs[i].table == NULL) {
-            printk("acpimp: table %s missing, aborting\n",
+            printk("acpimp: error: table %s missing\n",
                    acpimp_table_addrs[i].sig);
             return -1;
         }
@@ -389,8 +390,7 @@ acpimp_copy_tables(const struct acpimp_rsdp *rsdp)
     if (table == NULL)
         return -1;
 
-    error = acpimp_register_table(table);
-    assert(!error);
+    acpimp_register_table(table);
 
     rsdt = structof(table, struct acpimp_rsdt, header);
     end = (void *)rsdt + rsdt->header.length;
@@ -401,10 +401,7 @@ acpimp_copy_tables(const struct acpimp_rsdp *rsdp)
         if (table == NULL)
             continue;
 
-        error = acpimp_register_table(table);
-
-        if (error)
-            goto error;
+        acpimp_register_table(table);
     }
 
     error = acpimp_check_tables();
