@@ -40,6 +40,8 @@
  * systems. When a pool is empty and cannot provide an object, it is filled by
  * transferring multiple objects from the slab layer. The symmetric case is
  * handled likewise.
+ *
+ * TODO Rework the CPU pool layer to use the SLQB algorithm by Nick Piggin.
  */
 
 #include <kern/assert.h>
@@ -57,6 +59,7 @@
 #include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <kern/string.h>
+#include <kern/thread.h>
 #include <machine/cpu.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
@@ -341,14 +344,6 @@ kmem_cpu_pool_init(struct kmem_cpu_pool *cpu_pool, struct kmem_cache *cache)
     cpu_pool->array = NULL;
 }
 
-/*
- * This function will generally return the pool for the CPU running the
- * calling thread. Because of thread migration, the caller might be running
- * on another processor after this function returns. Although not optimal,
- * this should rarely happen, and it doesn't affect the allocator operations
- * in any other way, as CPU pools are always valid, and their access is
- * serialized by a lock.
- */
 static inline struct kmem_cpu_pool *
 kmem_cpu_pool_get(struct kmem_cache *cache)
 {
@@ -785,22 +780,27 @@ void *
 kmem_cache_alloc(struct kmem_cache *cache)
 {
     struct kmem_cpu_pool *cpu_pool;
-    int filled;
+    int filled, verify;
     void *buf;
 
+    thread_pin();
     cpu_pool = kmem_cpu_pool_get(cache);
 
-    if (cpu_pool->flags & KMEM_CF_NO_CPU_POOL)
+    if (cpu_pool->flags & KMEM_CF_NO_CPU_POOL) {
+        thread_unpin();
         goto slab_alloc;
+    }
 
     mutex_lock(&cpu_pool->lock);
 
 fast_alloc:
     if (likely(cpu_pool->nr_objs > 0)) {
         buf = kmem_cpu_pool_pop(cpu_pool);
+        verify = (cpu_pool->flags & KMEM_CF_VERIFY);
         mutex_unlock(&cpu_pool->lock);
+        thread_unpin();
 
-        if (cpu_pool->flags & KMEM_CF_VERIFY)
+        if (verify)
             kmem_cache_alloc_verify(cache, buf, KMEM_AV_CONSTRUCT);
 
         return buf;
@@ -811,12 +811,15 @@ fast_alloc:
 
         if (!filled) {
             mutex_unlock(&cpu_pool->lock);
+            thread_unpin();
 
             filled = kmem_cache_grow(cache);
 
             if (!filled)
                 return NULL;
 
+            thread_pin();
+            cpu_pool = kmem_cpu_pool_get(cache);
             mutex_lock(&cpu_pool->lock);
         }
 
@@ -824,6 +827,7 @@ fast_alloc:
     }
 
     mutex_unlock(&cpu_pool->lock);
+    thread_unpin();
 
 slab_alloc:
     mutex_lock(&cache->lock);
@@ -918,13 +922,22 @@ kmem_cache_free(struct kmem_cache *cache, void *obj)
     struct kmem_cpu_pool *cpu_pool;
     void **array;
 
+    thread_pin();
     cpu_pool = kmem_cpu_pool_get(cache);
 
-    if (cpu_pool->flags & KMEM_CF_VERIFY)
+    if (cpu_pool->flags & KMEM_CF_VERIFY) {
+        thread_unpin();
+
         kmem_cache_free_verify(cache, obj);
 
-    if (cpu_pool->flags & KMEM_CF_NO_CPU_POOL)
+        thread_pin();
+        cpu_pool = kmem_cpu_pool_get(cache);
+    }
+
+    if (cpu_pool->flags & KMEM_CF_NO_CPU_POOL) {
+        thread_unpin();
         goto slab_free;
+    }
 
     mutex_lock(&cpu_pool->lock);
 
@@ -932,6 +945,7 @@ fast_free:
     if (likely(cpu_pool->nr_objs < cpu_pool->size)) {
         kmem_cpu_pool_push(cpu_pool, obj);
         mutex_unlock(&cpu_pool->lock);
+        thread_unpin();
         return;
     }
 
@@ -953,7 +967,12 @@ fast_free:
          */
         if (cpu_pool->array != NULL) {
             mutex_unlock(&cpu_pool->lock);
+            thread_unpin();
+
             kmem_cache_free(cache->cpu_pool_type->array_cache, array);
+
+            thread_pin();
+            cpu_pool = kmem_cpu_pool_get(cache);
             mutex_lock(&cpu_pool->lock);
             goto fast_free;
         }
@@ -961,6 +980,8 @@ fast_free:
         kmem_cpu_pool_build(cpu_pool, cache, array);
         goto fast_free;
     }
+
+    thread_unpin();
 
 slab_free:
     mutex_lock(&cache->lock);
