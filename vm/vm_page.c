@@ -40,6 +40,7 @@
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
+#include <kern/thread.h>
 #include <kern/types.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>
@@ -407,8 +408,8 @@ vm_page_seg_alloc(struct vm_page_seg *seg, unsigned int order,
     assert(order < VM_PAGE_NR_FREE_LISTS);
 
     if (order == 0) {
+        thread_pin();
         cpu_pool = vm_page_cpu_pool_get(seg);
-
         mutex_lock(&cpu_pool->lock);
 
         if (cpu_pool->nr_pages == 0) {
@@ -416,12 +417,14 @@ vm_page_seg_alloc(struct vm_page_seg *seg, unsigned int order,
 
             if (!filled) {
                 mutex_unlock(&cpu_pool->lock);
+                thread_unpin();
                 return NULL;
             }
         }
 
         page = vm_page_cpu_pool_pop(cpu_pool);
         mutex_unlock(&cpu_pool->lock);
+        thread_unpin();
     } else {
         mutex_lock(&seg->lock);
         page = vm_page_seg_alloc_from_buddy(seg, order);
@@ -445,8 +448,8 @@ vm_page_seg_free(struct vm_page_seg *seg, struct vm_page *page,
     vm_page_set_type(page, order, VM_PAGE_FREE);
 
     if (order == 0) {
+        thread_pin();
         cpu_pool = vm_page_cpu_pool_get(seg);
-
         mutex_lock(&cpu_pool->lock);
 
         if (cpu_pool->nr_pages == cpu_pool->size)
@@ -454,6 +457,7 @@ vm_page_seg_free(struct vm_page_seg *seg, struct vm_page *page,
 
         vm_page_cpu_pool_push(cpu_pool, page);
         mutex_unlock(&cpu_pool->lock);
+        thread_unpin();
     } else {
         mutex_lock(&seg->lock);
         vm_page_seg_free_to_buddy(seg, page, order);
