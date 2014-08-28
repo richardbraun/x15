@@ -603,7 +603,7 @@ vm_page_manage(struct vm_page *page)
     assert(page->seg_index < ARRAY_SIZE(vm_page_segs));
     assert(page->type == VM_PAGE_RESERVED);
 
-    page->type = VM_PAGE_FREE;
+    vm_page_set_type(page, 0, VM_PAGE_FREE);
     vm_page_seg_free_to_buddy(&vm_page_segs[page->seg_index], page, 0);
 }
 
