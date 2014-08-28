@@ -78,7 +78,7 @@ struct vm_page_cpu_pool {
     int transfer_size;
     int nr_pages;
     struct list pages;
-};
+} __aligned(CPU_L1_SIZE);
 
 /*
  * Special order value for pages that aren't in a free list. Such pages are
