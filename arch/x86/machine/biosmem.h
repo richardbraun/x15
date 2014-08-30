@@ -51,7 +51,11 @@ void biosmem_bootstrap(struct multiboot_raw_info *mbi);
 /*
  * Allocate contiguous physical pages during bootstrap.
  *
- * This function is called before paging is enabled.
+ * This function is called before paging is enabled. It should only be used
+ * to allocate initial page table pages. Those pages are later loaded into
+ * the VM system (as reserved pages) which means they can be freed like other
+ * regular pages. Users should fix up the type of those pages once the VM
+ * system is initialized.
  */
 void * biosmem_bootalloc(unsigned int nr_pages);
 

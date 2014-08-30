@@ -516,6 +516,8 @@ biosmem_map_show(void)
         printk("biosmem: %018llx:%018llx, %s\n", entry->base_addr,
                entry->base_addr + entry->length,
                biosmem_type_desc(entry->type));
+
+    printk("biosmem: heap: %x-%x\n", biosmem_heap_start, biosmem_heap_end);
 }
 
 static int __init
@@ -649,11 +651,26 @@ biosmem_find_reserved_area_update(phys_addr_t min, phys_addr_t *start,
     }
 }
 
+/*
+ * Return the boundaries of a reserved area.
+ *
+ * The area returned is the lowest in memory, between min (included) and
+ * max (excluded).
+ */
 static phys_addr_t __init
 biosmem_find_reserved_area(phys_addr_t min, phys_addr_t max,
                            phys_addr_t *endp)
 {
     phys_addr_t start, end = end;
+
+    /*
+     * Obviously, the kernel is reserved. Since all allocations until now
+     * were made from the heap, and since the unused pages of the heap
+     * have already been loaded as available in the VM system, consider
+     * the whole heap reserved as well.
+     *
+     * Everything else is freed to the VM system.
+     */
 
     start = max;
     biosmem_find_reserved_area_update(min, &start, &end, (unsigned long)&_boot,
@@ -672,6 +689,13 @@ static void __init
 biosmem_free_usable_range(phys_addr_t start, phys_addr_t end)
 {
     struct vm_page *page;
+
+    if (start == end)
+        return;
+
+    printk("biosmem: release to vm_page: %llx-%llx (%lluk)\n",
+           (unsigned long long)start, (unsigned long long)end,
+           (unsigned long long)((end - start) >> 10));
 
     while (start < end) {
         page = vm_page_lookup(start);
