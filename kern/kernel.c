@@ -39,6 +39,7 @@ kernel_main(void)
     thread_setup();
     work_setup();
     llsync_setup();
+    vm_page_info();
 
 #ifdef RUN_TEST_MODULE
     test_setup();
@@ -54,12 +55,10 @@ kernel_main(void)
      *    synchronized requires interrupts (and potentially scheduling)
      *    enabled on all processors.
      *
-     * Anything done after this call and before running the scheduler must
-     * not alter physical mappings.
+     * It is highly recommended not to do anything else than starting the
+     * scheduler right after this call.
      */
     cpu_mp_setup();
-
-    vm_page_info();
 
     thread_run_scheduler();
 
