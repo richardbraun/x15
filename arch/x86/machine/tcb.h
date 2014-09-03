@@ -26,7 +26,7 @@
 #include <machine/cpu.h>
 
 /*
- * Architecture specific thread data.
+ * Thread control block.
  */
 struct tcb {
     unsigned long bp;
@@ -52,13 +52,15 @@ void tcb_context_switch(struct tcb *prev, struct tcb *next);
 static inline struct tcb *
 tcb_current(void)
 {
-    return cpu_percpu_get_tcb();
+    extern struct tcb *tcb_current_ptr;
+    return cpu_local_read(tcb_current_ptr);
 }
 
 static inline void
 tcb_set_current(struct tcb *tcb)
 {
-    cpu_percpu_set_tcb(tcb);
+    extern struct tcb *tcb_current_ptr;
+    cpu_local_assign(tcb_current_ptr, tcb);
 }
 
 /*

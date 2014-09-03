@@ -269,7 +269,8 @@ void pmap_load(struct pmap *pmap);
 static inline struct pmap *
 pmap_current(void)
 {
-    return cpu_percpu_get_pmap();
+    extern struct pmap *pmap_current_ptr;
+    return cpu_local_read(pmap_current_ptr);
 }
 
 #endif /* __ASSEMBLER__ */

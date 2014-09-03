@@ -30,7 +30,7 @@
 #define CPU_GDT_SIZE        40
 #else /* __LP64__ */
 #define CPU_GDT_SEL_DF_TSS  32
-#define CPU_GDT_SEL_CPU     40
+#define CPU_GDT_SEL_PERCPU  40
 #define CPU_GDT_SIZE        48
 #endif /* __LP64__ */
 
@@ -92,6 +92,7 @@
 #include <kern/assert.h>
 #include <kern/macros.h>
 #include <kern/param.h>
+#include <kern/percpu.h>
 #include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <machine/lapic.h>
@@ -211,27 +212,12 @@ struct cpu_tss {
 } __packed;
 
 /*
- * Forward declarations.
- */
-struct tcb;
-struct pmap;
-
-/*
  * CPU states.
  */
 #define CPU_STATE_OFF   0
 #define CPU_STATE_ON    1
 
-/*
- * The fs segment register is used to store the address of the per-CPU data.
- * As a result, they must be at least 16-bytes aligned.
- */
-#define CPU_ALIGN (MAX(16, CPU_L1_SIZE))
-
 struct cpu {
-    struct cpu *self;
-    struct tcb *tcb;
-    struct pmap *pmap;
     unsigned int id;
     unsigned int apic_id;
     char vendor_id[CPU_VENDOR_ID_SIZE];
@@ -256,7 +242,7 @@ struct cpu {
     volatile int state;
     unsigned long boot_stack;
     unsigned long double_fault_stack;
-} __aligned(CPU_ALIGN);
+};
 
 /*
  * Macro to create functions that read/write control registers.
@@ -421,71 +407,68 @@ void cpu_halt_broadcast(void);
 void cpu_halt_intr(struct trap_frame *frame);
 
 /*
- * Macros to create access functions for per-CPU pointers.
- *
- * Changing such a pointer should only be done by low level scheduling
- * functions (e.g. context switching). Getting it is then migration-safe.
+ * This percpu variable contains the address of the percpu area for the local
+ * processor. This is normally the same value stored in the percpu module, but
+ * it can be directly accessed through a segment register.
  */
-#ifdef __LP64__
-#define CPU_ASM_MOV "movq"
-#else /* __LP64__ */
-#define CPU_ASM_MOV "movl"
-#endif /* __LP64__ */
+extern void *cpu_local_area;
 
-#define CPU_DECL_PERCPU(type, member)                               \
-static __always_inline type *                                       \
-cpu_percpu_get_ ## member(void)                                     \
-{                                                                   \
-    type *ptr;                                                      \
-                                                                    \
-    asm volatile(CPU_ASM_MOV " %%fs:%1, %0"                         \
-                 : "=r" (ptr)                                       \
-                 : "m" (*(type **)offsetof(struct cpu, member)));   \
-    return ptr;                                                     \
-}                                                                   \
-                                                                    \
-static __always_inline void                                         \
-cpu_percpu_set_ ## member(type *ptr)                                \
-{                                                                   \
-    asm volatile(CPU_ASM_MOV " %0, %%fs:%1"                         \
-                 : : "ri" (ptr),                                    \
-                     "m" (*(type **)offsetof(struct cpu, member))); \
-}
+#define cpu_local_ptr(var)                  \
+MACRO_BEGIN                                 \
+    typeof(var) *___ptr = &(var);           \
+                                            \
+    asm volatile("add %%fs:%1, %0"          \
+                 : "+r" (___ptr)            \
+                 : "m" (cpu_local_area));   \
+                                            \
+    ___ptr;                                 \
+MACRO_END
 
-CPU_DECL_PERCPU(struct cpu, self)
-CPU_DECL_PERCPU(struct tcb, tcb)
-CPU_DECL_PERCPU(struct pmap, pmap)
+#define cpu_local_var(var) (*cpu_local_ptr(var))
+
+/* Interrupt-safe percpu accessors for basic types */
+
+#define cpu_local_assign(var, val)          \
+    asm volatile("mov %0, %%fs:%1"          \
+                 : : "r" (val), "m" (var));
+
+#define cpu_local_read(var)         \
+MACRO_BEGIN                         \
+    typeof(var) ___val;             \
+                                    \
+    asm volatile("mov %%fs:%1, %0"  \
+                 : "=r" (___val)    \
+                 : "m" (var));      \
+                                    \
+    ___val;                         \
+MACRO_END
 
 static __always_inline struct cpu *
 cpu_current(void)
 {
-    return cpu_percpu_get_self();
+    extern struct cpu cpu_desc;
+    return cpu_local_ptr(cpu_desc);
 }
 
 static __always_inline unsigned int
 cpu_id(void)
 {
-    unsigned int id;
-
-    asm volatile("movl %%fs:%1, %0"
-                 : "=r" (id)
-                 : "m" (*(unsigned int *)offsetof(struct cpu, id)));
-    return id;
+    extern struct cpu cpu_desc;
+    return cpu_local_read(cpu_desc.id);
 }
 
 static __always_inline unsigned int
 cpu_count(void)
 {
-    extern unsigned int cpu_array_size;
-    return cpu_array_size;
+    extern unsigned int cpu_nr_active;
+    return cpu_nr_active;
 }
 
 static inline struct cpu *
 cpu_from_id(unsigned int cpu)
 {
-    extern struct cpu cpu_array[MAX_CPUS];
-    assert(cpu < ARRAY_SIZE(cpu_array));
-    return &cpu_array[cpu];
+    extern struct cpu cpu_desc;
+    return percpu_ptr(cpu_desc, cpu);
 }
 
 static __always_inline void
@@ -608,6 +591,12 @@ void cpu_check(const struct cpu *cpu);
  * Display processor information.
  */
 void cpu_info(const struct cpu *cpu);
+
+/*
+ * Notify the cpu module that the true percpu area for the BSP has been
+ * created.
+ */
+void cpu_fixup_bsp_percpu_area(void);
 
 /*
  * Register the presence of a local APIC.

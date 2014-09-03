@@ -67,12 +67,17 @@
 #define CPU_MP_CMOS_DATA_RESET_WARM 0x0a
 #define CPU_MP_CMOS_RESET_VECTOR    0x467
 
-struct cpu cpu_array[MAX_CPUS];
+void *cpu_local_area __percpu;
 
 /*
- * Number of configured processors.
+ * Processor descriptor, one per CPU.
  */
-unsigned int cpu_array_size __read_mostly;
+struct cpu cpu_desc __percpu;
+
+/*
+ * Number of active processors.
+ */
+unsigned int cpu_nr_active __read_mostly;
 
 /*
  * Interrupt descriptor table.
@@ -81,6 +86,9 @@ static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8) __read_mostly;
 
 /*
  * Double fault handler, and stack for the main processor.
+ *
+ * TODO Declare as init data, and replace the BSP stack with kernel virtual
+ * memory.
  */
 static unsigned long cpu_double_fault_handler;
 static char cpu_double_fault_stack[STACK_SIZE] __aligned(DATA_ALIGN);
@@ -88,7 +96,16 @@ static char cpu_double_fault_stack[STACK_SIZE] __aligned(DATA_ALIGN);
 unsigned long __init
 cpu_get_boot_stack(void)
 {
-    return cpu_array[boot_ap_id].boot_stack;
+    return percpu_var(cpu_desc.boot_stack, boot_ap_id);
+}
+
+static void __init
+cpu_preinit(struct cpu *cpu, unsigned int id, unsigned int apic_id)
+{
+    cpu->id = id;
+    cpu->apic_id = apic_id;
+    cpu->state = CPU_STATE_OFF;
+    cpu->boot_stack = 0;
 }
 
 static void
@@ -168,15 +185,43 @@ cpu_seg_set_tss(char *table, unsigned int selector, struct cpu_tss *tss)
 }
 
 /*
- * Set the given GDT for the current processor, and reload its segment
- * registers.
+ * Set the given GDT for the current processor.
+ *
+ * On i386, the ds, es and ss segment registers are reloaded. In any case,
+ * the gs segment register is set to the null selector. The fs segment
+ * register, which points to the percpu area, must be set separately.
  */
-void cpu_load_gdt(struct cpu *cpu, struct cpu_pseudo_desc *gdtr);
+void cpu_load_gdt(struct cpu_pseudo_desc *gdtr);
+
+static inline void __init
+cpu_set_percpu_area(const struct cpu *cpu, void *area)
+{
+#ifdef __LP64__
+    unsigned long va;
+
+    va = (unsigned long)area;
+    cpu_set_msr(CPU_MSR_FSBASE, (uint32_t)va, (uint32_t)(va >> 32));
+#else /* __LP64__ */
+    asm volatile("mov %0, %%fs" : : "r" (CPU_GDT_SEL_PERCPU));
+#endif /* __LP64__ */
+
+    percpu_var(cpu_local_area, cpu->id) = area;
+}
+
+static void __init
+cpu_init_gdtr(struct cpu_pseudo_desc *gdtr, const struct cpu *cpu)
+{
+    gdtr->address = (unsigned long)cpu->gdt;
+    gdtr->limit = sizeof(cpu->gdt) - 1;
+}
 
 static void __init
 cpu_init_gdt(struct cpu *cpu)
 {
     struct cpu_pseudo_desc gdtr;
+    void *pcpu_area;
+
+    pcpu_area = percpu_area(cpu->id);
 
     cpu_seg_set_null(cpu->gdt, CPU_GDT_SEL_NULL);
     cpu_seg_set_code(cpu->gdt, CPU_GDT_SEL_CODE);
@@ -185,12 +230,12 @@ cpu_init_gdt(struct cpu *cpu)
 
 #ifndef __LP64__
     cpu_seg_set_tss(cpu->gdt, CPU_GDT_SEL_DF_TSS, &cpu->double_fault_tss);
-    cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_CPU, (unsigned long)cpu);
+    cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_PERCPU, (unsigned long)pcpu_area);
 #endif /* __LP64__ */
 
-    gdtr.address = (unsigned long)cpu->gdt;
-    gdtr.limit = sizeof(cpu->gdt) - 1;
-    cpu_load_gdt(cpu, &gdtr);
+    cpu_init_gdtr(&gdtr, cpu);
+    cpu_load_gdt(&gdtr);
+    cpu_set_percpu_area(cpu, pcpu_area);
 }
 
 static void __init
@@ -235,7 +280,7 @@ cpu_init_double_fault_tss(struct cpu *cpu)
     tss->cs = CPU_GDT_SEL_CODE;
     tss->ss = CPU_GDT_SEL_DATA;
     tss->ds = CPU_GDT_SEL_DATA;
-    tss->fs = CPU_GDT_SEL_CPU;
+    tss->fs = CPU_GDT_SEL_PERCPU;
 }
 #endif /* __LP64__ */
 
@@ -297,9 +342,6 @@ cpu_cpuid(unsigned long *eax, unsigned long *ebx, unsigned long *ecx,
 
 /*
  * Initialize the given cpu structure for the current processor.
- *
- * On the BSP, this function is called before it can determine the cpu
- * structure. It is part of its task to make it possible.
  */
 static void __init
 cpu_init(struct cpu *cpu)
@@ -411,19 +453,13 @@ cpu_init(struct cpu *cpu)
 void __init
 cpu_setup(void)
 {
-    size_t i;
+    struct cpu *cpu;
 
-    for (i = 0; i < ARRAY_SIZE(cpu_array); i++) {
-        cpu_array[i].self = &cpu_array[i];
-        cpu_array[i].id = i;
-        cpu_array[i].apic_id = CPU_INVALID_APIC_ID;
-        cpu_array[i].state = CPU_STATE_OFF;
-        cpu_array[i].boot_stack = 0;
-    }
-
-    cpu_array_size = 1;
-    cpu_array[0].double_fault_stack = (unsigned long)cpu_double_fault_stack;
-    cpu_init(&cpu_array[0]);
+    cpu = percpu_ptr(cpu_desc, 0);
+    cpu_preinit(cpu, 0, CPU_INVALID_APIC_ID);
+    cpu->double_fault_stack = (unsigned long)cpu_double_fault_stack; /* XXX */
+    cpu_init(cpu);
+    cpu_nr_active = 1;
 }
 
 static void __init
@@ -459,35 +495,54 @@ cpu_info(const struct cpu *cpu)
 }
 
 void __init
+cpu_fixup_bsp_percpu_area(void)
+{
+    struct cpu_pseudo_desc gdtr;
+    struct cpu *cpu;
+    void *pcpu_area;
+
+    /*
+     * It's important to use the percpu interface here, and not the cpu_local
+     * accessors : this function updates the GDTR (and the GDT on i386), as a
+     * result it must reference the future version of the GDT from the newly
+     * allocated percpu area.
+     */
+    cpu = percpu_ptr(cpu_desc, 0);
+    pcpu_area = percpu_area(0);
+
+#ifndef __LP64__
+    cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_PERCPU, (unsigned long)pcpu_area);
+#endif /* __LP64__ */
+
+    cpu_init_gdtr(&gdtr, cpu);
+    cpu_load_gdt(&gdtr);
+    cpu_set_percpu_area(cpu, pcpu_area);
+}
+
+void __init
 cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
 {
-    static int skip_warning __initdata;
+    struct cpu *cpu;
     int error;
 
     if (is_bsp) {
-        if (cpu_array[0].apic_id != CPU_INVALID_APIC_ID)
+        cpu = percpu_ptr(cpu_desc, 0);
+
+        if (cpu->apic_id != CPU_INVALID_APIC_ID)
             panic("cpu: another processor pretends to be the BSP");
 
-        cpu_array[0].apic_id = apic_id;
+        cpu->apic_id = apic_id;
         return;
     }
 
-    if (cpu_array_size == ARRAY_SIZE(cpu_array)) {
-        if (!skip_warning) {
-            printk("cpu: ignoring processor beyond id %u\n", MAX_CPUS - 1);
-            skip_warning = 1;
-        }
-
-        return;
-    }
-
-    error = percpu_add(cpu_array_size);
+    error = percpu_add(cpu_nr_active);
 
     if (error)
         return;
 
-    cpu_array[cpu_array_size].apic_id = apic_id;
-    cpu_array_size++;
+    cpu = percpu_ptr(cpu_desc, cpu_nr_active);
+    cpu_preinit(cpu, cpu_nr_active, apic_id);
+    cpu_nr_active++;
 }
 
 void __init
@@ -501,7 +556,7 @@ cpu_mp_probe(void)
     if (error)
         panic("cpu: ACPI required to initialize local APIC");
 
-    printk("cpu: %u processor(s) configured\n", cpu_array_size);
+    printk("cpu: %u processor(s) configured\n", cpu_count());
 }
 
 void __init
@@ -514,7 +569,7 @@ cpu_mp_setup(void)
     size_t map_size;
     unsigned int i;
 
-    if (cpu_array_size == 1) {
+    if (cpu_count() == 1) {
         pmap_mp_setup();
         return;
     }
@@ -548,8 +603,8 @@ cpu_mp_setup(void)
     io_write_byte(CPU_MP_CMOS_PORT_REG, CPU_MP_CMOS_REG_RESET);
     io_write_byte(CPU_MP_CMOS_PORT_DATA, CPU_MP_CMOS_DATA_RESET_WARM);
 
-    for (i = 1; i < cpu_array_size; i++) {
-        cpu = &cpu_array[i];
+    for (i = 1; i < cpu_count(); i++) {
+        cpu = percpu_ptr(cpu_desc, i);
         cpu->boot_stack = vm_kmem_alloc(STACK_SIZE);
 
         if (cpu->boot_stack == 0)
@@ -568,8 +623,8 @@ cpu_mp_setup(void)
      */
     pmap_mp_setup();
 
-    for (i = 1; i < cpu_array_size; i++) {
-        cpu = &cpu_array[i];
+    for (i = 1; i < cpu_count(); i++) {
+        cpu = percpu_ptr(cpu_desc, i);
         boot_ap_id = i;
 
         /* Perform the "Universal Start-up Algorithm" */
@@ -590,7 +645,10 @@ cpu_mp_setup(void)
 void __init
 cpu_ap_setup(void)
 {
-    cpu_init(&cpu_array[boot_ap_id]);
+    struct cpu *cpu;
+
+    cpu = percpu_ptr(cpu_desc, boot_ap_id);
+    cpu_init(cpu);
     cpu_check(cpu_current());
     lapic_ap_setup();
 }

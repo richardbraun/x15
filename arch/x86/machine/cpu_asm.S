@@ -23,9 +23,9 @@
 
 ASM_ENTRY(cpu_load_gdt)
 #ifdef __LP64__
- lgdt (%rsi)
+ lgdt (%rdi)
 #else /* __LP64__ */
- movl 8(%esp), %eax
+ movl 4(%esp), %eax
  lgdt (%eax)
 #endif /* __LP64__ */
 
@@ -33,17 +33,6 @@ ASM_ENTRY(cpu_load_gdt)
  movl %eax, %ds
  movl %eax, %es
  movl %eax, %ss
-
-#ifdef __LP64__
- movq %rdi, %rax
- movq %rdi, %rdx
- shrq $32, %rdx
- movq $CPU_MSR_FSBASE, %rcx
- wrmsr
-#else /* __LP64__ */
- movl $CPU_GDT_SEL_CPU, %eax
- movl %eax, %fs
-#endif /* __LP64__ */
 
  movl $CPU_GDT_SEL_NULL, %eax
  movl %eax, %gs

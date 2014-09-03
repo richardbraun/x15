@@ -145,6 +145,8 @@ static struct pmap kernel_pmap_store __read_mostly;
 struct pmap *kernel_pmap __read_mostly = &kernel_pmap_store;
 static struct pmap_cpu_table kernel_pmap_cpu_tables[MAX_CPUS] __read_mostly;
 
+struct pmap *pmap_current_ptr __percpu;
+
 #ifdef X86_PAE
 /*
  * Alignment required on page directory pointer tables.
@@ -716,7 +718,7 @@ pmap_bootstrap(void)
         mutex_init(&cpu_table->lock);
     }
 
-    cpu_percpu_set_pmap(kernel_pmap);
+    cpu_local_assign(pmap_current_ptr, kernel_pmap);
 
     pmap_boot_heap = (unsigned long)&_end;
     pmap_boot_heap_current = pmap_boot_heap;
@@ -777,7 +779,7 @@ pmap_bootstrap(void)
 void __init
 pmap_ap_bootstrap(void)
 {
-    cpu_percpu_set_pmap(kernel_pmap);
+    cpu_local_assign(pmap_current_ptr, kernel_pmap);
 
     if (cpu_has_global_pages())
         cpu_enable_global_pages();
@@ -1667,7 +1669,7 @@ pmap_load(struct pmap *pmap)
 
     /* TODO Lazy TLB invalidation */
 
-    cpu_percpu_set_pmap(pmap);
+    cpu_local_assign(pmap_current_ptr, pmap);
 
     /* TODO Implement per-CPU page tables for non-kernel pmaps */
     cpu_table = pmap->cpu_tables[cpu_id()];

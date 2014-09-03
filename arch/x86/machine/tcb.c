@@ -30,6 +30,8 @@
 void __noreturn tcb_context_load(struct tcb *tcb);
 void __noreturn tcb_start(void);
 
+struct tcb *tcb_current_ptr __percpu;
+
 int
 tcb_init(struct tcb *tcb, void *stack, void (*fn)(void))
 {

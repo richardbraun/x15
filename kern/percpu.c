@@ -59,6 +59,7 @@ percpu_setup(void)
 
     percpu_areas[0] = (void *)va;
     memcpy(percpu_area(0), &_percpu, percpu_size);
+    cpu_fixup_bsp_percpu_area();
 }
 
 int __init
