@@ -20,6 +20,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
+#include <kern/percpu.h>
 #include <kern/printk.h>
 #include <kern/stddef.h>
 #include <kern/stdint.h>
@@ -461,6 +462,7 @@ void __init
 cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
 {
     static int skip_warning __initdata;
+    int error;
 
     if (is_bsp) {
         if (cpu_array[0].apic_id != CPU_INVALID_APIC_ID)
@@ -478,6 +480,11 @@ cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
 
         return;
     }
+
+    error = percpu_add(cpu_array_size);
+
+    if (error)
+        return;
 
     cpu_array[cpu_array_size].apic_id = apic_id;
     cpu_array_size++;

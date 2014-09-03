@@ -31,6 +31,8 @@ x15_SOURCES +=              \
 	kern/panic.c        \
 	kern/panic.h        \
 	kern/param.h        \
+	kern/percpu.c       \
+	kern/percpu.h       \
 	kern/printk.c       \
 	kern/printk.h       \
 	kern/rbtree.c       \

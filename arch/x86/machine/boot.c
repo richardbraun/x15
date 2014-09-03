@@ -49,6 +49,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
+#include <kern/percpu.h>
 #include <kern/printk.h>
 #include <kern/stddef.h>
 #include <kern/stdint.h>
@@ -268,6 +269,7 @@ void __init
 boot_main(void)
 {
     evcnt_setup();
+    percpu_bootstrap();
     trap_setup();
     cpu_setup();
     thread_bootstrap();

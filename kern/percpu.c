@@ -1,0 +1,99 @@
+/*
+ * Copyright (c) 2014 Richard Braun.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <kern/assert.h>
+#include <kern/error.h>
+#include <kern/init.h>
+#include <kern/macros.h>
+#include <kern/panic.h>
+#include <kern/param.h>
+#include <kern/percpu.h>
+#include <kern/printk.h>
+#include <kern/stddef.h>
+#include <kern/string.h>
+#include <machine/cpu.h>
+#include <vm/vm_kmem.h>
+
+void *percpu_areas[MAX_CPUS] __read_mostly;
+
+static size_t percpu_size __initdata;
+static int percpu_skip_warning __initdata;
+
+void __init
+percpu_bootstrap(void)
+{
+    percpu_areas[0] = &_percpu;
+    percpu_size = &_epercpu - &_percpu;
+}
+
+void __init
+percpu_setup(void)
+{
+    unsigned long va;
+
+    printk("percpu: max_cpus: %u, section size: %zuk\n",
+           MAX_CPUS, percpu_size >> 10);
+    assert(ISP2(percpu_size));
+
+    if (percpu_size == 0)
+        return;
+
+    va = vm_kmem_alloc(percpu_size);
+
+    if (va == 0)
+        panic("percpu: unable to allocate percpu area for BSP");
+
+    percpu_areas[0] = (void *)va;
+    memcpy(percpu_area(0), &_percpu, percpu_size);
+}
+
+int __init
+percpu_add(unsigned int cpu)
+{
+    unsigned long va;
+
+    if (cpu >= ARRAY_SIZE(percpu_areas)) {
+        if (!percpu_skip_warning) {
+            printk("percpu: ignoring processor beyond id %zu\n",
+                   ARRAY_SIZE(percpu_areas) - 1);
+            percpu_skip_warning = 1;
+        }
+
+        return ERROR_INVAL;
+    }
+
+    if (percpu_area(cpu) != NULL) {
+        printk("percpu: error: id %u ignored, already registered\n", cpu);
+        return ERROR_INVAL;
+    }
+
+    if (percpu_size == 0)
+        goto out;
+
+    va = vm_kmem_alloc(percpu_size);
+
+    if (va == 0) {
+        printk("percpu: error: unable to allocate percpu area\n");
+        return ERROR_NOMEM;
+    }
+
+    percpu_areas[cpu] = (void *)va;
+    memcpy(percpu_area(cpu), &_percpu, percpu_size);
+
+out:
+    return 0;
+}

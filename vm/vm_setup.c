@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012 Richard Braun.
+ * Copyright (c) 2011-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include <kern/init.h>
 #include <kern/kmem.h>
+#include <kern/percpu.h>
 #include <machine/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kmem.h>
@@ -31,4 +32,5 @@ vm_setup(void)
     kmem_setup();
     vm_map_setup();
     pmap_setup();
+    percpu_setup();
 }

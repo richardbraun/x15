@@ -16,6 +16,7 @@ PHDRS
     /* Flags are actually similar to classic Unix permissions */
     boot    PT_LOAD FLAGS(7);
     init    PT_LOAD FLAGS(7);
+    percpu  PT_LOAD FLAGS(6);
     text    PT_LOAD FLAGS(5);
     rodata  PT_LOAD FLAGS(4);
     data    PT_LOAD FLAGS(6);
@@ -45,6 +46,15 @@ SECTIONS
 
     . = ALIGN(PAGE_SIZE);
     _einit = .;
+    _percpu = .;
+
+    .percpu 0 : AT(BOOT_VTOP(_percpu)) {
+        *(.percpu)
+    } : percpu
+
+    . = _percpu + SIZEOF(.percpu);
+    . = ALIGN(PAGE_SIZE);
+    _epercpu = .;
     _text = .;
 
     .text ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.text))) {
