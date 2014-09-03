@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012 Richard Braun.
+ * Copyright (c) 2011-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,10 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <kern/init.h>
 #include <machine/asm.h>
 #include <machine/cpu.h>
 
-.text
+.section INIT_SECTION
 
 ASM_ENTRY(cpu_load_gdt)
 #ifdef __LP64__

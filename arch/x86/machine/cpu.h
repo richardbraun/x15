@@ -589,12 +589,6 @@ cpu_delay(unsigned long usecs)
 unsigned long cpu_get_boot_stack(void);
 
 /*
- * Set the given GDT for the current processor, and reload its segment
- * registers.
- */
-void cpu_load_gdt(struct cpu *cpu, struct cpu_pseudo_desc *gdtr);
-
-/*
  * Install an interrupt handler in the IDT.
  */
 void cpu_idt_set_gate(unsigned int vector, void (*isr)(void));

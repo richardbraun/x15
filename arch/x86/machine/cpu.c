@@ -166,6 +166,12 @@ cpu_seg_set_tss(char *table, unsigned int selector, struct cpu_tss *tss)
                  | (limit & CPU_DESC_SEG_LIMIT_LOW_MASK);
 }
 
+/*
+ * Set the given GDT for the current processor, and reload its segment
+ * registers.
+ */
+void cpu_load_gdt(struct cpu *cpu, struct cpu_pseudo_desc *gdtr);
+
 static void __init
 cpu_init_gdt(struct cpu *cpu)
 {
