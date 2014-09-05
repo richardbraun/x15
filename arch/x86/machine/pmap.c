@@ -27,6 +27,7 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
+#include <kern/percpu.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
@@ -108,8 +109,10 @@ struct pmap_tmp_mapping {
     unsigned long va;
 } __aligned(CPU_L1_SIZE);
 
-static struct pmap_tmp_mapping pmap_zero_mappings[MAX_CPUS];
-static struct pmap_tmp_mapping pmap_ptp_mappings[MAX_CPUS];
+static struct pmap_tmp_mapping pmap_zero_mapping __percpu;
+static struct pmap_tmp_mapping pmap_ptp_mapping __percpu;
+static unsigned long pmap_zero_va __read_mostly;
+static unsigned long pmap_ptp_va __read_mostly;
 
 /*
  * Reserved pages of virtual memory available for early allocation.
@@ -143,6 +146,12 @@ struct pmap {
 
 static struct pmap kernel_pmap_store __read_mostly;
 struct pmap *kernel_pmap __read_mostly = &kernel_pmap_store;
+
+/*
+ * The kernel per-CPU page tables are used early enough during bootstrap
+ * that using a percpu variable would actually become ugly. This array
+ * is rather small anyway.
+ */
 static struct pmap_cpu_table kernel_pmap_cpu_tables[MAX_CPUS] __read_mostly;
 
 struct pmap *pmap_current_ptr __percpu;
@@ -155,6 +164,8 @@ struct pmap *pmap_current_ptr __percpu;
 
 /*
  * "Hidden" kernel root page tables for PAE mode.
+ *
+ * Don't use a percpu variable so that PDPTs are kept low in physical memory.
  */
 static pmap_pte_t pmap_cpu_kpdpts[MAX_CPUS][PMAP_NR_RPTPS] __read_mostly
     __aligned(PMAP_PDPT_ALIGN);
@@ -272,7 +283,7 @@ struct pmap_syncer {
 
 static void pmap_sync(void *arg);
 
-static struct pmap_syncer pmap_syncers[MAX_CPUS];
+static struct pmap_syncer pmap_syncer __percpu;
 
 /*
  * Maximum number of mappings for which individual TLB invalidations can be
@@ -307,7 +318,7 @@ struct pmap_update_request_array {
     struct mutex lock;
 } __aligned(CPU_L1_SIZE);
 
-static struct pmap_update_request_array pmap_update_request_arrays[MAX_CPUS];
+static struct pmap_update_request_array pmap_update_request_array __percpu;
 
 static int pmap_do_remote_updates __read_mostly;
 
@@ -460,6 +471,13 @@ pmap_ap_setup_paging(void)
 #endif /* X86_PAE */
 
     return root_ptp;
+}
+
+static void __init
+pmap_tmp_mapping_init(struct pmap_tmp_mapping *mapping, unsigned long va)
+{
+    mutex_init(&mapping->lock);
+    mapping->va = va;
 }
 
 /*
@@ -671,7 +689,7 @@ pmap_update_request_array_acquire(void)
     struct pmap_update_request_array *array;
 
     thread_pin();
-    array = &pmap_update_request_arrays[cpu_id()];
+    array = cpu_local_ptr(pmap_update_request_array);
     mutex_lock(&array->lock);
     return array;
 }
@@ -684,13 +702,11 @@ pmap_update_request_array_release(struct pmap_update_request_array *array)
 }
 
 static void __init
-pmap_syncer_init(struct pmap_syncer *syncer)
+pmap_syncer_init(struct pmap_syncer *syncer, unsigned int cpu)
 {
     char name[EVCNT_NAME_SIZE];
     struct pmap_update_queue *queue;
-    unsigned int cpu;
 
-    cpu = syncer - pmap_syncers;
     queue = &syncer->queue;
     mutex_init(&queue->lock);
     condition_init(&queue->cond);
@@ -733,24 +749,15 @@ pmap_bootstrap(void)
     pmap_prot_table[VM_PROT_EXECUTE | VM_PROT_WRITE] = PMAP_PTE_RW;
     pmap_prot_table[VM_PROT_ALL] = PMAP_PTE_RW;
 
-    va = pmap_bootalloc(1);
+    pmap_zero_va = pmap_bootalloc(1);
+    pmap_tmp_mapping_init(cpu_local_ptr(pmap_zero_mapping), pmap_zero_va);
 
-    for (i = 0; i < ARRAY_SIZE(pmap_zero_mappings); i++) {
-        mutex_init(&pmap_zero_mappings[i].lock);
-        pmap_zero_mappings[i].va = va;
-    }
+    pmap_ptp_va = pmap_bootalloc(PMAP_NR_RPTPS);
+    pmap_tmp_mapping_init(cpu_local_ptr(pmap_ptp_mapping), pmap_ptp_va);
 
-    va = pmap_bootalloc(PMAP_NR_RPTPS);
+    pmap_update_request_array_init(cpu_local_ptr(pmap_update_request_array));
 
-    for (i = 0; i < ARRAY_SIZE(pmap_ptp_mappings); i++) {
-        mutex_init(&pmap_ptp_mappings[i].lock);
-        pmap_ptp_mappings[i].va = va;
-    }
-
-    for (i = 0; i < ARRAY_SIZE(pmap_update_request_arrays); i++)
-        pmap_update_request_array_init(&pmap_update_request_arrays[i]);
-
-    pmap_syncer_init(&pmap_syncers[0]);
+    pmap_syncer_init(cpu_local_ptr(pmap_syncer), 0);
 
     pmap_update_oplist_ctor(&pmap_booter_oplist);
     thread_key_create(&pmap_oplist_tsd_key, pmap_update_oplist_destroy);
@@ -780,6 +787,11 @@ void __init
 pmap_ap_bootstrap(void)
 {
     cpu_local_assign(pmap_current_ptr, kernel_pmap);
+
+    pmap_tmp_mapping_init(cpu_local_ptr(pmap_zero_mapping), pmap_zero_va);
+    pmap_tmp_mapping_init(cpu_local_ptr(pmap_ptp_mapping), pmap_ptp_va);
+    pmap_update_request_array_init(cpu_local_ptr(pmap_update_request_array));
+    pmap_syncer_init(cpu_local_ptr(pmap_syncer), cpu_id());
 
     if (cpu_has_global_pages())
         cpu_enable_global_pages();
@@ -869,7 +881,7 @@ pmap_zero_page(phys_addr_t pa)
     unsigned long va;
 
     thread_pin();
-    zero_mapping = &pmap_zero_mappings[cpu_id()];
+    zero_mapping = cpu_local_ptr(pmap_zero_mapping);
     mutex_lock(&zero_mapping->lock);
     va = zero_mapping->va;
     pmap_kenter(va, pa, VM_PROT_WRITE);
@@ -895,7 +907,7 @@ pmap_map_ptp(phys_addr_t pa, unsigned int nr_pages)
 #endif
 
     thread_pin();
-    ptp_mapping  = &pmap_ptp_mappings[cpu_id()];
+    ptp_mapping  = cpu_local_ptr(pmap_ptp_mapping);
     mutex_lock(&ptp_mapping->lock);
 
     for (i = 0; i < nr_pages; i++) {
@@ -1095,16 +1107,13 @@ pmap_mp_setup(void)
     unsigned int cpu;
     int error;
 
-    for (cpu = 1; cpu < cpu_count(); cpu++)
-        pmap_syncer_init(&pmap_syncers[cpu]);
-
     error = cpumap_create(&cpumap);
 
     if (error)
         panic("pmap: unable to create syncer cpumap");
 
     for (cpu = 0; cpu < cpu_count(); cpu++) {
-        syncer = &pmap_syncers[cpu];
+        syncer = percpu_ptr(pmap_syncer, cpu);
         snprintf(name, sizeof(name), "x15_pmap_sync/%u", cpu);
         cpumap_zero(cpumap);
         cpumap_set(cpumap, cpu);
@@ -1528,18 +1537,17 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
 {
     const struct pmap_update_op *op;
     struct pmap_syncer *syncer;
-    unsigned int i, cpu;
     int flush_tlb_entries;
+    unsigned int i;
 
-    cpu = cpu_id();
-    syncer = &pmap_syncers[cpu];
+    syncer = cpu_local_ptr(pmap_syncer);
     evcnt_inc(&syncer->ev_update);
     flush_tlb_entries = (nr_mappings <= PMAP_UPDATE_MAX_MAPPINGS);
 
     for (i = 0; i < oplist->nr_ops; i++) {
         op = &oplist->ops[i];
 
-        if (!cpumap_test(&op->cpumap, cpu))
+        if (!cpumap_test(&op->cpumap, cpu_id()))
             continue;
 
         switch (op->operation) {
@@ -1574,6 +1582,7 @@ pmap_update(struct pmap *pmap)
     struct pmap_update_request_array *array;
     struct pmap_update_request *request;
     struct pmap_update_queue *queue;
+    struct pmap_syncer *syncer;
     unsigned int nr_mappings;
     int cpu;
 
@@ -1593,9 +1602,9 @@ pmap_update(struct pmap *pmap)
     array = pmap_update_request_array_acquire();
 
     cpumap_for_each(&oplist->cpumap, cpu) {
+        syncer = percpu_ptr(pmap_syncer, cpu);
+        queue = &syncer->queue;
         request = &array->requests[cpu];
-        queue = &pmap_syncers[cpu].queue;
-
         request->oplist = oplist;
         request->nr_mappings = pmap_update_oplist_count_mappings(oplist, cpu);
         request->done = 0;
