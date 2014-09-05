@@ -24,6 +24,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
+#include <kern/percpu.h>
 #include <kern/printk.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
@@ -34,6 +35,8 @@
 
 #define WORK_PRIO_NORMAL    THREAD_SCHED_TS_PRIO_DEFAULT
 #define WORK_PRIO_HIGH      THREAD_SCHED_TS_PRIO_MAX
+
+#define WORK_INVALID_CPU ((unsigned int)-1)
 
 /*
  * Keep at least that many threads alive when a work pool is idle.
@@ -87,6 +90,7 @@ struct work_pool {
     struct work_queue queue1;
     struct work_thread *manager;
     struct evcnt ev_transfer;
+    unsigned int cpu;
     unsigned int max_threads;
     unsigned int nr_threads;
     unsigned int nr_available_threads;
@@ -98,8 +102,8 @@ struct work_pool {
 static int work_thread_create(struct work_pool *pool, unsigned int id);
 static void work_thread_destroy(struct work_thread *worker);
 
-static struct work_pool work_pool_cpu_main[MAX_CPUS];
-static struct work_pool work_pool_cpu_highprio[MAX_CPUS];
+static struct work_pool work_pool_cpu_main __percpu;
+static struct work_pool work_pool_cpu_highprio __percpu;
 static struct work_pool work_pool_main;
 static struct work_pool work_pool_highprio;
 
@@ -129,14 +133,8 @@ work_pool_free_id(struct work_pool *pool, unsigned int id)
 static unsigned int
 work_pool_cpu_id(const struct work_pool *pool)
 {
-    const struct work_pool *array;
-
     assert(!(pool->flags & WORK_PF_GLOBAL));
-
-    array = (pool->flags & WORK_PF_HIGHPRIO)
-            ? work_pool_cpu_highprio
-            : work_pool_cpu_main;
-    return pool - array;
+    return pool->cpu;
 }
 
 static unsigned int
@@ -158,23 +156,24 @@ work_pool_compute_max_threads(unsigned int nr_cpus)
 }
 
 static void
-work_pool_init(struct work_pool *pool, int flags)
+work_pool_init(struct work_pool *pool, unsigned int cpu, int flags)
 {
     char name[EVCNT_NAME_SIZE];
     const char *suffix;
-    unsigned int id, nr_cpus, pool_id, max_threads;
+    unsigned int id, nr_cpus, max_threads;
     int error;
 
     pool->flags = flags;
 
-    if (flags & WORK_PF_GLOBAL)
+    if (flags & WORK_PF_GLOBAL) {
         nr_cpus = cpu_count();
-    else {
+        pool->cpu = WORK_INVALID_CPU;
+    } else {
         nr_cpus = 1;
         suffix = (flags & WORK_PF_HIGHPRIO) ? "h" : "";
-        pool_id = work_pool_cpu_id(pool);
-        snprintf(name, sizeof(name), "work_transfer/%u%s", pool_id, suffix);
+        snprintf(name, sizeof(name), "work_transfer/%u%s", cpu, suffix);
         evcnt_register(&pool->ev_transfer, name);
+        pool->cpu = cpu;
     }
 
     max_threads = work_pool_compute_max_threads(nr_cpus);
@@ -205,12 +204,9 @@ error_thread:
 static struct work_pool *
 work_pool_cpu_select(int flags)
 {
-    unsigned int cpu;
-
-    cpu = cpu_id();
     return (flags & WORK_HIGHPRIO)
-           ? &work_pool_cpu_highprio[cpu]
-           : &work_pool_cpu_main[cpu];
+           ? cpu_local_ptr(work_pool_cpu_highprio)
+           : cpu_local_ptr(work_pool_cpu_main);
 }
 
 static void
@@ -471,16 +467,18 @@ work_setup(void)
                     sizeof(struct work_thread), 0, NULL, NULL, NULL, 0);
 
     for (i = 0; i < cpu_count(); i++) {
-        work_pool_init(&work_pool_cpu_main[i], 0);
-        work_pool_init(&work_pool_cpu_highprio[i], WORK_PF_HIGHPRIO);
+        work_pool_init(percpu_ptr(work_pool_cpu_main, i), i, 0);
+        work_pool_init(percpu_ptr(work_pool_cpu_highprio, i), i,
+                       WORK_PF_HIGHPRIO);
     }
 
-    work_pool_init(&work_pool_main, WORK_PF_GLOBAL);
-    work_pool_init(&work_pool_highprio, WORK_PF_GLOBAL | WORK_PF_HIGHPRIO);
+    work_pool_init(&work_pool_main, WORK_INVALID_CPU, WORK_PF_GLOBAL);
+    work_pool_init(&work_pool_highprio, WORK_INVALID_CPU,
+                   WORK_PF_GLOBAL | WORK_PF_HIGHPRIO);
 
     printk("work: threads per pool (per-cpu/global): %u/%u, spare: %u\n",
-           work_pool_cpu_main[0].max_threads, work_pool_main.max_threads,
-           WORK_THREADS_SPARE);
+           percpu_var(work_pool_cpu_main.max_threads, 0),
+           work_pool_main.max_threads, WORK_THREADS_SPARE);
 }
 
 void
@@ -515,15 +513,13 @@ void
 work_report_periodic_event(void)
 {
     struct work_queue queue, highprio_queue;
-    unsigned int cpu;
 
     assert(!cpu_intr_enabled());
     assert(!thread_preempt_enabled());
 
-    cpu = cpu_id();
-
-    work_pool_shift_queues(&work_pool_cpu_main[cpu], &queue);
-    work_pool_shift_queues(&work_pool_cpu_highprio[cpu], &highprio_queue);
+    work_pool_shift_queues(cpu_local_ptr(work_pool_cpu_main), &queue);
+    work_pool_shift_queues(cpu_local_ptr(work_pool_cpu_highprio),
+                           &highprio_queue);
 
     if (work_queue_nr_works(&queue) != 0) {
         spinlock_lock(&work_pool_main.lock);
