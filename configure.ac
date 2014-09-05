@@ -34,7 +34,7 @@ AC_ARG_WITH([max-cpus],
             [AS_HELP_STRING([--with-max-cpus=MAX_CPUS],
                             [set the maximum number of supported processors])],
             [opt_max_cpus=$withval],
-            [opt_max_cpus=32])
+            [opt_max_cpus=128])
 
 AC_DEFINE([__KERNEL__], [1], [kernel code])
 AC_DEFINE_UNQUOTED([ARCH], [$arch], [arch])
