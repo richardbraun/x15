@@ -27,6 +27,7 @@
 #include <kern/string.h>
 #include <machine/cpu.h>
 #include <vm/vm_kmem.h>
+#include <vm/vm_page.h>
 
 void *percpu_areas[MAX_CPUS] __read_mostly;
 
@@ -48,7 +49,7 @@ percpu_setup(void)
 
     printk("percpu: max_cpus: %u, section size: %zuk\n",
            MAX_CPUS, percpu_size >> 10);
-    assert(ISP2(percpu_size));
+    assert(vm_page_aligned(percpu_size));
 
     if (percpu_size == 0)
         return;
