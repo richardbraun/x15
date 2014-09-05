@@ -94,6 +94,7 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
+#include <kern/percpu.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
@@ -173,13 +174,14 @@ struct thread_ts_runq {
 /*
  * Per processor run queue.
  *
- * Locking multiple run queues is done in the ascending order of their
- * addresses. Interrupts must be disabled whenever locking a run queue, even
+ * Locking multiple run queues is done in the ascending order of their CPU
+ * identifier. Interrupts must be disabled whenever locking a run queue, even
  * a remote one, otherwise an interrupt (which invokes the scheduler on its
  * return path) may violate the locking order.
  */
 struct thread_runq {
     struct spinlock lock;
+    unsigned int cpu;
     unsigned int nr_threads;
     struct thread *current;
 
@@ -223,7 +225,7 @@ struct thread_sched_ops {
     void (*tick)(struct thread_runq *runq, struct thread *thread);
 };
 
-static struct thread_runq thread_runqs[MAX_CPUS];
+static struct thread_runq thread_runq __percpu;
 
 /*
  * Statically allocated fake threads that provide thread context to processors
@@ -345,19 +347,14 @@ thread_runq_init_ts(struct thread_runq *runq)
     thread_ts_runq_init(runq->ts_runq_expired);
 }
 
-static inline unsigned int
-thread_runq_id(struct thread_runq *runq)
-{
-    return runq - thread_runqs;
-}
-
 static void __init
-thread_runq_init(struct thread_runq *runq, struct thread *booter)
+thread_runq_init(struct thread_runq *runq, unsigned int cpu,
+                 struct thread *booter)
 {
     char name[EVCNT_NAME_SIZE];
-    unsigned int runq_id;
 
     spinlock_init(&runq->lock);
+    runq->cpu = cpu;
     runq->nr_threads = 0;
     runq->current = booter;
     thread_runq_init_rt(runq);
@@ -365,10 +362,9 @@ thread_runq_init(struct thread_runq *runq, struct thread *booter)
     runq->balancer = NULL;
     runq->idler = NULL;
     runq->idle_balance_ticks = (unsigned int)-1;
-    runq_id = thread_runq_id(runq);
-    snprintf(name, sizeof(name), "thread_schedule_intr/%u", runq_id);
+    snprintf(name, sizeof(name), "thread_schedule_intr/%u", cpu);
     evcnt_register(&runq->ev_schedule_intr, name);
-    snprintf(name, sizeof(name), "thread_tick_intr/%u", runq_id);
+    snprintf(name, sizeof(name), "thread_tick_intr/%u", cpu);
     evcnt_register(&runq->ev_tick_intr, name);
 }
 
@@ -376,7 +372,13 @@ static inline struct thread_runq *
 thread_runq_local(void)
 {
     assert(!thread_preempt_enabled() || thread_pinned());
-    return &thread_runqs[cpu_id()];
+    return cpu_local_ptr(thread_runq);
+}
+
+static inline unsigned int
+thread_runq_cpu(struct thread_runq *runq)
+{
+    return runq->cpu;
 }
 
 static void
@@ -388,7 +390,7 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
     thread_sched_ops[thread->sched_class].add(runq, thread);
 
     if (runq->nr_threads == 0)
-        cpumap_clear_atomic(&thread_idle_runqs, thread_runq_id(runq));
+        cpumap_clear_atomic(&thread_idle_runqs, thread_runq_cpu(runq));
 
     runq->nr_threads++;
 
@@ -407,7 +409,7 @@ thread_runq_remove(struct thread_runq *runq, struct thread *thread)
     runq->nr_threads--;
 
     if (runq->nr_threads == 0)
-        cpumap_set_atomic(&thread_idle_runqs, thread_runq_id(runq));
+        cpumap_set_atomic(&thread_idle_runqs, thread_runq_cpu(runq));
 
     thread_sched_ops[thread->sched_class].remove(runq, thread);
 }
@@ -460,7 +462,7 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
          */
         mb_store();
 
-        cpu_send_thread_schedule(thread_runq_id(runq));
+        cpu_send_thread_schedule(thread_runq_cpu(runq));
     }
 }
 
@@ -529,7 +531,7 @@ thread_runq_double_lock(struct thread_runq *a, struct thread_runq *b)
     assert(!thread_preempt_enabled());
     assert(a != b);
 
-    if (a < b) {
+    if (a->cpu < b->cpu) {
         spinlock_lock(&a->lock);
         spinlock_lock(&b->lock);
     } else {
@@ -560,7 +562,7 @@ thread_sched_rt_select_runq(struct thread *thread)
     assert(i >= 0);
     assert(cpumap_test(&thread_active_runqs, i));
 
-    runq = &thread_runqs[i];
+    runq = percpu_ptr(thread_runq, i);
     spinlock_lock(&runq->lock);
     return runq;
 }
@@ -669,7 +671,7 @@ thread_sched_ts_select_runq(struct thread *thread)
         if (!cpumap_test(&thread->cpumap, i))
             continue;
 
-        runq = &thread_runqs[i];
+        runq = percpu_ptr(thread_runq, i);
 
         spinlock_lock(&runq->lock);
 
@@ -686,7 +688,7 @@ thread_sched_ts_select_runq(struct thread *thread)
         if (!cpumap_test(&thread->cpumap, i))
             continue;
 
-        tmp = &thread_runqs[i];
+        tmp = percpu_ptr(thread_runq, i);
 
         spinlock_lock(&tmp->lock);
 
@@ -1078,7 +1080,7 @@ thread_sched_ts_balance_scan(struct thread_runq *runq,
     cpu_intr_save(&flags);
 
     cpumap_for_each(&thread_active_runqs, i) {
-        tmp = &thread_runqs[i];
+        tmp = percpu_ptr(thread_runq, i);
 
         if (tmp == runq)
             continue;
@@ -1120,9 +1122,9 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
                              unsigned int nr_pulls)
 {
     struct thread *thread, *tmp;
-    int runq_id;
+    int cpu;
 
-    runq_id = thread_runq_id(runq);
+    cpu = thread_runq_cpu(runq);
 
     list_for_each_entry_safe(&ts_runq->threads, thread, tmp,
                              ts_data.runq_node) {
@@ -1141,7 +1143,7 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
         if (thread->pinned)
             continue;
 
-        if (!cpumap_test(&thread->cpumap, runq_id))
+        if (!cpumap_test(&thread->cpumap, cpu))
             continue;
 
         /*
@@ -1251,7 +1253,7 @@ thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
      */
 
     cpumap_for_each(&thread_active_runqs, i) {
-        remote_runq = &thread_runqs[i];
+        remote_runq = percpu_ptr(thread_runq, i);
 
         if (remote_runq == runq)
             continue;
@@ -1359,7 +1361,7 @@ thread_bootstrap_common(unsigned int cpu)
     cpumap_fill(&booter->cpumap);
     memset(booter->tsd, 0, sizeof(booter->tsd));
     booter->task = kernel_task;
-    thread_runq_init(&thread_runqs[cpu], booter);
+    thread_runq_init(percpu_ptr(thread_runq, cpu), cpu, booter);
 }
 
 void __init
@@ -1686,8 +1688,9 @@ thread_setup_balancer(struct thread_runq *runq)
         panic("thread: unable to create balancer thread CPU map");
 
     cpumap_zero(cpumap);
-    cpumap_set(cpumap, thread_runq_id(runq));
-    snprintf(name, sizeof(name), "x15_thread_balance/%u", thread_runq_id(runq));
+    cpumap_set(cpumap, thread_runq_cpu(runq));
+    snprintf(name, sizeof(name), "x15_thread_balance/%u",
+             thread_runq_cpu(runq));
     thread_attr_init(&attr, name);
     thread_attr_set_cpumap(&attr, cpumap);
     thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_FIFO);
@@ -1746,7 +1749,7 @@ thread_setup_idler(struct thread_runq *runq)
         panic("thread: unable to allocate idler thread CPU map");
 
     cpumap_zero(cpumap);
-    cpumap_set(cpumap, thread_runq_id(runq));
+    cpumap_set(cpumap, thread_runq_cpu(runq));
     idler = kmem_cache_alloc(&thread_cache);
 
     if (idler == NULL)
@@ -1757,7 +1760,7 @@ thread_setup_idler(struct thread_runq *runq)
     if (stack == NULL)
         panic("thread: unable to allocate idler thread stack");
 
-    snprintf(name, sizeof(name), "x15_thread_idle/%u", thread_runq_id(runq));
+    snprintf(name, sizeof(name), "x15_thread_idle/%u", thread_runq_cpu(runq));
     thread_attr_init(&attr, name);
     thread_attr_set_cpumap(&attr, cpumap);
     thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_IDLE);
@@ -1797,7 +1800,7 @@ thread_setup(void)
     thread_setup_reaper();
 
     cpumap_for_each(&thread_active_runqs, cpu)
-        thread_setup_runq(&thread_runqs[cpu]);
+        thread_setup_runq(percpu_ptr(thread_runq, cpu));
 }
 
 int
