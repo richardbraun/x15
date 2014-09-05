@@ -87,25 +87,24 @@ struct llsync_cpu_data {
     struct work_queue queue0;
 } __aligned(CPU_L1_SIZE);
 
-extern struct llsync_cpu_data llsync_cpu_data[MAX_CPUS];
+extern struct llsync_cpu_data llsync_cpu_data;
 
 static inline struct llsync_cpu_data *
-llsync_get_cpu_data(unsigned int cpu)
+llsync_get_cpu_data(void)
 {
-    return &llsync_cpu_data[cpu];
+    return cpu_local_ptr(llsync_cpu_data);
 }
 
 static inline void
 llsync_checkin(void)
 {
     struct llsync_cpu_data *cpu_data;
-    unsigned int cpu, gcid;
+    unsigned int gcid;
 
     assert(!cpu_intr_enabled());
     assert(!thread_preempt_enabled());
 
-    cpu = cpu_id();
-    cpu_data = llsync_get_cpu_data(cpu);
+    cpu_data = llsync_get_cpu_data();
 
     if (!cpu_data->registered) {
         assert(work_queue_nr_works(&cpu_data->queue0) == 0);

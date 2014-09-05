@@ -43,6 +43,7 @@
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/param.h>
+#include <kern/percpu.h>
 #include <kern/printk.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
@@ -63,7 +64,7 @@
 #define LLSYNC_NR_PENDING_WORKS_WARN 10000
 
 struct llsync_data llsync_data;
-struct llsync_cpu_data llsync_cpu_data[MAX_CPUS];
+struct llsync_cpu_data llsync_cpu_data __percpu;
 
 struct llsync_waiter {
     struct work work;
@@ -75,6 +76,7 @@ struct llsync_waiter {
 void __init
 llsync_setup(void)
 {
+    struct llsync_cpu_data *cpu_data;
     unsigned int i;
 
     spinlock_init(&llsync_data.lock);
@@ -88,8 +90,10 @@ llsync_setup(void)
                    "llsync_failed_periodic_checkin");
     llsync_data.gcid.value = LLSYNC_INITIAL_GCID;
 
-    for (i = 0; i < ARRAY_SIZE(llsync_cpu_data); i++)
-        work_queue_init(&llsync_cpu_data[i].queue0);
+    for (i = 0; i < cpu_count(); i++) {
+        cpu_data = llsync_get_cpu_data();
+        work_queue_init(&cpu_data->queue0);
+    }
 }
 
 static void
@@ -164,7 +168,7 @@ llsync_register(void)
     unsigned int cpu;
 
     cpu = cpu_id();
-    cpu_data = llsync_get_cpu_data(cpu);
+    cpu_data = llsync_get_cpu_data();
 
     spinlock_lock_intr_save(&llsync_data.lock, &flags);
 
@@ -194,7 +198,7 @@ llsync_unregister(void)
     unsigned int cpu;
 
     cpu = cpu_id();
-    cpu_data = llsync_get_cpu_data(cpu);
+    cpu_data = llsync_get_cpu_data();
 
     spinlock_lock_intr_save(&llsync_data.lock, &flags);
 
@@ -221,13 +225,12 @@ void
 llsync_report_periodic_event(void)
 {
     struct llsync_cpu_data *cpu_data;
-    unsigned int cpu, gcid;
+    unsigned int gcid;
 
     assert(!cpu_intr_enabled());
     assert(!thread_preempt_enabled());
 
-    cpu = cpu_id();
-    cpu_data = llsync_get_cpu_data(cpu);
+    cpu_data = llsync_get_cpu_data();
 
     if (!cpu_data->registered) {
         assert(work_queue_nr_works(&cpu_data->queue0) == 0);
@@ -250,14 +253,14 @@ llsync_report_periodic_event(void)
      * section, and if not, trigger a checkpoint.
      */
     if (cpu_data->gcid == gcid)
-        llsync_commit_checkpoint(cpu);
+        llsync_commit_checkpoint(cpu_id());
     else {
         if (thread_llsync_in_read_cs())
             evcnt_inc(&llsync_data.ev_failed_periodic_checkin);
         else {
             cpu_data->gcid = gcid;
             evcnt_inc(&llsync_data.ev_periodic_checkin);
-            llsync_commit_checkpoint(cpu);
+            llsync_commit_checkpoint(cpu_id());
         }
     }
 
@@ -272,7 +275,7 @@ llsync_defer(struct work *work)
 
     thread_preempt_disable();
     cpu_intr_save(&flags);
-    cpu_data = llsync_get_cpu_data(cpu_id());
+    cpu_data = llsync_get_cpu_data();
     work_queue_push(&cpu_data->queue0, work);
     cpu_intr_restore(flags);
     thread_preempt_enable();
