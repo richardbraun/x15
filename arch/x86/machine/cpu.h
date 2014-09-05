@@ -593,12 +593,6 @@ void cpu_check(const struct cpu *cpu);
 void cpu_info(const struct cpu *cpu);
 
 /*
- * Notify the cpu module that the true percpu area for the BSP has been
- * created.
- */
-void cpu_fixup_bsp_percpu_area(void);
-
-/*
  * Register the presence of a local APIC.
  */
 void cpu_mp_register_lapic(unsigned int apic_id, int is_bsp);

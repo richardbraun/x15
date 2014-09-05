@@ -30,6 +30,7 @@
 
 void *percpu_areas[MAX_CPUS] __read_mostly;
 
+static void *percpu_area_content __initdata;
 static size_t percpu_size __initdata;
 static int percpu_skip_warning __initdata;
 
@@ -55,11 +56,10 @@ percpu_setup(void)
     va = vm_kmem_alloc(percpu_size);
 
     if (va == 0)
-        panic("percpu: unable to allocate percpu area for BSP");
+        panic("percpu: unable to allocate memory for percpu area content");
 
-    percpu_areas[0] = (void *)va;
-    memcpy(percpu_area(0), &_percpu, percpu_size);
-    cpu_fixup_bsp_percpu_area();
+    percpu_area_content = (void *)va;
+    memcpy(percpu_area_content, &_percpu, percpu_size);
 }
 
 int __init
@@ -93,8 +93,14 @@ percpu_add(unsigned int cpu)
     }
 
     percpu_areas[cpu] = (void *)va;
-    memcpy(percpu_area(cpu), &_percpu, percpu_size);
+    memcpy(percpu_area(cpu), percpu_area_content, percpu_size);
 
 out:
     return 0;
+}
+
+void
+percpu_cleanup(void)
+{
+    vm_kmem_free((unsigned long)percpu_area_content, percpu_size);
 }

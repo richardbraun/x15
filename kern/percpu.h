@@ -101,7 +101,9 @@ void percpu_bootstrap(void);
 /*
  * Complete initialization of the percpu module.
  *
- * Stop using the percpu section as the percpu area of the BSP.
+ * The BSP keeps using the percpu section, but its content is copied to a
+ * dedicated block of memory used as a template for subsequently added
+ * processors.
  */
 void percpu_setup(void);
 
@@ -113,5 +115,10 @@ void percpu_setup(void);
  * percpu section.
  */
 int percpu_add(unsigned int cpu);
+
+/*
+ * Release init data allocated for setup.
+ */
+void percpu_cleanup(void);
 
 #endif /* _KERN_PERCPU_H */

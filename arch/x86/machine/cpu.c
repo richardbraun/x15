@@ -495,31 +495,6 @@ cpu_info(const struct cpu *cpu)
 }
 
 void __init
-cpu_fixup_bsp_percpu_area(void)
-{
-    struct cpu_pseudo_desc gdtr;
-    struct cpu *cpu;
-    void *pcpu_area;
-
-    /*
-     * It's important to use the percpu interface here, and not the cpu_local
-     * accessors : this function updates the GDTR (and the GDT on i386), as a
-     * result it must reference the future version of the GDT from the newly
-     * allocated percpu area.
-     */
-    cpu = percpu_ptr(cpu_desc, 0);
-    pcpu_area = percpu_area(0);
-
-#ifndef __LP64__
-    cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_PERCPU, (unsigned long)pcpu_area);
-#endif /* __LP64__ */
-
-    cpu_init_gdtr(&gdtr, cpu);
-    cpu_load_gdt(&gdtr);
-    cpu_set_percpu_area(cpu, pcpu_area);
-}
-
-void __init
 cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
 {
     struct cpu *cpu;
