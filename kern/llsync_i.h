@@ -85,7 +85,7 @@ struct llsync_cpu_data {
     int registered;
     unsigned int gcid;
     struct work_queue queue0;
-} __aligned(CPU_L1_SIZE);
+};
 
 extern struct llsync_cpu_data llsync_cpu_data;
 
