@@ -2068,6 +2068,36 @@ thread_tick_intr(void)
     spinlock_unlock(&runq->lock);
 }
 
+const char *
+thread_schedclass_to_str(const struct thread *thread)
+{
+    switch (thread->sched_class) {
+    case THREAD_SCHED_CLASS_RT:
+        return "rt";
+    case THREAD_SCHED_CLASS_TS:
+        return "ts";
+    case THREAD_SCHED_CLASS_IDLE:
+        return "idle";
+    default:
+        panic("thread: unknown scheduling class");
+    }
+}
+
+unsigned int
+thread_schedprio(const struct thread *thread)
+{
+    switch (thread->sched_class) {
+    case THREAD_SCHED_CLASS_RT:
+        return thread->rt_data.priority;
+    case THREAD_SCHED_CLASS_TS:
+        return thread->ts_data.priority;
+    case THREAD_SCHED_CLASS_IDLE:
+        return 0;
+    default:
+        panic("thread: unknown scheduling class");
+    }
+}
+
 void
 thread_key_create(unsigned int *keyp, thread_dtor_fn_t dtor)
 {

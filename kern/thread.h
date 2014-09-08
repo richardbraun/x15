@@ -347,6 +347,18 @@ void thread_schedule_intr(void);
  */
 void thread_tick_intr(void);
 
+/*
+ * Return a string representation of the scheduling class of a thread.
+ */
+const char * thread_schedclass_to_str(const struct thread *thread);
+
+/*
+ * Return the priority of a thread.
+ *
+ * If the scheduling class doesn't use a priority, return 0.
+ */
+unsigned int thread_schedprio(const struct thread *thread);
+
 static inline struct thread *
 thread_from_tcb(struct tcb *tcb)
 {
