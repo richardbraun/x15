@@ -91,7 +91,7 @@ llsync_setup(void)
     llsync_data.gcid.value = LLSYNC_INITIAL_GCID;
 
     for (i = 0; i < cpu_count(); i++) {
-        cpu_data = llsync_get_cpu_data();
+        cpu_data = percpu_ptr(llsync_cpu_data, i);
         work_queue_init(&cpu_data->queue0);
     }
 }
