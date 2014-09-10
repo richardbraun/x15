@@ -788,11 +788,6 @@ pmap_ap_bootstrap(void)
 {
     cpu_local_assign(pmap_current_ptr, kernel_pmap);
 
-    pmap_tmp_mapping_init(cpu_local_ptr(pmap_zero_mapping), pmap_zero_va);
-    pmap_tmp_mapping_init(cpu_local_ptr(pmap_ptp_mapping), pmap_ptp_va);
-    pmap_update_request_array_init(cpu_local_ptr(pmap_update_request_array));
-    pmap_syncer_init(cpu_local_ptr(pmap_syncer), cpu_id());
-
     if (cpu_has_global_pages())
         cpu_enable_global_pages();
     else
@@ -1112,7 +1107,16 @@ pmap_mp_setup(void)
     if (error)
         panic("pmap: unable to create syncer cpumap");
 
+    for (cpu = 1; cpu < cpu_count(); cpu++) {
+        pmap_tmp_mapping_init(percpu_ptr(pmap_zero_mapping, cpu), pmap_zero_va);
+        pmap_tmp_mapping_init(percpu_ptr(pmap_ptp_mapping, cpu), pmap_ptp_va);
+        pmap_update_request_array_init(percpu_ptr(pmap_update_request_array,
+                                                  cpu));
+        pmap_syncer_init(percpu_ptr(pmap_syncer, cpu), cpu);
+    }
+
     for (cpu = 0; cpu < cpu_count(); cpu++) {
+
         syncer = percpu_ptr(pmap_syncer, cpu);
         snprintf(name, sizeof(name), "x15_pmap_sync/%u", cpu);
         cpumap_zero(cpumap);
