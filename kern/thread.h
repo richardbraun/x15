@@ -348,6 +348,11 @@ void thread_schedule_intr(void);
 void thread_tick_intr(void);
 
 /*
+ * Return a character representation of the state of a thread.
+ */
+char thread_state_to_chr(const struct thread *thread);
+
+/*
  * Return a string representation of the scheduling class of a thread.
  */
 const char * thread_schedclass_to_str(const struct thread *thread);

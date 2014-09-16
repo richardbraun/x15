@@ -2068,6 +2068,21 @@ thread_tick_intr(void)
     spinlock_unlock(&runq->lock);
 }
 
+char
+thread_state_to_chr(const struct thread *thread)
+{
+    switch (thread->state) {
+    case THREAD_RUNNING:
+        return 'R';
+    case THREAD_SLEEPING:
+        return 'S';
+    case THREAD_DEAD:
+        return 'Z';
+    default:
+        panic("thread: unknown state");
+    }
+}
+
 const char *
 thread_schedclass_to_str(const struct thread *thread)
 {
