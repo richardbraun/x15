@@ -199,7 +199,7 @@ vm_page_free_list_remove(struct vm_page_free_list *free_list,
 static struct vm_page *
 vm_page_seg_alloc_from_buddy(struct vm_page_seg *seg, unsigned int order)
 {
-    struct vm_page_free_list *free_list;
+    struct vm_page_free_list *free_list = free_list;
     struct vm_page *page, *buddy;
     unsigned int i;
 
