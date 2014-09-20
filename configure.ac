@@ -46,6 +46,7 @@ m4_define([ENABLE_TEST_MODULE],
           [AS_CASE(["$enable_test_module"],
                    [llsync_defer], [test_llsync_defer=yes],
                    [pmap_update_mp], [test_pmap_update_mp=yes],
+                   [sref_noref], [test_sref_noref=yes],
                    [x86_pmap_remove_ptp],
                        [test_x86_pmap_remove_ptp=yes
                         AC_MSG_NOTICE([forcing max_cpus to 1])
@@ -60,6 +61,8 @@ AM_CONDITIONAL([TEST_LLSYNC_DEFER],
                [test x"$test_llsync_defer" = xyes])
 AM_CONDITIONAL([TEST_PMAP_UPDATE_MP],
                [test x"$test_pmap_update_mp" = xyes])
+AM_CONDITIONAL([TEST_SREF_NOREF],
+               [test x"$test_sref_noref" = xyes])
 AM_CONDITIONAL([TEST_X86_PMAP_REMOVE_PTP],
                [test x"$test_x86_pmap_remove_ptp" = xyes])
 

@@ -97,6 +97,7 @@
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
+#include <kern/sref.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
 #include <kern/task.h>
@@ -1708,6 +1709,7 @@ static void
 thread_idle(void *arg)
 {
     struct thread *self;
+    int error;
 
     (void)arg;
 
@@ -1715,6 +1717,13 @@ thread_idle(void *arg)
 
     for (;;) {
         thread_preempt_disable();
+        error = sref_unregister();
+
+        if (error) {
+            assert(error == ERROR_BUSY);
+            goto error_sref;
+        }
+
         llsync_unregister();
 
         for (;;) {
@@ -1729,6 +1738,9 @@ thread_idle(void *arg)
         }
 
         llsync_register();
+        sref_register();
+
+error_sref:
         thread_preempt_enable();
     }
 }
@@ -1997,10 +2009,12 @@ thread_run_scheduler(void)
     assert(!cpu_intr_enabled());
 
     runq = thread_runq_local();
-    llsync_register();
     thread = thread_self();
     assert(thread == runq->current);
     assert(thread->preempt == 1);
+
+    llsync_register();
+    sref_register();
 
     spinlock_lock(&runq->lock);
     thread = thread_runq_get_next(thread_runq_local());
@@ -2055,6 +2069,7 @@ thread_tick_intr(void)
     runq = thread_runq_local();
     evcnt_inc(&runq->ev_tick_intr);
     llsync_report_periodic_event();
+    sref_report_periodic_event();
     work_report_periodic_event();
     thread = thread_self();
 

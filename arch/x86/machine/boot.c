@@ -51,6 +51,7 @@
 #include <kern/param.h>
 #include <kern/percpu.h>
 #include <kern/printk.h>
+#include <kern/sref.h>
 #include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <kern/string.h>
@@ -274,6 +275,7 @@ boot_main(void)
     cpu_setup();
     thread_bootstrap();
     pmap_bootstrap();
+    sref_bootstrap();
     cga_setup();
     printk_setup();
     boot_show_version();
