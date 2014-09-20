@@ -65,6 +65,18 @@ evcnt_inc(struct evcnt *evcnt)
 }
 
 /*
+ * Batched increment.
+ *
+ * It is the responsibility of the caller to synchronize access to the
+ * counter.
+ */
+static inline void
+evcnt_add(struct evcnt *evcnt, unsigned long long delta)
+{
+    evcnt->count += delta;
+}
+
+/*
  * Obtain the current value of the given counter.
  *
  * Since counters are 64-bits wide, retrieving them on 32-bits systems might
