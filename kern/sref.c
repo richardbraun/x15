@@ -113,8 +113,12 @@ struct sref_data {
  *
  * Deltas are stored in per-processor caches and added to their global
  * counter when flushed. A delta is valid if and only if the counter it
- * points to isn't NULL. If the value of a delta is not zero, the delta
- * must be valid.
+ * points to isn't NULL.
+ *
+ * On cache flush, if a delta is valid, it must be flushed whatever its
+ * value because a delta can be a dirty zero too. By flushing all valid
+ * deltas, and clearing them all after a flush, activity on a counter is
+ * reliably reported.
  */
 struct sref_delta {
     struct sref_counter *counter;
@@ -152,7 +156,7 @@ struct sref_delta {
 struct sref_cache {
     struct mutex lock;
     struct sref_delta deltas[SREF_MAX_DELTAS];
-    struct evcnt ev_evict;
+    struct evcnt ev_collision;
     struct evcnt ev_flush;
     struct thread *manager;
     int registered;
@@ -302,8 +306,6 @@ sref_counter_schedule_review(struct sref_counter *counter)
 static void
 sref_counter_add(struct sref_counter *counter, unsigned long delta)
 {
-    assert(delta != 0);
-
     spinlock_lock(&counter->lock);
 
     counter->value += delta;
@@ -339,6 +341,13 @@ sref_delta_set_counter(struct sref_delta *delta, struct sref_counter *counter)
 }
 
 static inline void
+sref_delta_clear(struct sref_delta *delta)
+{
+    assert(delta->value == 0);
+    delta->counter = NULL;
+}
+
+static inline void
 sref_delta_inc(struct sref_delta *delta)
 {
     delta->value++;
@@ -356,18 +365,18 @@ sref_delta_is_valid(const struct sref_delta *delta)
     return (delta->counter != NULL);
 }
 
-static inline int
-sref_delta_is_zero(const struct sref_delta *delta)
-{
-    return (delta->value == 0);
-}
-
 static void
 sref_delta_flush(struct sref_delta *delta)
 {
-    assert(delta->value != 0);
     sref_counter_add(delta->counter, delta->value);
     delta->value = 0;
+}
+
+static void
+sref_delta_evict(struct sref_delta *delta)
+{
+    sref_delta_flush(delta);
+    sref_delta_clear(delta);
 }
 
 static inline unsigned long
@@ -437,8 +446,8 @@ sref_cache_init(struct sref_cache *cache, unsigned int cpu)
         sref_delta_init(delta);
     }
 
-    snprintf(name, sizeof(name), "sref_evict/%u", cpu);
-    evcnt_register(&cache->ev_evict, name);
+    snprintf(name, sizeof(name), "sref_collision/%u", cpu);
+    evcnt_register(&cache->ev_collision, name);
     snprintf(name, sizeof(name), "sref_flush/%u", cpu);
     evcnt_register(&cache->ev_flush, name);
     cache->manager = NULL;
@@ -507,16 +516,6 @@ sref_cache_clear_dirty(struct sref_cache *cache)
     cache->dirty = 0;
 }
 
-static void
-sref_cache_evict(struct sref_cache *cache, struct sref_delta *delta)
-{
-    if (sref_delta_is_zero(delta))
-        return;
-
-    sref_delta_flush(delta);
-    evcnt_inc(&cache->ev_evict);
-}
-
 static struct sref_delta *
 sref_cache_get_delta(struct sref_cache *cache, struct sref_counter *counter)
 {
@@ -527,8 +526,9 @@ sref_cache_get_delta(struct sref_cache *cache, struct sref_counter *counter)
     if (!sref_delta_is_valid(delta))
         sref_delta_set_counter(delta, counter);
     else if (sref_delta_counter(delta) != counter) {
-        sref_cache_evict(cache, delta);
+        sref_delta_flush(delta);
         sref_delta_set_counter(delta, counter);
+        evcnt_inc(&cache->ev_collision);
     }
 
     return delta;
@@ -540,11 +540,13 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
     struct sref_delta *delta;
     unsigned int i, cpu;
 
+    mutex_lock(&cache->lock);
+
     for (i = 0; i < ARRAY_SIZE(cache->deltas); i++) {
         delta = sref_cache_delta(cache, i);
 
-        if (!sref_delta_is_zero(delta))
-            sref_delta_flush(delta);
+        if (sref_delta_is_valid(delta))
+            sref_delta_evict(delta);
     }
 
     cpu = cpu_id();
@@ -570,6 +572,8 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
 
     sref_cache_clear_dirty(cache);
     evcnt_inc(&cache->ev_flush);
+
+    mutex_unlock(&cache->lock);
 }
 
 static void
@@ -687,10 +691,7 @@ sref_manage(void *arg)
         cpu_intr_restore(flags);
         thread_preempt_enable();
 
-        mutex_lock(&cache->lock);
         sref_cache_flush(cache, &queue);
-        mutex_unlock(&cache->lock);
-
         sref_review(&queue);
     }
 
@@ -773,8 +774,10 @@ sref_register(void)
     sref_data.nr_registered_cpus++;
 
     if ((sref_data.nr_registered_cpus == 1)
-        && (sref_data.nr_pending_flushes == 0))
+        && (sref_data.nr_pending_flushes == 0)) {
+        assert(sref_review_queue_empty());
         sref_reset_pending_flushes();
+    }
 
     spinlock_unlock(&sref_data.lock);
 
