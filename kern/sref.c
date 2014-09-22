@@ -633,17 +633,17 @@ sref_review(struct sref_queue *queue)
         spinlock_lock(&counter->lock);
 
         assert(sref_counter_is_queued(counter));
-        sref_counter_clear_queued(counter);
-        sref_counter_clear_dirty(counter);
 
-        if (counter->value != 0)
-            spinlock_unlock(&counter->lock);
-        else if (sref_counter_is_dirty(counter)) {
+        if ((counter->value != 0) || (sref_counter_is_dirty(counter))) {
             sref_counter_clear_queued(counter);
             sref_counter_clear_dirty(counter);
-            sref_counter_schedule_review(counter);
+
+            if (counter->value == 0) {
+                sref_counter_schedule_review(counter);
+                nr_dirty++;
+            }
+
             spinlock_unlock(&counter->lock);
-            nr_dirty++;
         } else {
             /*
              * Keep in mind that the work structure shares memory with
