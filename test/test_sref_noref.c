@@ -28,9 +28,8 @@
  * Finally, it releases the initial reference, at which point, the
  * no-reference function should be called.
  *
- * Notes:
- * The number of loops must be large enough to allow many epochs to occur.
- * Also, it's very hard to artificially produce dirty zeroes.
+ * Notes: the number of loops must be large enough to allow many epochs
+ * to occur.
  */
 
 #include <kern/assert.h>
