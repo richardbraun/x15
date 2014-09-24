@@ -31,8 +31,6 @@
 #ifndef _KERN_SREF_H
 #define _KERN_SREF_H
 
-#include <kern/spinlock.h>
-
 struct sref_counter;
 
 /*
@@ -88,17 +86,12 @@ void sref_report_periodic_event(void);
  * The counter is set to 1. The no-reference function is called (from thread
  * context) when it is certain that the true number of references is 0.
  */
-static inline void
-sref_counter_init(struct sref_counter *counter, sref_noref_fn_t noref_fn)
-{
-    counter->noref_fn = noref_fn;
-    spinlock_init(&counter->lock);
-    counter->flags = 0;
-    counter->value = 1;
-}
+void sref_counter_init(struct sref_counter *counter, sref_noref_fn_t noref_fn);
 
+/*
+ * Counter operations.
+ */
 void sref_counter_inc(struct sref_counter *counter);
-
 void sref_counter_dec(struct sref_counter *counter);
 
 #endif /* _KERN_SREF_H */

@@ -862,6 +862,15 @@ sref_report_periodic_event(void)
 }
 
 void
+sref_counter_init(struct sref_counter *counter, sref_noref_fn_t noref_fn)
+{
+    counter->noref_fn = noref_fn;
+    spinlock_init(&counter->lock);
+    counter->flags = 0;
+    counter->value = 1;
+}
+
+void
 sref_counter_inc(struct sref_counter *counter)
 {
     struct sref_cache *cache;
