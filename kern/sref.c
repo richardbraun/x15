@@ -38,7 +38,7 @@
  * from any processor. Review queue access should still be considerably
  * infrequent in practice, keeping the impact on contention low.
  *
- * Locking protocol : cache-> counter -> global data
+ * Locking protocol : cache -> counter -> global data
  */
 
 #include <kern/assert.h>
