@@ -324,7 +324,7 @@ lapic_ipi_broadcast(uint32_t vector)
 }
 
 void
-lapic_intr_timer(struct trap_frame *frame)
+lapic_timer_intr(struct trap_frame *frame)
 {
     (void)frame;
 
@@ -333,7 +333,7 @@ lapic_intr_timer(struct trap_frame *frame)
 }
 
 void
-lapic_intr_error(struct trap_frame *frame)
+lapic_error_intr(struct trap_frame *frame)
 {
     uint32_t esr;
 
@@ -345,7 +345,7 @@ lapic_intr_error(struct trap_frame *frame)
 }
 
 void
-lapic_intr_spurious(struct trap_frame *frame)
+lapic_spurious_intr(struct trap_frame *frame)
 {
     (void)frame;
     printk("lapic: warning: spurious interrupt\n");

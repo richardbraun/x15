@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,6 @@ void pic_setup(void);
 /*
  * Interrupt handlers.
  */
-void pic_intr_spurious(struct trap_frame *frame);
+void pic_spurious_intr(struct trap_frame *frame);
 
 #endif /* _X86_PIC_H */

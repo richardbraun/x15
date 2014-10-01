@@ -52,8 +52,8 @@ void lapic_ipi_broadcast(uint32_t vector);
 /*
  * Interrupt handlers.
  */
-void lapic_intr_timer(struct trap_frame *frame);
-void lapic_intr_error(struct trap_frame *frame);
-void lapic_intr_spurious(struct trap_frame *frame);
+void lapic_timer_intr(struct trap_frame *frame);
+void lapic_error_intr(struct trap_frame *frame);
+void lapic_spurious_intr(struct trap_frame *frame);
 
 #endif /* _X86_LAPIC_H */

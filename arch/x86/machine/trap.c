@@ -196,9 +196,9 @@ trap_setup(void)
 
     /* Basic PIC support */
     trap_install(TRAP_PIC_BASE + 7, TRAP_HF_NOPREEMPT,
-                 trap_isr_pic_int7, pic_intr_spurious);
+                 trap_isr_pic_int7, pic_spurious_intr);
     trap_install(TRAP_PIC_BASE + 15, TRAP_HF_NOPREEMPT,
-                 trap_isr_pic_int15, pic_intr_spurious);
+                 trap_isr_pic_int15, pic_spurious_intr);
 
     /* System defined traps */
     trap_install(TRAP_THREAD_SCHEDULE, TRAP_HF_NOPREEMPT,
@@ -206,11 +206,11 @@ trap_setup(void)
     trap_install(TRAP_CPU_HALT, TRAP_HF_NOPREEMPT,
                  trap_isr_cpu_halt, cpu_halt_intr);
     trap_install(TRAP_LAPIC_TIMER, TRAP_HF_NOPREEMPT,
-                 trap_isr_lapic_timer, lapic_intr_timer);
+                 trap_isr_lapic_timer, lapic_timer_intr);
     trap_install(TRAP_LAPIC_ERROR, TRAP_HF_NOPREEMPT,
-                 trap_isr_lapic_error, lapic_intr_error);
+                 trap_isr_lapic_error, lapic_error_intr);
     trap_install(TRAP_LAPIC_SPURIOUS, TRAP_HF_NOPREEMPT,
-                 trap_isr_lapic_spurious, lapic_intr_spurious);
+                 trap_isr_lapic_spurious, lapic_spurious_intr);
 
     trap_handler_init(&trap_handlers[TRAP_DEFAULT], TRAP_HF_NOPREEMPT,
                       trap_default);
