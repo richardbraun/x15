@@ -19,24 +19,6 @@
 #define _X86_CPU_H
 
 /*
- * GDT segment selectors.
- */
-#define CPU_GDT_SEL_NULL    0
-#define CPU_GDT_SEL_CODE    8
-#define CPU_GDT_SEL_DATA    16
-#define CPU_GDT_SEL_TSS     24
-
-#ifdef __LP64__
-#define CPU_GDT_SIZE        40
-#else /* __LP64__ */
-#define CPU_GDT_SEL_DF_TSS  32
-#define CPU_GDT_SEL_PERCPU  40
-#define CPU_GDT_SIZE        48
-#endif /* __LP64__ */
-
-#define CPU_IDT_SIZE 256
-
-/*
  * Processor privilege levels.
  */
 #define CPU_PL_KERNEL   0
@@ -67,16 +49,6 @@
 #define CPU_EFL_IF  0x00000200
 
 /*
- * Flags in the feature2 member.
- */
-#define CPU_FEATURE2_FPU    0x00000001
-#define CPU_FEATURE2_MSR    0x00000020
-#define CPU_FEATURE2_APIC   0x00000200
-#define CPU_FEATURE2_PGE    0x00002000
-
-#define CPU_FEATURE4_LM     0x20000000
-
-/*
  * Model specific registers.
  */
 #define CPU_MSR_EFER    0xc0000080
@@ -87,13 +59,38 @@
  */
 #define CPU_EFER_LME    0x00000100
 
+/*
+ * Flags in the feature2 member.
+ */
+#define CPU_FEATURE2_FPU    0x00000001
+#define CPU_FEATURE2_MSR    0x00000020
+#define CPU_FEATURE2_APIC   0x00000200
+#define CPU_FEATURE2_PGE    0x00002000
+
+#define CPU_FEATURE4_LM     0x20000000
+
+/*
+ * GDT segment selectors.
+ */
+#define CPU_GDT_SEL_NULL    0
+#define CPU_GDT_SEL_CODE    8
+#define CPU_GDT_SEL_DATA    16
+#define CPU_GDT_SEL_TSS     24
+
+#ifdef __LP64__
+#define CPU_GDT_SIZE        40
+#else /* __LP64__ */
+#define CPU_GDT_SEL_DF_TSS  32
+#define CPU_GDT_SEL_PERCPU  40
+#define CPU_GDT_SIZE        48
+#endif /* __LP64__ */
+
+#define CPU_IDT_SIZE 256
+
 #ifndef __ASSEMBLER__
 
-#include <kern/assert.h>
 #include <kern/macros.h>
-#include <kern/param.h>
 #include <kern/percpu.h>
-#include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <machine/lapic.h>
 #include <machine/pit.h>
@@ -102,69 +99,6 @@
  * Forward declaration.
  */
 struct trap_frame;
-
-#define CPU_VENDOR_ID_SIZE  13
-#define CPU_MODEL_NAME_SIZE 49
-
-struct cpu_pseudo_desc {
-    uint16_t limit;
-    unsigned long address;
-} __packed;
-
-/*
- * Gate/segment descriptor bits and masks.
- */
-#define CPU_DESC_TYPE_DATA              0x00000200
-#define CPU_DESC_TYPE_CODE              0x00000a00
-#define CPU_DESC_TYPE_TSS               0x00000900
-#define CPU_DESC_TYPE_GATE_INTR         0x00000e00
-#define CPU_DESC_TYPE_GATE_TASK         0x00000500
-#define CPU_DESC_S                      0x00001000
-#define CPU_DESC_PRESENT                0x00008000
-#define CPU_DESC_LONG                   0x00200000
-#define CPU_DESC_DB                     0x00400000
-#define CPU_DESC_GRAN_4KB               0x00800000
-
-#define CPU_DESC_GATE_OFFSET_LOW_MASK   0x0000ffff
-#define CPU_DESC_GATE_OFFSET_HIGH_MASK  0xffff0000
-#define CPU_DESC_SEG_IST_MASK           0x00000007
-#define CPU_DESC_SEG_BASE_LOW_MASK      0x0000ffff
-#define CPU_DESC_SEG_BASE_MID_MASK      0x00ff0000
-#define CPU_DESC_SEG_BASE_HIGH_MASK     0xff000000
-#define CPU_DESC_SEG_LIMIT_LOW_MASK     0x0000ffff
-#define CPU_DESC_SEG_LIMIT_HIGH_MASK    0x000f0000
-
-/*
- * Gate descriptor.
- */
-struct cpu_gate_desc {
-    uint32_t word1;
-    uint32_t word2;
-#ifdef __LP64__
-    uint32_t word3;
-    uint32_t word4;
-#endif /* __LP64__ */
-} __packed;
-
-/*
- * Code or data segment descriptor.
- */
-struct cpu_seg_desc {
-    uint32_t low;
-    uint32_t high;
-} __packed;
-
-/*
- * LDT or TSS system segment descriptor.
- */
-struct cpu_sysseg_desc {
-    uint32_t word1;
-    uint32_t word2;
-#ifdef __LP64__
-    uint32_t word3;
-    uint32_t word4;
-#endif /* __LP64__ */
-} __packed;
 
 /*
  * IST indexes (0 is reserved).
@@ -209,7 +143,10 @@ struct cpu_tss {
     uint16_t trap_bit;
 #endif /* __LP64__ */
     uint16_t iobp_base;
-} __packed;
+};
+
+#define CPU_VENDOR_ID_SIZE  13
+#define CPU_MODEL_NAME_SIZE 49
 
 /*
  * CPU states.
@@ -266,7 +203,11 @@ cpu_set_ ## name(unsigned long value)                                       \
 /*
  * Access to the processor control registers. CR1 is reserved.
  *
- * Implies a compiler barrier.
+ * The caller should assume that these functions are declared as :
+ *  static inline unsigned long cpu_get_crX(void);
+ *  static inline void cpu_set_crX(unsigned long);
+ *
+ * They all imply a compiler barrier.
  */
 CPU_DECL_GETSET_CR(cr0)
 CPU_DECL_GETSET_CR(cr2)
@@ -319,11 +260,11 @@ cpu_intr_disable(void)
  * Implies a compiler barrier.
  */
 static __always_inline void
-cpu_intr_restore(unsigned long eflags)
+cpu_intr_restore(unsigned long flags)
 {
     asm volatile("push %0\n"
                  "popf\n"
-                 : : "r" (eflags)
+                 : : "r" (flags)
                  : "memory");
 }
 
@@ -334,9 +275,9 @@ cpu_intr_restore(unsigned long eflags)
  * Implies a compiler barrier.
  */
 static __always_inline void
-cpu_intr_save(unsigned long *eflags)
+cpu_intr_save(unsigned long *flags)
 {
-    *eflags = cpu_get_eflags();
+    *flags = cpu_get_eflags();
     cpu_intr_disable();
 }
 
@@ -443,21 +384,21 @@ MACRO_BEGIN                         \
     ___val;                         \
 MACRO_END
 
-static __always_inline struct cpu *
+static inline struct cpu *
 cpu_current(void)
 {
     extern struct cpu cpu_desc;
     return cpu_local_ptr(cpu_desc);
 }
 
-static __always_inline unsigned int
+static inline unsigned int
 cpu_id(void)
 {
     extern struct cpu cpu_desc;
     return cpu_local_read(cpu_desc.id);
 }
 
-static __always_inline unsigned int
+static inline unsigned int
 cpu_count(void)
 {
     extern unsigned int cpu_nr_active;
@@ -477,7 +418,7 @@ cpu_enable_pae(void)
     cpu_set_cr4(cpu_get_cr4() | CPU_CR4_PAE);
 }
 
-static __always_inline int
+static inline int
 cpu_has_global_pages(void)
 {
     return cpu_current()->features2 & CPU_FEATURE2_PGE;
@@ -560,7 +501,7 @@ cpu_tlb_flush_va(unsigned long va)
 /*
  * XXX For now, directly use the PIT.
  */
-static __always_inline void
+static inline void
 cpu_delay(unsigned long usecs)
 {
     pit_delay(usecs);
@@ -598,7 +539,7 @@ void cpu_info(const struct cpu *cpu);
 void cpu_mp_register_lapic(unsigned int apic_id, int is_bsp);
 
 /*
- * Probe application processors and start them.
+ * Probe application processors.
  *
  * On return, cpu_count() gives the actual number of managed processors.
  */

@@ -67,6 +67,66 @@
 #define CPU_MP_CMOS_DATA_RESET_WARM 0x0a
 #define CPU_MP_CMOS_RESET_VECTOR    0x467
 
+/*
+ * Gate/segment descriptor bits and masks.
+ */
+#define CPU_DESC_TYPE_DATA              0x00000200
+#define CPU_DESC_TYPE_CODE              0x00000a00
+#define CPU_DESC_TYPE_TSS               0x00000900
+#define CPU_DESC_TYPE_GATE_INTR         0x00000e00
+#define CPU_DESC_TYPE_GATE_TASK         0x00000500
+#define CPU_DESC_S                      0x00001000
+#define CPU_DESC_PRESENT                0x00008000
+#define CPU_DESC_LONG                   0x00200000
+#define CPU_DESC_DB                     0x00400000
+#define CPU_DESC_GRAN_4KB               0x00800000
+
+#define CPU_DESC_GATE_OFFSET_LOW_MASK   0x0000ffff
+#define CPU_DESC_GATE_OFFSET_HIGH_MASK  0xffff0000
+#define CPU_DESC_SEG_IST_MASK           0x00000007
+#define CPU_DESC_SEG_BASE_LOW_MASK      0x0000ffff
+#define CPU_DESC_SEG_BASE_MID_MASK      0x00ff0000
+#define CPU_DESC_SEG_BASE_HIGH_MASK     0xff000000
+#define CPU_DESC_SEG_LIMIT_LOW_MASK     0x0000ffff
+#define CPU_DESC_SEG_LIMIT_HIGH_MASK    0x000f0000
+
+/*
+ * Gate descriptor.
+ */
+struct cpu_gate_desc {
+    uint32_t word1;
+    uint32_t word2;
+#ifdef __LP64__
+    uint32_t word3;
+    uint32_t word4;
+#endif /* __LP64__ */
+};
+
+/*
+ * Code or data segment descriptor.
+ */
+struct cpu_seg_desc {
+    uint32_t low;
+    uint32_t high;
+};
+
+/*
+ * LDT or TSS system segment descriptor.
+ */
+struct cpu_sysseg_desc {
+    uint32_t word1;
+    uint32_t word2;
+#ifdef __LP64__
+    uint32_t word3;
+    uint32_t word4;
+#endif /* __LP64__ */
+};
+
+struct cpu_pseudo_desc {
+    uint16_t limit;
+    unsigned long address;
+} __packed;
+
 void *cpu_local_area __percpu;
 
 /*
@@ -333,7 +393,7 @@ cpu_load_idt(void)
     asm volatile("lidt %0" : : "m" (idtr));
 }
 
-static __always_inline void
+static inline void
 cpu_cpuid(unsigned long *eax, unsigned long *ebx, unsigned long *ecx,
           unsigned long *edx)
 {
