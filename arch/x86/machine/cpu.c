@@ -394,8 +394,8 @@ cpu_load_idt(void)
 }
 
 static inline void
-cpu_cpuid(unsigned long *eax, unsigned long *ebx, unsigned long *ecx,
-          unsigned long *edx)
+cpu_cpuid(unsigned int *eax, unsigned int *ebx, unsigned int *ecx,
+          unsigned int *edx)
 {
     asm volatile("cpuid" : "+a" (*eax), "=b" (*ebx), "=c" (*ecx), "=d" (*edx));
 }
@@ -406,7 +406,7 @@ cpu_cpuid(unsigned long *eax, unsigned long *ebx, unsigned long *ecx,
 static void __init
 cpu_init(struct cpu *cpu)
 {
-    unsigned long eax, ebx, ecx, edx, max_basic, max_extended;
+    unsigned int eax, ebx, ecx, edx, max_basic, max_extended;
 
     /*
      * Assume at least an i586 processor.
