@@ -1435,6 +1435,33 @@ thread_main(void)
 }
 
 static void
+thread_destroy_tsd(struct thread *thread)
+{
+    void *ptr;
+    unsigned int i;
+
+    i = 0;
+
+    while (i < thread_nr_keys) {
+        if ((thread->tsd[i] == NULL) || (thread_dtors[i] == NULL)) {
+            i++;
+            continue;
+        }
+
+        /*
+         * Follow the POSIX description of TSD: set the key to NULL before
+         * calling the destructor and repeat as long as it's not NULL.
+         */
+        ptr = thread->tsd[i];
+        thread->tsd[i] = NULL;
+        thread_dtors[i](ptr);
+
+        if (thread->tsd[i] == NULL)
+            i++;
+    }
+}
+
+static void
 thread_init_sched(struct thread *thread, unsigned short priority)
 {
     thread_sched_ops[thread->sched_class].init_thread(thread, priority);
@@ -1488,18 +1515,18 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     if (attr->flags & THREAD_ATTR_DETACHED)
         thread->flags |= THREAD_DETACHED;
 
-    /*
-     * This call may initialize thread-local data, do it once the thread is
-     * mostly initialized.
-     */
     error = tcb_init(&thread->tcb, stack, thread_main);
 
     if (error)
-        return error;
+        goto error_tsd;
 
     task_add_thread(task, thread);
 
     return 0;
+
+error_tsd:
+    thread_destroy_tsd(thread);
+    return error;
 }
 
 static struct thread_runq *
@@ -1532,8 +1559,6 @@ thread_destroy(struct thread *thread)
 {
     struct thread_runq *runq;
     unsigned long flags, state;
-    unsigned int i;
-    void *ptr;
 
     do {
         runq = thread_lock_runq(thread, &flags);
@@ -1541,25 +1566,7 @@ thread_destroy(struct thread *thread)
         thread_unlock_runq(runq, flags);
     } while (state != THREAD_DEAD);
 
-    i = 0;
-
-    while (i < thread_nr_keys) {
-        if ((thread->tsd[i] == NULL)
-            || (thread_dtors[i] == NULL))
-            continue;
-
-        /*
-         * Follow the POSIX description of TSD: set the key to NULL before
-         * calling the destructor and repeat as long as it's not NULL.
-         */
-        ptr = thread->tsd[i];
-        thread->tsd[i] = NULL;
-        thread_dtors[i](ptr);
-
-        if (thread->tsd[i] == NULL)
-            i++;
-    }
-
+    thread_destroy_tsd(thread);
     task_remove_thread(thread->task, thread);
     kmem_cache_free(&thread_stack_cache, thread->stack);
     kmem_cache_free(&thread_cache, thread);
