@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013 Richard Braun.
+ * Copyright (c) 2012-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,5 +22,11 @@
 #define ERROR_AGAIN 2
 #define ERROR_INVAL 3
 #define ERROR_BUSY  4
+
+/*
+ * If error denotes an actual error (i.e. is not 0), panic, using the given
+ * string as a prefix for the error message. A NULL prefix is allowed.
+ */
+void error_check(int error, const char *prefix);
 
 #endif /* _KERN_ERROR_H */

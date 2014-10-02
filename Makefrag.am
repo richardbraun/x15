@@ -10,6 +10,7 @@ x15_SOURCES +=              \
 	kern/config.h       \
 	kern/cpumap.c       \
 	kern/cpumap.h       \
+	kern/error.c        \
 	kern/error.h        \
 	kern/evcnt.c        \
 	kern/evcnt.h        \
