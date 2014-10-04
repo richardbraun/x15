@@ -260,7 +260,7 @@ cpu_set_percpu_area(const struct cpu *cpu, void *area)
     unsigned long va;
 
     va = (unsigned long)area;
-    cpu_set_msr(CPU_MSR_FSBASE, (uint32_t)va, (uint32_t)(va >> 32));
+    cpu_set_msr(CPU_MSR_FSBASE, (uint32_t)(va >> 32), (uint32_t)va);
 #else /* __LP64__ */
     asm volatile("mov %0, %%fs" : : "r" (CPU_GDT_SEL_PERCPU));
 #endif /* __LP64__ */

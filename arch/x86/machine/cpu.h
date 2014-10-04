@@ -439,13 +439,13 @@ cpu_enable_global_pages(void)
 }
 
 static __always_inline void
-cpu_get_msr(uint32_t msr, uint32_t *low, uint32_t *high)
+cpu_get_msr(uint32_t msr, uint32_t *high, uint32_t *low)
 {
     asm volatile("rdmsr" : "=a" (*low), "=d" (*high) : "c" (msr));
 }
 
 static __always_inline void
-cpu_set_msr(uint32_t msr, uint32_t low, uint32_t high)
+cpu_set_msr(uint32_t msr, uint32_t high, uint32_t low)
 {
     asm volatile("wrmsr" : : "c" (msr), "a" (low), "d" (high));
 }
