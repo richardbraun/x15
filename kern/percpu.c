@@ -78,7 +78,7 @@ percpu_add(unsigned int cpu)
         return ERROR_INVAL;
     }
 
-    if (percpu_area(cpu) != NULL) {
+    if (percpu_areas[cpu] != NULL) {
         printk("percpu: error: id %u ignored, already registered\n", cpu);
         return ERROR_INVAL;
     }
