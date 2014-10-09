@@ -157,6 +157,7 @@ TRAP(TRAP_PIC_BASE + 7, trap_isr_pic_int7)
 TRAP(TRAP_PIC_BASE + 15, trap_isr_pic_int15)
 
 /* System defined traps */
+TRAP(TRAP_XCALL, trap_isr_xcall)
 TRAP(TRAP_THREAD_SCHEDULE, trap_isr_thread_schedule)
 TRAP(TRAP_CPU_HALT, trap_isr_cpu_halt)
 TRAP(TRAP_LAPIC_TIMER, trap_isr_lapic_timer)

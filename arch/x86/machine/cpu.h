@@ -563,6 +563,20 @@ void cpu_mp_setup(void);
 void cpu_ap_setup(void);
 
 /*
+ * Send a cross-call interrupt to a remote processor.
+ */
+static inline void
+cpu_send_xcall(unsigned int cpu)
+{
+    lapic_ipi_send(cpu_from_id(cpu)->apic_id, TRAP_XCALL);
+}
+
+/*
+ * Interrupt handler for cross-calls.
+ */
+void cpu_xcall_intr(struct trap_frame *frame);
+
+/*
  * Send a scheduling interrupt to a remote processor.
  */
 static inline void

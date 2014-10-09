@@ -52,6 +52,7 @@ m4_define([ENABLE_TEST_MODULE],
                        [test_x86_pmap_remove_ptp=yes
                         AC_MSG_NOTICE([forcing max_cpus to 1])
                         opt_max_cpus=1],
+                   [xcall], [test_xcall=yes],
                    [AC_MSG_ERROR([invalid test module])])
           AC_DEFINE([RUN_TEST_MODULE], [1],
                     [run test module instead of booting])
@@ -68,6 +69,8 @@ AM_CONDITIONAL([TEST_SREF_NOREF],
                [test x"$test_sref_noref" = xyes])
 AM_CONDITIONAL([TEST_X86_PMAP_REMOVE_PTP],
                [test x"$test_x86_pmap_remove_ptp" = xyes])
+AM_CONDITIONAL([TEST_XCALL],
+               [test x"$test_xcall" = xyes])
 
 AC_DEFINE_UNQUOTED([MAX_CPUS], [$opt_max_cpus],
                    [maximum number of supported processors])

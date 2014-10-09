@@ -56,7 +56,9 @@ x15_SOURCES +=              \
 	kern/thread.h       \
 	kern/types.h        \
 	kern/work.c         \
-	kern/work.h
+	kern/work.h         \
+	kern/xcall.c        \
+	kern/xcall.h
 
 x15_SOURCES +=              \
 	vm/vm_adv.h         \
@@ -93,3 +95,7 @@ endif TEST_SREF_NOREF
 if TEST_X86_PMAP_REMOVE_PTP
 x15_SOURCES += test/test_x86_pmap_remove_ptp.c
 endif TEST_X86_PMAP_REMOVE_PTP
+
+if TEST_XCALL
+x15_SOURCES += test/test_xcall.c
+endif TEST_XCALL

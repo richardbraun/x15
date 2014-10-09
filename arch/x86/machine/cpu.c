@@ -25,6 +25,7 @@
 #include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <kern/string.h>
+#include <kern/xcall.h>
 #include <machine/acpimp.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
@@ -711,6 +712,16 @@ cpu_halt_intr(struct trap_frame *frame)
     lapic_eoi();
 
     cpu_halt();
+}
+
+void
+cpu_xcall_intr(struct trap_frame *frame)
+{
+    (void)frame;
+
+    lapic_eoi();
+
+    xcall_intr();
 }
 
 void

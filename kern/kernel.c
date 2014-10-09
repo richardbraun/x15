@@ -24,6 +24,7 @@
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <kern/work.h>
+#include <kern/xcall.h>
 #include <machine/cpu.h>
 #include <vm/vm_page.h>
 
@@ -38,6 +39,7 @@ kernel_main(void)
 
     percpu_cleanup();
     cpumap_setup();
+    xcall_setup();
     task_setup();
     thread_setup();
     work_setup();
