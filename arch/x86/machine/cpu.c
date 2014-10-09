@@ -25,6 +25,7 @@
 #include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <kern/string.h>
+#include <kern/thread.h>
 #include <kern/xcall.h>
 #include <machine/acpimp.h>
 #include <machine/biosmem.h>
