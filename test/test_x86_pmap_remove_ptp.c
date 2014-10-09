@@ -35,8 +35,8 @@
  * behaviour.
  */
 
-#include <kern/assert.h>
 #include <kern/cpumap.h>
+#include <kern/error.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
@@ -60,13 +60,16 @@ test_run(void *arg)
 
     printk("creating mapping\n");
     page = vm_page_alloc(0, VM_PAGE_KMEM);
-    assert(page != NULL);
+
+    if (page == NULL)
+        panic("vm_page_alloc: %s", error_str(ERROR_NOMEM));
+
     va = 0;
     flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
                          VM_ADV_DEFAULT, 0);
     error = vm_map_enter(kernel_map, NULL, 0, &va,
                          (1UL << 22), (1UL << 22), flags);
-    assert(!error);
+    error_check(error, "vm_map_enter");
     pmap_enter(kernel_pmap, va, vm_page_to_pa(page),
                VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
     pmap_update(kernel_pmap);
@@ -80,7 +83,9 @@ test_run(void *arg)
 
     printk("allocating dummy physical page\n");
     dummy = vm_page_alloc(0, VM_PAGE_KMEM);
-    assert(dummy != NULL);
+
+    if (dummy == NULL)
+        panic("vm_page_alloc: %s", error_str(ERROR_NOMEM));
 
     printk("recreating mapping\n");
     pmap_enter(kernel_pmap, va, vm_page_to_pa(page),
@@ -107,7 +112,7 @@ test_setup(void)
      */
 
     error = cpumap_create(&cpumap);
-    assert(!error);
+    error_check(error, "cpumap_create");
 
     cpumap_zero(cpumap);
     cpumap_set(cpumap, 0);
@@ -117,7 +122,7 @@ test_setup(void)
     thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_FIFO);
     thread_attr_set_priority(&attr, THREAD_SCHED_RT_PRIO_MAX);
     error = thread_create(&thread, &attr, test_run, NULL);
-    assert(!error);
+    error_check(error, "thread_create");
 
     cpumap_destroy(cpumap);
 }

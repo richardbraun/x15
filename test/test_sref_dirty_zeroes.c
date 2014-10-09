@@ -26,8 +26,8 @@
  * and panics if it is.
  */
 
-#include <kern/assert.h>
 #include <kern/condition.h>
+#include <kern/error.h>
 #include <kern/evcnt.h>
 #include <kern/kmem.h>
 #include <kern/macros.h>
@@ -114,10 +114,10 @@ test_setup(void)
     thread_attr_init(&attr, "x15_test_inc");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_inc, NULL);
-    assert(!error);
+    error_check(error, "thread_create");
 
     thread_attr_init(&attr, "x15_test_dec");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_dec, NULL);
-    assert(!error);
+    error_check(error, "thread_create");
 }

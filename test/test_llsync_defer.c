@@ -28,8 +28,8 @@
  * Each thread regularly prints a string to report that it's making progress.
  */
 
-#include <kern/assert.h>
 #include <kern/condition.h>
+#include <kern/error.h>
 #include <kern/kmem.h>
 #include <kern/llsync.h>
 #include <kern/macros.h>
@@ -189,15 +189,15 @@ test_setup(void)
     thread_attr_init(&attr, "x15_test_alloc");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_alloc, NULL);
-    assert(!error);
+    error_check(error, "thread_create");
 
     thread_attr_init(&attr,"x15_test_free");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_free, NULL);
-    assert(!error);
+    error_check(error, "thread_create");
 
     thread_attr_init(&attr, "x15_test_read");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_read, NULL);
-    assert(!error);
+    error_check(error, "thread_create");
 }

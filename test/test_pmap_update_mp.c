@@ -24,9 +24,9 @@
  * tables of the current processor have been updated.
  */
 
-#include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
+#include <kern/error.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
@@ -103,7 +103,7 @@ test_setup(void)
     test_va = 0;
 
     error = cpumap_create(&cpumap);
-    assert(!error);
+    error_check(error, "cpumap_create");
 
     cpumap_zero(cpumap);
     cpumap_set(cpumap, 0);
@@ -111,7 +111,7 @@ test_setup(void)
     thread_attr_set_detached(&attr);
     thread_attr_set_cpumap(&attr, cpumap);
     error = thread_create(&thread, &attr, test_run1, NULL);
-    assert(!error);
+    error_check(error, "thread_create");
 
     cpumap_zero(cpumap);
     cpumap_set(cpumap, 1);
@@ -119,7 +119,7 @@ test_setup(void)
     thread_attr_set_detached(&attr);
     thread_attr_set_cpumap(&attr, cpumap);
     error = thread_create(&thread, &attr, test_run2, NULL);
-    assert(!error);
+    error_check(error, "thread_create");
 
     cpumap_destroy(cpumap);
 }

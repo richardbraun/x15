@@ -32,12 +32,13 @@
  * to occur.
  */
 
-#include <kern/assert.h>
 #include <kern/condition.h>
+#include <kern/error.h>
 #include <kern/evcnt.h>
 #include <kern/kmem.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
+#include <kern/panic.h>
 #include <kern/sprintf.h>
 #include <kern/sref.h>
 #include <kern/stddef.h>
@@ -120,18 +121,23 @@ test_run(void *arg)
 
     nr_threads = cpu_count() + 1;
     threads = kmem_alloc(sizeof(*threads) * nr_threads);
-    assert(threads != NULL);
+
+    if (threads == NULL)
+        panic("kmem_alloc: %s", error_str(ERROR_NOMEM));
 
     for (i = 0; i < nr_threads; i++) {
         snprintf(name, sizeof(name), "x15_test_ref/%u", i);
         thread_attr_init(&attr, name);
         error = thread_create(&threads[i], &attr, test_ref, NULL);
-        assert(!error);
+        error_check(error, "thread_create");
     }
 
     printk("allocating page\n");
     va = vm_kmem_alloc(sizeof(*obj));
-    assert(va != 0);
+
+    if (va == 0)
+        panic("vm_kmem_alloc: %s", error_str(ERROR_NOMEM));
+
     obj = (void *)va;
     sref_counter_init(&obj->ref_counter, test_obj_noref);
 
@@ -170,5 +176,5 @@ test_setup(void)
     thread_attr_init(&attr, "x15_test_run");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_run, NULL);
-    assert(!error);
+    error_check(error, "thread_create");
 }
