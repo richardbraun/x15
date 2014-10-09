@@ -342,8 +342,6 @@ void thread_schedule_intr(void);
 /*
  * Report a periodic timer interrupt on the thread currently running on
  * the local processor.
- *
- * Called from interrupt context.
  */
 void thread_tick_intr(void);
 
