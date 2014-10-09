@@ -24,6 +24,11 @@
 #define ERROR_BUSY  4
 
 /*
+ * Return a string describing the given error.
+ */
+const char * error_str(int error);
+
+/*
  * If error denotes an actual error (i.e. is not 0), panic, using the given
  * string as a prefix for the error message. A NULL prefix is allowed.
  */

@@ -18,32 +18,33 @@
 #include <kern/error.h>
 #include <kern/panic.h>
 
+const char *
+error_str(int error)
+{
+    switch (error) {
+    case 0:
+        return "success";
+    case ERROR_NOMEM:
+        return "out of memory";
+    case ERROR_AGAIN:
+        return "resource temporarily unavailable";
+    case ERROR_INVAL:
+        return "invalid argument";
+    case ERROR_BUSY:
+        return "device or resource busy";
+    default:
+        return "unknown error";
+    }
+}
+
 void
 error_check(int error, const char *prefix)
 {
-    const char *msg;
-
-    switch (error) {
-    case 0:
+    if (!error)
         return;
-    case ERROR_NOMEM:
-        msg = "out of memory";
-        break;
-    case ERROR_AGAIN:
-        msg = "resource temporarily unavailable";
-        break;
-    case ERROR_INVAL:
-        msg = "invalid argument";
-        break;
-    case ERROR_BUSY:
-        msg = "device or resource busy";
-        break;
-    default:
-        msg = "unknown error";
-    }
 
     panic("%s%s%s",
           (prefix == NULL) ? "" : prefix,
           (prefix == NULL) ? "" : ": ",
-          msg);
+          error_str(error));
 }
