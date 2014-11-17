@@ -336,7 +336,7 @@ cpu_init_double_fault_tss(struct cpu *cpu)
     tss->cr3 = cpu_get_cr3();
     tss->eip = cpu_double_fault_handler;
     tss->eflags = CPU_EFL_ONE;
-    tss->ebp = cpu->double_fault_stack + STACK_SIZE;
+    tss->ebp = (unsigned long)cpu->double_fault_stack + STACK_SIZE;
     tss->esp = tss->ebp;
     tss->es = CPU_GDT_SEL_DATA;
     tss->cs = CPU_GDT_SEL_CODE;
