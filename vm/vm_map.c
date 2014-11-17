@@ -186,7 +186,7 @@ vm_map_kentry_free_va(unsigned long va, size_t slab_size)
     vm_map_kentry_free_slab(slab);
 }
 
-static unsigned long
+static void *
 vm_map_kentry_alloc(size_t slab_size)
 {
     struct vm_page *page;
@@ -211,18 +211,19 @@ vm_map_kentry_alloc(size_t slab_size)
     }
 
     pmap_update(kernel_pmap);
-    return va;
+    return (void *)va;
 }
 
 static void
-vm_map_kentry_free(unsigned long va, size_t slab_size)
+vm_map_kentry_free(void *addr, size_t slab_size)
 {
     const struct cpumap *cpumap;
     struct vm_page *page;
     phys_addr_t pa;
-    unsigned long end;
+    unsigned long va, end;
     size_t i;
 
+    va = (unsigned long)addr;
     assert(va >= vm_map_kentry_entry.start);
     assert((va + slab_size) <= (vm_map_kentry_entry.start
                                 + VM_MAP_KENTRY_SIZE));

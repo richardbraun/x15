@@ -263,7 +263,7 @@ kmem_slab_create(struct kmem_cache *cache, size_t color)
     if (cache->slab_alloc_fn == NULL)
         slab_buf = vm_kmem_alloc(cache->slab_size);
     else
-        slab_buf = (void *)cache->slab_alloc_fn(cache->slab_size);
+        slab_buf = cache->slab_alloc_fn(cache->slab_size);
 
     if (slab_buf == NULL)
         return NULL;
@@ -275,7 +275,7 @@ kmem_slab_create(struct kmem_cache *cache, size_t color)
             if (cache->slab_free_fn == NULL)
                 vm_kmem_free(slab_buf, cache->slab_size);
             else
-                cache->slab_free_fn((unsigned long)slab_buf, cache->slab_size);
+                cache->slab_free_fn(slab_buf, cache->slab_size);
 
             return NULL;
         }

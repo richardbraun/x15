@@ -45,8 +45,8 @@ typedef void (*kmem_ctor_fn_t)(void *);
  *
  * All addresses and sizes must be page-aligned.
  */
-typedef unsigned long (*kmem_slab_alloc_fn_t)(size_t);
-typedef void (*kmem_slab_free_fn_t)(unsigned long, size_t);
+typedef void * (*kmem_slab_alloc_fn_t)(size_t);
+typedef void (*kmem_slab_free_fn_t)(void *, size_t);
 
 #include <kern/kmem_i.h>
 
