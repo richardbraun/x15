@@ -45,8 +45,6 @@ percpu_bootstrap(void)
 void __init
 percpu_setup(void)
 {
-    unsigned long va;
-
     printk("percpu: max_cpus: %u, section size: %zuk\n",
            MAX_CPUS, percpu_size >> 10);
     assert(vm_page_aligned(percpu_size));
@@ -54,20 +52,17 @@ percpu_setup(void)
     if (percpu_size == 0)
         return;
 
-    va = vm_kmem_alloc(percpu_size);
+    percpu_area_content = vm_kmem_alloc(percpu_size);
 
-    if (va == 0)
+    if (percpu_area_content == NULL)
         panic("percpu: unable to allocate memory for percpu area content");
 
-    percpu_area_content = (void *)va;
     memcpy(percpu_area_content, &_percpu, percpu_size);
 }
 
 int __init
 percpu_add(unsigned int cpu)
 {
-    unsigned long va;
-
     if (cpu >= ARRAY_SIZE(percpu_areas)) {
         if (!percpu_skip_warning) {
             printk("percpu: ignoring processor beyond id %zu\n",
@@ -86,14 +81,13 @@ percpu_add(unsigned int cpu)
     if (percpu_size == 0)
         goto out;
 
-    va = vm_kmem_alloc(percpu_size);
+    percpu_areas[cpu] = vm_kmem_alloc(percpu_size);
 
-    if (va == 0) {
+    if (percpu_areas[cpu] == NULL) {
         printk("percpu: error: unable to allocate percpu area\n");
         return ERROR_NOMEM;
     }
 
-    percpu_areas[cpu] = (void *)va;
     memcpy(percpu_area(cpu), percpu_area_content, percpu_size);
 
 out:
@@ -103,5 +97,5 @@ out:
 void
 percpu_cleanup(void)
 {
-    vm_kmem_free((unsigned long)percpu_area_content, percpu_size);
+    vm_kmem_free(percpu_area_content, percpu_size);
 }

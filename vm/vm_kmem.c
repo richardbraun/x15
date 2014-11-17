@@ -49,7 +49,7 @@ vm_kmem_setup(void)
     vm_kmem_boot_end = VM_MAX_KERNEL_ADDRESS;
 }
 
-unsigned long __init
+void * __init
 vm_kmem_bootalloc(size_t size)
 {
     unsigned long start, va;
@@ -72,22 +72,22 @@ vm_kmem_bootalloc(size_t size)
     }
 
     pmap_update(kernel_pmap);
-    return start;
+    return (void *)start;
 }
 
 void __init
-vm_kmem_boot_space(unsigned long *start, unsigned long *end)
+vm_kmem_boot_space(unsigned long *startp, unsigned long *endp)
 {
-    *start = VM_MIN_KERNEL_ADDRESS;
-    *end = vm_kmem_boot_start;
+    *startp = VM_MIN_KERNEL_ADDRESS;
+    *endp = vm_kmem_boot_start;
 }
 
 struct vm_page *
-vm_kmem_lookup_page(unsigned long va)
+vm_kmem_lookup_page(const void *addr)
 {
     phys_addr_t pa;
 
-    pa = pmap_extract(kernel_pmap, va);
+    pa = pmap_extract(kernel_pmap, (unsigned long)addr);
 
     if (pa == 0)
         return NULL;
@@ -106,15 +106,15 @@ vm_kmem_alloc_check(size_t size)
 }
 
 static int
-vm_kmem_free_check(unsigned long addr, size_t size)
+vm_kmem_free_check(unsigned long va, size_t size)
 {
-    if (!vm_page_aligned(addr))
+    if (!vm_page_aligned(va))
         return -1;
 
     return vm_kmem_alloc_check(size);
 }
 
-unsigned long
+void *
 vm_kmem_alloc_va(size_t size)
 {
     unsigned long va;
@@ -130,24 +130,27 @@ vm_kmem_alloc_va(size_t size)
     if (error)
         return 0;
 
-    return va;
+    return (void *)va;
 }
 
 void
-vm_kmem_free_va(unsigned long addr, size_t size)
+vm_kmem_free_va(void *addr, size_t size)
 {
-    assert(vm_kmem_free_check(addr, size) == 0);
-    vm_map_remove(kernel_map, addr, addr + vm_page_round(size));
+    unsigned long va;
+
+    va = (unsigned long)addr;
+    assert(vm_kmem_free_check(va, size) == 0);
+    vm_map_remove(kernel_map, va, va + vm_page_round(size));
 }
 
-unsigned long
+void *
 vm_kmem_alloc(size_t size)
 {
     struct vm_page *page;
     unsigned long va, start, end;
 
     size = vm_page_round(size);
-    va = vm_kmem_alloc_va(size);
+    va = (unsigned long)vm_kmem_alloc_va(size);
 
     if (va == 0)
         return 0;
@@ -163,43 +166,45 @@ vm_kmem_alloc(size_t size)
     }
 
     pmap_update(kernel_pmap);
-    return va;
+    return (void *)va;
 
 error_page:
     size = start - va;
 
     if (size != 0) {
         pmap_update(kernel_pmap);
-        vm_kmem_free(va, size);
+        vm_kmem_free((void *)va, size);
     }
 
     size = end - start;
 
     if (size != 0)
-        vm_kmem_free_va(start, size);
+        vm_kmem_free_va((void *)start, size);
 
-    return 0;
+    return NULL;
 }
 
 void
-vm_kmem_free(unsigned long addr, size_t size)
+vm_kmem_free(void *addr, size_t size)
 {
     const struct cpumap *cpumap;
     struct vm_page *page;
     unsigned long va, end;
     phys_addr_t pa;
 
+    va = (unsigned long)addr;
     size = vm_page_round(size);
-    end = addr + size;
+    end = va + size;
     cpumap = cpumap_all();
 
-    for (va = addr; va < end; va += PAGE_SIZE) {
+    while (va < end) {
         pa = pmap_extract(kernel_pmap, va);
         assert(pa != 0);
         pmap_remove(kernel_pmap, va, cpumap);
         page = vm_page_lookup(pa);
         assert(page != NULL);
         vm_page_free(page, 0);
+        va += PAGE_SIZE;
     }
 
     pmap_update(kernel_pmap);
@@ -207,47 +212,47 @@ vm_kmem_free(unsigned long addr, size_t size)
 }
 
 void *
-vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
-               size_t *map_sizep)
+vm_kmem_map_pa(phys_addr_t pa, size_t size,
+               unsigned long *map_vap, size_t *map_sizep)
 {
-    unsigned long offset, map_addr;
+    unsigned long offset, map_va;
     size_t map_size;
     phys_addr_t start;
 
-    start = vm_page_trunc(addr);
-    map_size = vm_page_round(addr + size) - start;
-    map_addr = vm_kmem_alloc_va(map_size);
+    start = vm_page_trunc(pa);
+    map_size = vm_page_round(pa + size) - start;
+    map_va = (unsigned long)vm_kmem_alloc_va(map_size);
 
-    if (map_addr == 0)
+    if (map_va == 0)
         return NULL;
 
     for (offset = 0; offset < map_size; offset += PAGE_SIZE)
-        pmap_enter(kernel_pmap, map_addr + offset, start + offset,
+        pmap_enter(kernel_pmap, map_va + offset, start + offset,
                    VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
 
     pmap_update(kernel_pmap);
 
-    if (map_addrp != NULL)
-        *map_addrp = map_addr;
+    if (map_vap != NULL)
+        *map_vap = map_va;
 
     if (map_sizep != NULL)
         *map_sizep = map_size;
 
-    return (void *)(map_addr + (unsigned long)(addr & PAGE_MASK));
+    return (void *)(map_va + (unsigned long)(pa & PAGE_MASK));
 }
 
 void
-vm_kmem_unmap_pa(unsigned long map_addr, size_t map_size)
+vm_kmem_unmap_pa(unsigned long map_va, size_t map_size)
 {
     const struct cpumap *cpumap;
     unsigned long va, end;
 
     cpumap = cpumap_all();
-    end = map_addr + map_size;
+    end = map_va + map_size;
 
-    for (va = map_addr; va < end; va += PAGE_SIZE)
+    for (va = map_va; va < end; va += PAGE_SIZE)
         pmap_remove(kernel_pmap, va, cpumap);
 
     pmap_update(kernel_pmap);
-    vm_kmem_free_va(map_addr, map_size);
+    vm_kmem_free_va((void *)map_va, map_size);
 }

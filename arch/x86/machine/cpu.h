@@ -177,8 +177,8 @@ struct cpu {
     struct cpu_tss double_fault_tss;
 #endif /* __LP64__ */
     volatile int state;
-    unsigned long boot_stack;
-    unsigned long double_fault_stack;
+    void *boot_stack;
+    void *double_fault_stack;
 };
 
 /*
@@ -510,7 +510,7 @@ cpu_delay(unsigned long usecs)
 /*
  * Return the address of the boot stack allocated for the current processor.
  */
-unsigned long cpu_get_boot_stack(void);
+void * cpu_get_boot_stack(void);
 
 /*
  * Install an interrupt handler in the IDT.

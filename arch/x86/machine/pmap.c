@@ -946,7 +946,7 @@ pmap_setup_inc_nr_ptes(pmap_pte_t *pte)
 {
     struct vm_page *page;
 
-    page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
+    page = vm_kmem_lookup_page(pte);
     assert(page != NULL);
     page->pmap_page.nr_ptes++;
 }
@@ -956,7 +956,7 @@ pmap_setup_set_ptp_type(pmap_pte_t *pte)
 {
     struct vm_page *page;
 
-    page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
+    page = vm_kmem_lookup_page(pte);
     assert(page != NULL);
 
     if (vm_page_type(page) != VM_PAGE_PMAP) {
@@ -1008,7 +1008,7 @@ pmap_copy_cpu_table_recursive(struct vm_page *page, phys_addr_t pa,
     pt_level = &pmap_pt_levels[level];
     spt = &pt_level->ptemap_base[PMAP_PTEMAP_INDEX(start_va, pt_level->shift)];
 
-    orig_page = vm_kmem_lookup_page((unsigned long)spt);
+    orig_page = vm_kmem_lookup_page(spt);
     assert(orig_page != NULL);
     page->pmap_page.nr_ptes = orig_page->pmap_page.nr_ptes;
 
@@ -1184,7 +1184,7 @@ pmap_enter_ptemap_inc_nr_ptes(const pmap_pte_t *pte)
     if (!pmap_ready)
         return;
 
-    page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
+    page = vm_kmem_lookup_page(pte);
     assert(page != NULL);
     assert(vm_page_type(page) == VM_PAGE_PMAP);
     page->pmap_page.nr_ptes++;
@@ -1322,7 +1322,7 @@ pmap_remove_ptemap(unsigned long va)
         if (page != NULL)
             vm_page_free(page, 0);
 
-        page = vm_kmem_lookup_page(vm_page_trunc((unsigned long)pte));
+        page = vm_kmem_lookup_page(pte);
         assert(page != NULL);
         assert(vm_page_type(page) == VM_PAGE_PMAP);
         assert(page->pmap_page.nr_ptes != 0);

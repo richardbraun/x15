@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012 Richard Braun
+ * Copyright (c) 2010-2014 Richard Braun
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,42 +52,42 @@ void vm_kmem_setup(void);
  * The main purpose of this function is to allow the allocation of the
  * physical page table.
  */
-unsigned long vm_kmem_bootalloc(size_t size);
+void * vm_kmem_bootalloc(size_t size);
 
 /*
  * Return the range of initial virtual memory used by the kernel.
  */
-void vm_kmem_boot_space(unsigned long *start, unsigned long *end);
+void vm_kmem_boot_space(unsigned long *startp, unsigned long *endp);
 
 /*
  * Return the page descriptor for the physical page mapped at va in kernel
  * space. The given address must be mapped and valid.
  */
-struct vm_page * vm_kmem_lookup_page(unsigned long va);
+struct vm_page * vm_kmem_lookup_page(const void *addr);
 
 /*
  * Allocate pure virtual kernel pages.
  *
  * The caller is reponsible for taking care of the underlying physical memory.
  */
-unsigned long vm_kmem_alloc_va(size_t size);
+void * vm_kmem_alloc_va(size_t size);
 
 /*
  * Free virtual kernel pages.
  *
  * The caller is reponsible for taking care of the underlying physical memory.
  */
-void vm_kmem_free_va(unsigned long addr, size_t size);
+void vm_kmem_free_va(void *addr, size_t size);
 
 /*
  * Allocate kernel pages.
  */
-unsigned long vm_kmem_alloc(size_t size);
+void * vm_kmem_alloc(size_t size);
 
 /*
  * Free kernel pages.
  */
-void vm_kmem_free(unsigned long addr, size_t size);
+void vm_kmem_free(void *addr, size_t size);
 
 /*
  * Map physical memory in the kernel map.
@@ -102,12 +102,12 @@ void vm_kmem_free(unsigned long addr, size_t size);
  * TODO When mapping attributes are implemented, make this function disable
  * caching on the mapping.
  */
-void * vm_kmem_map_pa(phys_addr_t addr, size_t size, unsigned long *map_addrp,
-                      size_t *map_sizep);
+void * vm_kmem_map_pa(phys_addr_t pa, size_t size,
+                      unsigned long *map_vap, size_t *map_sizep);
 
 /*
  * Unmap physical memory from the kernel map.
  */
-void vm_kmem_unmap_pa(unsigned long map_addr, size_t map_size);
+void vm_kmem_unmap_pa(unsigned long map_va, size_t map_size);
 
 #endif /* _VM_VM_KMEM_H */

@@ -155,7 +155,7 @@ static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8) __read_mostly;
 static unsigned long cpu_double_fault_handler;
 static char cpu_double_fault_stack[STACK_SIZE] __aligned(DATA_ALIGN);
 
-unsigned long __init
+void * __init
 cpu_get_boot_stack(void)
 {
     return percpu_var(cpu_desc.boot_stack, boot_ap_id);
@@ -316,7 +316,7 @@ cpu_init_tss(struct cpu *cpu)
 
 #ifdef __LP64__
     assert(cpu->double_fault_stack != 0);
-    tss->ist[CPU_TSS_IST_DF] = cpu->double_fault_stack;
+    tss->ist[CPU_TSS_IST_DF] = (unsigned long)cpu->double_fault_stack;
 #endif /* __LP64__ */
 
     asm volatile("ltr %w0" : : "q" (CPU_GDT_SEL_TSS));
@@ -519,7 +519,7 @@ cpu_setup(void)
 
     cpu = percpu_ptr(cpu_desc, 0);
     cpu_preinit(cpu, 0, CPU_INVALID_APIC_ID);
-    cpu->double_fault_stack = (unsigned long)cpu_double_fault_stack; /* XXX */
+    cpu->double_fault_stack = cpu_double_fault_stack; /* XXX */
     cpu_init(cpu);
     cpu_nr_active = 1;
 }

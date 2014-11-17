@@ -261,7 +261,7 @@ kmem_slab_create(struct kmem_cache *cache, size_t color)
     void *slab_buf;
 
     if (cache->slab_alloc_fn == NULL)
-        slab_buf = (void *)vm_kmem_alloc(cache->slab_size);
+        slab_buf = vm_kmem_alloc(cache->slab_size);
     else
         slab_buf = (void *)cache->slab_alloc_fn(cache->slab_size);
 
@@ -273,7 +273,7 @@ kmem_slab_create(struct kmem_cache *cache, size_t color)
 
         if (slab == NULL) {
             if (cache->slab_free_fn == NULL)
-                vm_kmem_free((unsigned long)slab_buf, cache->slab_size);
+                vm_kmem_free(slab_buf, cache->slab_size);
             else
                 cache->slab_free_fn((unsigned long)slab_buf, cache->slab_size);
 
@@ -319,7 +319,7 @@ kmem_slab_vmref(struct kmem_slab *slab, size_t size)
     end = va + size;
 
     do {
-        page = vm_kmem_lookup_page(va);
+        page = vm_kmem_lookup_page((void *)va);
         assert(page != NULL);
         assert(page->slab_priv == NULL);
         page->slab_priv = slab;
@@ -717,7 +717,7 @@ kmem_cache_free_to_slab(struct kmem_cache *cache, void *buf)
     } else {
         struct vm_page *page;
 
-        page = vm_kmem_lookup_page((unsigned long)buf);
+        page = vm_kmem_lookup_page(buf);
         assert(page != NULL);
         slab = page->slab_priv;
         assert(slab != NULL);
@@ -862,7 +862,7 @@ kmem_cache_free_verify(struct kmem_cache *cache, void *buf)
     unsigned char *redzone_byte;
     unsigned long slabend;
 
-    page = vm_kmem_lookup_page((unsigned long)buf);
+    page = vm_kmem_lookup_page(buf);
 
     if (page == NULL)
         kmem_cache_error(cache, buf, KMEM_ERR_INVALID, NULL);
@@ -1124,7 +1124,7 @@ kmem_alloc(size_t size)
         if ((buf != NULL) && (cache->flags & KMEM_CF_VERIFY))
             kmem_alloc_verify(cache, buf, size);
     } else {
-        buf = (void *)vm_kmem_alloc(size);
+        buf = vm_kmem_alloc(size);
     }
 
   return buf;
@@ -1182,7 +1182,7 @@ kmem_free(void *ptr, size_t size)
 
         kmem_cache_free(cache, ptr);
     } else {
-        vm_kmem_free((unsigned long)ptr, size);
+        vm_kmem_free(ptr, size);
     }
 }
 

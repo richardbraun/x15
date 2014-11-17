@@ -561,7 +561,7 @@ vm_page_setup(void)
     table_size = P2ROUND(nr_pages * sizeof(struct vm_page), PAGE_SIZE);
     printk("vm_page: page table size: %zu entries (%zuk)\n", nr_pages,
            table_size >> 10);
-    table = (struct vm_page *)vm_kmem_bootalloc(table_size);
+    table = vm_kmem_bootalloc(table_size);
     va = (unsigned long)table;
 
     /*
