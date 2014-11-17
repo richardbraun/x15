@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2011-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -93,8 +93,9 @@ struct vm_map {
 /*
  * Create a virtual mapping.
  */
-int vm_map_enter(struct vm_map *map, struct vm_object *object, uint64_t offset,
-                 unsigned long *startp, size_t size, size_t align, int flags);
+int vm_map_enter(struct vm_map *map, unsigned long *startp,
+                 size_t size, size_t align, int flags,
+                 struct vm_object *object, uint64_t offset);
 
 /*
  * Remove mappings from start to end.

@@ -64,12 +64,12 @@
  * by the mapping functions.
  */
 struct vm_map_request {
-    struct vm_object *object;
-    unsigned long offset;
     unsigned long start;
     size_t size;
     size_t align;
     int flags;
+    struct vm_object *object;
+    uint64_t offset;
     struct vm_map_entry *next;
 };
 
@@ -85,9 +85,9 @@ struct vm_map_kentry_slab {
     struct vm_map_kentry_slab *next;
 };
 
-static int vm_map_prepare(struct vm_map *map, struct vm_object *object,
-                          unsigned long offset, unsigned long start,
+static int vm_map_prepare(struct vm_map *map, unsigned long start,
                           size_t size, size_t align, int flags,
+                          struct vm_object *object, uint64_t offset,
                           struct vm_map_request *request);
 
 static int vm_map_insert(struct vm_map *map, struct vm_map_entry *entry,
@@ -276,8 +276,8 @@ vm_map_kentry_setup(void)
     assert(vm_page_aligned(VM_MAP_KENTRY_SIZE));
     flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
                          VM_ADV_DEFAULT, VM_MAP_NOMERGE);
-    error = vm_map_prepare(kernel_map, NULL, 0, 0, VM_MAP_KENTRY_SIZE + size,
-                           0, flags, &request);
+    error = vm_map_prepare(kernel_map, 0, VM_MAP_KENTRY_SIZE + size, 0, flags,
+                           NULL, 0, &request);
 
     if (error)
         panic("vm_map: kentry mapping setup failed");
@@ -600,18 +600,19 @@ vm_map_unlink(struct vm_map *map, struct vm_map_entry *entry)
  * prepare the mapping request for that region.
  */
 static int
-vm_map_prepare(struct vm_map *map, struct vm_object *object, unsigned long offset,
-               unsigned long start, size_t size, size_t align, int flags,
+vm_map_prepare(struct vm_map *map, unsigned long start,
+               size_t size, size_t align, int flags,
+               struct vm_object *object, uint64_t offset,
                struct vm_map_request *request)
 {
     int error;
 
-    request->object = object;
-    request->offset = offset;
     request->start = start;
     request->size = size;
     request->align = align;
     request->flags = flags;
+    request->object = object;
+    request->offset = offset;
     vm_map_request_assert_valid(request);
 
     if (flags & VM_MAP_FIXED)
@@ -784,15 +785,16 @@ out:
 }
 
 int
-vm_map_enter(struct vm_map *map, struct vm_object *object, uint64_t offset,
-             unsigned long *startp, size_t size, size_t align, int flags)
+vm_map_enter(struct vm_map *map, unsigned long *startp,
+             size_t size, size_t align, int flags,
+             struct vm_object *object, uint64_t offset)
 {
     struct vm_map_request request;
     int error;
 
     mutex_lock(&map->lock);
 
-    error = vm_map_prepare(map, object, offset, *startp, size, align, flags,
+    error = vm_map_prepare(map, *startp, size, align, flags, object, offset,
                            &request);
 
     if (error)
@@ -905,11 +907,12 @@ out:
 }
 
 static void
-vm_map_init(struct vm_map *map, struct pmap *pmap, unsigned long start,
-            unsigned long end)
+vm_map_init(struct vm_map *map, struct pmap *pmap,
+            unsigned long start, unsigned long end)
 {
     assert(vm_page_aligned(start));
     assert(vm_page_aligned(end));
+    assert(start < end);
 
     mutex_init(&map->lock);
     list_init(&map->entry_list);
@@ -940,7 +943,7 @@ vm_map_setup(void)
     vm_kmem_boot_space(&start, &end);
     flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
                          VM_ADV_DEFAULT, VM_MAP_NOMERGE | VM_MAP_FIXED);
-    error = vm_map_prepare(kernel_map, NULL, 0, start, end - start, 0, flags,
+    error = vm_map_prepare(kernel_map, start, end - start, 0, flags, NULL, 0,
                            &request);
 
     if (error)

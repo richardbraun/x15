@@ -125,7 +125,7 @@ vm_kmem_alloc_va(size_t size)
     va = 0;
     flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
                          VM_ADV_DEFAULT, 0);
-    error = vm_map_enter(kernel_map, NULL, 0, &va, size, 0, flags);
+    error = vm_map_enter(kernel_map, &va, size, 0, flags, NULL, 0);
 
     if (error)
         return 0;
