@@ -67,8 +67,8 @@ test_run(void *arg)
     va = 0;
     flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
                          VM_ADV_DEFAULT, 0);
-    error = vm_map_enter(kernel_map, NULL, 0, &va,
-                         (1UL << 22), (1UL << 22), flags);
+    error = vm_map_enter(kernel_map, &va, (1UL << 22), (1UL << 22), flags,
+                         NULL, 0);
     error_check(error, "vm_map_enter");
     pmap_enter(kernel_pmap, va, vm_page_to_pa(page),
                VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);

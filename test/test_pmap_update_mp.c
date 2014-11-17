@@ -39,7 +39,7 @@
 
 static struct condition test_condition;
 static struct mutex test_lock;
-static unsigned long test_va;
+static void *test_va;
 
 static void
 test_run1(void *arg)
@@ -49,14 +49,14 @@ test_run1(void *arg)
     (void)arg;
 
     printk("allocating page\n");
-    ptr = (void *)vm_kmem_alloc(PAGE_SIZE);
+    ptr = vm_kmem_alloc(PAGE_SIZE);
     printk("writing page\n");
     memset(ptr, 'a', PAGE_SIZE);
 
     printk("passing page to second thread (%p)\n", ptr);
 
     mutex_lock(&test_lock);
-    test_va = (unsigned long)ptr;
+    test_va = ptr;
     condition_signal(&test_condition);
     mutex_unlock(&test_lock);
 }
@@ -64,7 +64,7 @@ test_run1(void *arg)
 static void
 test_run2(void *arg)
 {
-    const char *ptr;
+    char *ptr;
     unsigned int i;
 
     (void)arg;
@@ -73,10 +73,10 @@ test_run2(void *arg)
 
     mutex_lock(&test_lock);
 
-    while (test_va == 0)
+    while (test_va == NULL)
         condition_wait(&test_condition, &test_lock);
 
-    ptr = (const char *)test_va;
+    ptr = test_va;
 
     mutex_unlock(&test_lock);
 
@@ -86,7 +86,7 @@ test_run2(void *arg)
         if (ptr[i] != 'a')
             panic("invalid content");
 
-    vm_kmem_free((unsigned long)ptr, PAGE_SIZE);
+    vm_kmem_free(ptr, PAGE_SIZE);
     printk("done\n");
 }
 
@@ -100,7 +100,7 @@ test_setup(void)
 
     condition_init(&test_condition);
     mutex_init(&test_lock);
-    test_va = 0;
+    test_va = NULL;
 
     error = cpumap_create(&cpumap);
     error_check(error, "cpumap_create");

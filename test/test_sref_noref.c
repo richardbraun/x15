@@ -98,7 +98,7 @@ test_obj_noref(struct sref_counter *counter)
     struct test_obj *obj;
 
     obj = structof(counter, struct test_obj, ref_counter);
-    vm_kmem_free((unsigned long)obj, sizeof(*obj));
+    vm_kmem_free(obj, sizeof(*obj));
     printk("0 references, page released\n");
     evcnt_info("sref_epoch");
     evcnt_info("sref_dirty_zero");
@@ -113,7 +113,6 @@ test_run(void *arg)
     struct thread **threads;
     struct test_obj *obj;
     volatile unsigned long loop;
-    unsigned long va;
     unsigned int i, nr_threads;
     int error;
 
@@ -133,12 +132,11 @@ test_run(void *arg)
     }
 
     printk("allocating page\n");
-    va = vm_kmem_alloc(sizeof(*obj));
+    obj = vm_kmem_alloc(sizeof(*obj));
 
-    if (va == 0)
+    if (obj == NULL)
         panic("vm_kmem_alloc: %s", error_str(ERROR_NOMEM));
 
-    obj = (void *)va;
     sref_counter_init(&obj->ref_counter, test_obj_noref);
 
     printk("page allocated, 1 reference, publishing\n");

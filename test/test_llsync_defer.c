@@ -46,7 +46,7 @@
 
 struct test_pdsc {
     struct work work;
-    unsigned long va;
+    void *addr;
 };
 
 #define TEST_VALIDATION_BYTE 0xab
@@ -76,10 +76,10 @@ test_alloc(void *arg)
         pdsc = kmem_cache_alloc(&test_pdsc_cache);
 
         if (pdsc != NULL) {
-            pdsc->va = vm_kmem_alloc(PAGE_SIZE);
+            pdsc->addr = vm_kmem_alloc(PAGE_SIZE);
 
-            if (pdsc->va != 0)
-                memset((void *)pdsc->va, TEST_VALIDATION_BYTE, PAGE_SIZE);
+            if (pdsc->addr != NULL)
+                memset(pdsc->addr, TEST_VALIDATION_BYTE, PAGE_SIZE);
         }
 
         llsync_assign_ptr(test_pdsc, pdsc);
@@ -99,8 +99,8 @@ test_deferred_free(struct work *work)
 
     pdsc = structof(work, struct test_pdsc, work);
 
-    if (pdsc->va != 0)
-        vm_kmem_free(pdsc->va, PAGE_SIZE);
+    if (pdsc->addr != NULL)
+        vm_kmem_free(pdsc->addr, PAGE_SIZE);
 
     kmem_cache_free(&test_pdsc_cache, pdsc);
 }
@@ -155,7 +155,7 @@ test_read(void *arg)
         pdsc = llsync_read_ptr(test_pdsc);
 
         if (pdsc != NULL) {
-            s = (const unsigned char *)pdsc->va;
+            s = (const unsigned char *)pdsc->addr;
 
             if (s != NULL) {
                 for (j = 0; j < PAGE_SIZE; j++)
