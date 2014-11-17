@@ -167,7 +167,7 @@ cpu_preinit(struct cpu *cpu, unsigned int id, unsigned int apic_id)
     cpu->id = id;
     cpu->apic_id = apic_id;
     cpu->state = CPU_STATE_OFF;
-    cpu->boot_stack = 0;
+    cpu->boot_stack = NULL;
 }
 
 static void
@@ -315,7 +315,7 @@ cpu_init_tss(struct cpu *cpu)
     memset(tss, 0, sizeof(*tss));
 
 #ifdef __LP64__
-    assert(cpu->double_fault_stack != 0);
+    assert(cpu->double_fault_stack != NULL);
     tss->ist[CPU_TSS_IST_DF] = (unsigned long)cpu->double_fault_stack;
 #endif /* __LP64__ */
 
@@ -329,7 +329,7 @@ cpu_init_double_fault_tss(struct cpu *cpu)
     struct cpu_tss *tss;
 
     assert(cpu_double_fault_handler != 0);
-    assert(cpu->double_fault_stack != 0);
+    assert(cpu->double_fault_stack != NULL);
 
     tss = &cpu->double_fault_tss;
     memset(tss, 0, sizeof(*tss));
@@ -644,12 +644,12 @@ cpu_mp_setup(void)
         cpu = percpu_ptr(cpu_desc, i);
         cpu->boot_stack = vm_kmem_alloc(STACK_SIZE);
 
-        if (cpu->boot_stack == 0)
+        if (cpu->boot_stack == NULL)
             panic("cpu: unable to allocate boot stack for cpu%u", i);
 
         cpu->double_fault_stack = vm_kmem_alloc(STACK_SIZE);
 
-        if (cpu->double_fault_stack == 0)
+        if (cpu->double_fault_stack == NULL)
             panic("cpu: unable to allocate double fault stack for cpu%u", i);
     }
 
