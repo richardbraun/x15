@@ -316,7 +316,8 @@ cpu_init_tss(struct cpu *cpu)
 
 #ifdef __LP64__
     assert(cpu->double_fault_stack != NULL);
-    tss->ist[CPU_TSS_IST_DF] = (unsigned long)cpu->double_fault_stack;
+    tss->ist[CPU_TSS_IST_DF] = (unsigned long)cpu->double_fault_stack
+                               + STACK_SIZE;
 #endif /* __LP64__ */
 
     asm volatile("ltr %w0" : : "q" (CPU_GDT_SEL_TSS));
