@@ -126,7 +126,7 @@ static inline void
 trap_test_double_fault(void)
 {
     printk("trap: double fault test\n");
-    asm volatile("movl $0x1234, %esp; push $0");
+    asm volatile("movl $0xdead, %esp; push $0");
 }
 
 /*
