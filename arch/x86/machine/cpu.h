@@ -143,7 +143,7 @@ struct cpu_tss {
     uint16_t trap_bit;
 #endif /* __LP64__ */
     uint16_t iobp_base;
-};
+} __packed;
 
 #define CPU_VENDOR_ID_SIZE  13
 #define CPU_MODEL_NAME_SIZE 49
