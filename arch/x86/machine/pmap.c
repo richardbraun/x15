@@ -1506,32 +1506,32 @@ pmap_flush_tlb_all(struct pmap *pmap)
 }
 
 static void
-pmap_update_enter(struct pmap *pmap, int flush_tlb_entries,
+pmap_update_enter(struct pmap *pmap, int flush,
                   const struct pmap_update_enter_args *args)
 {
     pmap_enter_local(pmap, args->va, args->pa, args->prot, args->flags);
 
-    if (flush_tlb_entries)
+    if (flush)
         pmap_flush_tlb(pmap, args->va, args->va + PAGE_SIZE);
 }
 
 static void
-pmap_update_remove(struct pmap *pmap, int flush_tlb_entries,
+pmap_update_remove(struct pmap *pmap, int flush,
                    const struct pmap_update_remove_args *args)
 {
     pmap_remove_local(pmap, args->start, args->end);
 
-    if (flush_tlb_entries)
+    if (flush)
         pmap_flush_tlb(pmap, args->start, args->end);
 }
 
 static void
-pmap_update_protect(struct pmap *pmap, int flush_tlb_entries,
+pmap_update_protect(struct pmap *pmap, int flush,
                     const struct pmap_update_protect_args *args)
 {
     pmap_protect_local(pmap, args->start, args->end, args->prot);
 
-    if (flush_tlb_entries)
+    if (flush)
         pmap_flush_tlb(pmap, args->start, args->end);
 }
 
@@ -1541,12 +1541,12 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
 {
     const struct pmap_update_op *op;
     struct pmap_syncer *syncer;
-    int flush_tlb_entries;
+    int global_tlb_flush;
     unsigned int i;
 
     syncer = cpu_local_ptr(pmap_syncer);
     evcnt_inc(&syncer->ev_update);
-    flush_tlb_entries = (nr_mappings <= PMAP_UPDATE_MAX_MAPPINGS);
+    global_tlb_flush = (nr_mappings > PMAP_UPDATE_MAX_MAPPINGS);
 
     for (i = 0; i < oplist->nr_ops; i++) {
         op = &oplist->ops[i];
@@ -1557,17 +1557,17 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
         switch (op->operation) {
         case PMAP_UPDATE_OP_ENTER:
             evcnt_inc(&syncer->ev_update_enter);
-            pmap_update_enter(oplist->pmap, flush_tlb_entries,
+            pmap_update_enter(oplist->pmap, !global_tlb_flush,
                               &op->enter_args);
             break;
         case PMAP_UPDATE_OP_REMOVE:
             evcnt_inc(&syncer->ev_update_remove);
-            pmap_update_remove(oplist->pmap, flush_tlb_entries,
+            pmap_update_remove(oplist->pmap, !global_tlb_flush,
                                &op->remove_args);
             break;
         case PMAP_UPDATE_OP_PROTECT:
             evcnt_inc(&syncer->ev_update_protect);
-            pmap_update_protect(oplist->pmap, flush_tlb_entries,
+            pmap_update_protect(oplist->pmap, !global_tlb_flush,
                                 &op->protect_args);
             break;
         default:
@@ -1575,7 +1575,7 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
         }
     }
 
-    if (!flush_tlb_entries)
+    if (global_tlb_flush)
         pmap_flush_tlb_all(oplist->pmap);
 }
 
