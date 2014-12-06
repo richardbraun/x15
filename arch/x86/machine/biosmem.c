@@ -577,7 +577,7 @@ biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
 }
 
 static void __init
-biosmem_load_segment(const char *name, unsigned long long max_phys_end,
+biosmem_load_segment(const char *name, uint64_t max_phys_end,
                      phys_addr_t phys_start, phys_addr_t phys_end,
                      phys_addr_t avail_start, phys_addr_t avail_end,
                      unsigned int seg_index, unsigned int seglist_prio)
@@ -607,7 +607,7 @@ biosmem_load_segment(const char *name, unsigned long long max_phys_end,
 void __init
 biosmem_setup(void)
 {
-    unsigned long long max_phys_end;
+    uint64_t max_phys_end;
     phys_addr_t phys_start, phys_end;
     struct cpu *cpu;
     int error;
@@ -617,8 +617,8 @@ biosmem_setup(void)
 
     cpu = cpu_current();
     max_phys_end = (cpu->phys_addr_width == 0)
-                   ? (unsigned long long)-1
-                   : 1ULL << cpu->phys_addr_width;
+                   ? (uint64_t)-1
+                   : (uint64_t)1 << cpu->phys_addr_width;
 
     phys_start = BIOSMEM_BASE;
     phys_end = VM_PAGE_NORMAL_LIMIT;
