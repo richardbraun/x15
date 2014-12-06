@@ -187,7 +187,7 @@ ASM_ENTRY(boot_setup_long_mode)
 
 1:
  movl %edx, (%edi)
- addl $(1 << PMAP_L1_SHIFT), %edx
+ addl $(1 << PMAP_L1_SKIP), %edx
  addl $8, %edi
  loop 1b
 
