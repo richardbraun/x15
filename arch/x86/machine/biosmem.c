@@ -353,7 +353,8 @@ biosmem_type_desc(unsigned int type)
 }
 
 static int __init
-biosmem_map_entry_is_invalid(const struct biosmem_map_entry *entry) {
+biosmem_map_entry_is_invalid(const struct biosmem_map_entry *entry)
+{
     return (entry->base_addr + entry->length) <= entry->base_addr;
 }
 
