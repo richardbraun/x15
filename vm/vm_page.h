@@ -62,13 +62,7 @@ struct vm_page {
     unsigned short seg_index;
     unsigned short order;
     phys_addr_t phys_addr;
-
-    union {
-#ifdef PMAP_DEFINE_PAGE
-        struct pmap_page pmap_page;
-#endif /* PMAP_DEFINE_PAGE */
-        void *slab_priv;
-    };
+    void *slab_priv;
 };
 
 static inline unsigned short

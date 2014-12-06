@@ -942,16 +942,6 @@ pmap_unmap_ptp(struct pmap_tmp_mapping *ptp_mapping, unsigned int nr_pages)
 }
 
 static void __init
-pmap_setup_inc_nr_ptes(pmap_pte_t *pte)
-{
-    struct vm_page *page;
-
-    page = vm_kmem_lookup_page(pte);
-    assert(page != NULL);
-    page->pmap_page.nr_ptes++;
-}
-
-static void __init
 pmap_setup_set_ptp_type(pmap_pte_t *pte)
 {
     struct vm_page *page;
@@ -968,12 +958,9 @@ pmap_setup_set_ptp_type(pmap_pte_t *pte)
 static void __init
 pmap_setup_count_ptes(void)
 {
-    pmap_walk_vas(0, pmap_boot_heap, 1, pmap_setup_inc_nr_ptes);
     pmap_walk_vas(0, pmap_boot_heap, 1, pmap_setup_set_ptp_type);
 
     /* Account for the reserved mappings, whether they exist or not */
-    pmap_walk_vas(pmap_boot_heap, pmap_boot_heap_end, 0,
-                  pmap_setup_inc_nr_ptes);
     pmap_walk_vas(pmap_boot_heap, pmap_boot_heap_end, 0,
                   pmap_setup_set_ptp_type);
 }
@@ -1010,7 +997,6 @@ pmap_copy_cpu_table_recursive(struct vm_page *page, phys_addr_t pa,
 
     orig_page = vm_kmem_lookup_page(spt);
     assert(orig_page != NULL);
-    page->pmap_page.nr_ptes = orig_page->pmap_page.nr_ptes;
 
     if (level == PMAP_NR_LEVELS - 1) {
         is_root = 1;
@@ -1177,20 +1163,6 @@ pmap_create(struct pmap **pmapp)
 }
 
 static void
-pmap_enter_ptemap_inc_nr_ptes(const pmap_pte_t *pte)
-{
-    struct vm_page *page;
-
-    if (!pmap_ready)
-        return;
-
-    page = vm_kmem_lookup_page(pte);
-    assert(page != NULL);
-    assert(vm_page_type(page) == VM_PAGE_PMAP);
-    page->pmap_page.nr_ptes++;
-}
-
-static void
 pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
 {
     const struct pmap_pt_level *pt_level;
@@ -1226,13 +1198,11 @@ pmap_enter_ptemap(struct pmap *pmap, unsigned long va, phys_addr_t pa, int prot)
             ptp_pa = vm_page_to_pa(page);
         }
 
-        pmap_enter_ptemap_inc_nr_ptes(pte);
         pmap_zero_page(ptp_pa);
         pmap_pte_set(pte, ptp_pa, pte_bits, level);
     }
 
     pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L0_SKIP);
-    pmap_enter_ptemap_inc_nr_ptes(pte);
     pte_bits = ((pmap == kernel_pmap) ? PMAP_PTE_G : PMAP_PTE_US)
                | pmap_prot_table[prot & VM_PROT_ALL];
     pmap_pte_set(pte, pa, pte_bits, 0);
@@ -1286,53 +1256,13 @@ pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
 static void
 pmap_remove_ptemap(unsigned long va)
 {
-    const struct pmap_pt_level *pt_level;
-    struct vm_page *page;
-    pmap_pte_t *pte, *prev_pte;
-    unsigned long index;
-    unsigned int level;
+    pmap_pte_t *pte;
 
     if (!pmap_ready)
         return;
 
-    page = NULL;
-    prev_pte = NULL;
-
-    for (level = 0; level != PMAP_NR_LEVELS; level++) {
-        pt_level = &pmap_pt_levels[level];
-        index = PMAP_PTEMAP_INDEX(va, pt_level->skip);
-        pte = &pt_level->ptemap_base[index];
-        pmap_pte_clear(pte);
-
-        /*
-         * Although the caller takes care of flushing the TLB for level 0
-         * entries, it is mandatory to immediately flush entries for addresses
-         * inside the recursive mapping because, following the removal of a
-         * PTP, new PTPs, with different physical addresses, may be inserted
-         * as a result of mapping creation. Unconditionally flushing TLB
-         * entries referring to PTPs guarantees complete consistency of the
-         * page table structure.
-         *
-         * Note that this isn't needed when inserting PTPs because the TLB
-         * caches valid translations only.
-         */
-        if (prev_pte != NULL)
-            cpu_tlb_flush_va((unsigned long)prev_pte);
-
-        if (page != NULL)
-            vm_page_free(page, 0);
-
-        page = vm_kmem_lookup_page(pte);
-        assert(page != NULL);
-        assert(vm_page_type(page) == VM_PAGE_PMAP);
-        assert(page->pmap_page.nr_ptes != 0);
-        page->pmap_page.nr_ptes--;
-
-        if (page->pmap_page.nr_ptes != 0)
-            return;
-
-        prev_pte = pte;
-    }
+    pte = PMAP_PTEMAP_BASE + PMAP_PTEMAP_INDEX(va, PMAP_L0_SKIP);
+    pmap_pte_clear(pte);
 }
 
 static void

@@ -49,10 +49,6 @@ m4_define([ENABLE_TEST_MODULE],
                    [sref_dirty_zeroes], [test_sref_dirty_zeroes=yes],
                    [sref_noref], [test_sref_noref=yes],
                    [x86_double_fault], [test_x86_double_fault=yes],
-                   [x86_pmap_remove_ptp],
-                       [test_x86_pmap_remove_ptp=yes
-                        AC_MSG_NOTICE([forcing max_cpus to 1])
-                        opt_max_cpus=1],
                    [xcall], [test_xcall=yes],
                    [AC_MSG_ERROR([invalid test module])])
           AC_DEFINE([RUN_TEST_MODULE], [1],
@@ -70,8 +66,6 @@ AM_CONDITIONAL([TEST_SREF_NOREF],
                [test x"$test_sref_noref" = xyes])
 AM_CONDITIONAL([TEST_X86_DOUBLE_FAULT],
                [test x"$test_x86_double_fault" = xyes])
-AM_CONDITIONAL([TEST_X86_PMAP_REMOVE_PTP],
-               [test x"$test_x86_pmap_remove_ptp" = xyes])
 AM_CONDITIONAL([TEST_XCALL],
                [test x"$test_xcall" = xyes])
 

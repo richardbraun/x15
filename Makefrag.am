@@ -96,10 +96,6 @@ if TEST_X86_DOUBLE_FAULT
 x15_SOURCES += test/test_x86_double_fault.c
 endif TEST_X86_DOUBLE_FAULT
 
-if TEST_X86_PMAP_REMOVE_PTP
-x15_SOURCES += test/test_x86_pmap_remove_ptp.c
-endif TEST_X86_PMAP_REMOVE_PTP
-
 if TEST_XCALL
 x15_SOURCES += test/test_xcall.c
 endif TEST_XCALL
