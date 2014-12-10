@@ -105,7 +105,6 @@ struct vm_page_free_list {
 struct vm_page_seg {
     struct vm_page_cpu_pool cpu_pools[MAX_CPUS];
 
-    struct list node;
     phys_addr_t start;
     phys_addr_t end;
     struct vm_page *pages;
@@ -113,13 +112,14 @@ struct vm_page_seg {
     struct mutex lock;
     struct vm_page_free_list free_lists[VM_PAGE_NR_FREE_LISTS];
     unsigned long nr_free_pages;
-    char name[VM_PAGE_NAME_SIZE];
 };
 
 /*
  * Bootstrap information about a segment.
  */
 struct vm_page_boot_seg {
+    phys_addr_t start;
+    phys_addr_t end;
     phys_addr_t avail_start;
     phys_addr_t avail_end;
 };
@@ -127,12 +127,20 @@ struct vm_page_boot_seg {
 static int vm_page_is_ready __read_mostly;
 
 /*
- * Segment lists, ordered by priority.
- */
-static struct list vm_page_seg_lists[VM_PAGE_NR_SEGLISTS] __read_mostly;
-
-/*
  * Segment table.
+ *
+ * The system supports a maximum of 4 segments :
+ *  - DMA: suitable for DMA
+ *  - DMA32: suitable for DMA when devices support 32-bits addressing
+ *  - DIRECTMAP: direct physical mapping, allows direct access from
+ *    the kernel with a simple offset translation
+ *  - HIGHMEM: must be mapped before it can be accessed
+ *
+ * Segments are ordered by priority, 0 being the lowest priority. Their
+ * relative priorities are DMA < DMA32 < DIRECTMAP < HIGHMEM. Some segments
+ * may actually be aliases for others, e.g. if DMA is always possible from
+ * the direct physical mapping, DMA and DMA32 are aliases for DIRECTMAP,
+ * in which case the segment table contains DIRECTMAP and HIGHMEM only.
  */
 static struct vm_page_seg vm_page_segs[VM_PAGE_MAX_SEGS];
 
@@ -145,8 +153,6 @@ static struct vm_page_boot_seg vm_page_boot_segs[VM_PAGE_MAX_SEGS] __initdata;
  * Number of loaded segments.
  */
 static unsigned int vm_page_segs_size __read_mostly;
-
-static int vm_page_load_initialized __initdata = 0;
 
 static void __init
 vm_page_init(struct vm_page *page, unsigned short seg_index, phys_addr_t pa)
@@ -350,7 +356,7 @@ vm_page_cpu_pool_drain(struct vm_page_cpu_pool *cpu_pool,
     mutex_unlock(&seg->lock);
 }
 
-static inline phys_addr_t __init
+static phys_addr_t __init
 vm_page_seg_size(struct vm_page_seg *seg)
 {
     return seg->end - seg->start;
@@ -372,12 +378,15 @@ vm_page_seg_compute_pool_size(struct vm_page_seg *seg)
 }
 
 static void __init
-vm_page_seg_init(struct vm_page_seg *seg, struct vm_page *pages)
+vm_page_seg_init(struct vm_page_seg *seg, phys_addr_t start, phys_addr_t end,
+                 struct vm_page *pages)
 {
     phys_addr_t pa;
     int pool_size;
     unsigned int i;
 
+    seg->start = start;
+    seg->end = end;
     pool_size = vm_page_seg_compute_pool_size(seg);
 
     for (i = 0; i < ARRAY_SIZE(seg->cpu_pools); i++)
@@ -466,46 +475,26 @@ vm_page_seg_free(struct vm_page_seg *seg, struct vm_page *page,
 }
 
 void __init
-vm_page_load(const char *name, phys_addr_t start, phys_addr_t end,
-             phys_addr_t avail_start, phys_addr_t avail_end,
-             unsigned int seg_index, unsigned int seglist_prio)
+vm_page_load(unsigned int seg_index, phys_addr_t start, phys_addr_t end,
+             phys_addr_t avail_start, phys_addr_t avail_end)
 {
-    struct vm_page_boot_seg *boot_seg;
-    struct vm_page_seg *seg;
-    struct list *seg_list;
-    unsigned int i;
+    struct vm_page_boot_seg *seg;
 
-    assert(name != NULL);
+    assert(seg_index < ARRAY_SIZE(vm_page_boot_segs));
     assert(vm_page_aligned(start));
     assert(vm_page_aligned(end));
     assert(vm_page_aligned(avail_start));
     assert(vm_page_aligned(avail_end));
-    assert(start >= PAGE_SIZE);
     assert(start < end);
-    assert(seg_index < ARRAY_SIZE(vm_page_segs));
-    assert(seglist_prio < ARRAY_SIZE(vm_page_seg_lists));
+    assert(start <= avail_start);
+    assert(avail_end <= end);
+    assert(vm_page_segs_size < ARRAY_SIZE(vm_page_boot_segs));
 
-    if (!vm_page_load_initialized) {
-        for (i = 0; i < ARRAY_SIZE(vm_page_seg_lists); i++)
-            list_init(&vm_page_seg_lists[i]);
-
-        vm_page_segs_size = 0;
-        vm_page_load_initialized = 1;
-    }
-
-    assert(vm_page_segs_size < ARRAY_SIZE(vm_page_segs));
-
-    boot_seg = &vm_page_boot_segs[seg_index];
-    seg = &vm_page_segs[seg_index];
-    seg_list = &vm_page_seg_lists[seglist_prio];
-
-    list_insert_tail(seg_list, &seg->node);
+    seg = &vm_page_boot_segs[seg_index];
     seg->start = start;
     seg->end = end;
-    strlcpy(seg->name, name, sizeof(seg->name));
-    boot_seg->avail_start = avail_start;
-    boot_seg->avail_end = avail_end;
-
+    seg->avail_start = avail_start;
+    seg->avail_end = avail_end;
     vm_page_segs_size++;
 }
 
@@ -515,26 +504,86 @@ vm_page_ready(void)
     return vm_page_is_ready;
 }
 
-phys_addr_t __init
-vm_page_bootalloc(void)
+static unsigned int
+vm_page_select_alloc_seg(unsigned int selector)
 {
-    struct vm_page_boot_seg *boot_seg;
-    struct vm_page_seg *seg;
-    struct list *seg_list;
+    unsigned int seg_index;
+
+    switch (selector) {
+    case VM_PAGE_SEL_DMA:
+        seg_index = VM_PAGE_SEG_DMA;
+        break;
+    case VM_PAGE_SEL_DMA32:
+        seg_index = VM_PAGE_SEG_DMA32;
+        break;
+    case VM_PAGE_SEL_DIRECTMAP:
+        seg_index = VM_PAGE_SEG_DIRECTMAP;
+        break;
+    case VM_PAGE_SEL_HIGHMEM:
+        seg_index = VM_PAGE_SEG_HIGHMEM;
+        break;
+    default:
+        panic("vm_page: invalid selector");
+    }
+
+    return MIN(vm_page_segs_size - 1, seg_index);
+}
+
+static int __init
+vm_page_boot_seg_loaded(const struct vm_page_boot_seg *seg)
+{
+    return (seg->end != 0);
+}
+
+static void __init
+vm_page_check_boot_segs(void)
+{
+    unsigned int i;
+    int expect_loaded;
+
+    if (vm_page_segs_size == 0)
+        panic("vm_page: no physical memory loaded");
+
+    for (i = 0; i < ARRAY_SIZE(vm_page_boot_segs); i++) {
+        expect_loaded = (i < vm_page_segs_size);
+
+        if (vm_page_boot_seg_loaded(&vm_page_boot_segs[i]) == expect_loaded)
+            continue;
+
+        panic("vm_page: invalid boot segment table");
+    }
+}
+
+static phys_addr_t __init
+vm_page_boot_seg_size(struct vm_page_boot_seg *seg)
+{
+    return seg->end - seg->start;
+}
+
+static phys_addr_t __init
+vm_page_boot_seg_avail_size(struct vm_page_boot_seg *seg)
+{
+    return seg->avail_end - seg->avail_start;
+}
+
+static void * __init
+vm_page_bootalloc(size_t size)
+{
+    struct vm_page_boot_seg *seg;
     phys_addr_t pa;
+    unsigned int i;
 
-    for (seg_list = &vm_page_seg_lists[ARRAY_SIZE(vm_page_seg_lists) - 1];
-         seg_list >= vm_page_seg_lists;
-         seg_list--)
-        list_for_each_entry(seg_list, seg, node) {
-            boot_seg = &vm_page_boot_segs[seg - vm_page_segs];
+    for (i = vm_page_select_alloc_seg(VM_PAGE_SEL_DIRECTMAP);
+         i < vm_page_segs_size;
+         i--) {
+        seg = &vm_page_boot_segs[i];
 
-            if ((boot_seg->avail_end - boot_seg->avail_start) > 1) {
-                pa = boot_seg->avail_start;
-                boot_seg->avail_start += PAGE_SIZE;
-                return pa;
-            }
+        if (size <= vm_page_boot_seg_avail_size(seg)) {
+            pa = seg->avail_start;
+            seg->avail_start += vm_page_round(size);
+            return (void *)vm_page_direct_va(pa);
         }
+    }
 
     panic("vm_page: no physical memory available");
 }
@@ -550,32 +599,35 @@ vm_page_setup(void)
     unsigned int i;
     phys_addr_t pa;
 
+    vm_page_check_boot_segs();
+
     /*
      * Compute the page table size.
      */
     nr_pages = 0;
 
     for (i = 0; i < vm_page_segs_size; i++)
-        nr_pages += vm_page_atop(vm_page_seg_size(&vm_page_segs[i]));
+        nr_pages += vm_page_atop(vm_page_boot_seg_size(&vm_page_boot_segs[i]));
 
-    table_size = P2ROUND(nr_pages * sizeof(struct vm_page), PAGE_SIZE);
+    table_size = vm_page_round(nr_pages * sizeof(struct vm_page));
     printk("vm_page: page table size: %zu entries (%zuk)\n", nr_pages,
            table_size >> 10);
-    table = vm_kmem_bootalloc(table_size);
+    table = vm_page_bootalloc(table_size);
     va = (unsigned long)table;
 
     /*
      * Initialize the segments, associating them to the page table. When
      * the segments are initialized, all their pages are set allocated.
-     * They are then released, which populates the free lists.
+     * Pages are then released, which populates the free lists.
      */
     for (i = 0; i < vm_page_segs_size; i++) {
         seg = &vm_page_segs[i];
         boot_seg = &vm_page_boot_segs[i];
-        vm_page_seg_init(seg, table);
-
-        page = seg->pages + vm_page_atop(boot_seg->avail_start - seg->start);
-        end = seg->pages + vm_page_atop(boot_seg->avail_end - seg->start);
+        vm_page_seg_init(seg, boot_seg->start, boot_seg->end, table);
+        page = seg->pages + vm_page_atop(boot_seg->avail_start
+                                         - boot_seg->start);
+        end = seg->pages + vm_page_atop(boot_seg->avail_end
+                                        - boot_seg->start);
 
         while (page < end) {
             page->type = VM_PAGE_FREE;
@@ -587,7 +639,7 @@ vm_page_setup(void)
     }
 
     while (va < (unsigned long)table) {
-        pa = pmap_extract(kernel_pmap, va);
+        pa = vm_page_direct_pa(va);
         page = vm_page_lookup(pa);
         assert((page != NULL) && (page->type == VM_PAGE_RESERVED));
         page->type = VM_PAGE_TABLE;
@@ -624,35 +676,22 @@ vm_page_lookup(phys_addr_t pa)
 }
 
 struct vm_page *
-vm_page_alloc(unsigned int order, unsigned short type)
+vm_page_alloc(unsigned int order, unsigned int selector, unsigned short type)
 {
-    struct vm_page_seg *seg;
-    struct list *seg_list;
     struct vm_page *page;
+    unsigned int i;
 
-    for (seg_list = &vm_page_seg_lists[ARRAY_SIZE(vm_page_seg_lists) - 1];
-         seg_list >= vm_page_seg_lists;
-         seg_list--)
-        list_for_each_entry(seg_list, seg, node) {
-            page = vm_page_seg_alloc(seg, order, type);
+    for (i = vm_page_select_alloc_seg(selector); i < vm_page_segs_size; i--) {
+        page = vm_page_seg_alloc(&vm_page_segs[i], order, type);
 
-            if (page != NULL)
-                return page;
-        }
+        if (page != NULL)
+            return page;
+    }
 
     if (type == VM_PAGE_PMAP)
         panic("vm_page: unable to allocate pmap page");
 
     return NULL;
-}
-
-struct vm_page *
-vm_page_alloc_seg(unsigned int order, unsigned int seg_index,
-                  unsigned short type)
-{
-    assert(seg_index < vm_page_segs_size);
-
-    return vm_page_seg_alloc(&vm_page_segs[seg_index], order, type);
 }
 
 void
@@ -661,6 +700,22 @@ vm_page_free(struct vm_page *page, unsigned int order)
     assert(page->seg_index < ARRAY_SIZE(vm_page_segs));
 
     vm_page_seg_free(&vm_page_segs[page->seg_index], page, order);
+}
+
+const char *
+vm_page_seg_name(unsigned int seg_index)
+{
+    /* Don't use a switch statement since segments can be aliased */
+    if (seg_index == VM_PAGE_SEG_HIGHMEM)
+        return "HIGHMEM";
+    else if (seg_index == VM_PAGE_SEG_DIRECTMAP)
+        return "DIRECTMAP";
+    else if (seg_index == VM_PAGE_SEG_DMA32)
+        return "DMA32";
+    else if (seg_index == VM_PAGE_SEG_DMA)
+        return "DMA";
+    else
+        panic("vm_page: invalid segment index");
 }
 
 void
@@ -673,8 +728,8 @@ vm_page_info(void)
     for (i = 0; i < vm_page_segs_size; i++) {
         seg = &vm_page_segs[i];
         pages = (unsigned long)(seg->pages_end - seg->pages);
-        printk("vm_page: %s: pages: %lu (%luM), free: %lu (%luM)\n", seg->name,
-               pages, pages >> (20 - PAGE_SHIFT), seg->nr_free_pages,
-               seg->nr_free_pages >> (20 - PAGE_SHIFT));
+        printk("vm_page: %s: pages: %lu (%luM), free: %lu (%luM)\n",
+               vm_page_seg_name(i), pages, pages >> (20 - PAGE_SHIFT),
+               seg->nr_free_pages, seg->nr_free_pages >> (20 - PAGE_SHIFT));
     }
 }
