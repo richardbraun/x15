@@ -32,6 +32,8 @@ error_str(int error)
         return "invalid argument";
     case ERROR_BUSY:
         return "device or resource busy";
+    case ERROR_FAULT:
+        return "Bad address";
     default:
         return "unknown error";
     }

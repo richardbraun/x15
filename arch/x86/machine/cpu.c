@@ -396,13 +396,6 @@ cpu_load_idt(void)
     asm volatile("lidt %0" : : "m" (idtr));
 }
 
-static inline void
-cpu_cpuid(unsigned int *eax, unsigned int *ebx, unsigned int *ecx,
-          unsigned int *edx)
-{
-    asm volatile("cpuid" : "+a" (*eax), "=b" (*ebx), "=c" (*ecx), "=d" (*edx));
-}
-
 /*
  * Initialize the given cpu structure for the current processor.
  */

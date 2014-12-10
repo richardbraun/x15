@@ -110,11 +110,7 @@
  */
 #define PMAP_PEF_GLOBAL 0x1 /* Create a mapping on all processors */
 
-#ifdef X86_PAE
-typedef uint64_t pmap_pte_t;
-#else /* X86_PAE */
-typedef unsigned long pmap_pte_t;
-#endif /* X86_PAE */
+typedef phys_addr_t pmap_pte_t;
 
 /*
  * Physical address map.
@@ -151,15 +147,6 @@ void pmap_bootstrap(void);
 void pmap_ap_bootstrap(void);
 
 /*
- * Allocate pure virtual memory.
- *
- * This memory is obtained from a very small pool of reserved pages located
- * immediately after the kernel. Its purpose is to allow early mappings to
- * be created before the VM system is available.
- */
-unsigned long pmap_bootalloc(unsigned int nr_pages);
-
-/*
  * Set up the pmap module.
  *
  * This function should only be called by the VM system, once kernel
@@ -183,6 +170,14 @@ void pmap_mp_setup(void);
  * Initialize pmap thread-specific data for the given thread.
  */
 int pmap_thread_init(struct thread *thread);
+
+/*
+ * Extract a mapping from the kernel map.
+ *
+ * This function walks the page tables to retrieve the physical address
+ * mapped at the given virtual address.
+ */
+int pmap_kextract(unsigned long va, phys_addr_t *pap);
 
 /*
  * Create a pmap for a user task.
@@ -213,15 +208,6 @@ void pmap_remove(struct pmap *pmap, unsigned long va,
  */
 void pmap_protect(struct pmap *pmap, unsigned long va, int prot,
                   const struct cpumap *cpumap);
-
-/*
- * Extract a mapping from a physical map.
- *
- * This function walks the page tables to retrieve the physical address
- * mapped at the given virtual address. If there is no mapping for the
- * virtual address, 0 is returned (implying that page 0 is always reserved).
- */
-phys_addr_t pmap_extract(struct pmap *pmap, unsigned long va);
 
 /*
  * Force application of pending modifications on a physical map.

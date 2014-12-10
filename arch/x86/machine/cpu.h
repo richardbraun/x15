@@ -39,6 +39,7 @@
 /*
  * Control register 4 flags.
  */
+#define CPU_CR4_PSE 0x00000010
 #define CPU_CR4_PAE 0x00000020
 #define CPU_CR4_PGE 0x00000080
 
@@ -60,13 +61,18 @@
 #define CPU_EFER_LME    0x00000100
 
 /*
- * Flags in the feature2 member.
+ * Feature2 flags.
+ *
+ * TODO Better names.
  */
 #define CPU_FEATURE2_FPU    0x00000001
+#define CPU_FEATURE2_PSE    0x00000008
+#define CPU_FEATURE2_PAE    0x00000040
 #define CPU_FEATURE2_MSR    0x00000020
 #define CPU_FEATURE2_APIC   0x00000200
 #define CPU_FEATURE2_PGE    0x00002000
 
+#define CPU_FEATURE4_1GP    0x04000000
 #define CPU_FEATURE4_LM     0x20000000
 
 /*
@@ -413,6 +419,12 @@ cpu_from_id(unsigned int cpu)
 }
 
 static __always_inline void
+cpu_enable_pse(void)
+{
+    cpu_set_cr4(cpu_get_cr4() | CPU_CR4_PSE);
+}
+
+static __always_inline void
 cpu_enable_pae(void)
 {
     cpu_set_cr4(cpu_get_cr4() | CPU_CR4_PAE);
@@ -436,6 +448,20 @@ static __always_inline void
 cpu_enable_global_pages(void)
 {
     cpu_set_cr4(cpu_get_cr4() | CPU_CR4_PGE);
+}
+
+/*
+ * CPUID instruction wrapper.
+ *
+ * The CPUID instruction is a serializing instruction, implying a full
+ * memory barrier.
+ */
+static __always_inline void
+cpu_cpuid(unsigned int *eax, unsigned int *ebx, unsigned int *ecx,
+          unsigned int *edx)
+{
+    asm volatile("cpuid" : "+a" (*eax), "=b" (*ebx), "=c" (*ecx), "=d" (*edx)
+                 : : "memory");
 }
 
 static __always_inline void
