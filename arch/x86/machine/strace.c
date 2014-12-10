@@ -82,6 +82,7 @@ strace_show(unsigned long ip, unsigned long bp)
     phys_addr_t pa;
     void **frame;
     unsigned int i;
+    int error;
 
     printk("strace: stack trace:\n");
     strace_show_one(0, ip);
@@ -93,17 +94,17 @@ strace_show(unsigned long ip, unsigned long bp)
         if (frame == NULL)
             break;
 
-        pa = pmap_extract(kernel_pmap, (unsigned long)&frame[1]);
+        error = pmap_kextract((unsigned long)&frame[1], &pa);
 
-        if (pa == 0) {
+        if (error) {
             printk("strace: unmapped return address at %p\n", &frame[1]);
             break;
         }
 
         strace_show_one(i, (unsigned long)frame[1]);
-        pa = pmap_extract(kernel_pmap, (unsigned long)frame);
+        error = pmap_kextract((unsigned long)frame, &pa);
 
-        if (pa == 0) {
+        if (error) {
             printk("strace: unmapped frame address at %p\n", frame);
             break;
         }
