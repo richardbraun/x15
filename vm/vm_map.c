@@ -17,17 +17,6 @@
  *
  * XXX This module is far from complete. It just provides the basic support
  * needed for kernel allocation.
- *
- *
- * In order to avoid recursion on memory allocation (allocating memory may
- * require allocating memory), kernel map entries are allocated out of a
- * special pool called the kentry area, which is used as the backend for
- * the kernel map entries kmem cache. This virtual area has a fixed size
- * and is preallocated at boot time (a single map entry reserves the whole
- * range). To manage slabs inside the kentry area, a table is also preallocated
- * at the end of the kentry area. Each entry in this table describes a slab
- * (either free or used by the slab allocator). Free slabs are linked together
- * in a simple free list.
  */
 
 #include <kern/assert.h>
@@ -73,18 +62,6 @@ struct vm_map_request {
     struct vm_map_entry *next;
 };
 
-/*
- * TODO Common memory patterns.
- */
-#define VM_MAP_KENTRY_ALLOCATED ((struct vm_map_kentry_slab *)0xa110c8edUL)
-
-/*
- * Slab descriptor in the kentry table.
- */
-struct vm_map_kentry_slab {
-    struct vm_map_kentry_slab *next;
-};
-
 static int vm_map_prepare(struct vm_map *map, unsigned long start,
                           size_t size, size_t align, int flags,
                           struct vm_object *object, uint64_t offset,
@@ -93,237 +70,17 @@ static int vm_map_prepare(struct vm_map *map, unsigned long start,
 static int vm_map_insert(struct vm_map *map, struct vm_map_entry *entry,
                          const struct vm_map_request *request);
 
-/*
- * Statically allocated map entry for the first kernel map entry.
- */
-static struct vm_map_entry vm_map_kernel_entry __read_mostly;
-
-/*
- * Statically allocated map entry for the kentry area.
- */
-static struct vm_map_entry vm_map_kentry_entry __read_mostly;
-
-/*
- * Kentry slab free list.
- */
-static struct mutex vm_map_kentry_free_slabs_lock;
-static struct vm_map_kentry_slab *vm_map_kentry_free_slabs;
-
-#ifdef NDEBUG
-#define vm_map_kentry_slab_size 0
-#else /* NDEBUG */
-static size_t vm_map_kentry_slab_size __read_mostly;
-#endif /* NDEBUG */
-
-/*
- * Cache for kernel map entries.
- */
-static struct kmem_cache vm_map_kentry_cache;
-
-/*
- * Caches for normal map entries and maps.
- */
 static struct kmem_cache vm_map_entry_cache;
 static struct kmem_cache vm_map_cache;
 
-static struct vm_map_kentry_slab *
-vm_map_kentry_alloc_slab(void)
-{
-    struct vm_map_kentry_slab *slab;
-
-    if (vm_map_kentry_free_slabs == NULL)
-        panic("vm_map: kentry area exhausted");
-
-    mutex_lock(&vm_map_kentry_free_slabs_lock);
-    slab = vm_map_kentry_free_slabs;
-    vm_map_kentry_free_slabs = slab->next;
-    mutex_unlock(&vm_map_kentry_free_slabs_lock);
-
-    assert(slab->next != VM_MAP_KENTRY_ALLOCATED);
-    slab->next = VM_MAP_KENTRY_ALLOCATED;
-    return slab;
-}
-
-static void
-vm_map_kentry_free_slab(struct vm_map_kentry_slab *slab)
-{
-    assert(slab->next == VM_MAP_KENTRY_ALLOCATED);
-
-    mutex_lock(&vm_map_kentry_free_slabs_lock);
-    slab->next = vm_map_kentry_free_slabs;
-    vm_map_kentry_free_slabs = slab;
-    mutex_unlock(&vm_map_kentry_free_slabs_lock);
-}
-
-static struct vm_map_kentry_slab *
-vm_map_kentry_slab_table(void)
-{
-    unsigned long va;
-
-    va = vm_map_kentry_entry.start + VM_MAP_KENTRY_SIZE;
-    return (struct vm_map_kentry_slab *)va;
-}
-
-static unsigned long
-vm_map_kentry_alloc_va(size_t slab_size)
-{
-    struct vm_map_kentry_slab *slabs, *slab;
-    unsigned long va;
-
-    slabs = vm_map_kentry_slab_table();
-    slab = vm_map_kentry_alloc_slab();
-    va = vm_map_kentry_entry.start + ((slab - slabs) * slab_size);
-    return va;
-}
-
-static void
-vm_map_kentry_free_va(unsigned long va, size_t slab_size)
-{
-    struct vm_map_kentry_slab *slabs, *slab;
-
-    slabs = vm_map_kentry_slab_table();
-    slab = &slabs[(va - vm_map_kentry_entry.start) / slab_size];
-    vm_map_kentry_free_slab(slab);
-}
-
-static void *
-vm_map_kentry_alloc(size_t slab_size)
-{
-    struct vm_page *page;
-    unsigned long va;
-    size_t i;
-
-    assert(slab_size == vm_map_kentry_slab_size);
-
-    va = vm_map_kentry_alloc_va(slab_size);
-    assert(va >= vm_map_kentry_entry.start);
-    assert((va + slab_size) <= (vm_map_kentry_entry.start
-                                + VM_MAP_KENTRY_SIZE));
-
-    for (i = 0; i < slab_size; i += PAGE_SIZE) {
-        page = vm_page_alloc(0, VM_PAGE_KENTRY);
-
-        if (page == NULL)
-            panic("vm_map: no physical page for kentry cache");
-
-        pmap_enter(kernel_pmap, va + i, vm_page_to_pa(page),
-                   VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
-    }
-
-    pmap_update(kernel_pmap);
-    return (void *)va;
-}
-
-static void
-vm_map_kentry_free(void *addr, size_t slab_size)
-{
-    const struct cpumap *cpumap;
-    struct vm_page *page;
-    phys_addr_t pa;
-    unsigned long va, end;
-    size_t i;
-
-    va = (unsigned long)addr;
-    assert(va >= vm_map_kentry_entry.start);
-    assert((va + slab_size) <= (vm_map_kentry_entry.start
-                                + VM_MAP_KENTRY_SIZE));
-    assert(slab_size == vm_map_kentry_slab_size);
-
-    for (i = 0; i < slab_size; i += PAGE_SIZE) {
-        pa = pmap_extract(kernel_pmap, va + i);
-        assert(pa != 0);
-        page = vm_page_lookup(pa);
-        assert(page != NULL);
-        vm_page_free(page, 0);
-    }
-
-    cpumap = cpumap_all();
-    end = va + slab_size;
-
-    while (va < end) {
-        pmap_remove(kernel_pmap, va, cpumap);
-        va += PAGE_SIZE;
-    }
-
-    pmap_update(kernel_pmap);
-    vm_map_kentry_free_va(va, slab_size);
-}
-
-static void __init
-vm_map_kentry_setup(void)
-{
-    struct vm_map_request request;
-    struct vm_map_kentry_slab *slabs;
-    struct vm_page *page;
-    size_t i, nr_slabs, size, nr_pages;
-    unsigned long table_va;
-    int error, flags;
-
-    flags = KMEM_CACHE_NOCPUPOOL | KMEM_CACHE_NOOFFSLAB;
-    kmem_cache_init(&vm_map_kentry_cache, "vm_map_kentry",
-                    sizeof(struct vm_map_entry), 0, NULL,
-                    vm_map_kentry_alloc, vm_map_kentry_free, flags);
-
-    size = kmem_cache_slab_size(&vm_map_kentry_cache);
-#ifndef NDEBUG
-    vm_map_kentry_slab_size = size;
-#endif /* NDEBUG */
-    nr_slabs = VM_MAP_KENTRY_SIZE / size;
-    assert(nr_slabs > 0);
-    size = vm_page_round(nr_slabs * sizeof(struct vm_map_kentry_slab));
-    nr_pages = size / PAGE_SIZE;
-    assert(nr_pages > 0);
-
-    assert(vm_page_aligned(VM_MAP_KENTRY_SIZE));
-    flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
-                         VM_ADV_DEFAULT, VM_MAP_NOMERGE);
-    error = vm_map_prepare(kernel_map, 0, VM_MAP_KENTRY_SIZE + size, 0, flags,
-                           NULL, 0, &request);
-
-    if (error)
-        panic("vm_map: kentry mapping setup failed");
-
-    error = vm_map_insert(kernel_map, &vm_map_kentry_entry, &request);
-    assert(!error);
-
-    table_va = vm_map_kentry_entry.start + VM_MAP_KENTRY_SIZE;
-
-    for (i = 0; i < nr_pages; i++) {
-        page = vm_page_alloc(0, VM_PAGE_KENTRY);
-
-        if (page == NULL)
-            panic("vm_map: unable to allocate page for kentry table");
-
-        pmap_enter(kernel_pmap, table_va + (i * PAGE_SIZE), vm_page_to_pa(page),
-                   VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
-    }
-
-    pmap_update(kernel_pmap);
-
-    mutex_init(&vm_map_kentry_free_slabs_lock);
-    slabs = (struct vm_map_kentry_slab *)table_va;
-    vm_map_kentry_free_slabs = &slabs[nr_slabs - 1];
-    vm_map_kentry_free_slabs->next = NULL;
-
-    for (i = nr_slabs - 2; i < nr_slabs; i--) {
-        slabs[i].next = vm_map_kentry_free_slabs;
-        vm_map_kentry_free_slabs = &slabs[i];
-    }
-}
-
-static inline struct kmem_cache *
-vm_map_entry_select_cache(const struct vm_map *map)
-{
-    return (map == kernel_map) ? &vm_map_kentry_cache : &vm_map_entry_cache;
-}
-
 static struct vm_map_entry *
-vm_map_entry_create(const struct vm_map *map)
+vm_map_entry_create(void)
 {
     struct vm_map_entry *entry;
 
-    entry = kmem_cache_alloc(vm_map_entry_select_cache(map));
+    entry = kmem_cache_alloc(&vm_map_entry_cache);
 
+    /* TODO Handle error */
     if (entry == NULL)
         panic("vm_map: can't create map entry");
 
@@ -331,9 +88,9 @@ vm_map_entry_create(const struct vm_map *map)
 }
 
 static void
-vm_map_entry_destroy(struct vm_map_entry *entry, const struct vm_map *map)
+vm_map_entry_destroy(struct vm_map_entry *entry)
 {
-    kmem_cache_free(vm_map_entry_select_cache(map), entry);
+    kmem_cache_free(&vm_map_entry_cache, entry);
 }
 
 static inline int
@@ -710,7 +467,7 @@ vm_map_try_merge_near(struct vm_map *map, const struct vm_map_request *request,
         vm_map_unlink(map, first);
         vm_map_unlink(map, second);
         first->end = second->end;
-        vm_map_entry_destroy(second, map);
+        vm_map_entry_destroy(second);
         vm_map_link(map, first, prev, next);
         return first;
     }
@@ -770,7 +527,7 @@ vm_map_insert(struct vm_map *map, struct vm_map_entry *entry,
         if (entry != NULL)
             goto out;
 
-        entry = vm_map_entry_create(map);
+        entry = vm_map_entry_create();
     }
 
     entry->start = request->start;
@@ -842,7 +599,7 @@ vm_map_clip_start(struct vm_map *map, struct vm_map_entry *entry,
 
     next = vm_map_next(map, entry);
     vm_map_unlink(map, entry);
-    new_entry = vm_map_entry_create(map);
+    new_entry = vm_map_entry_create();
     *new_entry = *entry;
     vm_map_split_entries(new_entry, entry, start);
     vm_map_link(map, entry, NULL, next);
@@ -860,7 +617,7 @@ vm_map_clip_end(struct vm_map *map, struct vm_map_entry *entry,
 
     prev = vm_map_prev(map, entry);
     vm_map_unlink(map, entry);
-    new_entry = vm_map_entry_create(map);
+    new_entry = vm_map_entry_create();
     *new_entry = *entry;
     vm_map_split_entries(entry, new_entry, end);
     vm_map_link(map, entry, prev, NULL);
@@ -893,7 +650,7 @@ vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end)
         vm_map_unlink(map, entry);
 
         /* TODO Defer destruction to shorten critical section */
-        vm_map_entry_destroy(entry, map);
+        vm_map_entry_destroy(entry);
 
         if (list_end(&map->entry_list, node))
             break;
@@ -930,35 +687,12 @@ vm_map_init(struct vm_map *map, struct pmap *pmap,
 void __init
 vm_map_setup(void)
 {
-    struct vm_map_request request;
-    unsigned long start, end;
-    int error, flags;
-
-    vm_map_init(kernel_map, kernel_pmap, VM_MIN_KERNEL_ADDRESS,
-                VM_MAX_KERNEL_ADDRESS);
-
-    /*
-     * Create the initial kernel mapping. This reserves memory for at least
-     * the physical page table.
-     */
-    vm_kmem_boot_space(&start, &end);
-    flags = VM_MAP_FLAGS(VM_PROT_ALL, VM_PROT_ALL, VM_INHERIT_NONE,
-                         VM_ADV_DEFAULT, VM_MAP_NOMERGE | VM_MAP_FIXED);
-    error = vm_map_prepare(kernel_map, start, end - start, 0, flags, NULL, 0,
-                           &request);
-
-    if (error)
-        panic("vm_map: can't map initial kernel mapping");
-
-    error = vm_map_insert(kernel_map, &vm_map_kernel_entry, &request);
-    assert(!error);
-
-    vm_map_kentry_setup();
-
+    vm_map_init(kernel_map, kernel_pmap,
+                VM_MIN_KMEM_ADDRESS, VM_MAX_KMEM_ADDRESS);
     kmem_cache_init(&vm_map_entry_cache, "vm_map_entry",
-                    sizeof(struct vm_map_entry), 0, NULL, NULL, NULL, 0);
+                    sizeof(struct vm_map_entry), 0, NULL, 0);
     kmem_cache_init(&vm_map_cache, "vm_map", sizeof(struct vm_map),
-                    0, NULL, NULL, NULL, 0);
+                    0, NULL, 0);
 }
 
 int
