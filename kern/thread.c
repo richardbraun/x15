@@ -1812,9 +1812,9 @@ thread_setup(void)
         thread_bootstrap_common(cpu);
 
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
-                    CPU_L1_SIZE, NULL, NULL, NULL, 0);
+                    CPU_L1_SIZE, NULL, 0);
     kmem_cache_init(&thread_stack_cache, "thread_stack", STACK_SIZE,
-                    DATA_ALIGN, NULL, NULL, NULL, 0);
+                    DATA_ALIGN, NULL, 0);
 
     thread_setup_reaper();
 
