@@ -24,9 +24,9 @@
  * The kernel space is required not to start at address 0, which is used to
  * report allocation errors.
  */
-#if VM_MIN_KERNEL_ADDRESS == 0
+#if VM_MIN_KMEM_ADDRESS == 0
 #error "kernel space must not start at address 0"
-#endif
+#endif /* VM_MIN_KMEM_ADDRESS == 0 */
 
 /*
  * Special kernel addresses.
@@ -40,24 +40,6 @@ extern char _end;
  * The kernel map.
  */
 extern struct vm_map *kernel_map;
-
-/*
- * Initialize the vm_kmem module.
- */
-void vm_kmem_setup(void);
-
-/*
- * Early kernel memory allocator.
- *
- * The main purpose of this function is to allow the allocation of the
- * physical page table.
- */
-void * vm_kmem_bootalloc(size_t size);
-
-/*
- * Return the range of initial virtual memory used by the kernel.
- */
-void vm_kmem_boot_space(unsigned long *startp, unsigned long *endp);
 
 /*
  * Return the page descriptor for the physical page mapped at va in kernel

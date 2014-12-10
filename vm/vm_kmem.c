@@ -36,52 +36,6 @@
 static struct vm_map kernel_map_store;
 struct vm_map *kernel_map __read_mostly = &kernel_map_store;
 
-/*
- * Heap boundaries during bootstrap.
- */
-static unsigned long vm_kmem_boot_start __initdata;
-static unsigned long vm_kmem_boot_end __initdata;
-
-void __init
-vm_kmem_setup(void)
-{
-    vm_kmem_boot_start = VM_MIN_KERNEL_ADDRESS;
-    vm_kmem_boot_end = VM_MAX_KERNEL_ADDRESS;
-}
-
-void * __init
-vm_kmem_bootalloc(size_t size)
-{
-    unsigned long start, va;
-    phys_addr_t pa;
-
-    assert(size > 0);
-
-    size = vm_page_round(size);
-
-    if ((vm_kmem_boot_end - vm_kmem_boot_start) < size)
-        panic("vm_kmem: no virtual space available");
-
-    start = vm_kmem_boot_start;
-    vm_kmem_boot_start += size;
-
-    for (va = start; va < vm_kmem_boot_start; va += PAGE_SIZE) {
-        pa = vm_page_bootalloc();
-        pmap_enter(kernel_pmap, va, pa, VM_PROT_READ | VM_PROT_WRITE,
-                   PMAP_PEF_GLOBAL);
-    }
-
-    pmap_update(kernel_pmap);
-    return (void *)start;
-}
-
-void __init
-vm_kmem_boot_space(unsigned long *startp, unsigned long *endp)
-{
-    *startp = VM_MIN_KERNEL_ADDRESS;
-    *endp = vm_kmem_boot_start;
-}
-
 struct vm_page *
 vm_kmem_lookup_page(const void *addr)
 {
@@ -156,7 +110,7 @@ vm_kmem_alloc(size_t size)
         return 0;
 
     for (start = va, end = va + size; start < end; start += PAGE_SIZE) {
-        page = vm_page_alloc(0, VM_PAGE_KMEM);
+        page = vm_page_alloc(0, VM_PAGE_SEL_HIGHMEM, VM_PAGE_KERNEL);
 
         if (page == NULL)
             goto error_page;
