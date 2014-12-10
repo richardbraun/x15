@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -158,10 +158,9 @@ struct kmem_slab {
  *
  * The flags don't change once set and can be tested without locking.
  */
-#define KMEM_CF_NO_CPU_POOL     0x1 /* CPU pool layer disabled */
-#define KMEM_CF_SLAB_EXTERNAL   0x2 /* Slab data is off slab */
-#define KMEM_CF_VERIFY          0x4 /* Debugging facilities enabled */
-#define KMEM_CF_DIRECT          0x8 /* Quick buf-to-slab lookup */
+#define KMEM_CF_SLAB_EXTERNAL   0x1 /* Slab data is off slab */
+#define KMEM_CF_VERIFY          0x2 /* Debugging facilities enabled */
+#define KMEM_CF_DIRECT          0x4 /* Quick buf-to-slab lookup */
 
 /*
  * Cache of objects.
@@ -183,6 +182,7 @@ struct kmem_cache {
     size_t align;
     size_t buf_size;    /* Aligned object size */
     size_t bufctl_dist; /* Distance from buffer to bufctl */
+    unsigned int slab_order;
     size_t slab_size;
     size_t color;
     size_t color_max;
@@ -192,8 +192,6 @@ struct kmem_cache {
     unsigned long nr_slabs;
     unsigned long nr_free_slabs;
     kmem_ctor_fn_t ctor;
-    kmem_slab_alloc_fn_t slab_alloc_fn;
-    kmem_slab_free_fn_t slab_free_fn;
     char name[KMEM_NAME_SIZE];
     size_t buftag_dist; /* Distance from buffer to buftag */
     size_t redzone_pad; /* Bytes from end of object to redzone word */

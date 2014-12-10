@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,22 +40,13 @@ struct kmem_cache;
  */
 typedef void (*kmem_ctor_fn_t)(void *);
 
-/*
- * Types for slab allocation/free functions.
- *
- * All addresses and sizes must be page-aligned.
- */
-typedef void * (*kmem_slab_alloc_fn_t)(size_t);
-typedef void (*kmem_slab_free_fn_t)(void *, size_t);
-
 #include <kern/kmem_i.h>
 
 /*
  * Cache creation flags.
  */
-#define KMEM_CACHE_NOCPUPOOL    0x1 /* Don't use the per-CPU pools */
-#define KMEM_CACHE_NOOFFSLAB    0x2 /* Don't allocate external slab data */
-#define KMEM_CACHE_VERIFY       0x4 /* Use debugging facilities */
+#define KMEM_CACHE_NOOFFSLAB    0x1 /* Don't allocate external slab data */
+#define KMEM_CACHE_VERIFY       0x2 /* Use debugging facilities */
 
 /*
  * Initialize a cache.
@@ -65,14 +56,7 @@ typedef void (*kmem_slab_free_fn_t)(void *, size_t);
  */
 void kmem_cache_init(struct kmem_cache *cache, const char *name,
                      size_t obj_size, size_t align, kmem_ctor_fn_t ctor,
-                     kmem_slab_alloc_fn_t slab_alloc_fn,
-                     kmem_slab_free_fn_t slab_free_fn, int flags);
-
-static inline size_t
-kmem_cache_slab_size(struct kmem_cache *cache)
-{
-    return cache->slab_size;
-}
+                     int flags);
 
 /*
  * Allocate an object from a cache.
@@ -95,8 +79,7 @@ void kmem_cache_info(struct kmem_cache *cache);
  * Set up the kernel memory allocator module.
  *
  * This function should only be called by the VM system. Once it returns,
- * caches can be initialized, but those using the default backend can only
- * operate once the VM system is sufficiently ready.
+ * caches can be initialized.
  */
 void kmem_setup(void);
 
