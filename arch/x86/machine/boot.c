@@ -93,6 +93,57 @@ static char boot_panic_loader_msg[] __bootdata
 static char boot_panic_meminfo_msg[] __bootdata
     = "boot: missing basic memory information";
 
+void * __boot
+boot_memmove(void *dest, const void *src, size_t n)
+{
+    const char *src_ptr;
+    char *dest_ptr;
+    size_t i;
+
+    if (dest <= src) {
+        dest_ptr = dest;
+        src_ptr = src;
+
+        for (i = 0; i < n; i++)
+            *dest_ptr++ = *src_ptr++;
+    } else {
+        dest_ptr = dest + n - 1;
+        src_ptr = src + n - 1;
+
+        for (i = 0; i < n; i++)
+            *dest_ptr-- = *src_ptr--;
+    }
+
+    return dest;
+}
+
+void * __boot
+boot_memset(void *s, int c, size_t n)
+{
+    char *buffer;
+    size_t i;
+
+    buffer = s;
+
+    for (i = 0; i < n; i++)
+        buffer[i] = c;
+
+    return s;
+}
+
+size_t __boot
+boot_strlen(const char *s)
+{
+    size_t i;
+
+    i = 0;
+
+    while (*s++ != '\0')
+        i++;
+
+    return i;
+}
+
 void __boot
 boot_panic(const char *msg)
 {

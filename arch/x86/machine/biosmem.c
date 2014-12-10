@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,6 +61,19 @@ struct biosmem_map_entry {
 };
 
 /*
+ * Contiguous block of physical memory.
+ *
+ * Tha "available" range records what has been passed to the VM system as
+ * available inside the segment.
+ */
+struct biosmem_segment {
+    phys_addr_t start;
+    phys_addr_t end;
+    phys_addr_t avail_start;
+    phys_addr_t avail_end;
+};
+
+/*
  * Memory map built from the information passed by the boot loader.
  *
  * If the boot loader didn't pass a valid memory map, a simple map is built
@@ -68,21 +81,28 @@ struct biosmem_map_entry {
  */
 static struct biosmem_map_entry biosmem_map[BIOSMEM_MAX_MAP_SIZE * 2]
     __bootdata;
-
-/*
- * Number of valid entries in the BIOS memory map table.
- */
 static unsigned int biosmem_map_size __bootdata;
 
 /*
+ * Physical segment boundaries.
+ */
+static struct biosmem_segment biosmem_segments[VM_PAGE_MAX_SEGS] __bootdata;
+
+/*
  * Boundaries of the simple bootstrap heap.
+ *
+ * This heap is located above BIOS memory.
  */
 static uint32_t biosmem_heap_start __bootdata;
-static uint32_t biosmem_heap_free __bootdata;
+static uint32_t biosmem_heap_cur __bootdata;
 static uint32_t biosmem_heap_end __bootdata;
 
+static char biosmem_panic_toobig_msg[] __bootdata
+    = "biosmem: too many memory map entries";
 static char biosmem_panic_setup_msg[] __bootdata
     = "biosmem: unable to set up the early memory allocator";
+static char biosmem_panic_noseg_msg[] __bootdata
+    = "biosmem: unable to find any memory segment";
 static char biosmem_panic_inval_msg[] __bootdata
     = "biosmem: attempt to allocate 0 page";
 static char biosmem_panic_nomem_msg[] __bootdata
@@ -130,6 +150,241 @@ biosmem_map_build_simple(const struct multiboot_raw_info *mbi)
     entry->type = BIOSMEM_TYPE_AVAILABLE;
 
     biosmem_map_size = 2;
+}
+
+static int __boot
+biosmem_map_entry_is_invalid(const struct biosmem_map_entry *entry)
+{
+    return (entry->base_addr + entry->length) <= entry->base_addr;
+}
+
+static void __boot
+biosmem_map_filter(void)
+{
+    struct biosmem_map_entry *entry;
+    unsigned int i;
+
+    i = 0;
+
+    while (i < biosmem_map_size) {
+        entry = &biosmem_map[i];
+
+        if (biosmem_map_entry_is_invalid(entry)) {
+            biosmem_map_size--;
+            boot_memmove(entry, entry + 1,
+                         (biosmem_map_size - i) * sizeof(*entry));
+            continue;
+        }
+
+        i++;
+    }
+}
+
+static void __boot
+biosmem_map_sort(void)
+{
+    struct biosmem_map_entry tmp;
+    unsigned int i, j;
+
+    /*
+     * Simple insertion sort.
+     */
+    for (i = 1; i < biosmem_map_size; i++) {
+        tmp = biosmem_map[i];
+
+        for (j = i - 1; j < i; j--) {
+            if (biosmem_map[j].base_addr < tmp.base_addr)
+                break;
+
+            biosmem_map[j + 1] = biosmem_map[j];
+        }
+
+        biosmem_map[j + 1] = tmp;
+    }
+}
+
+static void __boot
+biosmem_map_adjust(void)
+{
+    struct biosmem_map_entry tmp, *a, *b, *first, *second;
+    uint64_t a_end, b_end, last_end;
+    unsigned int i, j, last_type;
+
+    biosmem_map_filter();
+
+    /*
+     * Resolve overlapping areas, giving priority to most restrictive
+     * (i.e. numerically higher) types.
+     */
+    for (i = 0; i < biosmem_map_size; i++) {
+        a = &biosmem_map[i];
+        a_end = a->base_addr + a->length;
+
+        j = i + 1;
+
+        while (j < biosmem_map_size) {
+            b = &biosmem_map[j];
+            b_end = b->base_addr + b->length;
+
+            if ((a->base_addr >= b_end) || (a_end <= b->base_addr)) {
+                j++;
+                continue;
+            }
+
+            if (a->base_addr < b->base_addr) {
+                first = a;
+                second = b;
+            } else {
+                first = b;
+                second = a;
+            }
+
+            if (a_end > b_end) {
+                last_end = a_end;
+                last_type = a->type;
+            } else {
+                last_end = b_end;
+                last_type = b->type;
+            }
+
+            tmp.base_addr = second->base_addr;
+            tmp.length = MIN(a_end, b_end) - tmp.base_addr;
+            tmp.type = MAX(a->type, b->type);
+            first->length = tmp.base_addr - first->base_addr;
+            second->base_addr += tmp.length;
+            second->length = last_end - second->base_addr;
+            second->type = last_type;
+
+            /*
+             * Filter out invalid entries.
+             */
+            if (biosmem_map_entry_is_invalid(a)
+                && biosmem_map_entry_is_invalid(b)) {
+                *a = tmp;
+                biosmem_map_size--;
+                memmove(b, b + 1, (biosmem_map_size - j) * sizeof(*b));
+                continue;
+            } else if (biosmem_map_entry_is_invalid(a)) {
+                *a = tmp;
+                j++;
+                continue;
+            } else if (biosmem_map_entry_is_invalid(b)) {
+                *b = tmp;
+                j++;
+                continue;
+            }
+
+            if (tmp.type == a->type)
+                first = a;
+            else if (tmp.type == b->type)
+                first = b;
+            else {
+
+                /*
+                 * If the overlapping area can't be merged with one of its
+                 * neighbors, it must be added as a new entry.
+                 */
+
+                if (biosmem_map_size >= ARRAY_SIZE(biosmem_map))
+                    boot_panic(biosmem_panic_toobig_msg);
+
+                biosmem_map[biosmem_map_size] = tmp;
+                biosmem_map_size++;
+                j++;
+                continue;
+            }
+
+            if (first->base_addr > tmp.base_addr)
+                first->base_addr = tmp.base_addr;
+
+            first->length += tmp.length;
+            j++;
+        }
+    }
+
+    biosmem_map_sort();
+}
+
+static int __boot
+biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
+{
+    const struct biosmem_map_entry *entry, *map_end;
+    phys_addr_t seg_start, seg_end;
+    uint64_t start, end;
+
+    seg_start = (phys_addr_t)-1;
+    seg_end = (phys_addr_t)-1;
+    map_end = biosmem_map + biosmem_map_size;
+
+    for (entry = biosmem_map; entry < map_end; entry++) {
+        if (entry->type != BIOSMEM_TYPE_AVAILABLE)
+            continue;
+
+        start = vm_page_round(entry->base_addr);
+
+        if (start >= *phys_end)
+            break;
+
+        end = vm_page_trunc(entry->base_addr + entry->length);
+
+        if ((start < end) && (start < *phys_end) && (end > *phys_start)) {
+            if (seg_start == (phys_addr_t)-1)
+                seg_start = start;
+
+            seg_end = end;
+        }
+    }
+
+    if ((seg_start == (phys_addr_t)-1) || (seg_end == (phys_addr_t)-1))
+        return -1;
+
+    if (seg_start > *phys_start)
+        *phys_start = seg_start;
+
+    if (seg_end < *phys_end)
+        *phys_end = seg_end;
+
+    return 0;
+}
+
+static void __boot
+biosmem_set_segment(unsigned int seg_index, phys_addr_t start, phys_addr_t end)
+{
+    biosmem_segments[seg_index].start = start;
+    biosmem_segments[seg_index].end = end;
+}
+
+static phys_addr_t __boot
+biosmem_segment_end(unsigned int seg_index)
+{
+    return biosmem_segments[seg_index].end;
+}
+
+static phys_addr_t __boot
+biosmem_segment_size(unsigned int seg_index)
+{
+    return biosmem_segments[seg_index].end - biosmem_segments[seg_index].start;
+}
+
+static void __boot
+biosmem_save_cmdline_sizes(struct multiboot_raw_info *mbi)
+{
+    struct multiboot_raw_module *mod;
+    uint32_t i;
+
+    if (mbi->flags & MULTIBOOT_LOADER_CMDLINE)
+        mbi->unused0 = boot_strlen((char *)(unsigned long)mbi->cmdline) + 1;
+
+    if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
+        unsigned long addr;
+
+        addr = mbi->mods_addr;
+
+        for (i = 0; i < mbi->mods_count; i++) {
+            mod = (struct multiboot_raw_module *)addr + i;
+            mod->reserved = boot_strlen((char *)(unsigned long)mod->string) + 1;
+        }
+    }
 }
 
 static void __boot
@@ -227,6 +482,12 @@ biosmem_setup_allocator(struct multiboot_raw_info *mbi)
      * upper memory, carefully avoiding all boot data.
      */
     mem_end = vm_page_trunc((mbi->mem_upper + 1024) << 10);
+
+#ifndef __LP64__
+    if (mem_end > VM_PAGE_DIRECTMAP_LIMIT)
+        mem_end = VM_PAGE_DIRECTMAP_LIMIT;
+#endif /* __LP64__ */
+
     max_heap_start = 0;
     max_heap_end = 0;
     next = BIOSMEM_END;
@@ -253,53 +514,62 @@ biosmem_setup_allocator(struct multiboot_raw_info *mbi)
         boot_panic(biosmem_panic_setup_msg);
 
     biosmem_heap_start = max_heap_start;
-    biosmem_heap_free = max_heap_start;
     biosmem_heap_end = max_heap_end;
-}
-
-static uint32_t __boot
-biosmem_strlen(uint32_t addr)
-{
-    const char *s;
-    uint32_t i;
-
-    s = (void *)(unsigned long)addr;
-    i = 0;
-
-    while (*s++ != '\0')
-        i++;
-
-    return i;
-}
-
-static void __boot
-biosmem_save_cmdline_sizes(struct multiboot_raw_info *mbi)
-{
-    struct multiboot_raw_module *mod;
-    uint32_t i;
-
-    if (mbi->flags & MULTIBOOT_LOADER_CMDLINE)
-        mbi->unused0 = biosmem_strlen(mbi->cmdline) + 1;
-
-    if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
-        unsigned long addr;
-
-        addr = mbi->mods_addr;
-
-        for (i = 0; i < mbi->mods_count; i++) {
-            mod = (struct multiboot_raw_module *)addr + i;
-            mod->reserved = biosmem_strlen(mod->string) + 1;
-        }
-    }
+    biosmem_heap_cur = biosmem_heap_end;
 }
 
 void __boot
 biosmem_bootstrap(struct multiboot_raw_info *mbi)
 {
+    phys_addr_t phys_start, phys_end;
+    int error;
+
     if (mbi->flags & MULTIBOOT_LOADER_MMAP)
         biosmem_map_build(mbi);
     else
         biosmem_map_build_simple(mbi);
+
+    biosmem_map_adjust();
+
+    phys_start = BIOSMEM_BASE;
+    phys_end = VM_PAGE_DMA_LIMIT;
+    error = biosmem_map_find_avail(&phys_start, &phys_end);
+
+    if (error)
+        boot_panic(biosmem_panic_noseg_msg);
+
+    biosmem_set_segment(VM_PAGE_SEG_DMA, phys_start, phys_end);
+
+    phys_start = VM_PAGE_DMA_LIMIT;
+#ifdef VM_PAGE_DMA32_LIMIT
+    phys_end = VM_PAGE_DMA32_LIMIT;
+    error = biosmem_map_find_avail(&phys_start, &phys_end);
+
+    if (error)
+        goto out;
+
+    biosmem_set_segment(VM_PAGE_SEG_DMA32, phys_start, phys_end);
+
+    phys_start = VM_PAGE_DMA32_LIMIT;
+#endif /* VM_PAGE_DMA32_LIMIT */
+    phys_end = VM_PAGE_DIRECTMAP_LIMIT;
+    error = biosmem_map_find_avail(&phys_start, &phys_end);
+
+    if (error)
+        goto out;
+
+    biosmem_set_segment(VM_PAGE_SEG_DIRECTMAP, phys_start, phys_end);
+
+    phys_start = VM_PAGE_DIRECTMAP_LIMIT;
+    phys_end = VM_PAGE_HIGHMEM_LIMIT;
+    error = biosmem_map_find_avail(&phys_start, &phys_end);
+
+    if (error)
+        goto out;
+
+    biosmem_set_segment(VM_PAGE_SEG_HIGHMEM, phys_start, phys_end);
+
+out:
 
     /*
      * The kernel and modules command lines will be memory mapped later
@@ -312,25 +582,32 @@ biosmem_bootstrap(struct multiboot_raw_info *mbi)
 void * __boot
 biosmem_bootalloc(unsigned int nr_pages)
 {
-    unsigned long free, page;
-    char *ptr;
+    unsigned long addr, size;
 
-    if (nr_pages == 0)
+    size = vm_page_ptoa(nr_pages);
+
+    if (size == 0)
         boot_panic(biosmem_panic_inval_msg);
 
-    free = biosmem_heap_free;
-    page = free;
-    free += PAGE_SIZE * nr_pages;
+    /* Top-down allocation to avoid unnecessarily filling DMA segments */
+    addr = biosmem_heap_cur - size;
 
-    if ((free <= biosmem_heap_start) || (free > biosmem_heap_end))
+    if ((addr < biosmem_heap_start) || (addr > biosmem_heap_cur))
         boot_panic(biosmem_panic_nomem_msg);
 
-    biosmem_heap_free = free;
+    biosmem_heap_cur = addr;
+    return boot_memset((void *)addr, 0, size);
+}
 
-    for (ptr = (char *)page; ptr < (char *)free; ptr++)
-        *ptr = '\0';
-
-    return (void *)page;
+phys_addr_t __boot
+biosmem_directmap_size(void)
+{
+    if (biosmem_segment_size(VM_PAGE_SEG_DIRECTMAP) != 0)
+        return biosmem_segment_end(VM_PAGE_SEG_DIRECTMAP);
+    else if (biosmem_segment_size(VM_PAGE_SEG_DMA32) != 0)
+        return biosmem_segment_end(VM_PAGE_SEG_DMA32);
+    else
+        return biosmem_segment_end(VM_PAGE_SEG_DMA);
 }
 
 static const char * __init
@@ -352,158 +629,6 @@ biosmem_type_desc(unsigned int type)
     }
 }
 
-static int __init
-biosmem_map_entry_is_invalid(const struct biosmem_map_entry *entry)
-{
-    return (entry->base_addr + entry->length) <= entry->base_addr;
-}
-
-static void __init
-biosmem_map_filter(void)
-{
-    struct biosmem_map_entry *entry;
-    unsigned int i;
-
-    i = 0;
-
-    while (i < biosmem_map_size) {
-        entry = &biosmem_map[i];
-
-        if (biosmem_map_entry_is_invalid(entry)) {
-            biosmem_map_size--;
-            memmove(entry, entry + 1, (biosmem_map_size - i) * sizeof(*entry));
-            continue;
-        }
-
-        i++;
-    }
-}
-
-static void __init
-biosmem_map_sort(void)
-{
-    struct biosmem_map_entry tmp;
-    unsigned int i, j;
-
-    /*
-     * Simple insertion sort.
-     */
-    for (i = 1; i < biosmem_map_size; i++) {
-        tmp = biosmem_map[i];
-
-        for (j = i - 1; j < i; j--) {
-            if (biosmem_map[j].base_addr < tmp.base_addr)
-                break;
-
-            biosmem_map[j + 1] = biosmem_map[j];
-        }
-
-        biosmem_map[j + 1] = tmp;
-    }
-}
-
-static void __init
-biosmem_map_adjust(void)
-{
-    struct biosmem_map_entry tmp, *a, *b, *first, *second;
-    uint64_t a_end, b_end, last_end;
-    unsigned int i, j, last_type;
-
-    biosmem_map_filter();
-
-    /*
-     * Resolve overlapping areas, giving priority to most restrictive
-     * (i.e. numerically higher) types.
-     */
-    for (i = 0; i < biosmem_map_size; i++) {
-        a = &biosmem_map[i];
-        a_end = a->base_addr + a->length;
-
-        j = i + 1;
-
-        while (j < biosmem_map_size) {
-            b = &biosmem_map[j];
-            b_end = b->base_addr + b->length;
-
-            if ((a->base_addr >= b_end) || (a_end <= b->base_addr)) {
-                j++;
-                continue;
-            }
-
-            if (a->base_addr < b->base_addr) {
-                first = a;
-                second = b;
-            } else {
-                first = b;
-                second = a;
-            }
-
-            if (a_end > b_end) {
-                last_end = a_end;
-                last_type = a->type;
-            } else {
-                last_end = b_end;
-                last_type = b->type;
-            }
-
-            tmp.base_addr = second->base_addr;
-            tmp.length = MIN(a_end, b_end) - tmp.base_addr;
-            tmp.type = MAX(a->type, b->type);
-            first->length = tmp.base_addr - first->base_addr;
-            second->base_addr += tmp.length;
-            second->length = last_end - second->base_addr;
-            second->type = last_type;
-
-            /*
-             * Filter out invalid entries.
-             */
-            if (biosmem_map_entry_is_invalid(a)
-                && biosmem_map_entry_is_invalid(b)) {
-                *a = tmp;
-                biosmem_map_size--;
-                memmove(b, b + 1, (biosmem_map_size - j) * sizeof(*b));
-                continue;
-            } else if (biosmem_map_entry_is_invalid(a)) {
-                *a = tmp;
-                j++;
-                continue;
-            } else if (biosmem_map_entry_is_invalid(b)) {
-                *b = tmp;
-                j++;
-                continue;
-            }
-
-            if (tmp.type == a->type)
-                first = a;
-            else if (tmp.type == b->type)
-                first = b;
-            else {
-
-                /*
-                 * If the overlapping area can't be merged with one of its
-                 * neighbors, it must be added as a new entry.
-                 */
-
-                if (biosmem_map_size >= ARRAY_SIZE(biosmem_map))
-                    panic("biosmem: too many memory map entries");
-
-                biosmem_map[biosmem_map_size] = tmp;
-                biosmem_map_size++;
-                j++;
-                continue;
-            }
-
-            if (first->base_addr > tmp.base_addr)
-                first->base_addr = tmp.base_addr;
-
-            first->length += tmp.length;
-            j++;
-        }
-    }
-
-    biosmem_map_sort();
-}
-
 static void __init
 biosmem_map_show(void)
 {
@@ -521,76 +646,24 @@ biosmem_map_show(void)
     printk("biosmem: heap: %x-%x\n", biosmem_heap_start, biosmem_heap_end);
 }
 
-static int __init
-biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
-{
-    const struct biosmem_map_entry *entry, *map_end;
-    phys_addr_t start, end, seg_start, seg_end;
-    uint64_t entry_end;
-
-    seg_start = (phys_addr_t)-1;
-    seg_end = (phys_addr_t)-1;
-    map_end = biosmem_map + biosmem_map_size;
-
-    for (entry = biosmem_map; entry < map_end; entry++) {
-        if (entry->type != BIOSMEM_TYPE_AVAILABLE)
-            continue;
-
-#ifndef VM_PAGE_HIGHMEM_LIMIT
-        if (entry->base_addr >= VM_PAGE_NORMAL_LIMIT)
-            break;
-#endif /* VM_PAGE_HIGHMEM_LIMIT */
-
-        start = vm_page_round(entry->base_addr);
-
-        if (start >= *phys_end)
-            break;
-
-        entry_end = entry->base_addr + entry->length;
-
-#ifndef VM_PAGE_HIGHMEM_LIMIT
-        if (entry_end > VM_PAGE_NORMAL_LIMIT)
-            entry_end = VM_PAGE_NORMAL_LIMIT;
-#endif /* VM_PAGE_HIGHMEM_LIMIT */
-
-        end = vm_page_trunc(entry_end);
-
-        /* TODO: check against a minimum size */
-        if ((start < end) && (start < *phys_end) && (end > *phys_start)) {
-            if (seg_start == (phys_addr_t)-1)
-                seg_start = start;
-
-            seg_end = end;
-        }
-    }
-
-    if ((seg_start == (phys_addr_t)-1) || (seg_end == (phys_addr_t)-1))
-        return -1;
-
-    if (seg_start > *phys_start)
-        *phys_start = seg_start;
-
-    if (seg_end < *phys_end)
-        *phys_end = seg_end;
-
-    return 0;
-}
-
 static void __init
-biosmem_load_segment(const char *name, uint64_t max_phys_end,
+biosmem_load_segment(struct biosmem_segment *seg, uint64_t max_phys_end,
                      phys_addr_t phys_start, phys_addr_t phys_end,
-                     phys_addr_t avail_start, phys_addr_t avail_end,
-                     unsigned int seg_index, unsigned int seglist_prio)
+                     phys_addr_t avail_start, phys_addr_t avail_end)
 {
+    unsigned int seg_index;
+
+    seg_index = seg - biosmem_segments;
+
     if (phys_end > max_phys_end) {
         if (max_phys_end <= phys_start) {
             printk("biosmem: warning: segment %s physically unreachable, "
-                   "not loaded\n", name);
+                   "not loaded\n", vm_page_seg_name(seg_index));
             return;
         }
 
-        printk("biosmem: warning: segment %s truncated to %#llx\n", name,
-               max_phys_end);
+        printk("biosmem: warning: segment %s truncated to %#llx\n",
+               vm_page_seg_name(seg_index), max_phys_end);
         phys_end = max_phys_end;
     }
 
@@ -600,19 +673,19 @@ biosmem_load_segment(const char *name, uint64_t max_phys_end,
     if ((avail_end < phys_start) || (avail_end > phys_end))
         avail_end = phys_end;
 
-    vm_page_load(name, phys_start, phys_end, avail_start, avail_end,
-                 seg_index, seglist_prio);
+    seg->avail_start = avail_start;
+    seg->avail_end = avail_end;
+    vm_page_load(seg_index, phys_start, phys_end, avail_start, avail_end);
 }
 
 void __init
 biosmem_setup(void)
 {
     uint64_t max_phys_end;
-    phys_addr_t phys_start, phys_end;
+    struct biosmem_segment *seg;
     struct cpu *cpu;
-    int error;
+    unsigned int i;
 
-    biosmem_map_adjust();
     biosmem_map_show();
 
     cpu = cpu_current();
@@ -620,79 +693,20 @@ biosmem_setup(void)
                    ? (uint64_t)-1
                    : (uint64_t)1 << cpu->phys_addr_width;
 
-    phys_start = BIOSMEM_BASE;
-    phys_end = VM_PAGE_NORMAL_LIMIT;
-    error = biosmem_map_find_avail(&phys_start, &phys_end);
+    for (i = 0; i < ARRAY_SIZE(biosmem_segments); i++) {
+        if (biosmem_segment_size(i) == 0)
+            break;
 
-    if (!error)
-        biosmem_load_segment("normal", max_phys_end, phys_start, phys_end,
-                             biosmem_heap_free, biosmem_heap_end,
-                             VM_PAGE_SEG_NORMAL, VM_PAGE_SEGLIST_NORMAL);
-
-#ifdef VM_PAGE_HIGHMEM_LIMIT
-    phys_start = VM_PAGE_NORMAL_LIMIT;
-    phys_end = VM_PAGE_HIGHMEM_LIMIT;
-    error = biosmem_map_find_avail(&phys_start, &phys_end);
-
-    if (!error)
-        biosmem_load_segment("highmem", max_phys_end, phys_start, phys_end,
-                             phys_start, phys_end,
-                             VM_PAGE_SEG_HIGHMEM, VM_PAGE_SEGLIST_HIGHMEM);
-#endif /* VM_PAGE_HIGHMEM_LIMIT */
-}
-
-static void __init
-biosmem_find_reserved_area_update(phys_addr_t min, phys_addr_t *start,
-                                  phys_addr_t *end, phys_addr_t reserved_start,
-                                  phys_addr_t reserved_end)
-{
-    if ((min <= reserved_start) && (reserved_start < *start)) {
-        *start = reserved_start;
-        *end = reserved_end;
+        seg = &biosmem_segments[i];
+        biosmem_load_segment(seg, max_phys_end, seg->start, seg->end,
+                             biosmem_heap_start, biosmem_heap_cur);
     }
-}
-
-/*
- * Return the boundaries of a reserved area.
- *
- * The area returned is the lowest in memory, between min (included) and
- * max (excluded).
- */
-static phys_addr_t __init
-biosmem_find_reserved_area(phys_addr_t min, phys_addr_t max,
-                           phys_addr_t *endp)
-{
-    phys_addr_t start, end = end;
-
-    /*
-     * Obviously, the kernel is reserved. Since all allocations until now
-     * were made from the heap, and since the unused pages of the heap
-     * have already been loaded as available in the VM system, consider
-     * the whole heap reserved as well.
-     *
-     * Everything else is freed to the VM system.
-     */
-
-    start = max;
-    biosmem_find_reserved_area_update(min, &start, &end, (unsigned long)&_boot,
-                                      BOOT_VTOP((unsigned long)&_end));
-    biosmem_find_reserved_area_update(min, &start, &end, biosmem_heap_start,
-                                      biosmem_heap_end);
-
-    if (start == max)
-        return 0;
-
-    *endp = end;
-    return start;
 }
 
 static void __init
 biosmem_free_usable_range(phys_addr_t start, phys_addr_t end)
 {
     struct vm_page *page;
-
-    if (start == end)
-        return;
 
     printk("biosmem: release to vm_page: %llx-%llx (%lluk)\n",
            (unsigned long long)start, (unsigned long long)end,
@@ -707,31 +721,93 @@ biosmem_free_usable_range(phys_addr_t start, phys_addr_t end)
 }
 
 static void __init
-biosmem_free_usable_upper(phys_addr_t upper_end)
+biosmem_free_usable_update_start(phys_addr_t *start, phys_addr_t res_start,
+                                 phys_addr_t res_end)
 {
-    phys_addr_t next, start, end;
+    if ((*start >= res_start) && (*start < res_end))
+        *start = res_end;
+}
 
-    next = BIOSMEM_END;
+static phys_addr_t __init
+biosmem_free_usable_start(phys_addr_t start)
+{
+    const struct biosmem_segment *seg;
+    unsigned int i;
 
-    do {
-        start = next;
-        end = biosmem_find_reserved_area(start, upper_end, &next);
+    biosmem_free_usable_update_start(&start, (unsigned long)&_boot,
+                                     BOOT_VTOP((unsigned long)&_end));
+    biosmem_free_usable_update_start(&start, biosmem_heap_start,
+                                     biosmem_heap_end);
 
-        if (end == 0) {
-            end = upper_end;
-            next = 0;
-        }
+    for (i = 0; i < ARRAY_SIZE(biosmem_segments); i++) {
+        seg = &biosmem_segments[i];
+        biosmem_free_usable_update_start(&start, seg->avail_start,
+                                         seg->avail_end);
+    }
 
+    return start;
+}
+
+static int __init
+biosmem_free_usable_reserved(phys_addr_t addr)
+{
+    const struct biosmem_segment *seg;
+    unsigned int i;
+
+    if ((addr >= (unsigned long)&_boot)
+        && (addr < BOOT_VTOP((unsigned long)&_end)))
+        return 1;
+
+    if ((addr >= biosmem_heap_start) && (addr < biosmem_heap_end))
+        return 1;
+
+    for (i = 0; i < ARRAY_SIZE(biosmem_segments); i++) {
+        seg = &biosmem_segments[i];
+
+        if ((addr >= seg->avail_start) && (addr < seg->avail_end))
+            return 1;
+    }
+
+    return 0;
+}
+
+static phys_addr_t __init
+biosmem_free_usable_end(phys_addr_t start, phys_addr_t entry_end)
+{
+    while (start < entry_end) {
+        if (biosmem_free_usable_reserved(start))
+            break;
+
+        start += PAGE_SIZE;
+    }
+
+    return start;
+}
+
+static void __init
+biosmem_free_usable_entry(phys_addr_t start, phys_addr_t end)
+{
+    phys_addr_t entry_end;
+
+    entry_end = end;
+
+    for (;;) {
+        start = biosmem_free_usable_start(start);
+
+        if (start >= entry_end)
+            return;
+
+        end = biosmem_free_usable_end(start, entry_end);
         biosmem_free_usable_range(start, end);
-    } while (next != 0);
+        start = end;
+    }
 }
 
 void __init
 biosmem_free_usable(void)
 {
     struct biosmem_map_entry *entry;
-    phys_addr_t start, end;
-    uint64_t entry_end;
+    uint64_t start, end;
     unsigned int i;
 
     for (i = 0; i < biosmem_map_size; i++) {
@@ -740,30 +816,16 @@ biosmem_free_usable(void)
         if (entry->type != BIOSMEM_TYPE_AVAILABLE)
             continue;
 
-        /* High memory is always loaded during setup */
-        if (entry->base_addr >= VM_PAGE_NORMAL_LIMIT)
+        start = vm_page_round(entry->base_addr);
+
+        if (start >= VM_PAGE_HIGHMEM_LIMIT)
             break;
 
-        entry_end = entry->base_addr + entry->length;
+        end = vm_page_trunc(entry->base_addr + entry->length);
 
-        if (entry_end > VM_PAGE_NORMAL_LIMIT)
-            entry_end = VM_PAGE_NORMAL_LIMIT;
-
-        start = vm_page_round(entry->base_addr);
-        end = vm_page_trunc(entry_end);
-
-        if (start < BIOSMEM_BASE) {
-            assert(end < BIOSMEM_END);
+        if (start < BIOSMEM_BASE)
             start = BIOSMEM_BASE;
-        }
 
-        /*
-         * Upper memory contains the kernel and the bootstrap heap, and
-         * requires special handling.
-         */
-        if (start == BIOSMEM_END)
-            biosmem_free_usable_upper(end);
-        else
-            biosmem_free_usable_range(start, end);
+        biosmem_free_usable_entry(start, end);
     }
 }

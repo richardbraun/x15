@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #ifndef _X86_BIOSMEM_H
 #define _X86_BIOSMEM_H
 
+#include <kern/types.h>
 #include <machine/multiboot.h>
 
 /*
@@ -58,6 +59,13 @@ void biosmem_bootstrap(struct multiboot_raw_info *mbi);
  * system is initialized.
  */
 void * biosmem_bootalloc(unsigned int nr_pages);
+
+/*
+ * Return the amount of physical memory that can be directly mapped.
+ *
+ * This includes the size of both the DMA/DMA32 and DIRECTMAP segments.
+ */
+phys_addr_t biosmem_directmap_size(void);
 
 /*
  * Set up physical memory based on the information obtained during bootstrap

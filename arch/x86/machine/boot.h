@@ -31,17 +31,16 @@
 /*
  * The kernel is physically loaded at BOOT_OFFSET by the boot loader. It
  * is divided in two parts: the .boot section which uses physical addresses
- * and the main kernel code and data at KERNEL_OFFSET.
+ * and the main kernel code and data at VM_KERNEL_OFFSET.
  *
  * See the linker script for more information.
  */
-#define BOOT_OFFSET     DECL_CONST(0x100000, UL)
-#define KERNEL_OFFSET   VM_MAX_KERNEL_ADDRESS
+#define BOOT_OFFSET DECL_CONST(0x100000, UL)
 
 /*
  * Virtual to physical address translation macro.
  */
-#define BOOT_VTOP(addr) ((addr) - KERNEL_OFFSET)
+#define BOOT_VTOP(addr) ((addr) - VM_KERNEL_OFFSET)
 
 /*
  * Address where the MP trampoline code is copied and run at.
@@ -89,11 +88,13 @@ extern uint32_t boot_mp_trampoline_size;
 void boot_mp_trampoline(void);
 
 /*
- * Print the given message and halt the system immediately.
+ * Helper functions available before paging is enabled.
  *
- * The given string must be accessible before paging is enabled, which can
- * easily be done by declaring it as boot data.
+ * Any memory passed to these must also be accessible without paging.
  */
+void * boot_memmove(void *dest, const void *src, size_t n);
+void * boot_memset(void *s, int c, size_t n);
+size_t boot_strlen(const char *s);
 void __noreturn boot_panic(const char *s);
 
 /*
