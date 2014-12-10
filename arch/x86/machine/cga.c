@@ -21,9 +21,8 @@
 #include <kern/stdint.h>
 #include <kern/string.h>
 #include <machine/io.h>
-#include <machine/pmap.h>
 #include <machine/cga.h>
-#include <vm/vm_prot.h>
+#include <vm/vm_page.h>
 
 /*
  * Screen dimensions.
@@ -105,13 +104,8 @@ void __init
 cga_setup(void)
 {
     uint8_t misc_output_register;
-    unsigned long va;
 
-    va = pmap_bootalloc(1);
-    pmap_enter(kernel_pmap, va, CGA_MEMORY, VM_PROT_READ | VM_PROT_WRITE,
-               PMAP_PEF_GLOBAL);
-    pmap_update(kernel_pmap);
-    cga_memory = (uint8_t *)va;
+    cga_memory = (void *)vm_page_direct_va(CGA_MEMORY);
 
     /*
      * Check if the Input/Output Address Select bit is set.
