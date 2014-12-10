@@ -57,8 +57,7 @@ task_init(struct task *task, const char *name, struct vm_map *map)
 void __init
 task_setup(void)
 {
-    kmem_cache_init(&task_cache, "task", sizeof(struct task),
-                    0, NULL, NULL, NULL, 0);
+    kmem_cache_init(&task_cache, "task", sizeof(struct task), 0, NULL, 0);
     list_init(&task_list);
     spinlock_init(&task_list_lock);
     task_init(kernel_task, "x15", kernel_map);
