@@ -211,6 +211,11 @@ boot_save_memory(uint32_t addr, size_t size)
     const void *src;
     void *copy;
 
+    /*
+     * Creates temporary virtual mappings because, on 32-bits systems,
+     * there is no guarantee that the boot data will be available from
+     * the direct physical mapping.
+     */
     src = vm_kmem_map_pa(addr, size, &map_addr, &map_size);
 
     if (src == NULL)
@@ -325,11 +330,11 @@ boot_main(void)
     trap_setup();
     cpu_setup();
     thread_bootstrap();
-    pmap_bootstrap();
-    sref_bootstrap();
     cga_setup();
     printk_setup();
     boot_show_version();
+    pmap_bootstrap();
+    sref_bootstrap();
     cpu_check(cpu_current());
     cpu_info(cpu_current());
     biosmem_setup();
