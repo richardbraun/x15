@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012, 2013 Richard Braun.
+ * Copyright (c) 2010-2014 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -87,96 +87,99 @@
 /*
  * User space boundaries.
  */
-#define VM_MIN_ADDRESS  DECL_CONST(0, UL)
+#define VM_MIN_ADDRESS              DECL_CONST(0, UL)
 
 #ifdef __LP64__
-#define VM_MAX_ADDRESS  DECL_CONST(0x800000000000, UL)
+#define VM_MAX_ADDRESS              DECL_CONST(0x800000000000, UL)
 #else /* __LP64__ */
-#define VM_MAX_ADDRESS  DECL_CONST(0xc0000000, UL)
+#define VM_MAX_ADDRESS              DECL_CONST(0xc0000000, UL)
 #endif/* __LP64__ */
-
-/*
- * Size of the recursive mapping of PTEs.
- *
- * See the pmap module for more information.
- */
-#ifdef __LP64__
-#define VM_PMAP_PTEMAP_SIZE DECL_CONST(0x8000000000, UL)
-#else /* __LP64__ */
-#ifdef X86_PAE
-#define VM_PMAP_PTEMAP_SIZE DECL_CONST(0x800000, UL)
-#else /* X86_PAE */
-#define VM_PMAP_PTEMAP_SIZE DECL_CONST(0x400000, UL)
-#endif /* X86_PAE */
-#endif /* __LP64__ */
-
-/*
- * Location of the recursive mapping of PTEs.
- *
- * See the pmap module for more information.
- */
-#ifdef __LP64__
-#define VM_PMAP_PTEMAP_ADDRESS  DECL_CONST(0xffff800000000000, UL)
-#else /* __LP64__ */
-#define VM_PMAP_PTEMAP_ADDRESS  VM_MAX_ADDRESS
-#endif /* __LP64__ */
 
 /*
  * Kernel space boundaries.
  */
-#define VM_MIN_KERNEL_ADDRESS   (VM_PMAP_PTEMAP_ADDRESS + VM_PMAP_PTEMAP_SIZE)
-
-/*
- * In addition to being the end of the kernel address space, this is also
- * where the kernel image is loaded. Excluding the kernel image from its
- * address space simplifies bootstrapping, and also saves a static VM map
- * entry.
- */
 #ifdef __LP64__
-#define VM_MAX_KERNEL_ADDRESS   DECL_CONST(0xffffffff80000000, UL)
+#define VM_MIN_KERNEL_ADDRESS       DECL_CONST(0xffff800000000000, UL)
+#define VM_MAX_KERNEL_ADDRESS       DECL_CONST(0xfffffffffffff000, UL)
 #else /* __LP64__ */
-#define VM_MAX_KERNEL_ADDRESS   DECL_CONST(0xfc000000, UL)
+#define VM_MIN_KERNEL_ADDRESS       VM_MAX_ADDRESS
+#define VM_MAX_KERNEL_ADDRESS       DECL_CONST(0xfffff000, UL)
 #endif /* __LP64__ */
 
 /*
- * Virtual space reserved for kernel map entries.
+ * Direct physical mapping boundaries.
  */
-#define VM_MAP_KENTRY_SIZE DECL_CONST(0x800000, UL)
+#ifdef __LP64__
+#define VM_MIN_DIRECTMAP_ADDRESS    VM_MIN_KERNEL_ADDRESS
+#define VM_MAX_DIRECTMAP_ADDRESS    DECL_CONST(0xffffc00000000000, UL)
+#else /* __LP64__ */
+#define VM_MIN_DIRECTMAP_ADDRESS    VM_MAX_ADDRESS
+#define VM_MAX_DIRECTMAP_ADDRESS    DECL_CONST(0xf8000000, UL)
+#endif /* __LP64__ */
+
+/*
+ * Kernel mapping offset.
+ *
+ * On 32-bits systems, the kernel is linked at addresses included in the
+ * direct physical mapping, whereas on 64-bits systems, it is linked at
+ * -2 GiB because the "kernel" memory model is used when compiling (see
+ * the -mcmodel=kernel gcc option).
+ */
+#ifdef __LP64__
+#define VM_KERNEL_OFFSET            DECL_CONST(0xffffffff80000000, UL)
+#else /* __LP64__ */
+#define VM_KERNEL_OFFSET            VM_MIN_DIRECTMAP_ADDRESS
+#endif /* __LP64__ */
+
+/*
+ * Kernel virtual space boundaries.
+ *
+ * In addition to the direct physical mapping, the kernel has its own virtual
+ * memory space.
+ */
+#define VM_MIN_KMEM_ADDRESS         VM_MAX_DIRECTMAP_ADDRESS
+
+#ifdef __LP64__
+#define VM_MAX_KMEM_ADDRESS         VM_KERNEL_OFFSET
+#else /* __LP64__ */
+#define VM_MAX_KMEM_ADDRESS         DECL_CONST(0xfffff000, UL)
+#endif /* __LP64__ */
 
 /*
  * Physical memory properties.
  */
 
+#define VM_PAGE_DMA_LIMIT       DECL_CONST(0x1000000, UL)
+
 #ifdef __LP64__
-#define VM_PAGE_MAX_SEGS 2
-#define VM_PAGE_NORMAL_LIMIT    DECL_CONST(0x100000000, UL)
+#define VM_PAGE_MAX_SEGS 4
+#define VM_PAGE_DMA32_LIMIT     DECL_CONST(0x100000000, UL)
+#define VM_PAGE_DIRECTMAP_LIMIT DECL_CONST(0x400000000000, UL)
 #define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, UL)
 #else /* __LP64__ */
+#define VM_PAGE_DIRECTMAP_LIMIT DECL_CONST(0x38000000, ULL)
 #ifdef X86_PAE
-#define VM_PAGE_MAX_SEGS 2
-#define VM_PAGE_NORMAL_LIMIT    DECL_CONST(0x100000000, ULL)
+#define VM_PAGE_MAX_SEGS 3
 #define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, ULL)
 #else /* X86_PAE */
-#define VM_PAGE_MAX_SEGS 1
-#define VM_PAGE_NORMAL_LIMIT    DECL_CONST(0xfffff000, UL)
+#define VM_PAGE_MAX_SEGS 3
+#define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0xfffff000, UL)
 #endif /* X86_PAE */
 #endif /* __LP64__ */
 
 /*
  * Physical segment indexes.
  */
-#define VM_PAGE_SEG_NORMAL      0
-#define VM_PAGE_SEG_HIGHMEM     1
+#define VM_PAGE_SEG_DMA         0
 
-/*
- * Number of physical segment lists.
- */
-#define VM_PAGE_NR_SEGLISTS VM_PAGE_MAX_SEGS
-
-/*
- * Segment list priorities.
- */
-#define VM_PAGE_SEGLIST_NORMAL  0
-#define VM_PAGE_SEGLIST_HIGHMEM 1
+#ifdef __LP64__
+#define VM_PAGE_SEG_DMA32       1
+#define VM_PAGE_SEG_DIRECTMAP   2
+#define VM_PAGE_SEG_HIGHMEM     3
+#else /* __LP64__ */
+#define VM_PAGE_SEG_DMA32       1   /* Alias for the DIRECTMAP segment */
+#define VM_PAGE_SEG_DIRECTMAP   1
+#define VM_PAGE_SEG_HIGHMEM     2
+#endif /* __LP64__ */
 
 #endif /* _X86_PARAM_H */
