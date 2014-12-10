@@ -132,6 +132,7 @@ vm_kmem_free(void *addr, size_t size)
     struct vm_page *page;
     unsigned long va, end;
     phys_addr_t pa;
+    int error;
 
     va = (unsigned long)addr;
     size = vm_page_round(size);
@@ -139,8 +140,8 @@ vm_kmem_free(void *addr, size_t size)
     cpumap = cpumap_all();
 
     while (va < end) {
-        pa = pmap_extract(kernel_pmap, va);
-        assert(pa != 0);
+        error = pmap_kextract(va, &pa);
+        assert(!error);
         pmap_remove(kernel_pmap, va, cpumap);
         page = vm_page_lookup(pa);
         assert(page != NULL);
