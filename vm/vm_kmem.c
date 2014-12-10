@@ -36,19 +36,6 @@
 static struct vm_map kernel_map_store;
 struct vm_map *kernel_map __read_mostly = &kernel_map_store;
 
-struct vm_page *
-vm_kmem_lookup_page(const void *addr)
-{
-    phys_addr_t pa;
-
-    pa = pmap_extract(kernel_pmap, (unsigned long)addr);
-
-    if (pa == 0)
-        return NULL;
-
-    return vm_page_lookup(pa);
-}
-
 static int
 vm_kmem_alloc_check(size_t size)
 {

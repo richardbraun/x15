@@ -42,12 +42,6 @@ extern char _end;
 extern struct vm_map *kernel_map;
 
 /*
- * Return the page descriptor for the physical page mapped at va in kernel
- * space. The given address must be mapped and valid.
- */
-struct vm_page * vm_kmem_lookup_page(const void *addr);
-
-/*
  * Allocate pure virtual kernel pages.
  *
  * The caller is reponsible for taking care of the underlying physical memory.
