@@ -464,7 +464,7 @@ work_setup(void)
     unsigned int i;
 
     kmem_cache_init(&work_thread_cache, "work_thread",
-                    sizeof(struct work_thread), 0, NULL, NULL, NULL, 0);
+                    sizeof(struct work_thread), 0, NULL, 0);
 
     for (i = 0; i < cpu_count(); i++) {
         work_pool_init(percpu_ptr(work_pool_cpu_main, i), i, 0);
