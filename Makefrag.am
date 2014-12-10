@@ -25,6 +25,7 @@ x15_SOURCES +=              \
 	kern/llsync.c       \
 	kern/llsync.h       \
 	kern/llsync_i.h     \
+	kern/log2.h         \
 	kern/macros.h       \
 	kern/mutex.c        \
 	kern/mutex.h        \
