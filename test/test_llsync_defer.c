@@ -183,8 +183,8 @@ test_setup(void)
     condition_init(&test_condition);
     mutex_init(&test_lock);
 
-    kmem_cache_init(&test_pdsc_cache, "test_pdsc", sizeof(struct test_pdsc),
-                    0, NULL, NULL, NULL, 0);
+    kmem_cache_init(&test_pdsc_cache, "test_pdsc",
+                    sizeof(struct test_pdsc), 0, NULL, 0);
 
     thread_attr_init(&attr, "x15_test_alloc");
     thread_attr_set_detached(&attr);
