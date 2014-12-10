@@ -32,9 +32,7 @@ cpumap_setup(void)
 {
     unsigned int i, nr_cpus;
 
-    kmem_cache_init(&cpumap_cache, "cpumap", sizeof(struct cpumap),
-                    0, NULL, NULL, NULL, 0);
-
+    kmem_cache_init(&cpumap_cache, "cpumap", sizeof(struct cpumap), 0, NULL, 0);
     cpumap_zero(&cpumap_active_cpus);
     nr_cpus = cpu_count();
 
