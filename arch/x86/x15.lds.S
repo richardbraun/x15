@@ -36,7 +36,7 @@ SECTIONS
     . = ALIGN(PAGE_SIZE);
     _eboot = .;
 
-    . += KERNEL_OFFSET;
+    . += VM_KERNEL_OFFSET;
     _init = .;
 
     .init ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.init))) {
