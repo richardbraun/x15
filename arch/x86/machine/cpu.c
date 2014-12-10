@@ -36,7 +36,6 @@
 #include <machine/mb.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
-#include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 
 #define CPU_TYPE_MASK       0x00003000
@@ -593,12 +592,11 @@ cpu_mp_probe(void)
 void __init
 cpu_mp_setup(void)
 {
+    struct vm_page *page;
     uint16_t reset_vector[2];
     struct cpu *cpu;
-    void *ptr;
-    unsigned long map_addr;
-    size_t map_size;
     unsigned int i;
+    void *ptr;
 
     if (cpu_count() == 1) {
         pmap_mp_setup();
@@ -610,47 +608,39 @@ cpu_mp_setup(void)
     assert(boot_mp_trampoline_size <= PAGE_SIZE);
 
     /* Set up the AP trampoline code */
-    ptr = vm_kmem_map_pa(BOOT_MP_TRAMPOLINE_ADDR, boot_mp_trampoline_size,
-                         &map_addr, &map_size);
-
-    if (ptr == NULL)
-        panic("cpu: unable to map trampoline area in kernel map");
-
+    ptr = (void *)vm_page_direct_va(BOOT_MP_TRAMPOLINE_ADDR);
     memcpy(ptr, boot_mp_trampoline, boot_mp_trampoline_size);
-    vm_kmem_unmap_pa(map_addr, map_size);
 
     /* Set up the warm reset vector */
     reset_vector[0] = 0;
     reset_vector[1] = BOOT_MP_TRAMPOLINE_ADDR >> 4;
-    ptr = vm_kmem_map_pa(CPU_MP_CMOS_RESET_VECTOR, sizeof(reset_vector),
-                         &map_addr, &map_size);
-
-    if (ptr == NULL)
-        panic("cpu: unable to map warm reset vector in kernel map");
-
+    ptr = (void *)vm_page_direct_va(CPU_MP_CMOS_RESET_VECTOR);
     memcpy(ptr, reset_vector, sizeof(reset_vector));
-    vm_kmem_unmap_pa(map_addr, map_size);
 
     io_write_byte(CPU_MP_CMOS_PORT_REG, CPU_MP_CMOS_REG_RESET);
     io_write_byte(CPU_MP_CMOS_PORT_DATA, CPU_MP_CMOS_DATA_RESET_WARM);
 
     for (i = 1; i < cpu_count(); i++) {
         cpu = percpu_ptr(cpu_desc, i);
-        cpu->boot_stack = vm_kmem_alloc(STACK_SIZE);
+        page = vm_page_alloc(vm_page_order(STACK_SIZE), VM_PAGE_SEL_DIRECTMAP,
+                             VM_PAGE_KERNEL);
 
-        if (cpu->boot_stack == NULL)
+        if (page == NULL)
             panic("cpu: unable to allocate boot stack for cpu%u", i);
 
-        cpu->double_fault_stack = vm_kmem_alloc(STACK_SIZE);
+        cpu->boot_stack = vm_page_direct_ptr(page);
+        page = vm_page_alloc(vm_page_order(STACK_SIZE), VM_PAGE_SEL_DIRECTMAP,
+                             VM_PAGE_KERNEL);
 
-        if (cpu->double_fault_stack == NULL)
+        if (page == NULL)
             panic("cpu: unable to allocate double fault stack for cpu%u", i);
+
+        cpu->double_fault_stack = vm_page_direct_ptr(page);
     }
 
     /*
-     * This function creates per-CPU copies of the page tables. As a result,
-     * it must be called right before starting APs so that all processors have
-     * the same mappings.
+     * This function creates per-CPU copies of the page tables. Just in case,
+     * call it last to make sure all processors get the same mappings.
      */
     pmap_mp_setup();
 
