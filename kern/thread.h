@@ -512,6 +512,7 @@ thread_llsync_read_inc(void)
     thread = thread_self();
     thread->llsync_read++;
     assert(thread->llsync_read != 0);
+    barrier();
 }
 
 static inline void
@@ -519,6 +520,7 @@ thread_llsync_read_dec(void)
 {
     struct thread *thread;
 
+    barrier();
     thread = thread_self();
     assert(thread->llsync_read != 0);
     thread->llsync_read--;
