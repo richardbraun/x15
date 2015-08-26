@@ -667,10 +667,10 @@ biosmem_load_segment(struct biosmem_segment *seg, uint64_t max_phys_end,
         phys_end = max_phys_end;
     }
 
-    if ((avail_start < phys_start) || (avail_start > phys_end))
+    if ((avail_start < phys_start) || (avail_start >= phys_end))
         avail_start = phys_start;
 
-    if ((avail_end < phys_start) || (avail_end > phys_end))
+    if ((avail_end <= phys_start) || (avail_end > phys_end))
         avail_end = phys_end;
 
     seg->avail_start = avail_start;
