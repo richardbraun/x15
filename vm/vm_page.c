@@ -44,7 +44,6 @@
 #include <kern/types.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>
-#include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 
 /*
