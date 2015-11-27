@@ -142,7 +142,7 @@
 #ifdef __LP64__
 #define VM_MAX_KMEM_ADDRESS         VM_KERNEL_OFFSET
 #else /* __LP64__ */
-#define VM_MAX_KMEM_ADDRESS         DECL_CONST(0xfffff000, UL)
+#define VM_MAX_KMEM_ADDRESS         VM_MAX_KERNEL_ADDRESS
 #endif /* __LP64__ */
 
 /*
