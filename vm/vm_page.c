@@ -437,6 +437,9 @@ vm_page_seg_alloc(struct vm_page_seg *seg, unsigned int order,
         mutex_lock(&seg->lock);
         page = vm_page_seg_alloc_from_buddy(seg, order);
         mutex_unlock(&seg->lock);
+
+        if (page == NULL)
+            return NULL;
     }
 
     assert(page->type == VM_PAGE_FREE);
