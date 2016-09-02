@@ -22,6 +22,7 @@
 
 #include <kern/error.h>
 #include <kern/cpumap.h>
+#include <kern/panic.h>
 #include <kern/printk.h>
 #include <kern/stddef.h>
 #include <kern/thread.h>
