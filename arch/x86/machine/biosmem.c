@@ -896,8 +896,16 @@ biosmem_free_usable(void)
 
         end = vm_page_trunc(entry->base_addr + entry->length);
 
+        if (end > VM_PAGE_HIGHMEM_LIMIT) {
+            end = VM_PAGE_HIGHMEM_LIMIT;
+        }
+
         if (start < BIOSMEM_BASE)
             start = BIOSMEM_BASE;
+
+        if (start >= end) {
+            continue;
+        }
 
         biosmem_free_usable_entry(start, end);
     }
