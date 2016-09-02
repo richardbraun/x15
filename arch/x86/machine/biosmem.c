@@ -393,20 +393,37 @@ biosmem_save_cmdline_sizes(struct multiboot_raw_info *mbi)
     }
 }
 
-static void __boot
-biosmem_find_boot_data_update(uint32_t min, uint32_t *start, uint32_t *end,
-                              uint32_t data_start, uint32_t data_end)
+static int __boot
+biosmem_find_heap_clip(uint32_t *heap_start, uint32_t *heap_end,
+                       uint32_t data_start, uint32_t data_end)
 {
-    if ((min <= data_start) && (data_start < *start)) {
-        *start = data_start;
-        *end = data_end;
+    assert(data_start < data_end);
+
+    if ((data_end <= *heap_start) || (data_start >= *heap_end)) {
+        return 0;
     }
+
+    if (data_start > *heap_start) {
+        *heap_end = data_start;
+    } else {
+        if (data_end >= *heap_end) {
+            return -1;
+        }
+
+        *heap_start = data_end;
+    }
+
+    return 0;
 }
 
 /*
- * Find the first boot data in the given range, and return their containing
- * area (start address is returned directly, end address is returned in end).
- * The following are considered boot data :
+ * Find available memory for an allocation heap.
+ *
+ * The search starts at the given start address, up to the given end address.
+ * If a range is found, it is stored through the heap_startp and heap_endp
+ * pointers.
+ *
+ * The search skips boot data, that is :
  *  - the kernel
  *  - the kernel command line
  *  - the module table
@@ -414,48 +431,84 @@ biosmem_find_boot_data_update(uint32_t min, uint32_t *start, uint32_t *end,
  *  - the modules command lines
  *  - the ELF section header table
  *  - the ELF .shstrtab, .symtab and .strtab sections
- *
- * If no boot data was found, 0 is returned, and the end address isn't set.
  */
-static uint32_t __boot
-biosmem_find_boot_data(const struct multiboot_raw_info *mbi, uint32_t min,
-                       uint32_t max, uint32_t *endp)
+static int __boot
+biosmem_find_heap(const struct multiboot_raw_info *mbi,
+                  uint32_t start, uint32_t end,
+                  uint32_t *heap_start, uint32_t *heap_end)
 {
     struct multiboot_raw_module *mod;
     struct elf_shdr *shdr;
-    uint32_t i, start, end = end;
     unsigned long tmp;
+    uint32_t i;
+    int error;
 
-    start = max;
+    if (start >= end) {
+        return -1;
+    }
 
-    biosmem_find_boot_data_update(min, &start, &end, (unsigned long)&_boot,
-                                  BOOT_VTOP((unsigned long)&_end));
+    *heap_start = start;
+    *heap_end = end;
 
-    if ((mbi->flags & MULTIBOOT_LOADER_CMDLINE) && (mbi->cmdline != 0))
-        biosmem_find_boot_data_update(min, &start, &end, mbi->cmdline,
-                                      mbi->cmdline + mbi->unused0);
+    error = biosmem_find_heap_clip(heap_start, heap_end,
+                                   (unsigned long)&_boot,
+                                   BOOT_VTOP((unsigned long)&_end));
+
+    if (error) {
+        return error;
+    }
+
+    if ((mbi->flags & MULTIBOOT_LOADER_CMDLINE) && (mbi->cmdline != 0)) {
+        error = biosmem_find_heap_clip(heap_start, heap_end,
+                                       mbi->cmdline,
+                                       mbi->cmdline + mbi->unused0);
+
+        if (error) {
+            return error;
+        }
+    }
 
     if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
         i = mbi->mods_count * sizeof(struct multiboot_raw_module);
-        biosmem_find_boot_data_update(min, &start, &end, mbi->mods_addr,
-                                      mbi->mods_addr + i);
+        error = biosmem_find_heap_clip(heap_start, heap_end,
+                                       mbi->mods_addr, mbi->mods_addr + i);
+
+        if (error) {
+            return error;
+        }
+
         tmp = mbi->mods_addr;
 
         for (i = 0; i < mbi->mods_count; i++) {
             mod = (struct multiboot_raw_module *)tmp + i;
-            biosmem_find_boot_data_update(min, &start, &end, mod->mod_start,
-                                          mod->mod_end);
+            error = biosmem_find_heap_clip(heap_start, heap_end,
+                                           mod->mod_start, mod->mod_end);
 
-            if (mod->string != 0)
-                biosmem_find_boot_data_update(min, &start, &end, mod->string,
-                                              mod->string + mod->reserved);
+            if (error) {
+                return error;
+            }
+
+            if (mod->string != 0) {
+                error = biosmem_find_heap_clip(heap_start, heap_end,
+                                               mod->string,
+                                               mod->string + mod->reserved);
+
+                if (error) {
+                    return error;
+                }
+            }
         }
     }
 
     if (mbi->flags & MULTIBOOT_LOADER_SHDR) {
         tmp = mbi->shdr_num * mbi->shdr_size;
-        biosmem_find_boot_data_update(min, &start, &end, mbi->shdr_addr,
-                                      mbi->shdr_addr + tmp);
+        error = biosmem_find_heap_clip(heap_start, heap_end,
+                                       mbi->shdr_addr, mbi->shdr_addr + tmp);
+
+        if (error) {
+            return error;
+        }
+
         tmp = mbi->shdr_addr;
 
         for (i = 0; i < mbi->shdr_num; i++) {
@@ -465,53 +518,53 @@ biosmem_find_boot_data(const struct multiboot_raw_info *mbi, uint32_t min,
                 && (shdr->type != ELF_SHT_STRTAB))
                 continue;
 
-            biosmem_find_boot_data_update(min, &start, &end, shdr->addr,
-                                          shdr->addr + shdr->size);
+            error = biosmem_find_heap_clip(heap_start, heap_end,
+                                           shdr->addr, shdr->addr + shdr->size);
         }
     }
 
-    if (start == max)
-        return 0;
-
-    *endp = end;
-    return start;
+    return 0;
 }
 
 static void __boot
 biosmem_setup_allocator(struct multiboot_raw_info *mbi)
 {
     uint32_t heap_start, heap_end, max_heap_start, max_heap_end;
-    uint32_t mem_end, next;
+    uint32_t start, end;
+    int error;
 
     /*
      * Find some memory for the heap. Look for the largest unused area in
      * upper memory, carefully avoiding all boot data.
      */
-    mem_end = vm_page_trunc((mbi->mem_upper + 1024) << 10);
+    end = vm_page_trunc((mbi->mem_upper + 1024) << 10);
 
 #ifndef __LP64__
-    if (mem_end > VM_PAGE_DIRECTMAP_LIMIT)
-        mem_end = VM_PAGE_DIRECTMAP_LIMIT;
+    if (end > VM_PAGE_DIRECTMAP_LIMIT)
+        end = VM_PAGE_DIRECTMAP_LIMIT;
 #endif /* __LP64__ */
 
     max_heap_start = 0;
     max_heap_end = 0;
-    next = BIOSMEM_END;
+    start = BIOSMEM_END;
 
-    do {
-        heap_start = next;
-        heap_end = biosmem_find_boot_data(mbi, heap_start, mem_end, &next);
+    for (;;) {
+        error = biosmem_find_heap(mbi, start, end, &heap_start, &heap_end);
 
-        if (heap_end == 0) {
-            heap_end = mem_end;
-            next = 0;
+        if (error) {
+            break;
         }
 
         if ((heap_end - heap_start) > (max_heap_end - max_heap_start)) {
             max_heap_start = heap_start;
             max_heap_end = heap_end;
         }
-    } while (next != 0);
+
+        start = heap_end;
+    }
+
+    if (max_heap_start >= max_heap_end)
+        boot_panic(biosmem_panic_setup_msg);
 
     max_heap_start = vm_page_round(max_heap_start);
     max_heap_end = vm_page_trunc(max_heap_end);
