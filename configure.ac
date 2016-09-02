@@ -15,14 +15,12 @@ AC_PROG_CC
 AM_PROG_AS
 AM_PROG_CC_C_O
 
+AC_HEADER_ASSERT()
+
 m4_include([arch/x86/configfrag.ac])
 
 AS_IF([test x"$arch" = x], [AC_MSG_ERROR([unsupported architecture])])
 AC_SUBST([arch])
-
-AC_ARG_ENABLE([debug],
-              [AS_HELP_STRING([--disable-debug],
-                              [disable the debugging facilities])])
 
 AC_ARG_ENABLE([test-module],
               [AS_HELP_STRING([--enable-test-module=TEST_MODULE],
@@ -38,9 +36,6 @@ AC_ARG_WITH([max-cpus],
 
 AC_DEFINE([__KERNEL__], [1], [kernel code])
 AC_DEFINE_UNQUOTED([ARCH], [$arch], [arch])
-
-AS_IF([test x"$enable_debug" = xno],
-      [AC_DEFINE([NDEBUG], [1], [disable debugging])])
 
 m4_define([ENABLE_TEST_MODULE],
           [AS_CASE(["$enable_test_module"],
