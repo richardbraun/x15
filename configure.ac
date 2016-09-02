@@ -48,6 +48,7 @@ m4_define([ENABLE_TEST_MODULE],
                    [pmap_update_mp], [test_pmap_update_mp=yes],
                    [sref_dirty_zeroes], [test_sref_dirty_zeroes=yes],
                    [sref_noref], [test_sref_noref=yes],
+                   [vm_page_fill], [test_vm_page_fill=yes],
                    [x86_double_fault], [test_x86_double_fault=yes],
                    [xcall], [test_xcall=yes],
                    [AC_MSG_ERROR([invalid test module])])
@@ -64,6 +65,8 @@ AM_CONDITIONAL([TEST_SREF_DIRTY_ZEROES],
                [test x"$test_sref_dirty_zeroes" = xyes])
 AM_CONDITIONAL([TEST_SREF_NOREF],
                [test x"$test_sref_noref" = xyes])
+AM_CONDITIONAL([TEST_VM_PAGE_FILL],
+               [test x"$test_vm_page_fill" = xyes])
 AM_CONDITIONAL([TEST_X86_DOUBLE_FAULT],
                [test x"$test_x86_double_fault" = xyes])
 AM_CONDITIONAL([TEST_XCALL],
