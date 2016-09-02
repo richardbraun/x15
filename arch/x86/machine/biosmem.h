@@ -85,7 +85,8 @@ void biosmem_setup(void);
  * Free all usable memory.
  *
  * This includes ranges that weren't part of the bootstrap allocator initial
- * heap, e.g. because they contained boot data.
+ * heap, e.g. because they contained boot data. Any boot data to keep must
+ * be saved before calling this function.
  */
 void biosmem_free_usable(void);
 
