@@ -34,6 +34,7 @@
 #include <vm/vm_page.h>
 
 static struct list test_pages;
+static struct cpumap test_cpumap;
 
 static unsigned char test_pattern = 1;
 
@@ -57,10 +58,10 @@ test_write_pages(void)
         error = vm_map_enter(kernel_map, &va, PAGE_SIZE, 0, flags, NULL, 0);
         error_check(error, __func__);
         pmap_enter(kernel_pmap, va, vm_page_to_pa(page),
-                   VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
+                   VM_PROT_READ | VM_PROT_WRITE, 0);
         pmap_update(kernel_pmap);
         memset((void *)va, test_pattern, PAGE_SIZE);
-        pmap_remove(kernel_pmap, va, cpumap_all());
+        pmap_remove(kernel_pmap, va, &test_cpumap);
         pmap_update(kernel_pmap);
         vm_map_remove(kernel_map, va, va + PAGE_SIZE);
 
@@ -85,10 +86,10 @@ test_reset_pages(void)
         error = vm_map_enter(kernel_map, &va, PAGE_SIZE, 0, flags, NULL, 0);
         error_check(error, __func__);
         pmap_enter(kernel_pmap, va, vm_page_to_pa(page),
-                   VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
+                   VM_PROT_READ | VM_PROT_WRITE, 0);
         pmap_update(kernel_pmap);
         memset((void *)va, 0, PAGE_SIZE);
-        pmap_remove(kernel_pmap, va, cpumap_all());
+        pmap_remove(kernel_pmap, va, &test_cpumap);
         pmap_update(kernel_pmap);
         vm_map_remove(kernel_map, va, va + PAGE_SIZE);
 
@@ -121,9 +122,12 @@ test_setup(void)
     int error;
 
     list_init(&test_pages);
+    cpumap_zero(&test_cpumap);
+    cpumap_set(&test_cpumap, cpu_id());
 
     thread_attr_init(&attr, "x15_test_run");
     thread_attr_set_detached(&attr);
+    thread_attr_set_cpumap(&attr, &test_cpumap);
     error = thread_create(&thread, &attr, test_run, NULL);
     error_check(error, "thread_create");
 }
