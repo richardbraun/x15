@@ -29,6 +29,8 @@
  * The symmetric case is handled likewise.
  */
 
+#include <stdbool.h>
+
 #include <kern/assert.h>
 #include <kern/init.h>
 #include <kern/list.h>
@@ -119,6 +121,7 @@ struct vm_page_seg {
 struct vm_page_boot_seg {
     phys_addr_t start;
     phys_addr_t end;
+    bool heap_present;
     phys_addr_t avail_start;
     phys_addr_t avail_end;
 };
@@ -477,27 +480,47 @@ vm_page_seg_free(struct vm_page_seg *seg, struct vm_page *page,
 }
 
 void __init
-vm_page_load(unsigned int seg_index, phys_addr_t start, phys_addr_t end,
-             phys_addr_t avail_start, phys_addr_t avail_end)
+vm_page_load(unsigned int seg_index, phys_addr_t start, phys_addr_t end)
 {
     struct vm_page_boot_seg *seg;
 
     assert(seg_index < ARRAY_SIZE(vm_page_boot_segs));
     assert(vm_page_aligned(start));
     assert(vm_page_aligned(end));
-    assert(vm_page_aligned(avail_start));
-    assert(vm_page_aligned(avail_end));
     assert(start < end);
-    assert(start <= avail_start);
-    assert(avail_end <= end);
     assert(vm_page_segs_size < ARRAY_SIZE(vm_page_boot_segs));
 
     seg = &vm_page_boot_segs[seg_index];
     seg->start = start;
     seg->end = end;
-    seg->avail_start = avail_start;
-    seg->avail_end = avail_end;
+    seg->heap_present = false;
+    printk("vm_page: load: %s: %llx:%llx\n",
+           vm_page_seg_name(seg_index),
+           (unsigned long long)start, (unsigned long long)end);
+
     vm_page_segs_size++;
+}
+
+void
+vm_page_load_heap(unsigned int seg_index, phys_addr_t start, phys_addr_t end)
+{
+    struct vm_page_boot_seg *seg;
+
+    assert(seg_index < ARRAY_SIZE(vm_page_boot_segs));
+    assert(vm_page_aligned(start));
+    assert(vm_page_aligned(end));
+
+    seg = &vm_page_boot_segs[seg_index];
+
+    assert(seg->start <= start);
+    assert(end <= seg-> end);
+
+    seg->avail_start = start;
+    seg->avail_end = end;
+    seg->heap_present = true;
+    printk("vm_page: heap: %s: %llx:%llx\n",
+           vm_page_seg_name(seg_index),
+           (unsigned long long)start, (unsigned long long)end);
 }
 
 int
@@ -579,6 +602,10 @@ vm_page_bootalloc(size_t size)
          i < vm_page_segs_size;
          i--) {
         seg = &vm_page_boot_segs[i];
+
+        if (!seg->heap_present) {
+            continue;
+        }
 
         if (size <= vm_page_boot_seg_avail_size(seg)) {
             pa = seg->avail_start;

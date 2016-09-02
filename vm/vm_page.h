@@ -127,13 +127,18 @@ vm_page_direct_ptr(const struct vm_page *page)
 /*
  * Load physical memory into the vm_page module at boot time.
  *
- * The avail_start and avail_end parameters are used to maintain a simple
- * heap for bootstrap allocations.
- *
  * All addresses must be page-aligned. Segments can be loaded in any order.
  */
-void vm_page_load(unsigned int seg_index, phys_addr_t start, phys_addr_t end,
-                  phys_addr_t avail_start, phys_addr_t avail_end);
+void vm_page_load(unsigned int seg_index, phys_addr_t start, phys_addr_t end);
+
+/*
+ * Load available physical memory into the vm_page module at boot time.
+ *
+ * The segment referred to must have been loaded with vm_page_load
+ * before loading its heap.
+ */
+void vm_page_load_heap(unsigned int seg_index, phys_addr_t start,
+                       phys_addr_t end);
 
 /*
  * Return true if the vm_page module is completely initialized, false
