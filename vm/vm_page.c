@@ -48,6 +48,8 @@
 #include <machine/pmap.h>
 #include <vm/vm_page.h>
 
+#define DEBUG 0
+
 /*
  * Number of free block lists per segment.
  */
@@ -494,9 +496,12 @@ vm_page_load(unsigned int seg_index, phys_addr_t start, phys_addr_t end)
     seg->start = start;
     seg->end = end;
     seg->heap_present = false;
+
+#if DEBUG
     printk("vm_page: load: %s: %llx:%llx\n",
            vm_page_seg_name(seg_index),
            (unsigned long long)start, (unsigned long long)end);
+#endif
 
     vm_page_segs_size++;
 }
@@ -518,9 +523,12 @@ vm_page_load_heap(unsigned int seg_index, phys_addr_t start, phys_addr_t end)
     seg->avail_start = start;
     seg->avail_end = end;
     seg->heap_present = true;
+
+#if DEBUG
     printk("vm_page: heap: %s: %llx:%llx\n",
            vm_page_seg_name(seg_index),
            (unsigned long long)start, (unsigned long long)end);
+#endif
 }
 
 int
