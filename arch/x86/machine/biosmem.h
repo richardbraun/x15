@@ -61,11 +61,9 @@ void biosmem_bootstrap(struct multiboot_raw_info *mbi);
 void * biosmem_bootalloc(unsigned int nr_pages);
 
 /*
- * Return the amount of physical memory that can be directly mapped.
- *
- * This includes the size of both the DMA/DMA32 and DIRECTMAP segments.
+ * Return the limit of physical memory that can be directly mapped.
  */
-phys_addr_t biosmem_directmap_size(void);
+phys_addr_t biosmem_directmap_end(void);
 
 /*
  * Set up physical memory based on the information obtained during bootstrap

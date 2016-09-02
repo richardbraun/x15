@@ -413,7 +413,7 @@ pmap_pte_t * __boot
 pmap_setup_paging(void)
 {
     struct pmap_cpu_table *cpu_table;
-    phys_addr_t pa, directmap_size;
+    phys_addr_t pa, directmap_end;
     unsigned long i, va, size, pgsize;
     pmap_pte_t *root_ptp;
 
@@ -439,15 +439,15 @@ pmap_setup_paging(void)
         pa += PAGE_SIZE;
     }
 
-    directmap_size = biosmem_directmap_size();
+    directmap_end = biosmem_directmap_end();
 
-    if (directmap_size > (VM_MAX_DIRECTMAP_ADDRESS - VM_MIN_DIRECTMAP_ADDRESS))
+    if (directmap_end > (VM_MAX_DIRECTMAP_ADDRESS - VM_MIN_DIRECTMAP_ADDRESS))
         boot_panic(pmap_panic_directmap_msg);
 
     va = VM_MIN_DIRECTMAP_ADDRESS;
     pa = 0;
 
-    for (i = 0; i < directmap_size; i += pgsize) {
+    for (i = 0; i < directmap_end; i += pgsize) {
         pmap_boot_enter(root_ptp, va, pa, pgsize);
         va += pgsize;
         pa += pgsize;

@@ -600,7 +600,7 @@ biosmem_bootalloc(unsigned int nr_pages)
 }
 
 phys_addr_t __boot
-biosmem_directmap_size(void)
+biosmem_directmap_end(void)
 {
     if (biosmem_segment_size(VM_PAGE_SEG_DIRECTMAP) != 0)
         return biosmem_segment_end(VM_PAGE_SEG_DIRECTMAP);
