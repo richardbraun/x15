@@ -15,6 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdbool.h>
+
 #include <kern/assert.h>
 #include <kern/init.h>
 #include <kern/macros.h>
@@ -94,8 +96,17 @@ static struct biosmem_segment biosmem_segments[VM_PAGE_MAX_SEGS] __bootdata;
  * This heap is located above BIOS memory.
  */
 static uint32_t biosmem_heap_start __bootdata;
-static uint32_t biosmem_heap_cur __bootdata;
+static uint32_t biosmem_heap_bottom __bootdata;
+static uint32_t biosmem_heap_top __bootdata;
 static uint32_t biosmem_heap_end __bootdata;
+
+/*
+ * Boot allocation policy.
+ *
+ * Top-down allocations are normally preferred to avoid unnecessarily
+ * filling the DMA segment.
+ */
+static bool biosmem_heap_topdown __bootdata;
 
 static char biosmem_panic_toobig_msg[] __bootdata
     = "biosmem: too many memory map entries";
@@ -515,7 +526,9 @@ biosmem_setup_allocator(struct multiboot_raw_info *mbi)
 
     biosmem_heap_start = max_heap_start;
     biosmem_heap_end = max_heap_end;
-    biosmem_heap_cur = biosmem_heap_end;
+    biosmem_heap_bottom = biosmem_heap_start;
+    biosmem_heap_top = biosmem_heap_end;
+    biosmem_heap_topdown = true;
 }
 
 void __boot
@@ -589,14 +602,34 @@ biosmem_bootalloc(unsigned int nr_pages)
     if (size == 0)
         boot_panic(biosmem_panic_inval_msg);
 
-    /* Top-down allocation to avoid unnecessarily filling DMA segments */
-    addr = biosmem_heap_cur - size;
+    if (biosmem_heap_topdown) {
+        addr = biosmem_heap_top - size;
 
-    if ((addr < biosmem_heap_start) || (addr > biosmem_heap_cur))
-        boot_panic(biosmem_panic_nomem_msg);
+        if ((addr < biosmem_heap_start) || (addr > biosmem_heap_top)) {
+            boot_panic(biosmem_panic_nomem_msg);
+        }
 
-    biosmem_heap_cur = addr;
+        biosmem_heap_top = addr;
+    } else {
+        unsigned long end;
+
+        addr = biosmem_heap_bottom;
+        end = addr + size;
+
+        if ((end > biosmem_heap_end) || (end < biosmem_heap_bottom)) {
+            boot_panic(biosmem_panic_nomem_msg);
+        }
+
+        biosmem_heap_bottom = end;
+    }
+
     return boot_memset((void *)addr, 0, size);
+}
+
+void __boot
+biosmem_set_bootalloc_policy(bool topdown)
+{
+    biosmem_heap_topdown = topdown;
 }
 
 phys_addr_t __boot
@@ -647,12 +680,15 @@ biosmem_map_show(void)
 }
 
 static void __init
-biosmem_load_segment(struct biosmem_segment *seg, uint64_t max_phys_end,
-                     phys_addr_t phys_start, phys_addr_t phys_end,
-                     phys_addr_t avail_start, phys_addr_t avail_end)
+biosmem_load_segment(struct biosmem_segment *seg, uint64_t max_phys_end)
 {
+    phys_addr_t phys_start, phys_end, avail_start, avail_end;
     unsigned int seg_index;
 
+    phys_start = seg->start;
+    phys_end = seg->end;
+    avail_start = biosmem_heap_bottom;
+    avail_end = biosmem_heap_top;
     seg_index = seg - biosmem_segments;
 
     if (phys_end > max_phys_end) {
@@ -698,8 +734,7 @@ biosmem_setup(void)
             break;
 
         seg = &biosmem_segments[i];
-        biosmem_load_segment(seg, max_phys_end, seg->start, seg->end,
-                             biosmem_heap_start, biosmem_heap_cur);
+        biosmem_load_segment(seg, max_phys_end);
     }
 }
 

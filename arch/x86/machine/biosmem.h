@@ -18,6 +18,8 @@
 #ifndef _X86_BIOSMEM_H
 #define _X86_BIOSMEM_H
 
+#include <stdbool.h>
+
 #include <kern/types.h>
 #include <machine/multiboot.h>
 
@@ -59,6 +61,14 @@ void biosmem_bootstrap(struct multiboot_raw_info *mbi);
  * system is initialized.
  */
 void * biosmem_bootalloc(unsigned int nr_pages);
+
+/*
+ * Set the bootstrap allocation policy.
+ *
+ * The policy can be changed at any time while the bootstrap allocator
+ * is usable.
+ */
+void biosmem_set_bootalloc_policy(bool topdown);
 
 /*
  * Return the limit of physical memory that can be directly mapped.
