@@ -262,6 +262,11 @@ trap_frame_show(struct trap_frame *frame)
            frame->r11, frame->r12, frame->r13, frame->r14, frame->r15,
            frame->vector, frame->error, frame->rip, frame->cs, frame->rflags,
            frame->rsp, frame->ss);
+
+    /* XXX Until the page fault handler is written */
+    if (frame->vector == 14) {
+        printk("trap: cr2: %016lx\n", cpu_get_cr2());
+    }
 }
 
 #else /* __LP64__ */
@@ -289,6 +294,12 @@ trap_frame_show(struct trap_frame *frame)
            frame->esi, frame->edi, frame->ds, frame->es, frame->fs, frame->gs,
            frame->vector, frame->error, frame->eip, frame->cs, frame->eflags,
            esp, ss);
+
+
+    /* XXX Until the page fault handler is written */
+    if (frame->vector == 14) {
+        printk("trap: cr2: %08lx\n", cpu_get_cr2());
+    }
 }
 
 #endif /* __LP64__ */
