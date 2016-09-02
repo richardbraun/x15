@@ -35,6 +35,8 @@
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 
+#define DEBUG 0
+
 /*
  * Maximum number of entries in the BIOS memory map.
  *
@@ -802,9 +804,11 @@ biosmem_free_usable_range(phys_addr_t start, phys_addr_t end)
 {
     struct vm_page *page;
 
+#if DEBUG
     printk("biosmem: release to vm_page: %llx-%llx (%lluk)\n",
            (unsigned long long)start, (unsigned long long)end,
            (unsigned long long)((end - start) >> 10));
+#endif
 
     while (start < end) {
         page = vm_page_lookup(start);
