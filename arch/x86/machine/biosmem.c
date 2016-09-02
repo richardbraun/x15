@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 Richard Braun.
+ * Copyright (c) 2010-2016 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,15 +64,10 @@ struct biosmem_map_entry {
 
 /*
  * Contiguous block of physical memory.
- *
- * Tha "available" range records what has been passed to the VM system as
- * available inside the segment.
  */
 struct biosmem_segment {
     phys_addr_t start;
     phys_addr_t end;
-    phys_addr_t avail_start;
-    phys_addr_t avail_end;
 };
 
 /*
@@ -687,8 +682,6 @@ biosmem_load_segment(struct biosmem_segment *seg, uint64_t max_phys_end)
 
     phys_start = seg->start;
     phys_end = seg->end;
-    avail_start = biosmem_heap_bottom;
-    avail_end = biosmem_heap_top;
     seg_index = seg - biosmem_segments;
 
     if (phys_end > max_phys_end) {
@@ -703,15 +696,28 @@ biosmem_load_segment(struct biosmem_segment *seg, uint64_t max_phys_end)
         phys_end = max_phys_end;
     }
 
-    if ((avail_start < phys_start) || (avail_start >= phys_end))
-        avail_start = phys_start;
+    vm_page_load(seg_index, phys_start, phys_end);
 
-    if ((avail_end <= phys_start) || (avail_end > phys_end))
-        avail_end = phys_end;
+    /*
+     * Clip the remaining available heap to fit it into the loaded
+     * segment if possible.
+     */
 
-    seg->avail_start = avail_start;
-    seg->avail_end = avail_end;
-    vm_page_load(seg_index, phys_start, phys_end, avail_start, avail_end);
+    if ((biosmem_heap_top > phys_start) && (biosmem_heap_bottom < phys_end)) {
+        if (biosmem_heap_bottom >= phys_start) {
+            avail_start = biosmem_heap_bottom;
+        } else {
+            avail_start = phys_start;
+        }
+
+        if (biosmem_heap_top <= phys_end) {
+            avail_end = biosmem_heap_top;
+        } else {
+            avail_end = phys_end;
+        }
+
+        vm_page_load_heap(seg_index, avail_start, avail_end);
+    }
 }
 
 void __init
@@ -756,8 +762,8 @@ biosmem_free_usable_range(phys_addr_t start, phys_addr_t end)
 }
 
 static void __init
-biosmem_free_usable_update_start(phys_addr_t *start, phys_addr_t res_start,
-                                 phys_addr_t res_end)
+biosmem_free_usable_skip(phys_addr_t *start, phys_addr_t res_start,
+                         phys_addr_t res_end)
 {
     if ((*start >= res_start) && (*start < res_end))
         *start = res_end;
@@ -766,42 +772,21 @@ biosmem_free_usable_update_start(phys_addr_t *start, phys_addr_t res_start,
 static phys_addr_t __init
 biosmem_free_usable_start(phys_addr_t start)
 {
-    const struct biosmem_segment *seg;
-    unsigned int i;
-
-    biosmem_free_usable_update_start(&start, (unsigned long)&_boot,
-                                     BOOT_VTOP((unsigned long)&_end));
-    biosmem_free_usable_update_start(&start, biosmem_heap_start,
-                                     biosmem_heap_end);
-
-    for (i = 0; i < ARRAY_SIZE(biosmem_segments); i++) {
-        seg = &biosmem_segments[i];
-        biosmem_free_usable_update_start(&start, seg->avail_start,
-                                         seg->avail_end);
-    }
-
+    biosmem_free_usable_skip(&start, (unsigned long)&_boot,
+                             BOOT_VTOP((unsigned long)&_end));
+    biosmem_free_usable_skip(&start, biosmem_heap_start, biosmem_heap_end);
     return start;
 }
 
 static int __init
 biosmem_free_usable_reserved(phys_addr_t addr)
 {
-    const struct biosmem_segment *seg;
-    unsigned int i;
-
     if ((addr >= (unsigned long)&_boot)
         && (addr < BOOT_VTOP((unsigned long)&_end)))
         return 1;
 
     if ((addr >= biosmem_heap_start) && (addr < biosmem_heap_end))
         return 1;
-
-    for (i = 0; i < ARRAY_SIZE(biosmem_segments); i++) {
-        seg = &biosmem_segments[i];
-
-        if ((addr >= seg->avail_start) && (addr < seg->avail_end))
-            return 1;
-    }
 
     return 0;
 }
