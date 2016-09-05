@@ -730,6 +730,8 @@ biosmem_directmap_end(void)
         return biosmem_segment_end(VM_PAGE_SEG_DMA);
 }
 
+#if DEBUG
+
 static const char * __init
 biosmem_type_desc(unsigned int type)
 {
@@ -767,6 +769,10 @@ biosmem_map_show(void)
            (unsigned long long)biosmem_heap_start,
            (unsigned long long)biosmem_heap_end);
 }
+
+#else /* DEBUG */
+#define biosmem_map_show()
+#endif /* DEBUG */
 
 static void __init
 biosmem_load_segment(struct biosmem_segment *seg, uint64_t max_phys_end)
