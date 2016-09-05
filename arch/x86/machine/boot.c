@@ -42,6 +42,8 @@
  * to "enabling paging" do not refer to this initial identity mapping.
  */
 
+#include <stdbool.h>
+
 #include <kern/evcnt.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
@@ -60,6 +62,7 @@
 #include <machine/boot.h>
 #include <machine/cga.h>
 #include <machine/cpu.h>
+#include <machine/elf.h>
 #include <machine/multiboot.h>
 #include <machine/pic.h>
 #include <machine/pit.h>
@@ -171,8 +174,79 @@ boot_panic(const char *msg)
     /* Never reached */
 }
 
+static void __boot
+boot_save_cmdline_sizes(struct multiboot_raw_info *mbi)
+{
+    struct multiboot_raw_module *mod;
+    uint32_t i;
+
+    if (mbi->flags & MULTIBOOT_LOADER_CMDLINE)
+        mbi->unused0 = boot_strlen((char *)(unsigned long)mbi->cmdline) + 1;
+
+    if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
+        unsigned long addr;
+
+        addr = mbi->mods_addr;
+
+        for (i = 0; i < mbi->mods_count; i++) {
+            mod = (struct multiboot_raw_module *)addr + i;
+            mod->reserved = boot_strlen((char *)(unsigned long)mod->string) + 1;
+        }
+    }
+}
+
+static void __boot
+boot_register_data(const struct multiboot_raw_info *mbi)
+{
+    struct multiboot_raw_module *mod;
+    struct elf_shdr *shdr;
+    unsigned long tmp;
+    unsigned int i;
+
+    biosmem_register_boot_data((unsigned long)&_boot,
+                               BOOT_VTOP((unsigned long)&_end), false);
+
+    if ((mbi->flags & MULTIBOOT_LOADER_CMDLINE) && (mbi->cmdline != 0)) {
+        biosmem_register_boot_data(mbi->cmdline, mbi->cmdline + mbi->unused0, true);
+    }
+
+    if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
+        i = mbi->mods_count * sizeof(struct multiboot_raw_module);
+        biosmem_register_boot_data(mbi->mods_addr, mbi->mods_addr + i, true);
+
+        tmp = mbi->mods_addr;
+
+        for (i = 0; i < mbi->mods_count; i++) {
+            mod = (struct multiboot_raw_module *)tmp + i;
+            biosmem_register_boot_data(mod->mod_start, mod->mod_end, true);
+
+            if (mod->string != 0) {
+                biosmem_register_boot_data(mod->string,
+                                           mod->string + mod->reserved, true);
+            }
+        }
+    }
+
+    if (mbi->flags & MULTIBOOT_LOADER_SHDR) {
+        tmp = mbi->shdr_num * mbi->shdr_size;
+        biosmem_register_boot_data(mbi->shdr_addr, mbi->shdr_addr + tmp, true);
+
+        tmp = mbi->shdr_addr;
+
+        for (i = 0; i < mbi->shdr_num; i++) {
+            shdr = (struct elf_shdr *)(tmp + (i * mbi->shdr_size));
+
+            if ((shdr->type != ELF_SHT_SYMTAB)
+                && (shdr->type != ELF_SHT_STRTAB))
+                continue;
+
+            biosmem_register_boot_data(shdr->addr, shdr->addr + shdr->size, true);
+        }
+    }
+}
+
 pmap_pte_t * __boot
-boot_setup_paging(const struct multiboot_raw_info *mbi, unsigned long eax)
+boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
 {
     if (eax != MULTIBOOT_LOADER_MAGIC)
         boot_panic(boot_panic_loader_msg);
@@ -189,6 +263,12 @@ boot_setup_paging(const struct multiboot_raw_info *mbi, unsigned long eax)
     if ((mbi->flags & MULTIBOOT_LOADER_MODULES) && (mbi->mods_count == 0))
         boot_raw_mbi.flags &= ~MULTIBOOT_LOADER_MODULES;
 
+    /*
+     * The kernel and modules command lines will be memory mapped later
+     * during initialization. Their respective sizes must be saved.
+     */
+    boot_save_cmdline_sizes(&boot_raw_mbi);
+    boot_register_data(&boot_raw_mbi);
     biosmem_bootstrap(&boot_raw_mbi);
     return pmap_setup_paging();
 }

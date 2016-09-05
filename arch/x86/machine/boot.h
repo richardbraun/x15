@@ -105,7 +105,7 @@ void __noreturn boot_panic(const char *s);
  *
  * TODO Update comment.
  */
-pmap_pte_t * boot_setup_paging(const struct multiboot_raw_info *mbi,
+pmap_pte_t * boot_setup_paging(struct multiboot_raw_info *mbi,
                                unsigned long eax);
 
 /*
