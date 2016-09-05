@@ -66,14 +66,6 @@ void biosmem_bootstrap(struct multiboot_raw_info *mbi);
 void * biosmem_bootalloc(unsigned int nr_pages);
 
 /*
- * Set the bootstrap allocation policy.
- *
- * The policy can be changed at any time while the bootstrap allocator
- * is usable.
- */
-void biosmem_set_bootalloc_policy(bool topdown);
-
-/*
  * Return the limit of physical memory that can be directly mapped.
  */
 phys_addr_t biosmem_directmap_end(void);

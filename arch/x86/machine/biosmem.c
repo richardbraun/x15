@@ -676,12 +676,6 @@ biosmem_bootalloc(unsigned int nr_pages)
     return boot_memset((void *)addr, 0, size);
 }
 
-void __boot
-biosmem_set_bootalloc_policy(bool topdown)
-{
-    biosmem_heap_topdown = topdown;
-}
-
 phys_addr_t __boot
 biosmem_directmap_end(void)
 {
