@@ -726,7 +726,7 @@ biosmem_map_show(void)
                entry->base_addr + entry->length,
                biosmem_type_desc(entry->type));
 
-    printk("biosmem: heap: %x-%x\n", biosmem_heap_start, biosmem_heap_end);
+    printk("biosmem: heap: %x:%x\n", biosmem_heap_start, biosmem_heap_end);
 }
 
 static void __init
@@ -805,7 +805,7 @@ biosmem_free_usable_range(phys_addr_t start, phys_addr_t end)
     struct vm_page *page;
 
 #if DEBUG
-    printk("biosmem: release to vm_page: %llx-%llx (%lluk)\n",
+    printk("biosmem: release to vm_page: %llx:%llx (%lluk)\n",
            (unsigned long long)start, (unsigned long long)end,
            (unsigned long long)((end - start) >> 10));
 #endif
