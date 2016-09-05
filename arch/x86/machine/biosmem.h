@@ -53,7 +53,8 @@
  *
  * This function is called before paging is enabled.
  */
-void biosmem_register_boot_data(phys_addr_t start, phys_addr_t end, bool temporary);
+void biosmem_register_boot_data(phys_addr_t start, phys_addr_t end,
+                                bool temporary);
 
 /*
  * Initialize the early page allocator.
