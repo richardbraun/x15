@@ -105,7 +105,7 @@ static uint32_t biosmem_heap_end __bootdata;
  */
 static bool biosmem_heap_topdown __bootdata;
 
-static char biosmem_panic_toobig_msg[] __bootdata
+static char biosmem_panic_too_big_msg[] __bootdata
     = "biosmem: too many memory map entries";
 static char biosmem_panic_setup_msg[] __bootdata
     = "biosmem: unable to set up the early memory allocator";
@@ -294,7 +294,7 @@ biosmem_map_adjust(void)
                  */
 
                 if (biosmem_map_size >= ARRAY_SIZE(biosmem_map))
-                    boot_panic(biosmem_panic_toobig_msg);
+                    boot_panic(biosmem_panic_too_big_msg);
 
                 biosmem_map[biosmem_map_size] = tmp;
                 biosmem_map_size++;
