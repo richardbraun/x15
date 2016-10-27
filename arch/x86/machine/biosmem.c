@@ -207,7 +207,7 @@ biosmem_unregister_boot_data(phys_addr_t start, phys_addr_t end)
     unsigned int i;
 
     if (start >= end) {
-        panic(biosmem_panic_inval_boot_data);
+        panic("%s", biosmem_panic_inval_boot_data);
     }
 
     assert(biosmem_nr_boot_data != 0);
