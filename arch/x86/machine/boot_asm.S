@@ -153,7 +153,7 @@ ASM_ENTRY(boot_no_long_mode)
 1:
  cmpl %edx, %edi
  jae 2f
- movw $((BOOT_CGACOLOR << 8) + ' ), (%edi)
+ movw $((BOOT_CGACOLOR << 8) + ' '), (%edi)
  add $2, %edi
  jmp 1b
 
