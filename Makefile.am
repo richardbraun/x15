@@ -16,6 +16,7 @@ AM_CFLAGS = \
 	-Wstrict-prototypes \
 	-fsigned-char \
 	-ffreestanding \
+	-fno-common \
 	-fno-stack-protector
 
 LDS_V = $(LDS_V_$(V))
