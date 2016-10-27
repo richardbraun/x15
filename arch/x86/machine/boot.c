@@ -258,7 +258,7 @@ boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
      * Save the multiboot data passed by the boot loader, initialize the
      * bootstrap allocator and set up paging.
      */
-    boot_raw_mbi = *mbi;
+    boot_memmove(&boot_raw_mbi, mbi, sizeof(boot_raw_mbi));
 
     if ((mbi->flags & MULTIBOOT_LOADER_MODULES) && (mbi->mods_count == 0))
         boot_raw_mbi.flags &= ~MULTIBOOT_LOADER_MODULES;
