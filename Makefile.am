@@ -21,7 +21,7 @@ AM_CFLAGS = \
 
 LDS_V = $(LDS_V_$(V))
 LDS_V_ = $(LDS_V_$(AM_DEFAULT_VERBOSITY))
-LDS_V_0 = @echo "  LDS    $@";
+LDS_V_0 = @echo LDS $@;
 
 SUFFIXES = .lds .lds.S
 
