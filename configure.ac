@@ -3,7 +3,7 @@ AC_INIT([X15], [0.1], [rbraun@sceen.net], [x15])
 AC_CONFIG_SRCDIR([kern/config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 
-AM_INIT_AUTOMAKE([foreign subdir-objects 1.10])
+AM_INIT_AUTOMAKE([foreign subdir-objects 1.11])
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])],
          [AC_SUBST([AM_DEFAULT_VERBOSITY], [1])])
