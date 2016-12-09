@@ -19,14 +19,10 @@ AM_CFLAGS = \
 	-fno-common \
 	-fno-stack-protector
 
-LDS_V = $(LDS_V_$(V))
-LDS_V_ = $(LDS_V_$(AM_DEFAULT_VERBOSITY))
-LDS_V_0 = @echo LDS $@;
-
 SUFFIXES = .lds .lds.S
 
 .lds.S.lds:
-	$(LDS_V) $(CPP) -P $(AM_CPPFLAGS) -o $@ $<
+	$(AM_V_GEN)$(CPP) -P $(AM_CPPFLAGS) -o $@ $<
 
 exec_bootdir = $(exec_prefix)/boot
 exec_boot_PROGRAMS = x15
