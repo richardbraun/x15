@@ -57,8 +57,9 @@ vprintk(const char *format, va_list ap)
 
     length = vsnprintf(printk_buffer, sizeof(printk_buffer), format, ap);
 
-    for (ptr = printk_buffer; *ptr != '\0'; ptr++)
+    for (ptr = printk_buffer; *ptr != '\0'; ptr++) {
         console_write_byte(*ptr);
+    }
 
     spinlock_unlock_intr_restore(&printk_lock, flags);
 

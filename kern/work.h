@@ -78,10 +78,11 @@ work_queue_push(struct work_queue *queue, struct work *work)
 {
     work->next = NULL;
 
-    if (queue->last == NULL)
+    if (queue->last == NULL) {
         queue->first = work;
-    else
+    } else {
         queue->last->next = work;
+    }
 
     queue->last = work;
     queue->nr_works++;
@@ -95,8 +96,9 @@ work_queue_pop(struct work_queue *queue)
     work = queue->first;
     queue->first = work->next;
 
-    if (queue->last == work)
+    if (queue->last == work) {
         queue->last = NULL;
+    }
 
     queue->nr_works--;
     return work;
@@ -111,8 +113,9 @@ work_queue_transfer(struct work_queue *dest, struct work_queue *src)
 static inline void
 work_queue_concat(struct work_queue *queue1, struct work_queue *queue2)
 {
-    if (queue2->nr_works == 0)
+    if (queue2->nr_works == 0) {
         return;
+    }
 
     if (queue1->nr_works == 0) {
         *queue1 = *queue2;

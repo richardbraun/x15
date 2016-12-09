@@ -409,8 +409,9 @@ thread_schedule(void)
 {
     barrier();
 
-    if (likely(!thread_test_flag(thread_self(), THREAD_YIELD)))
+    if (likely(!thread_test_flag(thread_self(), THREAD_YIELD))) {
         return;
+    }
 
     thread_yield();
 }

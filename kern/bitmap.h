@@ -63,8 +63,9 @@ bitmap_copy(unsigned long *dest, const unsigned long *src, int nr_bits)
 static inline void
 bitmap_set(unsigned long *bm, int bit)
 {
-    if (bit >= LONG_BIT)
+    if (bit >= LONG_BIT) {
         bitmap_lookup(bm, bit);
+    }
 
     *bm |= bitmap_mask(bit);
 }
@@ -72,8 +73,9 @@ bitmap_set(unsigned long *bm, int bit)
 static inline void
 bitmap_set_atomic(unsigned long *bm, int bit)
 {
-    if (bit >= LONG_BIT)
+    if (bit >= LONG_BIT) {
         bitmap_lookup(bm, bit);
+    }
 
     atomic_or_ulong(bm, bitmap_mask(bit));
 }
@@ -81,8 +83,9 @@ bitmap_set_atomic(unsigned long *bm, int bit)
 static inline void
 bitmap_clear(unsigned long *bm, int bit)
 {
-    if (bit >= LONG_BIT)
+    if (bit >= LONG_BIT) {
         bitmap_lookup(bm, bit);
+    }
 
     *bm &= ~bitmap_mask(bit);
 }
@@ -90,8 +93,9 @@ bitmap_clear(unsigned long *bm, int bit)
 static inline void
 bitmap_clear_atomic(unsigned long *bm, int bit)
 {
-    if (bit >= LONG_BIT)
+    if (bit >= LONG_BIT) {
         bitmap_lookup(bm, bit);
+    }
 
     atomic_and_ulong(bm, ~bitmap_mask(bit));
 }
@@ -99,8 +103,9 @@ bitmap_clear_atomic(unsigned long *bm, int bit)
 static inline int
 bitmap_test(const unsigned long *bm, int bit)
 {
-    if (bit >= LONG_BIT)
+    if (bit >= LONG_BIT) {
         bitmap_lookup(bm, bit);
+    }
 
     return ((*bm & bitmap_mask(bit)) != 0);
 }
@@ -112,8 +117,9 @@ bitmap_and(unsigned long *a, const unsigned long *b, int nr_bits)
 
     n = BITMAP_LONGS(nr_bits);
 
-    for (i = 0; i < n; i++)
+    for (i = 0; i < n; i++) {
         a[i] &= b[i];
+    }
 }
 
 static inline void
@@ -123,8 +129,9 @@ bitmap_or(unsigned long *a, const unsigned long *b, int nr_bits)
 
     n = BITMAP_LONGS(nr_bits);
 
-    for (i = 0; i < n; i++)
+    for (i = 0; i < n; i++) {
         a[i] |= b[i];
+    }
 }
 
 static inline void
@@ -134,8 +141,9 @@ bitmap_xor(unsigned long *a, const unsigned long *b, int nr_bits)
 
     n = BITMAP_LONGS(nr_bits);
 
-    for (i = 0; i < n; i++)
+    for (i = 0; i < n; i++) {
         a[i] ^= b[i];
+    }
 }
 
 static inline int

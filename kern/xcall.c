@@ -101,8 +101,9 @@ xcall_setup(void)
 {
     unsigned int i;
 
-    for (i = 0; i < cpu_count(); i++)
+    for (i = 0; i < cpu_count(); i++) {
         xcall_cpu_data_init(percpu_ptr(xcall_cpu_data, i));
+    }
 }
 
 void
@@ -139,8 +140,9 @@ xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu)
 
     cpu_send_xcall(cpu);
 
-    while (remote_data->recv_call != NULL)
+    while (remote_data->recv_call != NULL) {
         cpu_pause();
+    }
 
     spinlock_unlock(&remote_data->lock);
 

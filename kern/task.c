@@ -80,8 +80,9 @@ task_create(struct task **taskp, const char *name)
 
     error = vm_map_create(&map);
 
-    if (error)
+    if (error) {
         goto error_map;
+    }
 
     task_init(task, name, map);
 
@@ -122,8 +123,9 @@ task_info(struct task *task)
     if (task == NULL) {
         spinlock_lock(&task_list_lock);
 
-        list_for_each_entry(&task_list, task, node)
+        list_for_each_entry(&task_list, task, node) {
             printk("task: %s\n", task->name);
+        }
 
         spinlock_unlock(&task_list_lock);
 
@@ -134,10 +136,11 @@ task_info(struct task *task)
 
     printk("task: name: %s, threads:\n", task->name);
 
-    list_for_each_entry(&task->threads, thread, task_node)
+    list_for_each_entry(&task->threads, thread, task_node) {
         printk("task: %s: %p %c %.2s:%02u %s\n", task->name, thread,
                thread_state_to_chr(thread), thread_schedclass_to_str(thread),
                thread_schedprio(thread), thread->name);
+    }
 
     spinlock_unlock(&task->lock);
 }

@@ -337,8 +337,9 @@ cpu_halt(void)
 {
     cpu_intr_disable();
 
-    for (;;)
+    for (;;) {
         asm volatile("hlt" : : : "memory");
+    }
 }
 
 /*
@@ -495,16 +496,16 @@ cpu_tlb_flush(void)
 static __always_inline void
 cpu_tlb_flush_all(void)
 {
-    if (!cpu_has_global_pages())
+    if (!cpu_has_global_pages()) {
         cpu_tlb_flush();
-    else {
+    } else {
         unsigned long cr4;
 
         cr4 = cpu_get_cr4();
 
-        if (!(cr4 & CPU_CR4_PGE))
+        if (!(cr4 & CPU_CR4_PGE)) {
             cpu_tlb_flush();
-        else {
+        } else {
             cr4 &= ~CPU_CR4_PGE;
             cpu_set_cr4(cr4);
             cr4 |= CPU_CR4_PGE;

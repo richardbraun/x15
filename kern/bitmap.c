@@ -31,8 +31,9 @@ bitmap_cmp(const unsigned long *a, const unsigned long *b, int nr_bits)
     if (n != 0) {
         rv = memcmp(a, b, n * sizeof(unsigned long));
 
-        if (rv != 0)
+        if (rv != 0) {
             return rv;
+        }
 
         nr_bits -= n * LONG_BIT;
     }
@@ -46,19 +47,21 @@ bitmap_cmp(const unsigned long *a, const unsigned long *b, int nr_bits)
         last_b &= mask;
     }
 
-    if (last_a == last_b)
+    if (last_a == last_b) {
         return 0;
-    else if (last_a < last_b)
+    } else if (last_a < last_b) {
         return -1;
-    else
+    } else {
         return 1;
+    }
 }
 
 static inline unsigned long
 bitmap_find_next_compute_complement(unsigned long word, int nr_bits)
 {
-    if (nr_bits < LONG_BIT)
+    if (nr_bits < LONG_BIT) {
         word |= (((unsigned long)-1) << nr_bits);
+    }
 
     return ~word;
 }
@@ -80,27 +83,32 @@ bitmap_find_next_bit(const unsigned long *bm, int nr_bits, int bit,
 
     word = *bm;
 
-    if (complement)
+    if (complement) {
         word = bitmap_find_next_compute_complement(word, nr_bits);
+    }
 
-    if (bit < LONG_BIT)
+    if (bit < LONG_BIT) {
         word &= ~(bitmap_mask(bit) - 1);
+    }
 
     for (;;) {
         bit = __builtin_ffsl(word);
 
-        if (bit != 0)
+        if (bit != 0) {
             return ((bm - start) * LONG_BIT) + bit - 1;
+        }
 
         bm++;
 
-        if (bm >= end)
+        if (bm >= end) {
             return -1;
+        }
 
         nr_bits -= LONG_BIT;
         word = *bm;
 
-        if (complement)
+        if (complement) {
             word = bitmap_find_next_compute_complement(word, nr_bits);
+        }
     }
 }

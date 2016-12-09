@@ -51,8 +51,9 @@ mutex_trylock(struct mutex *mutex)
 
     state = mutex_tryacquire(mutex);
 
-    if (state == MUTEX_UNLOCKED)
+    if (state == MUTEX_UNLOCKED) {
         return 0;
+    }
 
     return 1;
 }
@@ -64,8 +65,9 @@ mutex_lock(struct mutex *mutex)
 
     state = mutex_tryacquire(mutex);
 
-    if (state == MUTEX_UNLOCKED)
+    if (state == MUTEX_UNLOCKED) {
         return;
+    }
 
     assert((state == MUTEX_LOCKED) || (state == MUTEX_CONTENDED));
 
@@ -79,8 +81,9 @@ mutex_unlock(struct mutex *mutex)
 
     state = mutex_release(mutex);
 
-    if (state == MUTEX_LOCKED)
+    if (state == MUTEX_LOCKED) {
         return;
+    }
 
     assert(state == MUTEX_CONTENDED);
 

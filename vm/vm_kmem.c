@@ -40,8 +40,9 @@ static int
 vm_kmem_alloc_check(size_t size)
 {
     if (!vm_page_aligned(size)
-        || (size == 0))
+        || (size == 0)) {
         return -1;
+    }
 
     return 0;
 }
@@ -49,8 +50,9 @@ vm_kmem_alloc_check(size_t size)
 static int
 vm_kmem_free_check(unsigned long va, size_t size)
 {
-    if (!vm_page_aligned(va))
+    if (!vm_page_aligned(va)) {
         return -1;
+    }
 
     return vm_kmem_alloc_check(size);
 }
@@ -68,8 +70,9 @@ vm_kmem_alloc_va(size_t size)
                          VM_ADV_DEFAULT, 0);
     error = vm_map_enter(kernel_map, &va, size, 0, flags, NULL, 0);
 
-    if (error)
+    if (error) {
         return 0;
+    }
 
     return (void *)va;
 }
@@ -93,14 +96,16 @@ vm_kmem_alloc(size_t size)
     size = vm_page_round(size);
     va = (unsigned long)vm_kmem_alloc_va(size);
 
-    if (va == 0)
+    if (va == 0) {
         return 0;
+    }
 
     for (start = va, end = va + size; start < end; start += PAGE_SIZE) {
         page = vm_page_alloc(0, VM_PAGE_SEL_HIGHMEM, VM_PAGE_KERNEL);
 
-        if (page == NULL)
+        if (page == NULL) {
             goto error_page;
+        }
 
         pmap_enter(kernel_pmap, start, vm_page_to_pa(page),
                    VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
@@ -119,8 +124,9 @@ error_page:
 
     size = end - start;
 
-    if (size != 0)
+    if (size != 0) {
         vm_kmem_free_va((void *)start, size);
+    }
 
     return NULL;
 }
@@ -165,8 +171,9 @@ vm_kmem_map_pa(phys_addr_t pa, size_t size,
     map_size = vm_page_round(pa + size) - start;
     map_va = (unsigned long)vm_kmem_alloc_va(map_size);
 
-    if (map_va == 0)
+    if (map_va == 0) {
         return NULL;
+    }
 
     for (offset = 0; offset < map_size; offset += PAGE_SIZE)
         pmap_enter(kernel_pmap, map_va + offset, start + offset,
@@ -174,11 +181,13 @@ vm_kmem_map_pa(phys_addr_t pa, size_t size,
 
     pmap_update(kernel_pmap);
 
-    if (map_vap != NULL)
+    if (map_vap != NULL) {
         *map_vap = map_va;
+    }
 
-    if (map_sizep != NULL)
+    if (map_sizep != NULL) {
         *map_sizep = map_size;
+    }
 
     return (void *)(map_va + (unsigned long)(pa & PAGE_MASK));
 }
@@ -192,8 +201,9 @@ vm_kmem_unmap_pa(unsigned long map_va, size_t map_size)
     cpumap = cpumap_all();
     end = map_va + map_size;
 
-    for (va = map_va; va < end; va += PAGE_SIZE)
+    for (va = map_va; va < end; va += PAGE_SIZE) {
         pmap_remove(kernel_pmap, va, cpumap);
+    }
 
     pmap_update(kernel_pmap);
     vm_kmem_free_va((void *)map_va, map_size);

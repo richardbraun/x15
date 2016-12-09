@@ -70,23 +70,26 @@ test_alloc(void *arg)
     mutex_lock(&test_lock);
 
     for (;;) {
-        while (test_pdsc != NULL)
+        while (test_pdsc != NULL) {
             condition_wait(&test_condition, &test_lock);
+        }
 
         pdsc = kmem_cache_alloc(&test_pdsc_cache);
 
         if (pdsc != NULL) {
             pdsc->addr = vm_kmem_alloc(PAGE_SIZE);
 
-            if (pdsc->addr != NULL)
+            if (pdsc->addr != NULL) {
                 memset(pdsc->addr, TEST_VALIDATION_BYTE, PAGE_SIZE);
+            }
         }
 
         llsync_assign_ptr(test_pdsc, pdsc);
         condition_signal(&test_condition);
 
-        if ((i % 100000) == 0)
+        if ((i % 100000) == 0) {
             printk("alloc ");
+        }
 
         i++;
     }
@@ -99,8 +102,9 @@ test_deferred_free(struct work *work)
 
     pdsc = structof(work, struct test_pdsc, work);
 
-    if (pdsc->addr != NULL)
+    if (pdsc->addr != NULL) {
         vm_kmem_free(pdsc->addr, PAGE_SIZE);
+    }
 
     kmem_cache_free(&test_pdsc_cache, pdsc);
 }
@@ -118,8 +122,9 @@ test_free(void *arg)
     mutex_lock(&test_lock);
 
     for (;;) {
-        while (test_pdsc == NULL)
+        while (test_pdsc == NULL) {
             condition_wait(&test_condition, &test_lock);
+        }
 
         pdsc = test_pdsc;
         llsync_assign_ptr(test_pdsc, NULL);
@@ -131,8 +136,9 @@ test_free(void *arg)
 
         condition_signal(&test_condition);
 
-        if ((i % 100000) == 0)
+        if ((i % 100000) == 0) {
             printk("free ");
+        }
 
         i++;
     }
@@ -159,11 +165,13 @@ test_read(void *arg)
 
             if (s != NULL) {
                 for (j = 0; j < PAGE_SIZE; j++)
-                    if (s[j] != TEST_VALIDATION_BYTE)
+                    if (s[j] != TEST_VALIDATION_BYTE) {
                         panic("invalid content");
+                    }
 
-                if ((i % 100000) == 0)
+                if ((i % 100000) == 0) {
                     printk("read ");
+                }
 
                 i++;
             }

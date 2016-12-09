@@ -175,8 +175,9 @@ vm_page_set_type(struct vm_page *page, unsigned int order, unsigned short type)
 
     nr_pages = 1 << order;
 
-    for (i = 0; i < nr_pages; i++)
+    for (i = 0; i < nr_pages; i++) {
         page[i].type = type;
+    }
 }
 
 static void __init
@@ -218,12 +219,14 @@ vm_page_seg_alloc_from_buddy(struct vm_page_seg *seg, unsigned int order)
     for (i = order; i < VM_PAGE_NR_FREE_LISTS; i++) {
         free_list = &seg->free_lists[i];
 
-        if (free_list->size != 0)
+        if (free_list->size != 0) {
             break;
+        }
     }
 
-    if (i == VM_PAGE_NR_FREE_LISTS)
+    if (i == VM_PAGE_NR_FREE_LISTS) {
         return NULL;
+    }
 
     page = list_first_entry(&free_list->blocks, struct vm_page, node);
     vm_page_free_list_remove(free_list, page);
@@ -259,13 +262,15 @@ vm_page_seg_free_to_buddy(struct vm_page_seg *seg, struct vm_page *page,
     while (order < (VM_PAGE_NR_FREE_LISTS - 1)) {
         buddy_pa = pa ^ vm_page_ptoa(1 << order);
 
-        if ((buddy_pa < seg->start) || (buddy_pa >= seg->end))
+        if ((buddy_pa < seg->start) || (buddy_pa >= seg->end)) {
             break;
+        }
 
         buddy = &seg->pages[vm_page_atop(buddy_pa - seg->start)];
 
-        if (buddy->order != order)
+        if (buddy->order != order) {
             break;
+        }
 
         vm_page_free_list_remove(&seg->free_lists[order], buddy);
         buddy->order = VM_PAGE_ORDER_UNLISTED;
@@ -330,8 +335,9 @@ vm_page_cpu_pool_fill(struct vm_page_cpu_pool *cpu_pool,
     for (i = 0; i < cpu_pool->transfer_size; i++) {
         page = vm_page_seg_alloc_from_buddy(seg, 0);
 
-        if (page == NULL)
+        if (page == NULL) {
             break;
+        }
 
         vm_page_cpu_pool_push(cpu_pool, page);
     }
@@ -373,10 +379,11 @@ vm_page_seg_compute_pool_size(struct vm_page_seg *seg)
 
     size = vm_page_atop(vm_page_seg_size(seg)) / VM_PAGE_CPU_POOL_RATIO;
 
-    if (size == 0)
+    if (size == 0) {
         size = 1;
-    else if (size > VM_PAGE_CPU_POOL_MAX_SIZE)
+    } else if (size > VM_PAGE_CPU_POOL_MAX_SIZE) {
         size = VM_PAGE_CPU_POOL_MAX_SIZE;
+    }
 
     return size;
 }
@@ -393,21 +400,24 @@ vm_page_seg_init(struct vm_page_seg *seg, phys_addr_t start, phys_addr_t end,
     seg->end = end;
     pool_size = vm_page_seg_compute_pool_size(seg);
 
-    for (i = 0; i < ARRAY_SIZE(seg->cpu_pools); i++)
+    for (i = 0; i < ARRAY_SIZE(seg->cpu_pools); i++) {
         vm_page_cpu_pool_init(&seg->cpu_pools[i], pool_size);
+    }
 
     seg->pages = pages;
     seg->pages_end = pages + vm_page_atop(vm_page_seg_size(seg));
     mutex_init(&seg->lock);
 
-    for (i = 0; i < ARRAY_SIZE(seg->free_lists); i++)
+    for (i = 0; i < ARRAY_SIZE(seg->free_lists); i++) {
         vm_page_free_list_init(&seg->free_lists[i]);
+    }
 
     seg->nr_free_pages = 0;
     i = seg - vm_page_segs;
 
-    for (pa = seg->start; pa < seg->end; pa += PAGE_SIZE)
+    for (pa = seg->start; pa < seg->end; pa += PAGE_SIZE) {
         vm_page_init(&pages[vm_page_atop(pa - seg->start)], i, pa);
+    }
 }
 
 static struct vm_page *
@@ -443,8 +453,9 @@ vm_page_seg_alloc(struct vm_page_seg *seg, unsigned int order,
         page = vm_page_seg_alloc_from_buddy(seg, order);
         mutex_unlock(&seg->lock);
 
-        if (page == NULL)
+        if (page == NULL) {
             return NULL;
+        }
     }
 
     assert(page->type == VM_PAGE_FREE);
@@ -468,8 +479,9 @@ vm_page_seg_free(struct vm_page_seg *seg, struct vm_page *page,
         cpu_pool = vm_page_cpu_pool_get(seg);
         mutex_lock(&cpu_pool->lock);
 
-        if (cpu_pool->nr_pages == cpu_pool->size)
+        if (cpu_pool->nr_pages == cpu_pool->size) {
             vm_page_cpu_pool_drain(cpu_pool, seg);
+        }
 
         vm_page_cpu_pool_push(cpu_pool, page);
         mutex_unlock(&cpu_pool->lock);
@@ -574,14 +586,16 @@ vm_page_check_boot_segs(void)
     unsigned int i;
     int expect_loaded;
 
-    if (vm_page_segs_size == 0)
+    if (vm_page_segs_size == 0) {
         panic("vm_page: no physical memory loaded");
+    }
 
     for (i = 0; i < ARRAY_SIZE(vm_page_boot_segs); i++) {
         expect_loaded = (i < vm_page_segs_size);
 
-        if (vm_page_boot_seg_loaded(&vm_page_boot_segs[i]) == expect_loaded)
+        if (vm_page_boot_seg_loaded(&vm_page_boot_segs[i]) == expect_loaded) {
             continue;
+        }
 
         panic("vm_page: invalid boot segment table");
     }
@@ -643,8 +657,9 @@ vm_page_setup(void)
      */
     nr_pages = 0;
 
-    for (i = 0; i < vm_page_segs_size; i++)
+    for (i = 0; i < vm_page_segs_size; i++) {
         nr_pages += vm_page_atop(vm_page_boot_seg_size(&vm_page_boot_segs[i]));
+    }
 
     table_size = vm_page_round(nr_pages * sizeof(struct vm_page));
     printk("vm_page: page table size: %zu entries (%zuk)\n", nr_pages,
@@ -705,8 +720,9 @@ vm_page_lookup(phys_addr_t pa)
     for (i = 0; i < vm_page_segs_size; i++) {
         seg = &vm_page_segs[i];
 
-        if ((pa >= seg->start) && (pa < seg->end))
+        if ((pa >= seg->start) && (pa < seg->end)) {
             return &seg->pages[vm_page_atop(pa - seg->start)];
+        }
     }
 
     return NULL;
@@ -721,12 +737,14 @@ vm_page_alloc(unsigned int order, unsigned int selector, unsigned short type)
     for (i = vm_page_select_alloc_seg(selector); i < vm_page_segs_size; i--) {
         page = vm_page_seg_alloc(&vm_page_segs[i], order, type);
 
-        if (page != NULL)
+        if (page != NULL) {
             return page;
+        }
     }
 
-    if (type == VM_PAGE_PMAP)
+    if (type == VM_PAGE_PMAP) {
         panic("vm_page: unable to allocate pmap page");
+    }
 
     return NULL;
 }
@@ -743,16 +761,17 @@ const char *
 vm_page_seg_name(unsigned int seg_index)
 {
     /* Don't use a switch statement since segments can be aliased */
-    if (seg_index == VM_PAGE_SEG_HIGHMEM)
+    if (seg_index == VM_PAGE_SEG_HIGHMEM) {
         return "HIGHMEM";
-    else if (seg_index == VM_PAGE_SEG_DIRECTMAP)
+    } else if (seg_index == VM_PAGE_SEG_DIRECTMAP) {
         return "DIRECTMAP";
-    else if (seg_index == VM_PAGE_SEG_DMA32)
+    } else if (seg_index == VM_PAGE_SEG_DMA32) {
         return "DMA32";
-    else if (seg_index == VM_PAGE_SEG_DMA)
+    } else if (seg_index == VM_PAGE_SEG_DMA) {
         return "DMA";
-    else
+    } else {
         panic("vm_page: invalid segment index");
+    }
 }
 
 void

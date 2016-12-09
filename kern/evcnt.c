@@ -63,8 +63,9 @@ evcnt_info(const char *pattern)
             length = strlen(evcnt->name);
 
             if ((length < pattern_length)
-                || (memcmp(evcnt->name, pattern, pattern_length) != 0))
+                || (memcmp(evcnt->name, pattern, pattern_length) != 0)) {
                 continue;
+            }
         }
 
         printk("evcnt: %-30s %17llu\n", evcnt->name, evcnt->count);

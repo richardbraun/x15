@@ -311,8 +311,9 @@ thread_runq_init_rt(struct thread_runq *runq)
     rt_runq = &runq->rt_runq;
     rt_runq->bitmap = 0;
 
-    for (i = 0; i < ARRAY_SIZE(rt_runq->threads); i++)
+    for (i = 0; i < ARRAY_SIZE(rt_runq->threads); i++) {
         list_init(&rt_runq->threads[i]);
+    }
 }
 
 static void __init
@@ -328,8 +329,9 @@ thread_ts_runq_init(struct thread_ts_runq *ts_runq)
 {
     size_t i;
 
-    for (i = 0; i < ARRAY_SIZE(ts_runq->group_array); i++)
+    for (i = 0; i < ARRAY_SIZE(ts_runq->group_array); i++) {
         thread_ts_group_init(&ts_runq->group_array[i]);
+    }
 
     list_init(&ts_runq->groups);
     list_init(&ts_runq->threads);
@@ -390,13 +392,15 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
 
     thread_sched_ops[thread->sched_class].add(runq, thread);
 
-    if (runq->nr_threads == 0)
+    if (runq->nr_threads == 0) {
         cpumap_clear_atomic(&thread_idle_runqs, thread_runq_cpu(runq));
+    }
 
     runq->nr_threads++;
 
-    if (thread->sched_class < runq->current->sched_class)
+    if (thread->sched_class < runq->current->sched_class) {
         thread_set_flag(runq->current, THREAD_YIELD);
+    }
 
     thread->runq = runq;
 }
@@ -409,8 +413,9 @@ thread_runq_remove(struct thread_runq *runq, struct thread *thread)
 
     runq->nr_threads--;
 
-    if (runq->nr_threads == 0)
+    if (runq->nr_threads == 0) {
         cpumap_set_atomic(&thread_idle_runqs, thread_runq_cpu(runq));
+    }
 
     thread_sched_ops[thread->sched_class].remove(runq, thread);
 }
@@ -470,8 +475,9 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 static void
 thread_runq_wakeup_balancer(struct thread_runq *runq)
 {
-    if (runq->balancer->state == THREAD_RUNNING)
+    if (runq->balancer->state == THREAD_RUNNING) {
         return;
+    }
 
     runq->balancer->state = THREAD_RUNNING;
     thread_runq_wakeup(runq, runq->balancer);
@@ -494,8 +500,9 @@ thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
     if (prev->state != THREAD_RUNNING) {
         thread_runq_remove(runq, prev);
 
-        if ((runq->nr_threads == 0) && (prev != runq->balancer))
+        if ((runq->nr_threads == 0) && (prev != runq->balancer)) {
             thread_runq_wakeup_balancer(runq);
+        }
     }
 
     next = thread_runq_get_next(runq);
@@ -578,12 +585,14 @@ thread_sched_rt_add(struct thread_runq *runq, struct thread *thread)
     threads = &rt_runq->threads[thread->rt_data.priority];
     list_insert_tail(threads, &thread->rt_data.node);
 
-    if (list_singular(threads))
+    if (list_singular(threads)) {
         rt_runq->bitmap |= (1ULL << thread->rt_data.priority);
+    }
 
     if ((thread->sched_class == runq->current->sched_class)
-        && (thread->rt_data.priority > runq->current->rt_data.priority))
+        && (thread->rt_data.priority > runq->current->rt_data.priority)) {
         thread_set_flag(runq->current, THREAD_YIELD);
+    }
 }
 
 static void
@@ -596,8 +605,9 @@ thread_sched_rt_remove(struct thread_runq *runq, struct thread *thread)
     threads = &rt_runq->threads[thread->rt_data.priority];
     list_remove(&thread->rt_data.node);
 
-    if (list_empty(threads))
+    if (list_empty(threads)) {
         rt_runq->bitmap &= ~(1ULL << thread->rt_data.priority);
+    }
 }
 
 static void
@@ -616,8 +626,9 @@ thread_sched_rt_get_next(struct thread_runq *runq)
 
     rt_runq = &runq->rt_runq;
 
-    if (rt_runq->bitmap == 0)
+    if (rt_runq->bitmap == 0) {
         return NULL;
+    }
 
     priority = THREAD_SCHED_RT_PRIO_MAX - __builtin_clzll(rt_runq->bitmap);
     threads = &rt_runq->threads[priority];
@@ -632,13 +643,15 @@ thread_sched_rt_tick(struct thread_runq *runq, struct thread *thread)
 {
     (void)runq;
 
-    if (thread->sched_policy != THREAD_SCHED_POLICY_RR)
+    if (thread->sched_policy != THREAD_SCHED_POLICY_RR) {
         return;
+    }
 
     thread->rt_data.time_slice--;
 
-    if (thread->rt_data.time_slice > 0)
+    if (thread->rt_data.time_slice > 0) {
         return;
+    }
 
     thread->rt_data.time_slice = THREAD_DEFAULT_RR_TIME_SLICE;
     thread_set_flag(thread, THREAD_YIELD);
@@ -669,16 +682,18 @@ thread_sched_ts_select_runq(struct thread *thread)
     int i;
 
     cpumap_for_each(&thread_idle_runqs, i) {
-        if (!cpumap_test(&thread->cpumap, i))
+        if (!cpumap_test(&thread->cpumap, i)) {
             continue;
+        }
 
         runq = percpu_ptr(thread_runq, i);
 
         spinlock_lock(&runq->lock);
 
         /* The run queue really is idle, return it */
-        if (runq->current == runq->idler)
+        if (runq->current == runq->idler) {
             goto out;
+        }
 
         spinlock_unlock(&runq->lock);
     }
@@ -686,8 +701,9 @@ thread_sched_ts_select_runq(struct thread *thread)
     runq = NULL;
 
     cpumap_for_each(&thread_active_runqs, i) {
-        if (!cpumap_test(&thread->cpumap, i))
+        if (!cpumap_test(&thread->cpumap, i)) {
             continue;
+        }
 
         tmp = percpu_ptr(thread_runq, i);
 
@@ -740,8 +756,9 @@ thread_sched_ts_enqueue_scale(unsigned int work, unsigned int old_weight,
     assert(old_weight != 0);
 
 #ifndef __LP64__
-    if (likely((work < 0x10000) && (new_weight < 0x10000)))
+    if (likely((work < 0x10000) && (new_weight < 0x10000))) {
         return (work * new_weight) / old_weight;
+    }
 #endif /* __LP64__ */
 
     return (unsigned int)(((unsigned long long)work * new_weight) / old_weight);
@@ -768,15 +785,16 @@ thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, unsigned long round,
     while (!list_end(&ts_runq->groups, node)) {
         tmp = list_entry(node, struct thread_ts_group, node);
 
-        if (tmp->weight >= group_weight)
+        if (tmp->weight >= group_weight) {
             break;
+        }
 
         node = list_prev(node);
     }
 
-    if (group->weight == 0)
+    if (group->weight == 0) {
         list_insert_after(node, &group->node);
-    else if (node != init_node) {
+    } else if (node != init_node) {
         list_remove(&group->node);
         list_insert_after(node, &group->node);
     }
@@ -792,9 +810,9 @@ thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, unsigned long round,
     } else {
         unsigned int group_work, thread_work;
 
-        if (ts_runq->weight == 0)
+        if (ts_runq->weight == 0) {
             thread_work = 0;
-        else {
+        } else {
             group_work = (group->weight == 0)
                          ? thread_sched_ts_enqueue_scale(ts_runq->work,
                                                          ts_runq->weight,
@@ -832,8 +850,9 @@ thread_sched_ts_restart(struct thread_runq *runq)
     assert(node != NULL);
     ts_runq->current = list_entry(node, struct thread_ts_group, node);
 
-    if (runq->current->sched_class == THREAD_SCHED_CLASS_TS)
+    if (runq->current->sched_class == THREAD_SCHED_CLASS_TS) {
         thread_set_flag(runq->current, THREAD_YIELD);
+    }
 }
 
 static void
@@ -841,14 +860,16 @@ thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
 {
     unsigned int total_weight;
 
-    if (runq->ts_weight == 0)
+    if (runq->ts_weight == 0) {
         runq->ts_round = thread_ts_highest_round;
+    }
 
     total_weight = runq->ts_weight + thread->ts_data.weight;
 
     /* TODO Limit the maximum number of threads to prevent this situation */
-    if (total_weight < runq->ts_weight)
+    if (total_weight < runq->ts_weight) {
         panic("thread: weight overflow");
+    }
 
     runq->ts_weight = total_weight;
     thread_sched_ts_enqueue(runq->ts_runq_active, runq->ts_round, thread);
@@ -876,17 +897,18 @@ thread_sched_ts_dequeue(struct thread *thread)
     group->weight -= thread->ts_data.weight;
     ts_runq->nr_threads--;
 
-    if (group->weight == 0)
+    if (group->weight == 0) {
         list_remove(&group->node);
-    else {
+    } else {
         node = list_next(&group->node);
         init_node = node;
 
         while (!list_end(&ts_runq->groups, node)) {
             tmp = list_entry(node, struct thread_ts_group, node);
 
-            if (tmp->weight <= group->weight)
+            if (tmp->weight <= group->weight) {
                 break;
+            }
 
             node = list_next(node);
         }
@@ -908,10 +930,11 @@ thread_sched_ts_remove(struct thread_runq *runq, struct thread *thread)
     thread_sched_ts_dequeue(thread);
 
     if (ts_runq == runq->ts_runq_active) {
-        if (ts_runq->nr_threads == 0)
+        if (ts_runq->nr_threads == 0) {
             thread_runq_wakeup_balancer(runq);
-        else
+        } else {
             thread_sched_ts_restart(runq);
+        }
     }
 }
 
@@ -926,8 +949,9 @@ thread_sched_ts_deactivate(struct thread_runq *runq, struct thread *thread)
     thread->ts_data.work -= thread->ts_data.weight;
     thread_sched_ts_enqueue(runq->ts_runq_expired, runq->ts_round + 1, thread);
 
-    if (runq->ts_runq_active->nr_threads == 0)
+    if (runq->ts_runq_active->nr_threads == 0) {
         thread_runq_wakeup_balancer(runq);
+    }
 }
 
 static void
@@ -940,8 +964,9 @@ thread_sched_ts_put_prev(struct thread_runq *runq, struct thread *thread)
     group = &ts_runq->group_array[thread->ts_data.priority];
     list_insert_tail(&group->threads, &thread->ts_data.group_node);
 
-    if (thread->ts_data.work >= thread->ts_data.weight)
+    if (thread->ts_data.work >= thread->ts_data.weight) {
         thread_sched_ts_deactivate(runq, thread);
+    }
 }
 
 static int
@@ -975,8 +1000,9 @@ thread_sched_ts_get_next(struct thread_runq *runq)
 
     ts_runq = runq->ts_runq_active;
 
-    if (ts_runq->nr_threads == 0)
+    if (ts_runq->nr_threads == 0) {
         return NULL;
+    }
 
     group = ts_runq->current;
     node = list_next(&group->node);
@@ -987,9 +1013,9 @@ thread_sched_ts_get_next(struct thread_runq *runq)
     } else {
         next = list_entry(node, struct thread_ts_group, node);
 
-        if (thread_sched_ts_ratio_exceeded(group, next))
+        if (thread_sched_ts_ratio_exceeded(group, next)) {
             group = next;
-        else {
+        } else {
             node = list_first(&ts_runq->groups);
             group = list_entry(node, struct thread_ts_group, node);
         }
@@ -1030,8 +1056,9 @@ thread_sched_ts_start_next_round(struct thread_runq *runq)
         runq->ts_round++;
         delta = (long)(runq->ts_round - thread_ts_highest_round);
 
-        if (delta > 0)
+        if (delta > 0) {
             thread_ts_highest_round = runq->ts_round;
+        }
 
         thread_sched_ts_restart(runq);
     }
@@ -1046,20 +1073,23 @@ thread_sched_ts_balance_eligible(struct thread_runq *runq,
 {
     unsigned int nr_threads;
 
-    if (runq->ts_weight == 0)
+    if (runq->ts_weight == 0) {
         return 0;
+    }
 
     if ((runq->ts_round != highest_round)
-        && (runq->ts_round != (highest_round - 1)))
+        && (runq->ts_round != (highest_round - 1))) {
         return 0;
+    }
 
     nr_threads = runq->ts_runq_active->nr_threads
                  + runq->ts_runq_expired->nr_threads;
 
     if ((nr_threads == 0)
         || ((nr_threads == 1)
-            && (runq->current->sched_class == THREAD_SCHED_CLASS_TS)))
+            && (runq->current->sched_class == THREAD_SCHED_CLASS_TS))) {
         return 0;
+    }
 
     return 1;
 }
@@ -1083,8 +1113,9 @@ thread_sched_ts_balance_scan(struct thread_runq *runq,
     cpumap_for_each(&thread_active_runqs, i) {
         tmp = percpu_ptr(thread_runq, i);
 
-        if (tmp == runq)
+        if (tmp == runq) {
             continue;
+        }
 
         spinlock_lock(&tmp->lock);
 
@@ -1107,8 +1138,9 @@ thread_sched_ts_balance_scan(struct thread_runq *runq,
         spinlock_unlock(&tmp->lock);
     }
 
-    if (remote_runq != NULL)
+    if (remote_runq != NULL) {
         spinlock_unlock(&remote_runq->lock);
+    }
 
     cpu_intr_restore(flags);
     thread_preempt_enable();
@@ -1129,8 +1161,9 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
 
     list_for_each_entry_safe(&ts_runq->threads, thread, tmp,
                              ts_data.runq_node) {
-        if (thread == remote_runq->current)
+        if (thread == remote_runq->current) {
             continue;
+        }
 
         /*
          * The pinned counter is changed without explicit synchronization.
@@ -1141,11 +1174,13 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
          * changing the pinned counter and setting the current thread of a
          * run queue.
          */
-        if (thread->pinned)
+        if (thread->pinned) {
             continue;
+        }
 
-        if (!cpumap_test(&thread->cpumap, cpu))
+        if (!cpumap_test(&thread->cpumap, cpu)) {
             continue;
+        }
 
         /*
          * Make sure at least one thread is pulled if possible. If one or more
@@ -1153,8 +1188,9 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
          */
         if ((nr_pulls != 0)
             && ((runq->ts_weight + thread->ts_data.weight)
-                > (remote_runq->ts_weight - thread->ts_data.weight)))
+                > (remote_runq->ts_weight - thread->ts_data.weight))) {
             break;
+        }
 
         thread_runq_remove(remote_runq, thread);
 
@@ -1164,8 +1200,9 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
         thread_runq_add(runq, thread);
         nr_pulls++;
 
-        if (nr_pulls == THREAD_MAX_MIGRATIONS)
+        if (nr_pulls == THREAD_MAX_MIGRATIONS) {
             break;
+        }
     }
 
     return nr_pulls;
@@ -1180,14 +1217,16 @@ thread_sched_ts_balance_migrate(struct thread_runq *runq,
 
     nr_pulls = 0;
 
-    if (!thread_sched_ts_balance_eligible(remote_runq, highest_round))
+    if (!thread_sched_ts_balance_eligible(remote_runq, highest_round)) {
         goto out;
+    }
 
     nr_pulls = thread_sched_ts_balance_pull(runq, remote_runq,
                                             remote_runq->ts_runq_active, 0);
 
-    if (nr_pulls == THREAD_MAX_MIGRATIONS)
+    if (nr_pulls == THREAD_MAX_MIGRATIONS) {
         goto out;
+    }
 
     /*
      * Threads in the expired queue of a processor in round highest are
@@ -1224,8 +1263,9 @@ thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
     highest_round = thread_ts_highest_round;
 
     if ((runq->ts_round != highest_round)
-        && (runq->ts_runq_expired->nr_threads != 0))
+        && (runq->ts_runq_expired->nr_threads != 0)) {
         goto no_migration;
+    }
 
     spinlock_unlock_intr_restore(&runq->lock, *flags);
     thread_preempt_enable();
@@ -1240,8 +1280,9 @@ thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
                                                         highest_round);
         spinlock_unlock(&remote_runq->lock);
 
-        if (nr_migrations != 0)
+        if (nr_migrations != 0) {
             return;
+        }
 
         spinlock_unlock_intr_restore(&runq->lock, *flags);
         thread_preempt_enable();
@@ -1256,8 +1297,9 @@ thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
     cpumap_for_each(&thread_active_runqs, i) {
         remote_runq = percpu_ptr(thread_runq, i);
 
-        if (remote_runq == runq)
+        if (remote_runq == runq) {
             continue;
+        }
 
         thread_preempt_disable();
         cpu_intr_save(flags);
@@ -1266,8 +1308,9 @@ thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
                                                         highest_round);
         spinlock_unlock(&remote_runq->lock);
 
-        if (nr_migrations != 0)
+        if (nr_migrations != 0) {
             return;
+        }
 
         spinlock_unlock_intr_restore(&runq->lock, *flags);
         thread_preempt_enable();
@@ -1285,8 +1328,9 @@ no_migration:
      * queue lock must remain held until the next scheduling decision to
      * prevent a remote balancer thread from stealing active threads.
      */
-    if (runq->ts_runq_active->nr_threads == 0)
+    if (runq->ts_runq_active->nr_threads == 0) {
         thread_sched_ts_start_next_round(runq);
+    }
 }
 
 static void
@@ -1456,8 +1500,9 @@ thread_destroy_tsd(struct thread *thread)
         thread->tsd[i] = NULL;
         thread_dtors[i](ptr);
 
-        if (thread->tsd[i] == NULL)
+        if (thread->tsd[i] == NULL) {
             i++;
+        }
     }
 }
 
@@ -1512,13 +1557,15 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     thread->fn = fn;
     thread->arg = arg;
 
-    if (attr->flags & THREAD_ATTR_DETACHED)
+    if (attr->flags & THREAD_ATTR_DETACHED) {
         thread->flags |= THREAD_DETACHED;
+    }
 
     error = tcb_init(&thread->tcb, stack, thread_main);
 
-    if (error)
+    if (error) {
         goto error_tsd;
+    }
 
     task_add_thread(task, thread);
 
@@ -1541,8 +1588,9 @@ thread_lock_runq(struct thread *thread, unsigned long *flags)
 
         spinlock_lock_intr_save(&runq->lock, flags);
 
-        if (runq == thread->runq)
+        if (runq == thread->runq) {
             return runq;
+        }
 
         spinlock_unlock_intr_restore(&runq->lock, *flags);
     }
@@ -1579,8 +1627,9 @@ thread_join_common(struct thread *thread)
 
     mutex_lock(&thread->join_lock);
 
-    while (!thread->exited)
+    while (!thread->exited) {
         condition_wait(&thread->join_cond, &thread->join_lock);
+    }
 
     mutex_unlock(&thread->join_lock);
 
@@ -1598,8 +1647,9 @@ thread_reap(void *arg)
     for (;;) {
         mutex_lock(&thread_reap_lock);
 
-        while (list_empty(&thread_reap_list))
+        while (list_empty(&thread_reap_list)) {
             condition_wait(&thread_reap_cond, &thread_reap_lock);
+        }
 
         list_set_head(&zombies, &thread_reap_list);
         list_init(&thread_reap_list);
@@ -1630,8 +1680,9 @@ thread_setup_reaper(void)
     thread_attr_init(&attr, "x15_thread_reap");
     error = thread_create(&thread, &attr, thread_reap, NULL);
 
-    if (error)
+    if (error) {
         panic("thread: unable to create reaper thread");
+    }
 }
 
 static void
@@ -1643,13 +1694,15 @@ thread_balance_idle_tick(struct thread_runq *runq)
      * Interrupts can occur early, at a time the balancer thread hasn't been
      * created yet.
      */
-    if (runq->balancer == NULL)
+    if (runq->balancer == NULL) {
         return;
+    }
 
     runq->idle_balance_ticks--;
 
-    if (runq->idle_balance_ticks == 0)
+    if (runq->idle_balance_ticks == 0) {
         thread_runq_wakeup_balancer(runq);
+    }
 }
 
 static void
@@ -1692,8 +1745,9 @@ thread_setup_balancer(struct thread_runq *runq)
 
     error = cpumap_create(&cpumap);
 
-    if (error)
+    if (error) {
         panic("thread: unable to create balancer thread CPU map");
+    }
 
     cpumap_zero(cpumap);
     cpumap_set(cpumap, thread_runq_cpu(runq));
@@ -1706,8 +1760,9 @@ thread_setup_balancer(struct thread_runq *runq)
     error = thread_create(&balancer, &attr, thread_balance, runq);
     cpumap_destroy(cpumap);
 
-    if (error)
+    if (error) {
         panic("thread: unable to create balancer thread");
+    }
 
     runq->balancer = balancer;
 }
@@ -1764,20 +1819,23 @@ thread_setup_idler(struct thread_runq *runq)
 
     error = cpumap_create(&cpumap);
 
-    if (error)
+    if (error) {
         panic("thread: unable to allocate idler thread CPU map");
+    }
 
     cpumap_zero(cpumap);
     cpumap_set(cpumap, thread_runq_cpu(runq));
     idler = kmem_cache_alloc(&thread_cache);
 
-    if (idler == NULL)
+    if (idler == NULL) {
         panic("thread: unable to allocate idler thread");
+    }
 
     stack = kmem_cache_alloc(&thread_stack_cache);
 
-    if (stack == NULL)
+    if (stack == NULL) {
         panic("thread: unable to allocate idler thread stack");
+    }
 
     snprintf(name, sizeof(name), "x15_thread_idle/%u", thread_runq_cpu(runq));
     thread_attr_init(&attr, name);
@@ -1785,8 +1843,9 @@ thread_setup_idler(struct thread_runq *runq)
     thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_IDLE);
     error = thread_init(idler, stack, &attr, thread_idle, NULL);
 
-    if (error)
+    if (error) {
         panic("thread: unable to initialize idler thread");
+    }
 
     cpumap_destroy(cpumap);
 
@@ -1808,8 +1867,9 @@ thread_setup(void)
 {
     int cpu;
 
-    for (cpu = 1; (unsigned int)cpu < cpu_count(); cpu++)
+    for (cpu = 1; (unsigned int)cpu < cpu_count(); cpu++) {
         thread_bootstrap_common(cpu);
+    }
 
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
                     CPU_L1_SIZE, NULL, 0);
@@ -1818,8 +1878,9 @@ thread_setup(void)
 
     thread_setup_reaper();
 
-    cpumap_for_each(&thread_active_runqs, cpu)
+    cpumap_for_each(&thread_active_runqs, cpu) {
         thread_setup_runq(percpu_ptr(thread_runq, cpu));
+    }
 }
 
 int
@@ -1834,8 +1895,9 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
     if (attr->cpumap != NULL) {
         error = cpumap_check(attr->cpumap);
 
-        if (error)
+        if (error) {
             return error;
+        }
     }
 
     thread = kmem_cache_alloc(&thread_cache);
@@ -1854,8 +1916,9 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
 
     error = thread_init(thread, stack, attr, fn, arg);
 
-    if (error)
+    if (error) {
         goto error_init;
+    }
 
     /*
      * The new thread address must be written before the thread is started
@@ -1994,9 +2057,9 @@ thread_wakeup(struct thread *thread)
     thread_preempt_disable();
     cpu_intr_save(&flags);
 
-    if (!thread->pinned)
+    if (!thread->pinned) {
         runq = thread_sched_ops[thread->sched_class].select_runq(thread);
-    else {
+    } else {
         runq = thread->runq;
         spinlock_lock(&runq->lock);
     }
@@ -2039,8 +2102,9 @@ thread_yield(void)
 
     thread = thread_self();
 
-    if (!thread_preempt_enabled())
+    if (!thread_preempt_enabled()) {
         return;
+    }
 
     do {
         thread_preempt_disable();
@@ -2082,8 +2146,9 @@ thread_tick_intr(void)
 
     spinlock_lock(&runq->lock);
 
-    if (runq->nr_threads == 0)
+    if (runq->nr_threads == 0) {
         thread_balance_idle_tick(runq);
+    }
 
     thread_sched_ops[thread->sched_class].tick(runq, thread);
 
@@ -2142,8 +2207,9 @@ thread_key_create(unsigned int *keyp, thread_dtor_fn_t dtor)
 
     key = atomic_fetchadd_uint(&thread_nr_keys, 1);
 
-    if (key >= THREAD_KEYS_MAX)
+    if (key >= THREAD_KEYS_MAX) {
         panic("thread: maximum number of keys exceeded");
+    }
 
     thread_dtors[key] = dtor;
     *keyp = key;

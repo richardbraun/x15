@@ -186,8 +186,9 @@ list_concat(struct list *list1, const struct list *list2)
 {
     struct list *last1, *first2, *last2;
 
-    if (list_empty(list2))
+    if (list_empty(list2)) {
         return;
+    }
 
     last1 = list1->prev;
     first2 = list2->next;

@@ -59,8 +59,9 @@ test_inc(void *arg)
             test_transient_ref++;
             condition_signal(&test_condition);
 
-            while (test_transient_ref != 0)
+            while (test_transient_ref != 0) {
                 condition_wait(&test_condition, &test_lock);
+            }
 
             mutex_unlock(&test_lock);
         }
@@ -80,8 +81,9 @@ test_dec(void *arg)
     for (;;) {
         mutex_lock(&test_lock);
 
-        while (test_transient_ref == 0)
+        while (test_transient_ref == 0) {
             condition_wait(&test_condition, &test_lock);
+        }
 
         test_transient_ref--;
         condition_signal(&test_condition);

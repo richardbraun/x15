@@ -51,8 +51,9 @@ spinlock_trylock(struct spinlock *lock)
     thread_preempt_disable();
     busy = spinlock_tryacquire(lock);
 
-    if (busy)
+    if (busy) {
         thread_preempt_enable();
+    }
 
     return busy;
 }

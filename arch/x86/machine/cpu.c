@@ -242,7 +242,7 @@ cpu_seg_set_tss(char *table, unsigned int selector, struct cpu_tss *tss)
                   | CPU_DESC_PRESENT | CPU_DESC_TYPE_TSS
                   | ((base & CPU_DESC_SEG_BASE_MID_MASK) >> 16);
     desc->word1 = ((base & CPU_DESC_SEG_BASE_LOW_MASK) << 16)
-                 | (limit & CPU_DESC_SEG_LIMIT_LOW_MASK);
+                  | (limit & CPU_DESC_SEG_LIMIT_LOW_MASK);
 }
 
 /*
@@ -438,13 +438,15 @@ cpu_init(struct cpu *cpu)
     cpu->type = (eax & CPU_TYPE_MASK) >> CPU_TYPE_SHIFT;
     cpu->family = (eax & CPU_FAMILY_MASK) >> CPU_FAMILY_SHIFT;
 
-    if (cpu->family == 0xf)
+    if (cpu->family == 0xf) {
         cpu->family += (eax & CPU_EXTFAMILY_MASK) >> CPU_EXTFAMILY_SHIFT;
+    }
 
     cpu->model = (eax & CPU_MODEL_MASK) >> CPU_MODEL_SHIFT;
 
-    if ((cpu->model == 6) || (cpu->model == 0xf))
+    if ((cpu->model == 6) || (cpu->model == 0xf)) {
         cpu->model += (eax & CPU_EXTMODEL_MASK) >> CPU_EXTMODEL_SHIFT;
+    }
 
     cpu->stepping = (eax & CPU_STEPPING_MASK) >> CPU_STEPPING_SHIFT;
     cpu->clflush_size = ((ebx & CPU_CLFLUSH_MASK) >> CPU_CLFLUSH_SHIFT) * 8;
@@ -455,10 +457,11 @@ cpu_init(struct cpu *cpu)
     eax = 0x80000000;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
-    if (eax <= 0x80000000)
+    if (eax <= 0x80000000) {
         max_extended = 0;
-    else
+    } else {
         max_extended = eax;
+    }
 
     if (max_extended < 0x80000001) {
         cpu->features3 = 0;
@@ -526,12 +529,14 @@ cpu_panic_on_missing_feature(const char *feature)
 void __init
 cpu_check(const struct cpu *cpu)
 {
-    if (!(cpu->features2 & CPU_FEATURE2_FPU))
+    if (!(cpu->features2 & CPU_FEATURE2_FPU)) {
         cpu_panic_on_missing_feature("fpu");
+    }
 
     /* TODO: support UP with legacy PIC machines */
-    if (!(cpu->features2 & CPU_FEATURE2_APIC))
+    if (!(cpu->features2 & CPU_FEATURE2_APIC)) {
         cpu_panic_on_missing_feature("apic");
+    }
 }
 
 void
@@ -541,8 +546,9 @@ cpu_info(const struct cpu *cpu)
            cpu->id, cpu->vendor_id, cpu->type, cpu->family, cpu->model,
            cpu->stepping);
 
-    if (strlen(cpu->model_name) > 0)
+    if (strlen(cpu->model_name) > 0) {
         printk("cpu%u: %s\n", cpu->id, cpu->model_name);
+    }
 
     if ((cpu->phys_addr_width != 0) && (cpu->virt_addr_width != 0))
         printk("cpu%u: address widths: physical: %hu, virtual: %hu\n",
@@ -558,8 +564,9 @@ cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
     if (is_bsp) {
         cpu = percpu_ptr(cpu_desc, 0);
 
-        if (cpu->apic_id != CPU_INVALID_APIC_ID)
+        if (cpu->apic_id != CPU_INVALID_APIC_ID) {
             panic("cpu: another processor pretends to be the BSP");
+        }
 
         cpu->apic_id = apic_id;
         return;
@@ -567,8 +574,9 @@ cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
 
     error = percpu_add(cpu_nr_active);
 
-    if (error)
+    if (error) {
         return;
+    }
 
     cpu = percpu_ptr(cpu_desc, cpu_nr_active);
     cpu_preinit(cpu, cpu_nr_active, apic_id);
@@ -583,8 +591,9 @@ cpu_mp_probe(void)
     error = acpimp_setup();
 
     /* TODO Support UP with legacy PIC */
-    if (error)
+    if (error) {
         panic("cpu: ACPI required to initialize local APIC");
+    }
 
     printk("cpu: %u processor(s) configured\n", cpu_count());
 }
@@ -625,15 +634,17 @@ cpu_mp_setup(void)
         page = vm_page_alloc(vm_page_order(STACK_SIZE), VM_PAGE_SEL_DIRECTMAP,
                              VM_PAGE_KERNEL);
 
-        if (page == NULL)
+        if (page == NULL) {
             panic("cpu: unable to allocate boot stack for cpu%u", i);
+        }
 
         cpu->boot_stack = vm_page_direct_ptr(page);
         page = vm_page_alloc(vm_page_order(STACK_SIZE), VM_PAGE_SEL_DIRECTMAP,
                              VM_PAGE_KERNEL);
 
-        if (page == NULL)
+        if (page == NULL) {
             panic("cpu: unable to allocate double fault stack for cpu%u", i);
+        }
 
         cpu->double_fault_stack = vm_page_direct_ptr(page);
     }
@@ -658,8 +669,9 @@ cpu_mp_setup(void)
         lapic_ipi_startup(cpu->apic_id, BOOT_MP_TRAMPOLINE_ADDR >> 12);
         cpu_delay(200);
 
-        while (cpu->state == CPU_STATE_OFF)
+        while (cpu->state == CPU_STATE_OFF) {
             cpu_pause();
+        }
     }
 }
 
@@ -683,8 +695,9 @@ cpu_halt_broadcast(void)
 
     nr_cpus = cpu_count();
 
-    if (nr_cpus == 1)
+    if (nr_cpus == 1) {
         return;
+    }
 
     lapic_ipi_broadcast(TRAP_CPU_HALT);
 }

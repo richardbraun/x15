@@ -77,8 +77,9 @@ test_ref(void *arg)
 
     printk("waiting for page\n");
 
-    while (test_obj == NULL)
+    while (test_obj == NULL) {
         condition_wait(&test_condition, &test_lock);
+    }
 
     obj = test_obj;
 
@@ -86,8 +87,9 @@ test_ref(void *arg)
 
     printk("page received, manipulate reference counter\n");
 
-    while (!test_stop)
+    while (!test_stop) {
         test_manipulate_counter(obj);
+    }
 
     printk("thread exiting\n");
 }
@@ -121,8 +123,9 @@ test_run(void *arg)
     nr_threads = cpu_count() + 1;
     threads = kmem_alloc(sizeof(*threads) * nr_threads);
 
-    if (threads == NULL)
+    if (threads == NULL) {
         panic("kmem_alloc: %s", error_str(ERROR_NOMEM));
+    }
 
     for (i = 0; i < nr_threads; i++) {
         snprintf(name, sizeof(name), "x15_test_ref/%u", i);
@@ -134,8 +137,9 @@ test_run(void *arg)
     printk("allocating page\n");
     obj = vm_kmem_alloc(sizeof(*obj));
 
-    if (obj == NULL)
+    if (obj == NULL) {
         panic("vm_kmem_alloc: %s", error_str(ERROR_NOMEM));
+    }
 
     sref_counter_init(&obj->ref_counter, test_obj_noref);
 
@@ -146,14 +150,16 @@ test_run(void *arg)
     condition_broadcast(&test_condition);
     mutex_unlock(&test_lock);
 
-    for (loop = 0; loop < NR_LOOPS; loop++)
+    for (loop = 0; loop < NR_LOOPS; loop++) {
         test_manipulate_counter(obj);
+    }
 
     printk("stopping test, wait for threads\n");
     test_stop = 1;
 
-    for (i = 0; i < nr_threads; i++)
+    for (i = 0; i < nr_threads; i++) {
         thread_join(threads[i]);
+    }
 
     printk("releasing initial reference\n");
     sref_counter_dec(&obj->ref_counter);

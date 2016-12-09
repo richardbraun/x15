@@ -171,8 +171,9 @@ trap_setup(void)
 {
     size_t i;
 
-    for (i = 0; i < CPU_IDT_SIZE; i++)
+    for (i = 0; i < CPU_IDT_SIZE; i++) {
         trap_install(i, TRAP_HF_NOPREEMPT, trap_isr_default, trap_default);
+    }
 
     /* Architecture defined traps */
     trap_install(TRAP_DE, 0, trap_isr_divide_error, trap_default);
@@ -233,13 +234,15 @@ trap_main(struct trap_frame *frame)
      * latter (usually device interrupts), disable preemption to make sure
      * there won't be any context switch while handling them.
      */
-    if (handler->flags & TRAP_HF_NOPREEMPT)
+    if (handler->flags & TRAP_HF_NOPREEMPT) {
         thread_preempt_disable();
+    }
 
     handler->fn(frame);
 
-    if (handler->flags & TRAP_HF_NOPREEMPT)
+    if (handler->flags & TRAP_HF_NOPREEMPT) {
         thread_preempt_enable_no_resched();
+    }
 
     thread_schedule();
 }

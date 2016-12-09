@@ -78,8 +78,9 @@ memcmp(const void *s1, const void *s2, size_t n)
 {
     unsigned char c1, c2;
 
-    if (n == 0)
+    if (n == 0) {
         return 0;
+    }
 
     asm volatile("repe cmpsb"
                  : "+D" (s1), "+S" (s2), "+c" (n)

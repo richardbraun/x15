@@ -165,8 +165,9 @@ kmem_buf_verify_bytes(void *buf, void *pattern, size_t size)
     end = buf + size;
 
     for (ptr = buf, pattern_ptr = pattern; ptr < end; ptr++, pattern_ptr++)
-        if (*ptr != *pattern_ptr)
+        if (*ptr != *pattern_ptr) {
             return ptr;
+        }
 
     return NULL;
 }
@@ -181,8 +182,9 @@ kmem_buf_fill(void *buf, uint64_t pattern, size_t size)
 
     end = buf + size;
 
-    for (ptr = buf; ptr < end; ptr++)
+    for (ptr = buf; ptr < end; ptr++) {
         *ptr = pattern;
+    }
 }
 
 static void *
@@ -196,8 +198,9 @@ kmem_buf_verify_fill(void *buf, uint64_t old, uint64_t new, size_t size)
     end = buf + size;
 
     for (ptr = buf; ptr < end; ptr++) {
-        if (*ptr != old)
+        if (*ptr != old) {
             return kmem_buf_verify_bytes(ptr, &old, sizeof(old));
+        }
 
         *ptr = new;
     }
@@ -261,8 +264,9 @@ kmem_slab_create(struct kmem_cache *cache, size_t color)
     page = vm_page_alloc(cache->slab_order, VM_PAGE_SEL_DIRECTMAP,
                          VM_PAGE_KMEM);
 
-    if (page == NULL)
+    if (page == NULL) {
         return NULL;
+    }
 
     slab_buf = vm_page_direct_ptr(page);
 
@@ -291,8 +295,9 @@ kmem_slab_create(struct kmem_cache *cache, size_t color)
         bufctl = (union kmem_bufctl *)((void *)bufctl + buf_size);
     }
 
-    if (cache->flags & KMEM_CF_VERIFY)
+    if (cache->flags & KMEM_CF_VERIFY) {
         kmem_slab_create_verify(slab, cache);
+    }
 
     return slab;
 }
@@ -383,11 +388,13 @@ kmem_cpu_pool_fill(struct kmem_cpu_pool *cpu_pool, struct kmem_cache *cache)
     for (i = 0; i < cpu_pool->transfer_size; i++) {
         buf = kmem_cache_alloc_from_slab(cache);
 
-        if (buf == NULL)
+        if (buf == NULL) {
             break;
+        }
 
-        if (ctor != NULL)
+        if (ctor != NULL) {
             ctor(buf);
+        }
 
         kmem_cpu_pool_push(cpu_pool, buf);
     }
@@ -466,8 +473,9 @@ kmem_cache_compute_sizes(struct kmem_cache *cache, int flags)
 
     buf_size = cache->buf_size;
 
-    if (buf_size < KMEM_BUF_SIZE_THRESHOLD)
+    if (buf_size < KMEM_BUF_SIZE_THRESHOLD) {
         flags |= KMEM_CACHE_NOOFFSLAB;
+    }
 
     i = 0;
     waste_min = (size_t)-1;
@@ -479,18 +487,20 @@ kmem_cache_compute_sizes(struct kmem_cache *cache, int flags)
         slab_size = PAGE_SIZE << slab_order;
         free_slab_size = slab_size;
 
-        if (flags & KMEM_CACHE_NOOFFSLAB)
+        if (flags & KMEM_CACHE_NOOFFSLAB) {
             free_slab_size -= sizeof(struct kmem_slab);
+        }
 
         buffers = free_slab_size / buf_size;
         waste = free_slab_size % buf_size;
 
-        if (buffers > i)
+        if (buffers > i) {
             i = buffers;
+        }
 
-        if (flags & KMEM_CACHE_NOOFFSLAB)
+        if (flags & KMEM_CACHE_NOOFFSLAB) {
             embed = 1;
-        else if (sizeof(struct kmem_slab) <= waste) {
+        } else if (sizeof(struct kmem_slab) <= waste) {
             embed = 1;
             waste -= sizeof(struct kmem_slab);
         } else {
@@ -515,12 +525,14 @@ kmem_cache_compute_sizes(struct kmem_cache *cache, int flags)
     cache->bufs_per_slab = slab_size / buf_size;
     cache->color_max = slab_size % buf_size;
 
-    if (cache->color_max >= PAGE_SIZE)
+    if (cache->color_max >= PAGE_SIZE) {
         cache->color_max = PAGE_SIZE - 1;
+    }
 
     if (optimal_embed) {
-        if (cache->slab_size == PAGE_SIZE)
+        if (cache->slab_size == PAGE_SIZE) {
             cache->flags |= KMEM_CF_DIRECT;
+        }
     } else {
         cache->flags |= KMEM_CF_SLAB_EXTERNAL;
     }
@@ -539,11 +551,13 @@ kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
     cache->flags = 0;
 #endif /* KMEM_CF_VERIFY */
 
-    if (flags & KMEM_CACHE_VERIFY)
+    if (flags & KMEM_CACHE_VERIFY) {
         cache->flags |= KMEM_CF_VERIFY;
+    }
 
-    if (align < KMEM_ALIGN_MIN)
+    if (align < KMEM_ALIGN_MIN) {
         align = KMEM_ALIGN_MIN;
+    }
 
     assert(obj_size > 0);
     assert(ISP2(align));
@@ -586,8 +600,9 @@ kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
 
     cache->cpu_pool_type = cpu_pool_type;
 
-    for (i = 0; i < ARRAY_SIZE(cache->cpu_pools); i++)
+    for (i = 0; i < ARRAY_SIZE(cache->cpu_pools); i++) {
         kmem_cpu_pool_init(&cache->cpu_pools[i], cache);
+    }
 
     mutex_lock(&kmem_cache_list_lock);
     list_insert_tail(&kmem_cache_list, &cache->node);
@@ -617,8 +632,9 @@ kmem_cache_grow(struct kmem_cache *cache)
     color = cache->color;
     cache->color += cache->align;
 
-    if (cache->color > cache->color_max)
+    if (cache->color > cache->color_max) {
         cache->color = 0;
+    }
 
     mutex_unlock(&cache->lock);
 
@@ -632,8 +648,9 @@ kmem_cache_grow(struct kmem_cache *cache)
         cache->nr_slabs++;
         cache->nr_free_slabs++;
 
-        if (kmem_slab_lookup_needed(cache->flags))
+        if (kmem_slab_lookup_needed(cache->flags)) {
             kmem_slab_vmref(slab, cache->slab_size);
+        }
     }
 
     /*
@@ -658,12 +675,13 @@ kmem_cache_alloc_from_slab(struct kmem_cache *cache)
     struct kmem_slab *slab;
     union kmem_bufctl *bufctl;
 
-    if (!list_empty(&cache->partial_slabs))
+    if (!list_empty(&cache->partial_slabs)) {
         slab = list_first_entry(&cache->partial_slabs, struct kmem_slab, node);
-    else if (!list_empty(&cache->free_slabs))
+    } else if (!list_empty(&cache->free_slabs)) {
         slab = list_first_entry(&cache->free_slabs, struct kmem_slab, node);
-    else
+    } else {
         return NULL;
+    }
 
     bufctl = slab->first_free;
     assert(bufctl != NULL);
@@ -675,8 +693,9 @@ kmem_cache_alloc_from_slab(struct kmem_cache *cache)
         /* The slab has become complete */
         list_remove(&slab->node);
 
-        if (slab->nr_refs == 1)
+        if (slab->nr_refs == 1) {
             cache->nr_free_slabs--;
+        }
     } else if (slab->nr_refs == 1) {
         /*
          * The slab has become partial. Insert the new slab at the end of
@@ -727,8 +746,9 @@ kmem_cache_free_to_slab(struct kmem_cache *cache, void *buf)
     if (slab->nr_refs == 0) {
         /* The slab has become free */
 
-        if (cache->bufs_per_slab != 1)
+        if (cache->bufs_per_slab != 1) {
             list_remove(&slab->node);
+        }
 
         list_insert_head(&cache->free_slabs, &slab->node);
         cache->nr_free_slabs++;
@@ -747,14 +767,16 @@ kmem_cache_alloc_verify(struct kmem_cache *cache, void *buf, int construct)
 
     buftag = kmem_buf_to_buftag(buf, cache);
 
-    if (buftag->state != KMEM_BUFTAG_FREE)
+    if (buftag->state != KMEM_BUFTAG_FREE) {
         kmem_cache_error(cache, buf, KMEM_ERR_BUFTAG, buftag);
+    }
 
     addr = kmem_buf_verify_fill(buf, KMEM_FREE_PATTERN, KMEM_UNINIT_PATTERN,
                                 cache->bufctl_dist);
 
-    if (addr != NULL)
+    if (addr != NULL) {
         kmem_cache_error(cache, buf, KMEM_ERR_MODIFIED, addr);
+    }
 
     addr = buf + cache->obj_size;
     memset(addr, KMEM_REDZONE_BYTE, cache->redzone_pad);
@@ -763,8 +785,9 @@ kmem_cache_alloc_verify(struct kmem_cache *cache, void *buf, int construct)
     bufctl->redzone = KMEM_REDZONE_WORD;
     buftag->state = KMEM_BUFTAG_ALLOC;
 
-    if (construct && (cache->ctor != NULL))
+    if (construct && (cache->ctor != NULL)) {
         cache->ctor(buf);
+    }
 }
 
 void *
@@ -786,8 +809,9 @@ fast_alloc:
         mutex_unlock(&cpu_pool->lock);
         thread_unpin();
 
-        if (verify)
+        if (verify) {
             kmem_cache_alloc_verify(cache, buf, KMEM_AV_CONSTRUCT);
+        }
 
         return buf;
     }
@@ -801,8 +825,9 @@ fast_alloc:
 
             filled = kmem_cache_grow(cache);
 
-            if (!filled)
+            if (!filled) {
                 return NULL;
+            }
 
             thread_pin();
             cpu_pool = kmem_cpu_pool_get(cache);
@@ -823,17 +848,20 @@ slab_alloc:
     if (buf == NULL) {
         filled = kmem_cache_grow(cache);
 
-        if (!filled)
+        if (!filled) {
             return NULL;
+        }
 
         goto slab_alloc;
     }
 
-    if (cache->flags & KMEM_CF_VERIFY)
+    if (cache->flags & KMEM_CF_VERIFY) {
         kmem_cache_alloc_verify(cache, buf, KMEM_AV_NOCONSTRUCT);
+    }
 
-    if (cache->ctor != NULL)
+    if (cache->ctor != NULL) {
         cache->ctor(buf);
+    }
 
     return buf;
 }
@@ -850,22 +878,26 @@ kmem_cache_free_verify(struct kmem_cache *cache, void *buf)
 
     page = vm_page_lookup(vm_page_direct_pa((unsigned long)buf));
 
-    if (page == NULL)
+    if (page == NULL) {
         kmem_cache_error(cache, buf, KMEM_ERR_INVALID, NULL);
+    }
 
     slab = page->slab_priv;
 
-    if (slab == NULL)
+    if (slab == NULL) {
         kmem_cache_error(cache, buf, KMEM_ERR_INVALID, NULL);
+    }
 
     slabend = P2ALIGN((unsigned long)slab->addr + cache->slab_size, PAGE_SIZE);
 
-    if ((unsigned long)buf >= slabend)
+    if ((unsigned long)buf >= slabend) {
         kmem_cache_error(cache, buf, KMEM_ERR_INVALID, NULL);
+    }
 
     if ((((unsigned long)buf - (unsigned long)slab->addr) % cache->buf_size)
-        != 0)
+        != 0) {
         kmem_cache_error(cache, buf, KMEM_ERR_INVALID, NULL);
+    }
 
     /*
      * As the buffer address is valid, accessing its buftag is safe.
@@ -873,18 +905,20 @@ kmem_cache_free_verify(struct kmem_cache *cache, void *buf)
     buftag = kmem_buf_to_buftag(buf, cache);
 
     if (buftag->state != KMEM_BUFTAG_ALLOC) {
-        if (buftag->state == KMEM_BUFTAG_FREE)
+        if (buftag->state == KMEM_BUFTAG_FREE) {
             kmem_cache_error(cache, buf, KMEM_ERR_DOUBLEFREE, NULL);
-        else
+        } else {
             kmem_cache_error(cache, buf, KMEM_ERR_BUFTAG, buftag);
+        }
     }
 
     redzone_byte = buf + cache->obj_size;
     bufctl = kmem_buf_to_bufctl(buf, cache);
 
     while (redzone_byte < (unsigned char *)bufctl) {
-        if (*redzone_byte != KMEM_REDZONE_BYTE)
+        if (*redzone_byte != KMEM_REDZONE_BYTE) {
             kmem_cache_error(cache, buf, KMEM_ERR_REDZONE, redzone_byte);
+        }
 
         redzone_byte++;
     }
@@ -977,8 +1011,9 @@ kmem_cache_info(struct kmem_cache *cache)
     if (cache == NULL) {
         mutex_lock(&kmem_cache_list_lock);
 
-        list_for_each_entry(&kmem_cache_list, cache, node)
+        list_for_each_entry(&kmem_cache_list, cache, node) {
             kmem_cache_info(cache);
+        }
 
         mutex_unlock(&kmem_cache_list_lock);
 
@@ -986,9 +1021,9 @@ kmem_cache_info(struct kmem_cache *cache)
     }
 
     snprintf(flags_str, sizeof(flags_str), "%s%s%s",
-        (cache->flags & KMEM_CF_DIRECT) ? " DIRECT" : "",
-        (cache->flags & KMEM_CF_SLAB_EXTERNAL) ? " SLAB_EXTERNAL" : "",
-        (cache->flags & KMEM_CF_VERIFY) ? " VERIFY" : "");
+             (cache->flags & KMEM_CF_DIRECT) ? " DIRECT" : "",
+             (cache->flags & KMEM_CF_SLAB_EXTERNAL) ? " SLAB_EXTERNAL" : "",
+             (cache->flags & KMEM_CF_VERIFY) ? " VERIFY" : "");
 
     mutex_lock(&cache->lock);
 
@@ -1079,8 +1114,9 @@ kmem_alloc(size_t size)
     size_t index;
     void *buf;
 
-    if (size == 0)
+    if (size == 0) {
         return NULL;
+    }
 
     index = kmem_get_index(size);
 
@@ -1090,21 +1126,23 @@ kmem_alloc(size_t size)
         cache = &kmem_caches[index];
         buf = kmem_cache_alloc(cache);
 
-        if ((buf != NULL) && (cache->flags & KMEM_CF_VERIFY))
+        if ((buf != NULL) && (cache->flags & KMEM_CF_VERIFY)) {
             kmem_alloc_verify(cache, buf, size);
+        }
     } else {
         struct vm_page *page;
 
         page = vm_page_alloc(vm_page_order(size), VM_PAGE_SEL_DIRECTMAP,
                              VM_PAGE_KERNEL);
 
-        if (page == NULL)
+        if (page == NULL) {
             return NULL;
+        }
 
         buf = vm_page_direct_ptr(page);
     }
 
-  return buf;
+    return buf;
 }
 
 void *
@@ -1114,8 +1152,9 @@ kmem_zalloc(size_t size)
 
     ptr = kmem_alloc(size);
 
-    if (ptr == NULL)
+    if (ptr == NULL) {
         return NULL;
+    }
 
     memset(ptr, 0, size);
     return ptr;
@@ -1132,8 +1171,9 @@ kmem_free_verify(struct kmem_cache *cache, void *buf, size_t size)
     redzone_end = buf + cache->obj_size;
 
     while (redzone_byte < redzone_end) {
-        if (*redzone_byte != KMEM_REDZONE_BYTE)
+        if (*redzone_byte != KMEM_REDZONE_BYTE) {
             kmem_cache_error(cache, buf, KMEM_ERR_REDZONE, redzone_byte);
+        }
 
         redzone_byte++;
     }
@@ -1144,8 +1184,9 @@ kmem_free(void *ptr, size_t size)
 {
     size_t index;
 
-    if ((ptr == NULL) || (size == 0))
+    if ((ptr == NULL) || (size == 0)) {
         return;
+    }
 
     index = kmem_get_index(size);
 
@@ -1154,8 +1195,9 @@ kmem_free(void *ptr, size_t size)
 
         cache = &kmem_caches[index];
 
-        if (cache->flags & KMEM_CF_VERIFY)
+        if (cache->flags & KMEM_CF_VERIFY) {
             kmem_free_verify(cache, ptr, size);
+        }
 
         kmem_cache_free(cache, ptr);
     } else {

@@ -300,8 +300,9 @@ pmap_boot_enter(pmap_pte_t *root_ptp, unsigned long va, phys_addr_t pa,
     pmap_pte_t *pt, *ptp, *pte, bits;
     unsigned int level, last_level;
 
-    if (pa != (pa & PMAP_PA_MASK))
+    if (pa != (pa & PMAP_PA_MASK)) {
         boot_panic(pmap_panic_inval_msg);
+    }
 
     switch (pgsize) {
 #ifdef __LP64__
@@ -326,9 +327,9 @@ pmap_boot_enter(pmap_pte_t *root_ptp, unsigned long va, phys_addr_t pa,
         pt_level = &pt_levels[level];
         pte = &pt[pmap_pte_index(va, pt_level)];
 
-        if (*pte != 0)
+        if (*pte != 0) {
             ptp = (void *)(unsigned long)(*pte & PMAP_PA_MASK);
-        else {
+        } else {
             ptp = biosmem_bootalloc(1);
             *pte = ((unsigned long)ptp | PMAP_PTE_RW | PMAP_PTE_P)
                    & pt_level->mask;
@@ -351,14 +352,16 @@ pmap_boot_get_pgsize(void)
     eax = 0x80000000;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
-    if (eax <= 0x80000000)
+    if (eax <= 0x80000000) {
         goto out;
+    }
 
     eax = 0x80000001;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
-    if (edx & CPU_FEATURE4_1GP)
+    if (edx & CPU_FEATURE4_1GP) {
         return (1 << PMAP_L2_SKIP);
+    }
 
 out:
     return (1 << PMAP_L1_SKIP);
@@ -366,20 +369,23 @@ out:
     eax = 0;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
-    if (eax == 0)
+    if (eax == 0) {
         goto out;
+    }
 
     eax = 1;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
 #ifdef X86_PAE
-    if (!(edx & CPU_FEATURE2_PAE))
+    if (!(edx & CPU_FEATURE2_PAE)) {
         boot_panic(pmap_panic_no_pae);
+    }
 
     return (1 << PMAP_L1_SKIP);
 #else /* X86_PAE */
-    if (edx & CPU_FEATURE2_PSE)
+    if (edx & CPU_FEATURE2_PSE) {
         return (1 << PMAP_L1_SKIP);
+    }
 #endif /* X86_PAE */
 
 out:
@@ -393,8 +399,9 @@ out:
 static void __boot
 pmap_boot_enable_pgext(unsigned long pgsize)
 {
-    if (pgsize == PAGE_SIZE)
+    if (pgsize == PAGE_SIZE) {
         return;
+    }
 
     /*
      * On 64-bits systems, PAE is already enabled.
@@ -441,8 +448,9 @@ pmap_setup_paging(void)
 
     directmap_end = biosmem_directmap_end();
 
-    if (directmap_end > (VM_MAX_DIRECTMAP_ADDRESS - VM_MIN_DIRECTMAP_ADDRESS))
+    if (directmap_end > (VM_MAX_DIRECTMAP_ADDRESS - VM_MIN_DIRECTMAP_ADDRESS)) {
         boot_panic(pmap_panic_directmap_msg);
+    }
 
     va = VM_MIN_DIRECTMAP_ADDRESS;
     pa = 0;
@@ -478,8 +486,9 @@ pmap_setup_paging(void)
     cpu_table->pdpt_pa = BOOT_VTOP((unsigned long)pmap_cpu_kpdpts[0]);
     root_ptp = (void *)cpu_table->pdpt_pa;
 
-    for (i = 0; i < PMAP_NR_RPTPS; i++)
+    for (i = 0; i < PMAP_NR_RPTPS; i++) {
         root_ptp[i] = (cpu_table->root_ptp_pa + (i * PAGE_SIZE)) | PMAP_PTE_P;
+    }
 #endif /* X86_PAE */
 
     return root_ptp;
@@ -597,8 +606,9 @@ pmap_walk_vas(unsigned long start, unsigned long end, pmap_walk_fn_t walk_fn)
     do {
 #ifdef __LP64__
         /* Handle long mode canonical form */
-        if (va == VM_MAX_ADDRESS)
+        if (va == VM_MAX_ADDRESS) {
             va = VM_MIN_KERNEL_ADDRESS;
+        }
 #endif /* __LP64__ */
 
         level = PMAP_NR_LEVELS - 1;
@@ -610,13 +620,15 @@ pmap_walk_vas(unsigned long start, unsigned long end, pmap_walk_fn_t walk_fn)
             index = pmap_pte_index(va, pt_level);
             pte = &ptp[index];
 
-            if (!pmap_pte_valid(*pte))
+            if (!pmap_pte_valid(*pte)) {
                 break;
+            }
 
             walk_fn(ptp_pa, index, level);
 
-            if ((level == 0) || pmap_pte_large(*pte))
+            if ((level == 0) || pmap_pte_large(*pte)) {
                 break;
+            }
 
             level--;
             ptp_pa = *pte & PMAP_PA_MASK;
@@ -635,8 +647,9 @@ pmap_setup_global_page(phys_addr_t ptp_pa, unsigned int index,
 
     pte = &pmap_ptp_from_pa(ptp_pa)[index];
 
-    if ((level == 0) || pmap_pte_large(*pte))
+    if ((level == 0) || pmap_pte_large(*pte)) {
         *pte |= PMAP_PTE_G;
+    }
 }
 
 static void __init
@@ -666,8 +679,9 @@ pmap_update_oplist_create(struct pmap_update_oplist **oplistp)
 
     oplist = kmem_cache_alloc(&pmap_update_oplist_cache);
 
-    if (oplist == NULL)
+    if (oplist == NULL) {
         return ERROR_NOMEM;
+    }
 
     *oplistp = oplist;
     return 0;
@@ -697,8 +711,9 @@ pmap_update_oplist_prepare(struct pmap_update_oplist *oplist,
                            struct pmap *pmap)
 {
     if (oplist->pmap != pmap) {
-        if (oplist->pmap != NULL)
+        if (oplist->pmap != NULL) {
             pmap_update(oplist->pmap);
+        }
 
         oplist->pmap = pmap;
     } else if (oplist->nr_ops == ARRAY_SIZE(oplist->ops)) {
@@ -710,8 +725,9 @@ pmap_update_oplist_prepare(struct pmap_update_oplist *oplist,
 static struct pmap_update_op *
 pmap_update_oplist_prev_op(struct pmap_update_oplist *oplist)
 {
-    if (oplist->nr_ops == 0)
+    if (oplist->nr_ops == 0) {
         return NULL;
+    }
 
     return &oplist->ops[oplist->nr_ops - 1];
 }
@@ -746,8 +762,9 @@ pmap_update_oplist_count_mappings(const struct pmap_update_oplist *oplist,
     for (i = 0; i < oplist->nr_ops; i++) {
         op = &oplist->ops[i];
 
-        if (!cpumap_test(&op->cpumap, cpu))
+        if (!cpumap_test(&op->cpumap, cpu)) {
             continue;
+        }
 
         switch (op->operation) {
         case PMAP_UPDATE_OP_ENTER:
@@ -857,8 +874,9 @@ pmap_bootstrap(void)
     cpumap_zero(&pmap_booter_cpumap);
     cpumap_set(&pmap_booter_cpumap, 0);
 
-    if (cpu_has_global_pages())
+    if (cpu_has_global_pages()) {
         pmap_setup_global_pages();
+    }
 }
 
 void __init
@@ -866,10 +884,11 @@ pmap_ap_bootstrap(void)
 {
     cpu_local_assign(pmap_current_ptr, kernel_pmap);
 
-    if (cpu_has_global_pages())
+    if (cpu_has_global_pages()) {
         cpu_enable_global_pages();
-    else
+    } else {
         cpu_tlb_flush();
+    }
 }
 
 static void __init
@@ -880,8 +899,9 @@ pmap_setup_set_ptp_type(phys_addr_t ptp_pa, unsigned int index,
 
     (void)index;
 
-    if (level == 0)
+    if (level == 0) {
         return;
+    }
 
     page = vm_page_lookup(ptp_pa);
     assert(page != NULL);
@@ -943,13 +963,14 @@ pmap_copy_cpu_table_recursive(const pmap_pte_t *sptp, unsigned int level,
          i++, va = P2END(va, 1UL << pt_level->skip)) {
 #ifdef __LP64__
         /* Handle long mode canonical form */
-        if (va == VM_MAX_ADDRESS)
+        if (va == VM_MAX_ADDRESS) {
             va = VM_MIN_KERNEL_ADDRESS;
+        }
 #endif /* __LP64__ */
 
-        if (!pmap_pte_valid(sptp[i]))
+        if (!pmap_pte_valid(sptp[i])) {
             continue;
-        else if (pmap_pte_large(sptp[i])) {
+        } else if (pmap_pte_large(sptp[i])) {
             dptp[i] = sptp[i];
             continue;
         }
@@ -959,9 +980,9 @@ pmap_copy_cpu_table_recursive(const pmap_pte_t *sptp, unsigned int level,
         pa = vm_page_to_pa(page);
         dptp[i] = (sptp[i] & ~PMAP_PA_MASK) | (pa & PMAP_PA_MASK);
 
-        if (((level - 1) == 0) || pmap_pte_large(sptp[i]))
+        if (((level - 1) == 0) || pmap_pte_large(sptp[i])) {
             pmap_copy_cpu_table_page(pmap_pte_next(sptp[i]), level - 1, page);
-        else
+        } else
             pmap_copy_cpu_table_recursive(pmap_pte_next(sptp[i]),
                                           level - 1, page, va);
     }
@@ -989,8 +1010,9 @@ pmap_copy_cpu_table(unsigned int cpu)
     cpu_table->pdpt = pmap_cpu_kpdpts[cpu];
     cpu_table->pdpt_pa = BOOT_VTOP((unsigned long)pmap_cpu_kpdpts[cpu]);
 
-    for (i = 0; i < PMAP_NR_RPTPS; i++)
+    for (i = 0; i < PMAP_NR_RPTPS; i++) {
         cpu_table->pdpt[i] = (cpu_table->root_ptp_pa + (i * PAGE_SIZE)) | PMAP_PTE_P;
+    }
 #endif /* X86_PAE */
 }
 
@@ -1007,8 +1029,9 @@ pmap_mp_setup(void)
 
     error = cpumap_create(&cpumap);
 
-    if (error)
+    if (error) {
         panic("pmap: unable to create syncer cpumap");
+    }
 
     for (cpu = 1; cpu < cpu_count(); cpu++) {
         pmap_update_request_array_init(percpu_ptr(pmap_update_request_array,
@@ -1027,8 +1050,9 @@ pmap_mp_setup(void)
         thread_attr_set_priority(&attr, THREAD_SCHED_RT_PRIO_MIN);
         error = thread_create(&syncer->thread, &attr, pmap_sync, syncer);
 
-        if (error)
+        if (error) {
             panic("pmap: unable to create syncer thread");
+        }
 
         oplist = thread_tsd_get(syncer->thread, pmap_oplist_tsd_key);
         thread_tsd_set(syncer->thread, pmap_oplist_tsd_key, NULL);
@@ -1037,8 +1061,9 @@ pmap_mp_setup(void)
 
     cpumap_destroy(cpumap);
 
-    for (cpu = 1; cpu < cpu_count(); cpu++)
+    for (cpu = 1; cpu < cpu_count(); cpu++) {
         pmap_copy_cpu_table(cpu);
+    }
 
     pmap_do_remote_updates = 1;
 }
@@ -1051,8 +1076,9 @@ pmap_thread_init(struct thread *thread)
 
     error = pmap_update_oplist_create(&oplist);
 
-    if (error)
+    if (error) {
         return error;
+    }
 
     thread_tsd_set(thread, pmap_oplist_tsd_key, oplist);
     return 0;
@@ -1072,11 +1098,13 @@ pmap_kextract(unsigned long va, phys_addr_t *pap)
         pt_level = &pmap_pt_levels[level];
         pte = &ptp[pmap_pte_index(va, pt_level)];
 
-        if (!pmap_pte_valid(*pte))
+        if (!pmap_pte_valid(*pte)) {
             return ERROR_FAULT;
+        }
 
-        if ((level == 0) || pmap_pte_large(*pte))
+        if ((level == 0) || pmap_pte_large(*pte)) {
             break;
+        }
 
         level--;
         ptp = pmap_pte_next(*pte);
@@ -1094,11 +1122,13 @@ pmap_create(struct pmap **pmapp)
 
     pmap = kmem_cache_alloc(&pmap_cache);
 
-    if (pmap == NULL)
+    if (pmap == NULL) {
         return ERROR_NOMEM;
+    }
 
-    for (i = 0; i < ARRAY_SIZE(pmap->cpu_tables); i++)
+    for (i = 0; i < ARRAY_SIZE(pmap->cpu_tables); i++) {
         pmap->cpu_tables[i] = NULL;
+    }
 
     *pmapp = pmap;
     return 0;
@@ -1119,8 +1149,9 @@ pmap_enter_local(struct pmap *pmap, unsigned long va, phys_addr_t pa,
 
     pte_bits = PMAP_PTE_RW;
 
-    if (pmap != kernel_pmap)
+    if (pmap != kernel_pmap) {
         pte_bits |= PMAP_PTE_US;
+    }
 
     level = PMAP_NR_LEVELS - 1;
     ptp = pmap_ptp_from_pa(pmap->cpu_tables[cpu_id()]->root_ptp_pa);
@@ -1129,12 +1160,13 @@ pmap_enter_local(struct pmap *pmap, unsigned long va, phys_addr_t pa,
         pt_level = &pmap_pt_levels[level];
         pte = &ptp[pmap_pte_index(va, pt_level)];
 
-        if (level == 0)
+        if (level == 0) {
             break;
+        }
 
-        if (pmap_pte_valid(*pte))
+        if (pmap_pte_valid(*pte)) {
             ptp = pmap_pte_next(*pte);
-        else {
+        } else {
             page = vm_page_alloc(0, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_PMAP);
             assert(page != NULL);
             ptp_pa = vm_page_to_pa(page);
@@ -1166,9 +1198,9 @@ pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
     pmap_update_oplist_prepare(oplist, pmap);
     op = pmap_update_oplist_prepare_op(oplist);
 
-    if (flags & PMAP_PEF_GLOBAL)
+    if (flags & PMAP_PEF_GLOBAL) {
         cpumap_copy(&op->cpumap, cpumap_all());
-    else {
+    } else {
         cpumap_zero(&op->cpumap);
         cpumap_set(&op->cpumap, cpu_id());
     }
@@ -1195,8 +1227,9 @@ pmap_remove_local_single(struct pmap *pmap, unsigned long va)
         pt_level = &pmap_pt_levels[level];
         pte = &ptp[pmap_pte_index(va, pt_level)];
 
-        if (level == 0)
+        if (level == 0) {
             break;
+        }
 
         level--;
         ptp = pmap_pte_next(*pte);
@@ -1295,8 +1328,9 @@ pmap_protect(struct pmap *pmap, unsigned long va, int prot,
 static void
 pmap_flush_tlb(struct pmap *pmap, unsigned long start, unsigned long end)
 {
-    if ((pmap != pmap_current()) && (pmap != kernel_pmap))
+    if ((pmap != pmap_current()) && (pmap != kernel_pmap)) {
         return;
+    }
 
     while (start < end) {
         cpu_tlb_flush_va(start);
@@ -1307,13 +1341,15 @@ pmap_flush_tlb(struct pmap *pmap, unsigned long start, unsigned long end)
 static void
 pmap_flush_tlb_all(struct pmap *pmap)
 {
-    if ((pmap != pmap_current()) && (pmap != kernel_pmap))
+    if ((pmap != pmap_current()) && (pmap != kernel_pmap)) {
         return;
+    }
 
-    if (pmap == kernel_pmap)
+    if (pmap == kernel_pmap) {
         cpu_tlb_flush_all();
-    else
+    } else {
         cpu_tlb_flush();
+    }
 }
 
 static void
@@ -1322,8 +1358,9 @@ pmap_update_enter(struct pmap *pmap, int flush,
 {
     pmap_enter_local(pmap, args->va, args->pa, args->prot, args->flags);
 
-    if (flush)
+    if (flush) {
         pmap_flush_tlb(pmap, args->va, args->va + PAGE_SIZE);
+    }
 }
 
 static void
@@ -1332,8 +1369,9 @@ pmap_update_remove(struct pmap *pmap, int flush,
 {
     pmap_remove_local(pmap, args->start, args->end);
 
-    if (flush)
+    if (flush) {
         pmap_flush_tlb(pmap, args->start, args->end);
+    }
 }
 
 static void
@@ -1342,8 +1380,9 @@ pmap_update_protect(struct pmap *pmap, int flush,
 {
     pmap_protect_local(pmap, args->start, args->end, args->prot);
 
-    if (flush)
+    if (flush) {
         pmap_flush_tlb(pmap, args->start, args->end);
+    }
 }
 
 static void
@@ -1362,8 +1401,9 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
     for (i = 0; i < oplist->nr_ops; i++) {
         op = &oplist->ops[i];
 
-        if (!cpumap_test(&op->cpumap, cpu_id()))
+        if (!cpumap_test(&op->cpumap, cpu_id())) {
             continue;
+        }
 
         switch (op->operation) {
         case PMAP_UPDATE_OP_ENTER:
@@ -1386,8 +1426,9 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
         }
     }
 
-    if (global_tlb_flush)
+    if (global_tlb_flush) {
         pmap_flush_tlb_all(oplist->pmap);
+    }
 }
 
 void
@@ -1403,8 +1444,9 @@ pmap_update(struct pmap *pmap)
 
     oplist = pmap_update_oplist_get();
 
-    if (pmap != oplist->pmap)
+    if (pmap != oplist->pmap) {
         return;
+    }
 
     assert(oplist->nr_ops != 0);
 
@@ -1435,8 +1477,9 @@ pmap_update(struct pmap *pmap)
 
         mutex_lock(&request->lock);
 
-        while (!request->done)
+        while (!request->done) {
             condition_wait(&request->cond, &request->lock);
+        }
 
         mutex_unlock(&request->lock);
     }
@@ -1462,8 +1505,9 @@ pmap_sync(void *arg)
     for (;;) {
         mutex_lock(&queue->lock);
 
-        while (list_empty(&queue->requests))
+        while (list_empty(&queue->requests)) {
             condition_wait(&queue->cond, &queue->lock);
+        }
 
         request = list_first_entry(&queue->requests,
                                    struct pmap_update_request, node);
@@ -1488,8 +1532,9 @@ pmap_load(struct pmap *pmap)
     assert(!cpu_intr_enabled());
     assert(!thread_preempt_enabled());
 
-    if (pmap_current() == pmap)
+    if (pmap_current() == pmap) {
         return;
+    }
 
     /* TODO Lazy TLB invalidation */
 

@@ -35,8 +35,9 @@ spinlock_tryacquire(struct spinlock *lock)
 static inline void
 spinlock_acquire(struct spinlock *lock)
 {
-    while (spinlock_tryacquire(lock))
+    while (spinlock_tryacquire(lock)) {
         cpu_pause();
+    }
 }
 
 static inline void

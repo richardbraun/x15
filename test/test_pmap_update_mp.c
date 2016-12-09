@@ -73,8 +73,9 @@ test_run2(void *arg)
 
     mutex_lock(&test_lock);
 
-    while (test_va == NULL)
+    while (test_va == NULL) {
         condition_wait(&test_condition, &test_lock);
+    }
 
     ptr = test_va;
 
@@ -82,9 +83,11 @@ test_run2(void *arg)
 
     printk("page received (%p), checking page\n", ptr);
 
-    for (i = 0; i < PAGE_SIZE; i++)
-        if (ptr[i] != 'a')
+    for (i = 0; i < PAGE_SIZE; i++) {
+        if (ptr[i] != 'a') {
             panic("invalid content");
+        }
+    }
 
     vm_kmem_free(ptr, PAGE_SIZE);
     printk("done\n");

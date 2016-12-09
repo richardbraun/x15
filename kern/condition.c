@@ -44,8 +44,9 @@ condition_wait(struct condition *condition, struct mutex *mutex)
 
     assert((condition->mutex == NULL) || (condition->mutex == mutex));
 
-    if (condition->mutex == NULL)
+    if (condition->mutex == NULL) {
         condition->mutex = mutex;
+    }
 
     list_insert_tail(&condition->waiters, &waiter.node);
 
@@ -53,8 +54,9 @@ condition_wait(struct condition *condition, struct mutex *mutex)
 
     state = mutex_release(mutex);
 
-    if (state == MUTEX_CONTENDED)
+    if (state == MUTEX_CONTENDED) {
         mutex_signal(mutex);
+    }
 
     spinlock_unlock(&condition->lock);
 
@@ -82,8 +84,9 @@ condition_signal(struct condition *condition)
     waiter = list_first_entry(&condition->waiters, struct mutex_waiter, node);
     list_remove(&waiter->node);
 
-    if (list_empty(&condition->waiters))
+    if (list_empty(&condition->waiters)) {
         condition->mutex = NULL;
+    }
 
     spinlock_unlock(&condition->lock);
 

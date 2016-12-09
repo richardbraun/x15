@@ -140,8 +140,9 @@ acpimp_table_required(const struct acpimp_sdth *table)
     acpimp_table_sig(table, sig);
 
     for (i = 0; i < ARRAY_SIZE(acpimp_table_addrs); i++)
-        if (strcmp(sig, acpimp_table_addrs[i].sig) == 0)
+        if (strcmp(sig, acpimp_table_addrs[i].sig) == 0) {
             return 1;
+        }
 
     return 0;
 }
@@ -175,8 +176,9 @@ acpimp_lookup_table(const char *sig)
     size_t i;
 
     for (i = 0; i < ARRAY_SIZE(acpimp_table_addrs); i++)
-        if (strcmp(sig, acpimp_table_addrs[i].sig) == 0)
+        if (strcmp(sig, acpimp_table_addrs[i].sig) == 0) {
             return acpimp_table_addrs[i].table;
+        }
 
     return NULL;
 }
@@ -205,8 +207,9 @@ acpimp_free_tables(void)
     for (i = 0; i < ARRAY_SIZE(acpimp_table_addrs); i++) {
         table = acpimp_table_addrs[i].table;
 
-        if (table != NULL)
+        if (table != NULL) {
             kmem_free(table, table->length);
+        }
     }
 }
 
@@ -220,8 +223,9 @@ acpimp_checksum(const void *ptr, size_t size)
     bytes = ptr;
     checksum = 0;
 
-    for (i = 0; i < size; i++)
+    for (i = 0; i < size; i++) {
         checksum += bytes[i];
+    }
 
     return checksum;
 }
@@ -231,13 +235,15 @@ acpimp_check_rsdp(const struct acpimp_rsdp *rsdp)
 {
     unsigned int checksum;
 
-    if (memcmp(rsdp->signature, ACPIMP_RSDP_SIG, sizeof(rsdp->signature)) != 0)
+    if (memcmp(rsdp->signature, ACPIMP_RSDP_SIG, sizeof(rsdp->signature)) != 0) {
         return -1;
+    }
 
     checksum = acpimp_checksum(rsdp, sizeof(*rsdp));
 
-    if (checksum != 0)
+    if (checksum != 0) {
         return -1;
+    }
 
     return 0;
 }
@@ -253,20 +259,23 @@ acpimp_get_rsdp(phys_addr_t start, size_t size, struct acpimp_rsdp *rsdp)
     assert(size > 0);
     assert(P2ALIGNED(size, ACPIMP_RSDP_ALIGN));
 
-    if (!P2ALIGNED(start, ACPIMP_RSDP_ALIGN))
+    if (!P2ALIGNED(start, ACPIMP_RSDP_ALIGN)) {
         return -1;
+    }
 
     addr = (unsigned long)vm_kmem_map_pa(start, size, &map_addr, &map_size);
 
-    if (addr == 0)
+    if (addr == 0) {
         panic("acpimp: unable to map bios memory in kernel map");
+    }
 
     for (end = addr + size; addr < end; addr += ACPIMP_RSDP_ALIGN) {
         src = (const struct acpimp_rsdp *)addr;
         error = acpimp_check_rsdp(src);
 
-        if (!error)
+        if (!error) {
             break;
+        }
     }
 
     if (!(addr < end)) {
@@ -292,8 +301,9 @@ acpimp_find_rsdp(struct acpimp_rsdp *rsdp)
 
     ptr = vm_kmem_map_pa(BIOSMEM_EBDA_PTR, sizeof(*ptr), &map_addr, &map_size);
 
-    if (ptr == NULL)
+    if (ptr == NULL) {
         panic("acpimp: unable to map ebda pointer in kernel map");
+    }
 
     base = *((const volatile uint16_t *)ptr);
     vm_kmem_unmap_pa(map_addr, map_size);
@@ -302,15 +312,17 @@ acpimp_find_rsdp(struct acpimp_rsdp *rsdp)
         base <<= 4;
         error = acpimp_get_rsdp(base, 1024, rsdp);
 
-        if (!error)
+        if (!error) {
             return 0;
+        }
     }
 
     error = acpimp_get_rsdp(BIOSMEM_EXT_ROM, BIOSMEM_END - BIOSMEM_EXT_ROM,
                             rsdp);
 
-    if (!error)
+    if (!error) {
         return 0;
+    }
 
     printk("acpimp: unable to find root system description pointer\n");
     return -1;
@@ -338,8 +350,9 @@ acpimp_copy_table(uint32_t addr)
 
     table = vm_kmem_map_pa(addr, sizeof(*table), &map_addr, &map_size);
 
-    if (table == NULL)
+    if (table == NULL) {
         panic("acpimp: unable to map acpi data in kernel map");
+    }
 
     if (!acpimp_table_required(table)) {
         copy = NULL;
@@ -351,8 +364,9 @@ acpimp_copy_table(uint32_t addr)
 
     table = vm_kmem_map_pa(addr, size, &map_addr, &map_size);
 
-    if (table == NULL)
+    if (table == NULL) {
         panic("acpimp: unable to map acpi data in kernel map");
+    }
 
     checksum = acpimp_checksum(table, size);
 
@@ -367,8 +381,9 @@ acpimp_copy_table(uint32_t addr)
 
     copy = kmem_alloc(size);
 
-    if (copy == NULL)
+    if (copy == NULL) {
         panic("acpimp: unable to allocate memory for acpi data copy");
+    }
 
     memcpy(copy, table, size);
 
@@ -387,8 +402,9 @@ acpimp_copy_tables(const struct acpimp_rsdp *rsdp)
 
     table = acpimp_copy_table(rsdp->rsdt_address);
 
-    if (table == NULL)
+    if (table == NULL) {
         return -1;
+    }
 
     acpimp_register_table(table);
 
@@ -398,16 +414,18 @@ acpimp_copy_tables(const struct acpimp_rsdp *rsdp)
     for (addr = rsdt->entries; addr < end; addr++) {
         table = acpimp_copy_table(*addr);
 
-        if (table == NULL)
+        if (table == NULL) {
             continue;
+        }
 
         acpimp_register_table(table);
     }
 
     error = acpimp_check_tables();
 
-    if (error)
+    if (error) {
         goto error;
+    }
 
     return 0;
 
@@ -439,8 +457,9 @@ acpimp_madt_iter_next(struct acpimp_madt_iter *iter)
 static void __init
 acpimp_load_lapic(const struct acpimp_madt_entry_lapic *lapic, int *is_bsp)
 {
-    if (!(lapic->flags & ACPIMP_MADT_LAPIC_ENABLED))
+    if (!(lapic->flags & ACPIMP_MADT_LAPIC_ENABLED)) {
         return;
+    }
 
     cpu_mp_register_lapic(lapic->apic_id, *is_bsp);
     *is_bsp = 0;
@@ -460,12 +479,13 @@ acpimp_load_madt(void)
     lapic_setup(madt->lapic_addr);
     is_bsp = 1;
 
-    acpimp_madt_foreach(madt, &iter)
+    acpimp_madt_foreach(madt, &iter) {
         switch (iter.entry->type) {
         case ACPIMP_MADT_ENTRY_LAPIC:
             acpimp_load_lapic(&iter.entry->lapic, &is_bsp);
             break;
         }
+    }
 }
 
 int __init
@@ -476,13 +496,15 @@ acpimp_setup(void)
 
     error = acpimp_find_rsdp(&rsdp);
 
-    if (error)
+    if (error) {
         return error;
+    }
 
     error = acpimp_copy_tables(&rsdp);
 
-    if (error)
+    if (error) {
         return error;
+    }
 
     acpimp_info();
     acpimp_load_madt();

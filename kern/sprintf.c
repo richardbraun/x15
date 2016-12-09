@@ -75,8 +75,9 @@ static const char sprintf_digits[] = "0123456789ABCDEF";
 static inline char *
 sprintf_putchar(char *str, char *end, char c)
 {
-    if (str < end)
+    if (str < end) {
         *str = c;
+    }
 
     str++;
 
@@ -131,12 +132,13 @@ vsnprintf(char *str, size_t size, const char *format, va_list ap)
 
     start = str;
 
-    if (size == 0)
+    if (size == 0) {
         end = NULL;
-    else if (size == SPRINTF_NOLIMIT)
+    } else if (size == SPRINTF_NOLIMIT) {
         end = (char *)-1;
-    else
+    } else {
         end = start + size - 1;
+    }
 
     while ((c = *format) != '\0') {
         if (c != '%') {
@@ -217,8 +219,9 @@ vsnprintf(char *str, size_t size, const char *format, va_list ap)
             } else if (c == '*') {
                 precision = va_arg(ap, int);
 
-                if (precision < 0)
+                if (precision < 0) {
                     precision = 0;
+                }
 
                 format++;
                 c = *format;
@@ -309,51 +312,58 @@ integer:
         case SPRINTF_SPECIFIER_INT:
             switch (modifier) {
             case SPRINTF_MODIFIER_CHAR:
-                if (flags & SPRINTF_FORMAT_CONV_SIGNED)
+                if (flags & SPRINTF_FORMAT_CONV_SIGNED) {
                     n = (signed char)va_arg(ap, int);
-                else
+                } else {
                     n = (unsigned char)va_arg(ap, int);
+                }
                 break;
             case SPRINTF_MODIFIER_SHORT:
-                if (flags & SPRINTF_FORMAT_CONV_SIGNED)
+                if (flags & SPRINTF_FORMAT_CONV_SIGNED) {
                     n = (short)va_arg(ap, int);
-                else
+                } else {
                     n = (unsigned short)va_arg(ap, int);
+                }
                 break;
             case SPRINTF_MODIFIER_LONG:
-                if (flags & SPRINTF_FORMAT_CONV_SIGNED)
+                if (flags & SPRINTF_FORMAT_CONV_SIGNED) {
                     n = va_arg(ap, long);
-                else
+                } else {
                     n = va_arg(ap, unsigned long);
+                }
                 break;
             case SPRINTF_MODIFIER_LONGLONG:
-                if (flags & SPRINTF_FORMAT_CONV_SIGNED)
+                if (flags & SPRINTF_FORMAT_CONV_SIGNED) {
                     n = va_arg(ap, long long);
-                else
+                } else {
                     n = va_arg(ap, unsigned long long);
+                }
                 break;
             case SPRINTF_MODIFIER_PTR:
                 n = (unsigned long)va_arg(ap, void *);
                 break;
             case SPRINTF_MODIFIER_SIZE:
-                if (flags & SPRINTF_FORMAT_CONV_SIGNED)
+                if (flags & SPRINTF_FORMAT_CONV_SIGNED) {
                     n = va_arg(ap, ssize_t);
-                else
+                } else {
                     n = va_arg(ap, size_t);
+                }
                 break;
             case SPRINTF_MODIFIER_PTRDIFF:
                 n = va_arg(ap, ptrdiff_t);
                 break;
             default:
-                if (flags & SPRINTF_FORMAT_CONV_SIGNED)
+                if (flags & SPRINTF_FORMAT_CONV_SIGNED) {
                     n = va_arg(ap, int);
-                else
+                } else {
                     n = va_arg(ap, unsigned int);
+                }
                 break;
             }
 
-            if ((flags & SPRINTF_FORMAT_LEFT_JUSTIFY) || (precision >= 0))
+            if ((flags & SPRINTF_FORMAT_LEFT_JUSTIFY) || (precision >= 0)) {
                 flags &= ~SPRINTF_FORMAT_ZERO_PAD;
+            }
 
             sign = 0;
 
@@ -362,8 +372,9 @@ integer:
                 width--;
 
                 /* '0x' or '0X' for hexadecimal */
-                if (base == 16)
+                if (base == 16) {
                     width--;
+                }
             } else if (flags & SPRINTF_FORMAT_CONV_SIGNED) {
                 if ((long long)n < 0) {
                     sign = '-';
@@ -384,8 +395,9 @@ integer:
             i = 0;
 
             if (n == 0) {
-                if (precision != 0)
+                if (precision != 0) {
                     tmp[i++] = '0';
+                }
             } else if (base == 10) {
                 /*
                  * Try to avoid 64 bits operations if the processor doesn't
@@ -429,15 +441,17 @@ integer:
                 } while (n != 0);
             }
 
-            if (i > precision)
+            if (i > precision) {
                 precision = i;
+            }
 
             width -= precision;
 
             if (!(flags & (SPRINTF_FORMAT_LEFT_JUSTIFY
                            | SPRINTF_FORMAT_ZERO_PAD)))
-                while (width-- > 0)
+                while (width-- > 0) {
                     str = sprintf_putchar(str, end, ' ');
+                }
 
             if (flags & SPRINTF_FORMAT_ALT_FORM) {
                 str = sprintf_putchar(str, end, '0');
@@ -452,56 +466,66 @@ integer:
             if (!(flags & SPRINTF_FORMAT_LEFT_JUSTIFY)) {
                 c = (flags & SPRINTF_FORMAT_ZERO_PAD) ? '0' : ' ';
 
-                while (width-- > 0)
+                while (width-- > 0) {
                     str = sprintf_putchar(str, end, c);
+                }
             }
 
-            while (i < precision--)
+            while (i < precision--) {
                 str = sprintf_putchar(str, end, '0');
+            }
 
-            while (i-- > 0)
+            while (i-- > 0) {
                 str = sprintf_putchar(str, end, tmp[i]);
+            }
 
-            while (width-- > 0)
+            while (width-- > 0) {
                 str = sprintf_putchar(str, end, ' ');
+            }
 
             break;
         case SPRINTF_SPECIFIER_CHAR:
             c = (unsigned char)va_arg(ap, int);
 
             if (!(flags & SPRINTF_FORMAT_LEFT_JUSTIFY))
-                while (--width > 0)
+                while (--width > 0) {
                     str = sprintf_putchar(str, end, ' ');
+                }
 
             str = sprintf_putchar(str, end, c);
 
-            while (--width > 0)
+            while (--width > 0) {
                 str = sprintf_putchar(str, end, ' ');
+            }
 
             break;
         case SPRINTF_SPECIFIER_STR:
             s = va_arg(ap, char *);
 
-            if (s == NULL)
+            if (s == NULL) {
                 s = "(null)";
+            }
 
             len = 0;
 
             for (len = 0; s[len] != '\0'; len++)
-                if (len == precision)
+                if (len == precision) {
                     break;
+                }
 
             if (!(flags & SPRINTF_FORMAT_LEFT_JUSTIFY))
-                while (len < width--)
+                while (len < width--) {
                     str = sprintf_putchar(str, end, ' ');
+                }
 
             for (i = 0; i < len; i++) {
                 str = sprintf_putchar(str, end, *s);
                 s++;
             }
 
-            while (len < width--)
+            while (len < width--) {
                 str = sprintf_putchar(str, end, ' ');
+            }
 
             break;
         case SPRINTF_SPECIFIER_NRCHARS:
@@ -537,14 +561,16 @@ integer:
             break;
         }
 
-        if (specifier != SPRINTF_SPECIFIER_INVALID)
+        if (specifier != SPRINTF_SPECIFIER_INVALID) {
             format++;
+        }
     }
 
-    if (str < end)
+    if (str < end) {
         *str = '\0';
-    else if (end != NULL)
+    } else if (end != NULL) {
         *end = '\0';
+    }
 
     return str - start;
 }

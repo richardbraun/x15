@@ -52,14 +52,16 @@ percpu_setup(void)
            percpu_area_size >> 10);
     assert(vm_page_aligned(percpu_area_size));
 
-    if (percpu_area_size == 0)
+    if (percpu_area_size == 0) {
         return;
+    }
 
     order = vm_page_order(percpu_area_size);
     page = vm_page_alloc(order, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_KERNEL);
 
-    if (page == NULL)
+    if (page == NULL) {
         panic("percpu: unable to allocate memory for percpu area content");
+    }
 
     percpu_area_content = vm_page_direct_ptr(page);
     memcpy(percpu_area_content, &_percpu, percpu_area_size);
@@ -86,8 +88,9 @@ percpu_add(unsigned int cpu)
         return ERROR_INVAL;
     }
 
-    if (percpu_area_size == 0)
+    if (percpu_area_size == 0) {
         goto out;
+    }
 
     order = vm_page_order(percpu_area_size);
     page = vm_page_alloc(order, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_KERNEL);

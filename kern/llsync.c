@@ -126,8 +126,9 @@ llsync_process_global_checkpoint(void)
     work_queue_transfer(&llsync_data.queue1, &llsync_data.queue0);
     work_queue_init(&llsync_data.queue0);
 
-    if (work_queue_nr_works(&queue) != 0)
+    if (work_queue_nr_works(&queue) != 0) {
         work_queue_schedule(&queue, 0);
+    }
 
     llsync_data.gcid.value++;
     evcnt_inc(&llsync_data.ev_global_checkpoint);
@@ -136,8 +137,9 @@ llsync_process_global_checkpoint(void)
 static void
 llsync_flush_works(struct llsync_cpu_data *cpu_data)
 {
-    if (work_queue_nr_works(&cpu_data->queue0) == 0)
+    if (work_queue_nr_works(&cpu_data->queue0) == 0) {
         return;
+    }
 
     work_queue_concat(&llsync_data.queue0, &cpu_data->queue0);
     work_queue_init(&cpu_data->queue0);
@@ -150,14 +152,16 @@ llsync_commit_checkpoint(unsigned int cpu)
 
     pending = cpumap_test(&llsync_data.pending_checkpoints, cpu);
 
-    if (!pending)
+    if (!pending) {
         return;
+    }
 
     cpumap_clear(&llsync_data.pending_checkpoints, cpu);
     llsync_data.nr_pending_checkpoints--;
 
-    if (llsync_data.nr_pending_checkpoints == 0)
+    if (llsync_data.nr_pending_checkpoints == 0) {
         llsync_process_global_checkpoint();
+    }
 }
 
 void
@@ -184,8 +188,9 @@ llsync_register(void)
     assert(!cpumap_test(&llsync_data.pending_checkpoints, cpu));
 
     if ((llsync_data.nr_registered_cpus == 1)
-        && (llsync_data.nr_pending_checkpoints == 0))
+        && (llsync_data.nr_pending_checkpoints == 0)) {
         llsync_process_global_checkpoint();
+    }
 
     spinlock_unlock_intr_restore(&llsync_data.lock, flags);
 }
@@ -252,12 +257,12 @@ llsync_report_periodic_event(void)
      * Check whether this periodic event occurred during a read-side critical
      * section, and if not, trigger a checkpoint.
      */
-    if (cpu_data->gcid == gcid)
+    if (cpu_data->gcid == gcid) {
         llsync_commit_checkpoint(cpu_id());
-    else {
-        if (thread_llsync_in_read_cs())
+    } else {
+        if (thread_llsync_in_read_cs()) {
             evcnt_inc(&llsync_data.ev_failed_periodic_checkin);
-        else {
+        } else {
             cpu_data->gcid = gcid;
             evcnt_inc(&llsync_data.ev_periodic_checkin);
             llsync_commit_checkpoint(cpu_id());
@@ -308,8 +313,9 @@ llsync_wait(void)
 
     mutex_lock(&waiter.lock);
 
-    while (!waiter.done)
+    while (!waiter.done) {
         condition_wait(&waiter.cond, &waiter.lock);
+    }
 
     mutex_unlock(&waiter.lock);
 }

@@ -33,9 +33,11 @@ panic(const char *format, ...)
 
     already_done = atomic_swap_uint(&panic_done, 1);
 
-    if (already_done)
-        for (;;)
+    if (already_done) {
+        for (;;) {
             cpu_idle();
+        }
+    }
 
     cpu_intr_disable();
     cpu_halt_broadcast();

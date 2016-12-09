@@ -36,8 +36,9 @@ iorder2(unsigned long size)
 {
     assert(size != 0);
 
-    if (size == 1)
+    if (size == 1) {
         return 0;
+    }
 
     return ilog2(size - 1) + 1;
 }

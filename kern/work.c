@@ -192,8 +192,9 @@ work_pool_init(struct work_pool *pool, unsigned int cpu, int flags)
     id = work_pool_alloc_id(pool);
     error = work_thread_create(pool, id);
 
-    if (error)
+    if (error) {
         goto error_thread;
+    }
 
     return;
 
@@ -212,9 +213,9 @@ work_pool_cpu_select(int flags)
 static void
 work_pool_acquire(struct work_pool *pool, unsigned long *flags)
 {
-    if (pool->flags & WORK_PF_GLOBAL)
+    if (pool->flags & WORK_PF_GLOBAL) {
         spinlock_lock_intr_save(&pool->lock, flags);
-    else {
+    } else {
         thread_preempt_disable();
         cpu_intr_save(flags);
     }
@@ -223,9 +224,9 @@ work_pool_acquire(struct work_pool *pool, unsigned long *flags)
 static void
 work_pool_release(struct work_pool *pool, unsigned long flags)
 {
-    if (pool->flags & WORK_PF_GLOBAL)
+    if (pool->flags & WORK_PF_GLOBAL) {
         spinlock_unlock_intr_restore(&pool->lock, flags);
-    else {
+    } else {
         cpu_intr_restore(flags);
         thread_preempt_enable();
     }
@@ -242,8 +243,9 @@ static struct work *
 work_pool_pop_work(struct work_pool *pool)
 {
     if (!(pool->flags & WORK_PF_GLOBAL)) {
-        if (work_queue_nr_works(&pool->queue1) != 0)
+        if (work_queue_nr_works(&pool->queue1) != 0) {
             return work_queue_pop(&pool->queue1);
+        }
     }
 
     return work_queue_pop(&pool->queue0);
@@ -252,11 +254,13 @@ work_pool_pop_work(struct work_pool *pool)
 static void
 work_pool_wakeup_manager(struct work_pool *pool)
 {
-    if (work_pool_nr_works(pool) == 0)
+    if (work_pool_nr_works(pool) == 0) {
         return;
+    }
 
-    if ((pool->manager != NULL) && (pool->manager->thread != thread_self()))
+    if ((pool->manager != NULL) && (pool->manager->thread != thread_self())) {
         thread_wakeup(pool->manager->thread);
+    }
 }
 
 static void
@@ -268,8 +272,9 @@ work_pool_shift_queues(struct work_pool *pool, struct work_queue *old_queue)
     work_queue_transfer(&pool->queue1, &pool->queue0);
     work_queue_init(&pool->queue0);
 
-    if (work_queue_nr_works(old_queue) != 0)
+    if (work_queue_nr_works(old_queue) != 0) {
         evcnt_inc(&pool->ev_transfer);
+    }
 }
 
 static void
@@ -308,9 +313,9 @@ work_process(void *arg)
             list_insert_tail(&pool->available_threads, &self->node);
             pool->nr_available_threads++;
 
-            do
+            do {
                 thread_sleep(lock);
-            while (pool->manager != NULL);
+            } while (pool->manager != NULL);
 
             list_remove(&self->node);
             pool->nr_available_threads--;
@@ -338,14 +343,15 @@ work_process(void *arg)
         }
 
         if (work_pool_nr_works(pool) == 0) {
-            if (pool->nr_threads > WORK_THREADS_SPARE)
+            if (pool->nr_threads > WORK_THREADS_SPARE) {
                 break;
+            }
 
             pool->manager = self;
 
-            do
+            do {
                 thread_sleep(lock);
-            while (work_pool_nr_works(pool) == 0);
+            } while (work_pool_nr_works(pool) == 0);
 
             pool->manager = NULL;
         }
@@ -396,8 +402,9 @@ work_thread_create(struct work_pool *pool, unsigned int id)
 
     worker = kmem_cache_alloc(&work_thread_cache);
 
-    if (worker == NULL)
+    if (worker == NULL) {
         return ERROR_NOMEM;
+    }
 
     worker->pool = pool;
     worker->id = id;
@@ -419,8 +426,9 @@ work_thread_create(struct work_pool *pool, unsigned int id)
 
         error = cpumap_create(&cpumap);
 
-        if (error)
+        if (error) {
             goto error_cpumap;
+        }
 
         pool_id = work_pool_cpu_id(pool);
         cpumap_zero(cpumap);
@@ -432,16 +440,19 @@ work_thread_create(struct work_pool *pool, unsigned int id)
     thread_attr_init(&attr, name);
     thread_attr_set_priority(&attr, priority);
 
-    if (cpumap != NULL)
+    if (cpumap != NULL) {
         thread_attr_set_cpumap(&attr, cpumap);
+    }
 
     error = thread_create(&worker->thread, &attr, work_process, worker);
 
-    if (cpumap != NULL)
+    if (cpumap != NULL) {
         cpumap_destroy(cpumap);
+    }
 
-    if (error)
+    if (error) {
         goto error_thread;
+    }
 
     return 0;
 

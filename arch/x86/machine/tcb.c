@@ -40,8 +40,9 @@ tcb_init(struct tcb *tcb, void *stack, void (*fn)(void))
 
     error = pmap_thread_init(thread_from_tcb(tcb));
 
-    if (error)
+    if (error) {
         return error;
+    }
 
     tcb->bp = 0;
     tcb->sp = (unsigned long)stack + STACK_SIZE - sizeof(unsigned long);

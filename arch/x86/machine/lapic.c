@@ -247,13 +247,15 @@ lapic_setup(uint32_t map_addr)
 
     lapic_map = vm_kmem_map_pa(map_addr, sizeof(*lapic_map), NULL, NULL);
 
-    if (lapic_map == NULL)
+    if (lapic_map == NULL) {
         panic("lapic: unable to map registers in kernel map");
+    }
 
     value = lapic_read(&lapic_map->version);
 
-    if ((value & LAPIC_VERSION_MASK) != LAPIC_VERSION_MASK)
+    if ((value & LAPIC_VERSION_MASK) != LAPIC_VERSION_MASK) {
         panic("lapic: external local APIC not supported");
+    }
 
     lapic_setup_registers();
     lapic_setup_timer();
@@ -268,8 +270,9 @@ lapic_ap_setup(void)
 static void
 lapic_ipi(uint32_t apic_id, uint32_t icr)
 {
-    if ((icr & LAPIC_ICR_DEST_MASK) == 0)
+    if ((icr & LAPIC_ICR_DEST_MASK) == 0) {
         lapic_write(&lapic_map->icr_high, apic_id << LAPIC_DEST_SHIFT);
+    }
 
     lapic_write(&lapic_map->icr_low, icr & ~LAPIC_ICR_RESERVED);
 }

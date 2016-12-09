@@ -48,8 +48,9 @@ test_once(unsigned int cpu)
     printk("cross-call on cpu%u:\n", cpu);
     xcall_call(test_fn, NULL, cpu);
 
-    if (!test_done)
+    if (!test_done) {
         panic("test_done false");
+    }
 }
 
 static void

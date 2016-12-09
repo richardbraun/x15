@@ -107,8 +107,9 @@ llsync_read_enter(void)
     in_read_cs = thread_llsync_in_read_cs();
     thread_llsync_read_inc();
 
-    if (!in_read_cs)
+    if (!in_read_cs) {
         thread_preempt_disable();
+    }
 }
 
 static inline void
@@ -116,8 +117,9 @@ llsync_read_exit(void)
 {
     thread_llsync_read_dec();
 
-    if (!thread_llsync_in_read_cs())
+    if (!thread_llsync_in_read_cs()) {
         thread_preempt_enable();
+    }
 }
 
 /*

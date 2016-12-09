@@ -107,14 +107,16 @@ boot_memmove(void *dest, const void *src, size_t n)
         dest_ptr = dest;
         src_ptr = src;
 
-        for (i = 0; i < n; i++)
+        for (i = 0; i < n; i++) {
             *dest_ptr++ = *src_ptr++;
+        }
     } else {
         dest_ptr = dest + n - 1;
         src_ptr = src + n - 1;
 
-        for (i = 0; i < n; i++)
+        for (i = 0; i < n; i++) {
             *dest_ptr-- = *src_ptr--;
+        }
     }
 
     return dest;
@@ -128,8 +130,9 @@ boot_memset(void *s, int c, size_t n)
 
     buffer = s;
 
-    for (i = 0; i < n; i++)
+    for (i = 0; i < n; i++) {
         buffer[i] = c;
+    }
 
     return s;
 }
@@ -141,8 +144,9 @@ boot_strlen(const char *s)
 
     i = 0;
 
-    while (*s++ != '\0')
+    while (*s++ != '\0') {
         i++;
+    }
 
     return i;
 }
@@ -158,16 +162,19 @@ boot_panic(const char *msg)
 
     s = boot_panic_intro_msg;
 
-    while ((ptr < end) && (*s != '\0'))
+    while ((ptr < end) && (*s != '\0')) {
         *ptr++ = (BOOT_CGACOLOR << 8) | *s++;
+    }
 
     s = msg;
 
-    while ((ptr < end) && (*s != '\0'))
+    while ((ptr < end) && (*s != '\0')) {
         *ptr++ = (BOOT_CGACOLOR << 8) | *s++;
+    }
 
-    while (ptr < end)
+    while (ptr < end) {
         *ptr++ = (BOOT_CGACOLOR << 8) | ' ';
+    }
 
     cpu_halt();
 
@@ -180,8 +187,9 @@ boot_save_cmdline_sizes(struct multiboot_raw_info *mbi)
     struct multiboot_raw_module *mod;
     uint32_t i;
 
-    if (mbi->flags & MULTIBOOT_LOADER_CMDLINE)
+    if (mbi->flags & MULTIBOOT_LOADER_CMDLINE) {
         mbi->unused0 = boot_strlen((char *)(unsigned long)mbi->cmdline) + 1;
+    }
 
     if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
         unsigned long addr;
@@ -237,8 +245,9 @@ boot_register_data(const struct multiboot_raw_info *mbi)
             shdr = (struct elf_shdr *)(tmp + (i * mbi->shdr_size));
 
             if ((shdr->type != ELF_SHT_SYMTAB)
-                && (shdr->type != ELF_SHT_STRTAB))
+                && (shdr->type != ELF_SHT_STRTAB)) {
                 continue;
+            }
 
             biosmem_register_boot_data(shdr->addr, shdr->addr + shdr->size, true);
         }
@@ -248,11 +257,13 @@ boot_register_data(const struct multiboot_raw_info *mbi)
 pmap_pte_t * __boot
 boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
 {
-    if (eax != MULTIBOOT_LOADER_MAGIC)
+    if (eax != MULTIBOOT_LOADER_MAGIC) {
         boot_panic(boot_panic_loader_msg);
+    }
 
-    if (!(mbi->flags & MULTIBOOT_LOADER_MEMORY))
+    if (!(mbi->flags & MULTIBOOT_LOADER_MEMORY)) {
         boot_panic(boot_panic_meminfo_msg);
+    }
 
     /*
      * Save the multiboot data passed by the boot loader, initialize the
@@ -260,8 +271,9 @@ boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
      */
     boot_memmove(&boot_raw_mbi, mbi, sizeof(boot_raw_mbi));
 
-    if ((mbi->flags & MULTIBOOT_LOADER_MODULES) && (mbi->mods_count == 0))
+    if ((mbi->flags & MULTIBOOT_LOADER_MODULES) && (mbi->mods_count == 0)) {
         boot_raw_mbi.flags &= ~MULTIBOOT_LOADER_MODULES;
+    }
 
     /*
      * The kernel and modules command lines will be memory mapped later
@@ -298,13 +310,15 @@ boot_save_memory(uint32_t addr, size_t size)
      */
     src = vm_kmem_map_pa(addr, size, &map_addr, &map_size);
 
-    if (src == NULL)
+    if (src == NULL) {
         panic("boot: unable to map boot data in kernel map");
+    }
 
     copy = kmem_alloc(size);
 
-    if (copy == NULL)
+    if (copy == NULL) {
         panic("boot: unable to allocate memory for boot data copy");
+    }
 
     memcpy(copy, src, size);
     vm_kmem_unmap_pa(map_addr, map_size);
@@ -323,13 +337,15 @@ boot_save_mod(struct multiboot_module *dest_mod,
     size = src_mod->mod_end - src_mod->mod_start;
     src = vm_kmem_map_pa(src_mod->mod_start, size, &map_addr, &map_size);
 
-    if (src == NULL)
+    if (src == NULL) {
         panic("boot: unable to map module in kernel map");
+    }
 
     copy = kmem_alloc(size);
 
-    if (copy == NULL)
+    if (copy == NULL) {
         panic("boot: unable to allocate memory for module copy");
+    }
 
     memcpy(copy, src, size);
     vm_kmem_unmap_pa(map_addr, map_size);
@@ -337,10 +353,11 @@ boot_save_mod(struct multiboot_module *dest_mod,
     dest_mod->mod_start = copy;
     dest_mod->mod_end = copy + size;
 
-    if (src_mod->string == 0)
+    if (src_mod->string == 0) {
         dest_mod->string = NULL;
-    else
+    } else {
         dest_mod->string = boot_save_memory(src_mod->string, src_mod->reserved);
+    }
 }
 
 static void __init
@@ -361,17 +378,20 @@ boot_save_mods(void)
     size = boot_raw_mbi.mods_count * sizeof(struct multiboot_raw_module);
     src = vm_kmem_map_pa(boot_raw_mbi.mods_addr, size, &map_addr, &map_size);
 
-    if (src == NULL)
+    if (src == NULL) {
         panic("boot: unable to map module table in kernel map");
+    }
 
     size = boot_raw_mbi.mods_count * sizeof(struct multiboot_module);
     dest = kmem_alloc(size);
 
-    if (dest == NULL)
+    if (dest == NULL) {
         panic("boot: unable to allocate memory for the module table");
+    }
 
-    for (i = 0; i < boot_raw_mbi.mods_count; i++)
+    for (i = 0; i < boot_raw_mbi.mods_count; i++) {
         boot_save_mod(&dest[i], &src[i]);
+    }
 
     vm_kmem_unmap_pa(map_addr, map_size);
 
@@ -395,8 +415,9 @@ boot_save_data(void)
     if (boot_mbi.flags & MULTIBOOT_LOADER_CMDLINE)
         boot_mbi.cmdline = boot_save_memory(boot_raw_mbi.cmdline,
                                             boot_raw_mbi.unused0);
-    else
+    else {
         boot_mbi.cmdline = NULL;
+    }
 
     boot_save_mods();
     strace_setup(&boot_raw_mbi);

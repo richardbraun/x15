@@ -191,10 +191,11 @@ sref_queue_push(struct sref_queue *queue, struct sref_counter *counter)
 {
     counter->next = NULL;
 
-    if (queue->last == NULL)
+    if (queue->last == NULL) {
         queue->first = counter;
-    else
+    } else {
         queue->last->next = counter;
+    }
 
     queue->last = counter;
     queue->size++;
@@ -208,8 +209,9 @@ sref_queue_pop(struct sref_queue *queue)
     counter = queue->first;
     queue->first = counter->next;
 
-    if (queue->last == counter)
+    if (queue->last == counter) {
         queue->last = NULL;
+    }
 
     queue->size--;
     return counter;
@@ -224,8 +226,9 @@ sref_queue_transfer(struct sref_queue *dest, struct sref_queue *src)
 static void
 sref_queue_concat(struct sref_queue *queue1, struct sref_queue *queue2)
 {
-    if (sref_queue_empty(queue2))
+    if (sref_queue_empty(queue2)) {
         return;
+    }
 
     if (sref_queue_empty(queue1)) {
         sref_queue_transfer(queue1, queue2);
@@ -311,10 +314,11 @@ sref_counter_add(struct sref_counter *counter, unsigned long delta)
     counter->value += delta;
 
     if (counter->value == 0) {
-        if (sref_counter_is_queued(counter))
+        if (sref_counter_is_queued(counter)) {
             sref_counter_mark_dirty(counter);
-        else
+        } else {
             sref_counter_schedule_review(counter);
+        }
     }
 
     spinlock_unlock(&counter->lock);
@@ -523,9 +527,9 @@ sref_cache_get_delta(struct sref_cache *cache, struct sref_counter *counter)
 
     delta = sref_cache_delta(cache, sref_counter_index(counter));
 
-    if (!sref_delta_is_valid(delta))
+    if (!sref_delta_is_valid(delta)) {
         sref_delta_set_counter(delta, counter);
-    else if (sref_delta_counter(delta) != counter) {
+    } else if (sref_delta_counter(delta) != counter) {
         sref_delta_flush(delta);
         sref_delta_set_counter(delta, counter);
         evcnt_inc(&cache->ev_collision);
@@ -545,8 +549,9 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
     for (i = 0; i < ARRAY_SIZE(cache->deltas); i++) {
         delta = sref_cache_delta(cache, i);
 
-        if (sref_delta_is_valid(delta))
+        if (sref_delta_is_valid(delta)) {
             sref_delta_evict(delta);
+        }
     }
 
     cpu = cpu_id();
@@ -556,16 +561,17 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
     assert(sref_cache_is_registered(cache));
     assert(cpumap_test(&sref_data.registered_cpus, cpu));
 
-    if (!cpumap_test(&sref_data.pending_flushes, cpu))
+    if (!cpumap_test(&sref_data.pending_flushes, cpu)) {
         sref_queue_init(queue);
-    else {
+    } else {
         cpumap_clear(&sref_data.pending_flushes, cpu);
         sref_data.nr_pending_flushes--;
 
-        if (sref_data.nr_pending_flushes != 0)
+        if (sref_data.nr_pending_flushes != 0) {
             sref_queue_init(queue);
-        else
+        } else {
             sref_end_epoch(queue);
+        }
     }
 
     spinlock_unlock(&sref_data.lock);
@@ -604,8 +610,9 @@ sref_cache_manage(struct sref_cache *cache)
 static int
 sref_cache_check(struct sref_cache *cache)
 {
-    if (!sref_cache_is_dirty(cache))
+    if (!sref_cache_is_dirty(cache)) {
         return 0;
+    }
 
     sref_cache_wakeup_manager(cache);
     return 1;
@@ -661,8 +668,9 @@ sref_review(struct sref_queue *queue)
         }
     }
 
-    if (work_queue_nr_works(&works) != 0)
+    if (work_queue_nr_works(&works) != 0) {
         work_queue_schedule(&works, 0);
+    }
 
     if ((nr_dirty + nr_true) != 0) {
         spinlock_lock(&sref_data.lock);
@@ -685,8 +693,9 @@ sref_manage(void *arg)
         thread_preempt_disable();
         cpu_intr_save(&flags);
 
-        while (!sref_cache_is_dirty(cache))
+        while (!sref_cache_is_dirty(cache)) {
             thread_sleep(NULL);
+        }
 
         cpu_intr_restore(flags);
         thread_preempt_enable();
@@ -722,8 +731,9 @@ sref_setup_manager(struct sref_cache *cache, unsigned int cpu)
 
     error = cpumap_create(&cpumap);
 
-    if (error)
+    if (error) {
         panic("sref: unable to create manager thread CPU map");
+    }
 
     cpumap_zero(cpumap);
     cpumap_set(cpumap, cpu);
@@ -735,8 +745,9 @@ sref_setup_manager(struct sref_cache *cache, unsigned int cpu)
     error = thread_create(&manager, &attr, sref_manage, cache);
     cpumap_destroy(cpumap);
 
-    if (error)
+    if (error) {
         panic("sref: unable to create manager thread");
+    }
 
     cache->manager = manager;
 }
@@ -746,11 +757,13 @@ sref_setup(void)
 {
     unsigned int i;
 
-    for (i = 1; i < cpu_count(); i++)
+    for (i = 1; i < cpu_count(); i++) {
         sref_cache_init(percpu_ptr(sref_cache, i), i);
+    }
 
-    for (i = 0; i < cpu_count(); i++)
+    for (i = 0; i < cpu_count(); i++) {
         sref_setup_manager(percpu_ptr(sref_cache, i), i);
+    }
 }
 
 void
@@ -832,9 +845,9 @@ sref_unregister(void)
         error = ERROR_BUSY;
     }
 
-    if (error)
+    if (error) {
         sref_cache_mark_registered(cache);
-    else {
+    } else {
         cpumap_clear(&sref_data.registered_cpus, cpu);
         sref_data.nr_registered_cpus--;
     }
@@ -855,8 +868,9 @@ sref_report_periodic_event(void)
     cache = sref_cache_get();
 
     if (!sref_cache_is_registered(cache)
-        || (cache->manager == thread_self()))
+        || (cache->manager == thread_self())) {
         return;
+    }
 
     sref_cache_manage(cache);
 }

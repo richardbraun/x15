@@ -42,8 +42,9 @@ error_str(int error)
 void
 error_check(int error, const char *prefix)
 {
-    if (!error)
+    if (!error) {
         return;
+    }
 
     panic("%s%s%s",
           (prefix == NULL) ? "" : prefix,

@@ -81,8 +81,9 @@ vm_map_entry_create(void)
     entry = kmem_cache_alloc(&vm_map_entry_cache);
 
     /* TODO Handle error */
-    if (entry == NULL)
+    if (entry == NULL) {
         panic("vm_map: can't create map entry");
+    }
 
     return entry;
 }
@@ -100,11 +101,13 @@ vm_map_entry_cmp_lookup(unsigned long addr, const struct rbtree_node *node)
 
     entry = rbtree_entry(node, struct vm_map_entry, tree_node);
 
-    if (addr >= entry->end)
+    if (addr >= entry->end) {
         return 1;
+    }
 
-    if (addr >= entry->start)
+    if (addr >= entry->start) {
         return 0;
+    }
 
     return -1;
 }
@@ -159,8 +162,9 @@ vm_map_lookup_nearest(struct vm_map *map, unsigned long addr)
 
     entry = map->lookup_cache;
 
-    if ((entry != NULL) && (addr >= entry->start) && (addr < entry->end))
+    if ((entry != NULL) && (addr >= entry->start) && (addr < entry->end)) {
         return entry;
+    }
 
     node = rbtree_lookup_nearest(&map->entry_tree, addr,
                                  vm_map_entry_cmp_lookup, RBTREE_RIGHT);
@@ -192,21 +196,24 @@ vm_map_find_fixed(struct vm_map *map, struct vm_map_request *request)
     start = request->start;
     size = request->size;
 
-    if ((start < map->start) || (start + size) > map->end)
+    if ((start < map->start) || (start + size) > map->end) {
         return ERROR_NOMEM;
+    }
 
     next = vm_map_lookup_nearest(map, start);
 
     if (next == NULL) {
-        if ((map->end - start) < size)
+        if ((map->end - start) < size) {
             return ERROR_NOMEM;
+        }
 
         request->next = NULL;
         return 0;
     }
 
-    if ((start >= next->start) || ((next->start - start) < size))
+    if ((start >= next->start) || ((next->start - start) < size)) {
         return ERROR_NOMEM;
+    }
 
     request->next = next;
     return 0;
@@ -225,16 +232,17 @@ vm_map_find_avail(struct vm_map *map, struct vm_map_request *request)
     if (request->start != 0) {
         error = vm_map_find_fixed(map, request);
 
-        if (!error)
+        if (!error) {
             return 0;
+        }
     }
 
     size = request->size;
     align = request->align;
 
-    if (size > map->find_cache_threshold)
+    if (size > map->find_cache_threshold) {
         base = map->find_cache;
-    else {
+    } else {
         base = map->start;
 
         /*
@@ -252,8 +260,9 @@ retry:
     for (;;) {
         assert(start <= map->end);
 
-        if (align != 0)
+        if (align != 0) {
             start = P2ROUND(start, align);
+        }
 
         /*
          * The end of the map has been reached, and no space could be found.
@@ -270,12 +279,13 @@ retry:
             return ERROR_NOMEM;
         }
 
-        if (next == NULL)
+        if (next == NULL) {
             space = map->end - start;
-        else if (start >= next->start)
+        } else if (start >= next->start) {
             space = 0;
-        else
+        } else {
             space = next->start - start;
+        }
 
         if (space >= size) {
             map->find_cache = start + size;
@@ -284,16 +294,18 @@ retry:
             return 0;
         }
 
-        if (space > map->find_cache_threshold)
+        if (space > map->find_cache_threshold) {
             map->find_cache_threshold = space;
+        }
 
         start = next->end;
         node = list_next(&next->list_node);
 
-        if (list_end(&map->entry_list, node))
+        if (list_end(&map->entry_list, node)) {
             next = NULL;
-        else
+        } else {
             next = list_entry(node, struct vm_map_entry, list_node);
+        }
     }
 }
 
@@ -304,10 +316,11 @@ vm_map_prev(struct vm_map *map, struct vm_map_entry *entry)
 
     node = list_prev(&entry->list_node);
 
-    if (list_end(&map->entry_list, node))
+    if (list_end(&map->entry_list, node)) {
         return NULL;
-    else
+    } else {
         return list_entry(node, struct vm_map_entry, list_node);
+    }
 }
 
 static inline struct vm_map_entry *
@@ -317,10 +330,11 @@ vm_map_next(struct vm_map *map, struct vm_map_entry *entry)
 
     node = list_next(&entry->list_node);
 
-    if (list_end(&map->entry_list, node))
+    if (list_end(&map->entry_list, node)) {
         return NULL;
-    else
+    } else {
         return list_entry(node, struct vm_map_entry, list_node);
+    }
 }
 
 static void
@@ -329,12 +343,13 @@ vm_map_link(struct vm_map *map, struct vm_map_entry *entry,
 {
     assert(entry->start < entry->end);
 
-    if ((prev == NULL) && (next == NULL))
+    if ((prev == NULL) && (next == NULL)) {
         list_insert_tail(&map->entry_list, &entry->list_node);
-    else if (prev == NULL)
+    } else if (prev == NULL) {
         list_insert_before(&next->list_node, &entry->list_node);
-    else
+    } else {
         list_insert_after(&prev->list_node, &entry->list_node);
+    }
 
     rbtree_insert(&map->entry_tree, &entry->tree_node, vm_map_entry_cmp_insert);
     map->nr_entries++;
@@ -345,8 +360,9 @@ vm_map_unlink(struct vm_map *map, struct vm_map_entry *entry)
 {
     assert(entry->start < entry->end);
 
-    if (map->lookup_cache == entry)
+    if (map->lookup_cache == entry) {
         map->lookup_cache = NULL;
+    }
 
     list_remove(&entry->list_node);
     rbtree_remove(&map->entry_tree, &entry->tree_node);
@@ -373,10 +389,11 @@ vm_map_prepare(struct vm_map *map, unsigned long start,
     request->offset = offset;
     vm_map_request_assert_valid(request);
 
-    if (flags & VM_MAP_FIXED)
+    if (flags & VM_MAP_FIXED) {
         error = vm_map_find_fixed(map, request);
-    else
+    } else {
         error = vm_map_find_avail(map, request);
+    }
 
     return error;
 }
@@ -408,11 +425,13 @@ vm_map_try_merge_prev(struct vm_map *map, const struct vm_map_request *request,
 
     assert(entry != NULL);
 
-    if (!vm_map_try_merge_compatible(request, entry))
+    if (!vm_map_try_merge_compatible(request, entry)) {
         return NULL;
+    }
 
-    if (entry->end != request->start)
+    if (entry->end != request->start) {
         return NULL;
+    }
 
     prev = vm_map_prev(map, entry);
     next = vm_map_next(map, entry);
@@ -431,13 +450,15 @@ vm_map_try_merge_next(struct vm_map *map, const struct vm_map_request *request,
 
     assert(entry != NULL);
 
-    if (!vm_map_try_merge_compatible(request, entry))
+    if (!vm_map_try_merge_compatible(request, entry)) {
         return NULL;
+    }
 
     end = request->start + request->size;
 
-    if (end != entry->start)
+    if (end != entry->start) {
         return NULL;
+    }
 
     prev = vm_map_prev(map, entry);
     next = vm_map_next(map, entry);
@@ -474,8 +495,9 @@ vm_map_try_merge_near(struct vm_map *map, const struct vm_map_request *request,
 
     entry = vm_map_try_merge_prev(map, request, first);
 
-    if (entry != NULL)
+    if (entry != NULL) {
         return entry;
+    }
 
     return vm_map_try_merge_next(map, request, second);
 }
@@ -492,18 +514,18 @@ vm_map_try_merge(struct vm_map *map, const struct vm_map_request *request)
     if (request->next == NULL) {
         node = list_last(&map->entry_list);
 
-        if (list_end(&map->entry_list, node))
+        if (list_end(&map->entry_list, node)) {
             entry = NULL;
-        else {
+        } else {
             prev = list_entry(node, struct vm_map_entry, list_node);
             entry = vm_map_try_merge_prev(map, request, prev);
         }
     } else {
         node = list_prev(&request->next->list_node);
 
-        if (list_end(&map->entry_list, node))
+        if (list_end(&map->entry_list, node)) {
             entry = vm_map_try_merge_next(map, request, request->next);
-        else {
+        } else {
             prev = list_entry(node, struct vm_map_entry, list_node);
             entry = vm_map_try_merge_near(map, request, prev, request->next);
         }
@@ -524,8 +546,9 @@ vm_map_insert(struct vm_map *map, struct vm_map_entry *entry,
     if (entry == NULL) {
         entry = vm_map_try_merge(map, request);
 
-        if (entry != NULL)
+        if (entry != NULL) {
             goto out;
+        }
 
         entry = vm_map_entry_create();
     }
@@ -555,13 +578,15 @@ vm_map_enter(struct vm_map *map, unsigned long *startp,
     error = vm_map_prepare(map, *startp, size, align, flags, object, offset,
                            &request);
 
-    if (error)
+    if (error) {
         goto error_enter;
+    }
 
     error = vm_map_insert(map, NULL, &request);
 
-    if (error)
+    if (error) {
         goto error_enter;
+    }
 
     mutex_unlock(&map->lock);
 
@@ -584,8 +609,9 @@ vm_map_split_entries(struct vm_map_entry *prev, struct vm_map_entry *next,
     prev->end = split_addr;
     next->start = split_addr;
 
-    if (next->object != NULL)
+    if (next->object != NULL) {
         next->offset += delta;
+    }
 }
 
 static void
@@ -594,8 +620,9 @@ vm_map_clip_start(struct vm_map *map, struct vm_map_entry *entry,
 {
     struct vm_map_entry *new_entry, *next;
 
-    if ((start <= entry->start) || (start >= entry->end))
+    if ((start <= entry->start) || (start >= entry->end)) {
         return;
+    }
 
     next = vm_map_next(map, entry);
     vm_map_unlink(map, entry);
@@ -612,8 +639,9 @@ vm_map_clip_end(struct vm_map *map, struct vm_map_entry *entry,
 {
     struct vm_map_entry *new_entry, *prev;
 
-    if ((end <= entry->start) || (end >= entry->end))
+    if ((end <= entry->start) || (end >= entry->end)) {
         return;
+    }
 
     prev = vm_map_prev(map, entry);
     vm_map_unlink(map, entry);
@@ -638,8 +666,9 @@ vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end)
 
     entry = vm_map_lookup_nearest(map, start);
 
-    if (entry == NULL)
+    if (entry == NULL) {
         goto out;
+    }
 
     vm_map_clip_start(map, entry, start);
 
@@ -652,8 +681,9 @@ vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end)
         /* TODO Defer destruction to shorten critical section */
         vm_map_entry_destroy(entry);
 
-        if (list_end(&map->entry_list, node))
+        if (list_end(&map->entry_list, node)) {
             break;
+        }
 
         entry = list_entry(node, struct vm_map_entry, list_node);
     }
@@ -711,8 +741,9 @@ vm_map_create(struct vm_map **mapp)
 
     error = pmap_create(&pmap);
 
-    if (error)
+    if (error) {
         goto error_pmap;
+    }
 
     vm_map_init(map, pmap, VM_MIN_ADDRESS, VM_MAX_ADDRESS);
     *mapp = map;
@@ -730,10 +761,11 @@ vm_map_info(struct vm_map *map)
     struct vm_map_entry *entry;
     const char *type, *name;
 
-    if (map == kernel_map)
+    if (map == kernel_map) {
         name = "kernel map";
-    else
+    } else {
         name = "map";
+    }
 
     mutex_lock(&map->lock);
 
@@ -742,10 +774,11 @@ vm_map_info(struct vm_map *map)
            "size     offset   flags    type\n", name, map->start, map->end);
 
     list_for_each_entry(&map->entry_list, entry, list_node) {
-        if (entry->object == NULL)
+        if (entry->object == NULL) {
             type = "null";
-        else
+        } else {
             type = "object";
+        }
 
         printk("vm_map: %016lx %016lx %8luk %08llx %08x %s\n", entry->start,
                entry->end, (entry->end - entry->start) >> 10, entry->offset,

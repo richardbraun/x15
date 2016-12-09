@@ -137,16 +137,17 @@ cga_scroll_lines(void)
             CGA_MEMORY_SIZE - (CGA_COLUMNS * 2));
     last_line = (uint16_t *)cga_memory + (CGA_COLUMNS * (CGA_LINES - 1));
 
-    for(i = 0; i < CGA_COLUMNS; i++)
+    for(i = 0; i < CGA_COLUMNS; i++) {
         last_line[i] = CGA_BLANK;
+    }
 }
 
 void
 cga_write_byte(uint8_t byte)
 {
-    if (byte == '\r')
+    if (byte == '\r') {
         return;
-    else if (byte == '\n') {
+    } else if (byte == '\n') {
         cga_cursor += CGA_COLUMNS - cga_get_cursor_column();
 
         if (cga_cursor >= (CGA_LINES * CGA_COLUMNS)) {
@@ -164,8 +165,9 @@ cga_write_byte(uint8_t byte)
     } else if (byte == '\t') {
         int i;
 
-        for(i = 0; i < CGA_TABULATION_SPACES; i++)
+        for(i = 0; i < CGA_TABULATION_SPACES; i++) {
             cga_write_byte(' ');
+        }
     } else {
         if ((cga_cursor + 1) >= CGA_COLUMNS * CGA_LINES) {
             cga_scroll_lines();

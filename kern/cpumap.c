@@ -36,8 +36,9 @@ cpumap_setup(void)
     cpumap_zero(&cpumap_active_cpus);
     nr_cpus = cpu_count();
 
-    for (i = 0; i < nr_cpus; i++)
+    for (i = 0; i < nr_cpus; i++) {
         cpumap_set(&cpumap_active_cpus, i);
+    }
 }
 
 const struct cpumap *
@@ -53,8 +54,9 @@ cpumap_create(struct cpumap **cpumapp)
 
     cpumap = kmem_cache_alloc(&cpumap_cache);
 
-    if (cpumap == NULL)
+    if (cpumap == NULL) {
         return ERROR_NOMEM;
+    }
 
     *cpumapp = cpumap;
     return 0;
@@ -73,8 +75,9 @@ cpumap_check(const struct cpumap *cpumap)
 
     index = bitmap_find_first(cpumap->cpus, cpu_count());
 
-    if (index == -1)
+    if (index == -1) {
         return ERROR_INVAL;
+    }
 
     return 0;
 }

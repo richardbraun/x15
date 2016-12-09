@@ -46,15 +46,18 @@ strace_lookup(unsigned long addr, unsigned long *offset, unsigned long *size)
     for (sym = strace_symtab; sym < strace_symtab_end; sym++) {
         if ((sym->size != 0)
             && (addr >= sym->value)
-            && (addr <= (sym->value + sym->size)))
+            && (addr <= (sym->value + sym->size))) {
             break;
+        }
     }
 
-    if (sym >= strace_symtab_end)
+    if (sym >= strace_symtab_end) {
         return NULL;
+    }
 
-    if (sym->name == 0)
+    if (sym->name == 0) {
         return NULL;
+    }
 
     *offset = addr - sym->value;
     *size = sym->size;
@@ -69,9 +72,9 @@ strace_show_one(unsigned int index, unsigned long ip)
 
     name = strace_lookup(ip, &offset, &size);
 
-    if (name == NULL)
+    if (name == NULL) {
         printk("strace: #%u [" STRACE_ADDR_FORMAT "]\n", index, ip);
-    else
+    } else
         printk("strace: #%u [" STRACE_ADDR_FORMAT "] %s+%#lx/%#lx\n",
                index, ip, name, offset, size);
 }
@@ -91,8 +94,9 @@ strace_show(unsigned long ip, unsigned long bp)
     frame = (void **)bp;
 
     for (;;) {
-        if (frame == NULL)
+        if (frame == NULL) {
             break;
+        }
 
         error = pmap_kextract((unsigned long)&frame[1], &pa);
 
@@ -160,8 +164,9 @@ strace_lookup_section(const struct multiboot_raw_info *mbi, const void *table,
         shdr = table + (i * mbi->shdr_size);
         shdr_name = &shstrtab[shdr->name];
 
-        if (strcmp(shdr_name, name) == 0)
+        if (strcmp(shdr_name, name) == 0) {
             return shdr;
+        }
     }
 
     return NULL;
@@ -176,8 +181,9 @@ strace_setup(const struct multiboot_raw_info *mbi)
     const char *shstrtab;
     const void *table;
 
-    if (!(mbi->flags & MULTIBOOT_LOADER_SHDR) || (mbi->shdr_num == 0))
+    if (!(mbi->flags & MULTIBOOT_LOADER_SHDR) || (mbi->shdr_num == 0)) {
         goto no_syms;
+    }
 
     size = mbi->shdr_num * mbi->shdr_size;
     table = vm_kmem_map_pa(mbi->shdr_addr, size, &map_addr, &map_size);
@@ -217,14 +223,16 @@ strace_setup(const struct multiboot_raw_info *mbi)
 
     strace_symtab = strace_copy_section(symtab_hdr);
 
-    if (strace_symtab == NULL)
+    if (strace_symtab == NULL) {
         goto error_symtab;
+    }
 
     strace_symtab_end = (void *)strace_symtab + symtab_hdr->size;
     strace_strtab = strace_copy_section(strtab_hdr);
 
-    if (strace_strtab == NULL)
+    if (strace_strtab == NULL) {
         goto error_strtab;
+    }
 
     vm_kmem_unmap_pa(shstrtab_map_addr, shstrtab_map_size);
     vm_kmem_unmap_pa(map_addr, map_size);

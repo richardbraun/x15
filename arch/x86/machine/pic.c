@@ -75,8 +75,9 @@ pic_setup(void)
 static void
 pic_eoi(unsigned long intr)
 {
-    if (intr >= PIC_NR_INTRS)
+    if (intr >= PIC_NR_INTRS) {
         io_write_byte(PIC_SLAVE_CMD, PIC_EOI);
+    }
 
     io_write_byte(PIC_MASTER_CMD, PIC_EOI);
 }
@@ -101,13 +102,15 @@ pic_spurious_intr(struct trap_frame *frame)
     if (intr == PIC_SPURIOUS_INTR) {
         isr = pic_read_isr(PIC_MASTER_CMD);
 
-        if (isr & (1 << PIC_SPURIOUS_INTR))
+        if (isr & (1 << PIC_SPURIOUS_INTR)) {
             panic("pic: real interrupt %lu", intr);
+        }
     } else {
         isr = pic_read_isr(PIC_SLAVE_CMD);
 
-        if (isr & (1 << PIC_SPURIOUS_INTR))
+        if (isr & (1 << PIC_SPURIOUS_INTR)) {
             panic("pic: real interrupt %lu", intr);
+        }
 
         pic_eoi(PIC_SLAVE_INTR);
     }

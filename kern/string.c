@@ -33,8 +33,9 @@ memcpy(void *dest, const void *src, size_t n)
     dest_ptr = dest;
     src_ptr = src;
 
-    for (i = 0; i < n; i++)
+    for (i = 0; i < n; i++) {
         *dest_ptr++ = *src_ptr++;
+    }
 
     return dest;
 }
@@ -52,14 +53,16 @@ memmove(void *dest, const void *src, size_t n)
         dest_ptr = dest;
         src_ptr = src;
 
-        for (i = 0; i < n; i++)
+        for (i = 0; i < n; i++) {
             *dest_ptr++ = *src_ptr++;
+        }
     } else {
         dest_ptr = dest + n - 1;
         src_ptr = src + n - 1;
 
-        for (i = 0; i < n; i++)
+        for (i = 0; i < n; i++) {
             *dest_ptr-- = *src_ptr--;
+        }
     }
 
     return dest;
@@ -75,8 +78,9 @@ memset(void *s, int c, size_t n)
 
     buffer = s;
 
-    for (i = 0; i < n; i++)
+    for (i = 0; i < n; i++) {
         buffer[i] = c;
+    }
 
     return s;
 }
@@ -93,8 +97,9 @@ memcmp(const void *s1, const void *s2, size_t n)
     a2 = s2;
 
     for (i = 0; i < n; i++)
-        if (a1[i] != a2[i])
+        if (a1[i] != a2[i]) {
             return (int)a1[i] - (int)a2[i];
+        }
 
     return 0;
 }
@@ -108,8 +113,9 @@ strlen(const char *s)
 
     i = 0;
 
-    while (*s++ != '\0')
+    while (*s++ != '\0') {
         i++;
+    }
 
     return i;
 }
@@ -139,8 +145,9 @@ strlcpy(char *dest, const char *src, size_t n)
 
     len = strlen(src);
 
-    if (n == 0)
+    if (n == 0) {
         goto out;
+    }
 
     n = (len < n) ? len : n - 1;
     memcpy(dest, src, n);
@@ -157,8 +164,9 @@ strcmp(const char *s1, const char *s2)
     char c1, c2;
 
     while ((c1 = *s1) == (c2 = *s2)) {
-        if (c1 == '\0')
+        if (c1 == '\0') {
             return 0;
+        }
 
         s1++;
         s2++;

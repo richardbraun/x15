@@ -80,8 +80,9 @@ pit_delay(unsigned long usecs)
         diff = prev - count;
         prev = count;
 
-        if (diff < 0)
+        if (diff < 0) {
             diff += PIT_MAX_COUNT;
+        }
 
         total -= diff;
     } while (total > 0);
