@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Richard Braun.
+ * Copyright (c) 2016-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,12 +57,16 @@ test_write_pages(void)
                              VM_ADV_DEFAULT, 0);
         error = vm_map_enter(kernel_map, &va, PAGE_SIZE, 0, flags, NULL, 0);
         error_check(error, __func__);
-        pmap_enter(kernel_pmap, va, vm_page_to_pa(page),
-                   VM_PROT_READ | VM_PROT_WRITE, 0);
-        pmap_update(kernel_pmap);
+        error = pmap_enter(kernel_pmap, va, vm_page_to_pa(page),
+                           VM_PROT_READ | VM_PROT_WRITE, 0);
+        error_check(error, __func__);
+        error = pmap_update(kernel_pmap);
+        error_check(error, __func__);
         memset((void *)va, test_pattern, PAGE_SIZE);
-        pmap_remove(kernel_pmap, va, &test_cpumap);
-        pmap_update(kernel_pmap);
+        error = pmap_remove(kernel_pmap, va, &test_cpumap);
+        error_check(error, __func__);
+        error = pmap_update(kernel_pmap);
+        error_check(error, __func__);
         vm_map_remove(kernel_map, va, va + PAGE_SIZE);
 
         list_insert_tail(&test_pages, &page->node);
@@ -85,12 +89,16 @@ test_reset_pages(void)
                              VM_ADV_DEFAULT, 0);
         error = vm_map_enter(kernel_map, &va, PAGE_SIZE, 0, flags, NULL, 0);
         error_check(error, __func__);
-        pmap_enter(kernel_pmap, va, vm_page_to_pa(page),
-                   VM_PROT_READ | VM_PROT_WRITE, 0);
-        pmap_update(kernel_pmap);
+        error = pmap_enter(kernel_pmap, va, vm_page_to_pa(page),
+                           VM_PROT_READ | VM_PROT_WRITE, 0);
+        error_check(error, __func__);
+        error = pmap_update(kernel_pmap);
+        error_check(error, __func__);
         memset((void *)va, 0, PAGE_SIZE);
-        pmap_remove(kernel_pmap, va, &test_cpumap);
-        pmap_update(kernel_pmap);
+        error = pmap_remove(kernel_pmap, va, &test_cpumap);
+        error_check(error, __func__);
+        error = pmap_update(kernel_pmap);
+        error_check(error, __func__);
         vm_map_remove(kernel_map, va, va + PAGE_SIZE);
 
         vm_page_free(page, 0);

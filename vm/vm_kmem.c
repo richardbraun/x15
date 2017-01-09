@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 Richard Braun.
+ * Copyright (c) 2011-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,6 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * TODO Rework so that pmap update errors can be handled.
  */
 
 #include <kern/assert.h>

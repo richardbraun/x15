@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 Richard Braun.
+ * Copyright (c) 2010-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -257,6 +257,7 @@ struct pmap_update_request {
     const struct pmap_update_oplist *oplist;
     unsigned int nr_mappings;
     int done;
+    int error;
 } __aligned(CPU_L1_SIZE);
 
 /*
@@ -706,20 +707,22 @@ pmap_update_oplist_get(void)
     return oplist;
 }
 
-static void
+static int
 pmap_update_oplist_prepare(struct pmap_update_oplist *oplist,
                            struct pmap *pmap)
 {
-    if (oplist->pmap != pmap) {
-        if (oplist->pmap != NULL) {
-            pmap_update(oplist->pmap);
-        }
+    int error;
 
+    if (oplist->pmap != pmap) {
+        assert(oplist->pmap == NULL);
         oplist->pmap = pmap;
     } else if (oplist->nr_ops == ARRAY_SIZE(oplist->ops)) {
-        pmap_update(pmap);
+        error = pmap_update(pmap);
         oplist->pmap = pmap;
+        return error;
     }
+
+    return 0;
 }
 
 static struct pmap_update_op *
@@ -976,7 +979,11 @@ pmap_copy_cpu_table_recursive(const pmap_pte_t *sptp, unsigned int level,
         }
 
         page = vm_page_alloc(0, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_PMAP);
-        assert(page != NULL);
+
+        if (page == NULL) {
+            panic("pmap: unable to allocate page table page copy");
+        }
+
         pa = vm_page_to_pa(page);
         dptp[i] = (sptp[i] & ~PMAP_PA_MASK) | (pa & PMAP_PA_MASK);
 
@@ -1000,7 +1007,11 @@ pmap_copy_cpu_table(unsigned int cpu)
     level = PMAP_NR_LEVELS - 1;
     ptp = pmap_ptp_from_pa(kernel_pmap->cpu_tables[cpu_id()]->root_ptp_pa);
     page = vm_page_alloc(PMAP_RPTP_ORDER, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_PMAP);
-    assert(page != NULL);
+
+    if (page == NULL) {
+        panic("pmap: unable to allocate page table root page copy");
+    }
+
     pmap_copy_cpu_table_recursive(ptp, level, page, VM_MIN_ADDRESS);
     cpu_table->root_ptp_pa = vm_page_to_pa(page);
 
@@ -1134,7 +1145,7 @@ pmap_create(struct pmap **pmapp)
     return 0;
 }
 
-static void
+static int
 pmap_enter_local(struct pmap *pmap, unsigned long va, phys_addr_t pa,
                  int prot, int flags)
 {
@@ -1168,7 +1179,12 @@ pmap_enter_local(struct pmap *pmap, unsigned long va, phys_addr_t pa,
             ptp = pmap_pte_next(*pte);
         } else {
             page = vm_page_alloc(0, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_PMAP);
-            assert(page != NULL);
+
+            if (page == NULL) {
+                printk("pmap: warning: page table page allocation failure\n");
+                return ERROR_NOMEM;
+            }
+
             ptp_pa = vm_page_to_pa(page);
             ptp = pmap_ptp_from_pa(ptp_pa);
             pmap_ptp_clear(ptp);
@@ -1181,21 +1197,28 @@ pmap_enter_local(struct pmap *pmap, unsigned long va, phys_addr_t pa,
     pte_bits = ((pmap == kernel_pmap) ? PMAP_PTE_G : PMAP_PTE_US)
                | pmap_prot_table[prot & VM_PROT_ALL];
     pmap_pte_set(pte, pa, pte_bits, pt_level);
+    return 0;
 }
 
-void
+int
 pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
            int prot, int flags)
 {
     struct pmap_update_oplist *oplist;
     struct pmap_update_op *op;
+    int error;
 
     va = vm_page_trunc(va);
     pa = vm_page_trunc(pa);
     pmap_assert_range(pmap, va, va + PAGE_SIZE);
 
     oplist = pmap_update_oplist_get();
-    pmap_update_oplist_prepare(oplist, pmap);
+    error = pmap_update_oplist_prepare(oplist, pmap);
+
+    if (error) {
+        return error;
+    }
+
     op = pmap_update_oplist_prepare_op(oplist);
 
     if (flags & PMAP_PEF_GLOBAL) {
@@ -1211,6 +1234,7 @@ pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
     op->enter_args.prot = prot;
     op->enter_args.flags = flags & ~PMAP_PEF_GLOBAL;
     pmap_update_oplist_finish_op(oplist);
+    return 0;
 }
 
 static void
@@ -1247,17 +1271,22 @@ pmap_remove_local(struct pmap *pmap, unsigned long start, unsigned long end)
     }
 }
 
-void
+int
 pmap_remove(struct pmap *pmap, unsigned long va, const struct cpumap *cpumap)
 {
     struct pmap_update_oplist *oplist;
     struct pmap_update_op *op;
+    int error;
 
     va = vm_page_trunc(va);
     pmap_assert_range(pmap, va, va + PAGE_SIZE);
 
     oplist = pmap_update_oplist_get();
-    pmap_update_oplist_prepare(oplist, pmap);
+    error = pmap_update_oplist_prepare(oplist, pmap);
+
+    if (error) {
+        return error;
+    }
 
     /* Attempt naive merge with previous operation */
     op = pmap_update_oplist_prev_op(oplist);
@@ -1267,7 +1296,7 @@ pmap_remove(struct pmap *pmap, unsigned long va, const struct cpumap *cpumap)
         && (op->remove_args.end == va)
         && (cpumap_cmp(&op->cpumap, cpumap) == 0)) {
         op->remove_args.end = va + PAGE_SIZE;
-        return;
+        return 0;
     }
 
     op = pmap_update_oplist_prepare_op(oplist);
@@ -1276,6 +1305,7 @@ pmap_remove(struct pmap *pmap, unsigned long va, const struct cpumap *cpumap)
     op->remove_args.start = va;
     op->remove_args.end = va + PAGE_SIZE;
     pmap_update_oplist_finish_op(oplist);
+    return 0;
 }
 
 static void
@@ -1291,18 +1321,23 @@ pmap_protect_local(struct pmap *pmap, unsigned long start,
     panic("pmap: pmap_protect not implemented");
 }
 
-void
+int
 pmap_protect(struct pmap *pmap, unsigned long va, int prot,
              const struct cpumap *cpumap)
 {
     struct pmap_update_oplist *oplist;
     struct pmap_update_op *op;
+    int error;
 
     va = vm_page_trunc(va);
     pmap_assert_range(pmap, va, va + PAGE_SIZE);
 
     oplist = pmap_update_oplist_get();
-    pmap_update_oplist_prepare(oplist, pmap);
+    error = pmap_update_oplist_prepare(oplist, pmap);
+
+    if (error) {
+        return error;
+    }
 
     /* Attempt naive merge with previous operation */
     op = pmap_update_oplist_prev_op(oplist);
@@ -1313,7 +1348,7 @@ pmap_protect(struct pmap *pmap, unsigned long va, int prot,
         && (op->protect_args.prot == prot)
         && (cpumap_cmp(&op->cpumap, cpumap) == 0)) {
         op->protect_args.end = va + PAGE_SIZE;
-        return;
+        return 0;
     }
 
     op = pmap_update_oplist_prepare_op(oplist);
@@ -1323,6 +1358,7 @@ pmap_protect(struct pmap *pmap, unsigned long va, int prot,
     op->protect_args.end = va + PAGE_SIZE;
     op->protect_args.prot = prot;
     pmap_update_oplist_finish_op(oplist);
+    return 0;
 }
 
 static void
@@ -1352,15 +1388,23 @@ pmap_flush_tlb_all(struct pmap *pmap)
     }
 }
 
-static void
+static int
 pmap_update_enter(struct pmap *pmap, int flush,
                   const struct pmap_update_enter_args *args)
 {
-    pmap_enter_local(pmap, args->va, args->pa, args->prot, args->flags);
+    int error;
+
+    error = pmap_enter_local(pmap, args->va, args->pa, args->prot, args->flags);
+
+    if (error) {
+        return error;
+    }
 
     if (flush) {
         pmap_flush_tlb(pmap, args->va, args->va + PAGE_SIZE);
     }
+
+    return 0;
 }
 
 static void
@@ -1385,18 +1429,19 @@ pmap_update_protect(struct pmap *pmap, int flush,
     }
 }
 
-static void
+static int
 pmap_update_local(const struct pmap_update_oplist *oplist,
                   unsigned int nr_mappings)
 {
     const struct pmap_update_op *op;
     struct pmap_syncer *syncer;
-    int global_tlb_flush;
+    int error, global_tlb_flush;
     unsigned int i;
 
     syncer = cpu_local_ptr(pmap_syncer);
     evcnt_inc(&syncer->ev_update);
     global_tlb_flush = (nr_mappings > PMAP_UPDATE_MAX_MAPPINGS);
+    error = 0;
 
     for (i = 0; i < oplist->nr_ops; i++) {
         op = &oplist->ops[i];
@@ -1408,8 +1453,8 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
         switch (op->operation) {
         case PMAP_UPDATE_OP_ENTER:
             evcnt_inc(&syncer->ev_update_enter);
-            pmap_update_enter(oplist->pmap, !global_tlb_flush,
-                              &op->enter_args);
+            error = pmap_update_enter(oplist->pmap, !global_tlb_flush,
+                                      &op->enter_args);
             break;
         case PMAP_UPDATE_OP_REMOVE:
             evcnt_inc(&syncer->ev_update_remove);
@@ -1424,14 +1469,20 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
         default:
             assert(!"invalid update operation");
         }
+
+        if (error) {
+            return error;
+        }
     }
 
     if (global_tlb_flush) {
         pmap_flush_tlb_all(oplist->pmap);
     }
+
+    return 0;
 }
 
-void
+int
 pmap_update(struct pmap *pmap)
 {
     struct pmap_update_oplist *oplist;
@@ -1440,21 +1491,25 @@ pmap_update(struct pmap *pmap)
     struct pmap_update_queue *queue;
     struct pmap_syncer *syncer;
     unsigned int nr_mappings;
-    int cpu;
+    int error, cpu;
 
     oplist = pmap_update_oplist_get();
 
     if (pmap != oplist->pmap) {
-        return;
+        /* Make sure pmap_update() is called before manipulating another pmap */
+        assert(oplist->pmap == NULL);
+        return 0;
     }
 
     assert(oplist->nr_ops != 0);
 
     if (!pmap_do_remote_updates) {
         nr_mappings = pmap_update_oplist_count_mappings(oplist, cpu_id());
-        pmap_update_local(oplist, nr_mappings);
+        error = pmap_update_local(oplist, nr_mappings);
         goto out;
     }
+
+    error = 0;
 
     array = pmap_update_request_array_acquire();
 
@@ -1465,6 +1520,7 @@ pmap_update(struct pmap *pmap)
         request->oplist = oplist;
         request->nr_mappings = pmap_update_oplist_count_mappings(oplist, cpu);
         request->done = 0;
+        request->error = 0;
 
         mutex_lock(&queue->lock);
         list_insert_tail(&queue->requests, &request->node);
@@ -1481,6 +1537,10 @@ pmap_update(struct pmap *pmap)
             condition_wait(&request->cond, &request->lock);
         }
 
+        if (!error && request->error) {
+            error = request->error;
+        }
+
         mutex_unlock(&request->lock);
     }
 
@@ -1490,6 +1550,7 @@ out:
     cpumap_zero(&oplist->cpumap);
     oplist->pmap = NULL;
     oplist->nr_ops = 0;
+    return error;
 }
 
 static void
@@ -1498,6 +1559,7 @@ pmap_sync(void *arg)
     struct pmap_update_queue *queue;
     struct pmap_update_request *request;
     struct pmap_syncer *self;
+    int error;
 
     self = arg;
     queue = &self->queue;
@@ -1515,10 +1577,11 @@ pmap_sync(void *arg)
 
         mutex_unlock(&queue->lock);
 
-        pmap_update_local(request->oplist, request->nr_mappings);
+        error = pmap_update_local(request->oplist, request->nr_mappings);
 
         mutex_lock(&request->lock);
         request->done = 1;
+        request->error = error;
         condition_signal(&request->cond);
         mutex_unlock(&request->lock);
     }

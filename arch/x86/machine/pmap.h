@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 Richard Braun.
+ * Copyright (c) 2010-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -193,21 +193,29 @@ int pmap_create(struct pmap **pmapp);
  *
  * If the mapping is local, it is the responsibility of the caller to take
  * care of migration.
+ *
+ * This function may trigger an implicit update.
  */
-void pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
-                int prot, int flags);
+int pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
+               int prot, int flags);
 
 /*
  * Remove a mapping from a physical map.
+ *
+ * The caller may use this function on non-existent mappings.
+ *
+ * This function may trigger an implicit update.
  */
-void pmap_remove(struct pmap *pmap, unsigned long va,
-                 const struct cpumap *cpumap);
+int pmap_remove(struct pmap *pmap, unsigned long va,
+                const struct cpumap *cpumap);
 
 /*
  * Set the protection of a mapping in a physical map.
+ *
+ * This function may trigger an implicit update.
  */
-void pmap_protect(struct pmap *pmap, unsigned long va, int prot,
-                  const struct cpumap *cpumap);
+int pmap_protect(struct pmap *pmap, unsigned long va, int prot,
+                 const struct cpumap *cpumap);
 
 /*
  * Force application of pending modifications on a physical map.
@@ -217,15 +225,24 @@ void pmap_protect(struct pmap *pmap, unsigned long va, int prot,
  *  - pmap_remove
  *  - pmap_protect
  *
- * On return, all operations previously performed by the calling thread are
- * guaranteed to be applied on their respective processors.
+ * On return, if successful, all operations previously performed by the
+ * calling thread are guaranteed to be applied on their respective
+ * processors. Note that this function doesn't guarantee that modifications
+ * performed by different threads are applied.
  *
- * Note that pmap_update() doesn't guarantee that modifications performed
- * by different threads are applied.
+ * If an error occurs, then some or all of the pending modifications
+ * could not be applied. This function lacks the knowledge to handle
+ * such cases. As a result, the caller is responsible for the complete
+ * set of affected mappings and must take appropriate actions to restore
+ * physical mappings consistency. Note that multiple errors may occur
+ * when calling this function. The caller shouldn't rely on the specific
+ * error value, and should consider the whole operation to have failed.
  *
- * Implies a full memory barrier.
+ * Also note that the only operation that may fail is mapping creation.
+ * Therefore, if the caller only queues removals or protection changes
+ * between two calls to this function, it is guaranteed to succeed.
  */
-void pmap_update(struct pmap *pmap);
+int pmap_update(struct pmap *pmap);
 
 /*
  * Load the given pmap on the current processor.
