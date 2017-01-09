@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 Richard Braun.
+ * Copyright (c) 2010-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -740,10 +740,6 @@ vm_page_alloc(unsigned int order, unsigned int selector, unsigned short type)
         if (page != NULL) {
             return page;
         }
-    }
-
-    if (type == VM_PAGE_PMAP) {
-        panic("vm_page: unable to allocate pmap page");
     }
 
     return NULL;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 Richard Braun.
+ * Copyright (c) 2010-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,10 +57,6 @@
 
 /*
  * Page usage types.
- *
- * Failing to allocate pmap pages will cause a kernel panic.
- * TODO Obviously, this needs to be addressed, e.g. with a reserved pool of
- * pages.
  */
 #define VM_PAGE_FREE        0   /* Page unused */
 #define VM_PAGE_RESERVED    1   /* Page reserved at boot time */
