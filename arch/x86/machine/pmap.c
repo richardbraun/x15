@@ -1251,6 +1251,10 @@ pmap_remove_local_single(struct pmap *pmap, unsigned long va)
         pt_level = &pmap_pt_levels[level];
         pte = &ptp[pmap_pte_index(va, pt_level)];
 
+        if (!pmap_pte_valid(*pte)) {
+            return;
+        }
+
         if (level == 0) {
             break;
         }
