@@ -63,10 +63,12 @@ struct pmap_pt_level {
 static struct pmap_pt_level pmap_pt_levels[] __read_mostly = {
     { PMAP_L0_SKIP, PMAP_L0_BITS, PMAP_L0_PTES_PER_PTP, PMAP_L0_MASK },
     { PMAP_L1_SKIP, PMAP_L1_BITS, PMAP_L1_PTES_PER_PTP, PMAP_L1_MASK },
-#if PMAP_NR_LEVELS == 4
+#if PMAP_NR_LEVELS > 2
     { PMAP_L2_SKIP, PMAP_L2_BITS, PMAP_L2_PTES_PER_PTP, PMAP_L2_MASK },
+#if PMAP_NR_LEVELS > 3
     { PMAP_L3_SKIP, PMAP_L3_BITS, PMAP_L3_PTES_PER_PTP, PMAP_L3_MASK },
-#endif /* PMAP_NR_LEVELS == 4 */
+#endif /* PMAP_NR_LEVELS > 3 */
+#endif /* PMAP_NR_LEVELS > 2 */
 };
 
 /*
@@ -76,13 +78,6 @@ struct pmap_cpu_table {
     struct mutex lock;
     struct list node;
     phys_addr_t root_ptp_pa;
-
-#ifdef X86_PAE
-    pmap_pte_t *pdpt;
-
-    /* The page-directory-pointer base is always 32-bits wide */
-    unsigned long pdpt_pa;
-#endif /* X86_PAE */
 };
 
 struct pmap {
@@ -119,7 +114,7 @@ struct pmap *pmap_current_ptr __percpu;
 /*
  * "Hidden" kernel root page tables for PAE mode.
  */
-static pmap_pte_t pmap_cpu_kpdpts[MAX_CPUS][PMAP_NR_RPTPS] __read_mostly
+static pmap_pte_t pmap_cpu_kpdpts[MAX_CPUS][PMAP_L2_PTES_PER_PTP] __read_mostly
     __aligned(PMAP_PDPT_ALIGN);
 
 #endif /* X86_PAE */
@@ -435,7 +430,11 @@ pmap_setup_paging(void)
      * direct physical mapping of physical memory.
      */
 
-    root_ptp = biosmem_bootalloc(PMAP_NR_RPTPS);
+#ifdef X86_PAE
+    root_ptp = (void *)BOOT_VTOP((unsigned long)pmap_cpu_kpdpts[0]);
+#else /* X86_PAE */
+    root_ptp = biosmem_bootalloc(1);
+#endif /* X86_PAE */
 
     va = vm_page_trunc((unsigned long)&_boot);
     pa = va;
@@ -482,16 +481,6 @@ pmap_setup_paging(void)
     cpu_table = (void *)BOOT_VTOP((unsigned long)&kernel_pmap_cpu_tables[0]);
     cpu_table->root_ptp_pa = (unsigned long)root_ptp;
 
-#ifdef X86_PAE
-    cpu_table->pdpt = pmap_cpu_kpdpts[0];
-    cpu_table->pdpt_pa = BOOT_VTOP((unsigned long)pmap_cpu_kpdpts[0]);
-    root_ptp = (void *)cpu_table->pdpt_pa;
-
-    for (i = 0; i < PMAP_NR_RPTPS; i++) {
-        root_ptp[i] = (cpu_table->root_ptp_pa + (i * PAGE_SIZE)) | PMAP_PTE_P;
-    }
-#endif /* X86_PAE */
-
     return root_ptp;
 }
 
@@ -500,7 +489,6 @@ pmap_ap_setup_paging(void)
 {
     struct pmap_cpu_table *cpu_table;
     struct pmap *pmap;
-    pmap_pte_t *root_ptp;
     unsigned long pgsize;
 
     pgsize = pmap_boot_get_pgsize();
@@ -510,12 +498,10 @@ pmap_ap_setup_paging(void)
     cpu_table = (void *)BOOT_VTOP((unsigned long)pmap->cpu_tables[boot_ap_id]);
 
 #ifdef X86_PAE
-    root_ptp = (void *)cpu_table->pdpt_pa;
+    return (void *)(uint32_t)cpu_table->root_ptp_pa;
 #else /* X86_PAE */
-    root_ptp = (void *)cpu_table->root_ptp_pa;
+    return (void *)cpu_table->root_ptp_pa;
 #endif /* X86_PAE */
-
-    return root_ptp;
 }
 
 /*
@@ -539,7 +525,6 @@ pmap_ptp_from_pa(phys_addr_t pa)
 {
     unsigned long va;
 
-    assert(vm_page_aligned(pa));
     va = vm_page_direct_va(pa);
     return (pmap_pte_t *)va;
 }
@@ -946,10 +931,10 @@ pmap_copy_cpu_table_page(const pmap_pte_t *sptp, unsigned int level,
 
 static void __init
 pmap_copy_cpu_table_recursive(const pmap_pte_t *sptp, unsigned int level,
-                              struct vm_page *page, unsigned long start_va)
+                              pmap_pte_t *dptp, unsigned long start_va)
 {
     const struct pmap_pt_level *pt_level;
-    pmap_pte_t *dptp;
+    struct vm_page *page;
     phys_addr_t pa;
     unsigned long va;
     unsigned int i;
@@ -957,8 +942,6 @@ pmap_copy_cpu_table_recursive(const pmap_pte_t *sptp, unsigned int level,
     assert(level != 0);
 
     pt_level = &pmap_pt_levels[level];
-    dptp = vm_page_direct_ptr(page);
-
     memset(dptp, 0, pt_level->ptes_per_ptp * sizeof(pmap_pte_t));
 
     for (i = 0, va = start_va;
@@ -989,9 +972,10 @@ pmap_copy_cpu_table_recursive(const pmap_pte_t *sptp, unsigned int level,
 
         if (((level - 1) == 0) || pmap_pte_large(sptp[i])) {
             pmap_copy_cpu_table_page(pmap_pte_next(sptp[i]), level - 1, page);
-        } else
-            pmap_copy_cpu_table_recursive(pmap_pte_next(sptp[i]),
-                                          level - 1, page, va);
+        } else {
+            pmap_copy_cpu_table_recursive(pmap_pte_next(sptp[i]), level - 1,
+                                          vm_page_direct_ptr(page), va);
+        }
     }
 }
 
@@ -999,32 +983,33 @@ static void __init
 pmap_copy_cpu_table(unsigned int cpu)
 {
     struct pmap_cpu_table *cpu_table;
-    struct vm_page *page;
     unsigned int level;
-    pmap_pte_t *ptp;
+    const pmap_pte_t *sptp;
+    pmap_pte_t *dptp;
+
+    assert(cpu != 0);
 
     cpu_table = kernel_pmap->cpu_tables[cpu];
     level = PMAP_NR_LEVELS - 1;
-    ptp = pmap_ptp_from_pa(kernel_pmap->cpu_tables[cpu_id()]->root_ptp_pa);
-    page = vm_page_alloc(PMAP_RPTP_ORDER, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_PMAP);
+    sptp = pmap_ptp_from_pa(kernel_pmap->cpu_tables[cpu_id()]->root_ptp_pa);
+
+#ifdef X86_PAE
+    cpu_table->root_ptp_pa = BOOT_VTOP((unsigned long)pmap_cpu_kpdpts[cpu]);
+    dptp = pmap_ptp_from_pa(cpu_table->root_ptp_pa);
+#else /* X86_PAE */
+    struct vm_page *page;
+
+    page = vm_page_alloc(0, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_PMAP);
 
     if (page == NULL) {
         panic("pmap: unable to allocate page table root page copy");
     }
 
-    pmap_copy_cpu_table_recursive(ptp, level, page, VM_MIN_ADDRESS);
     cpu_table->root_ptp_pa = vm_page_to_pa(page);
-
-#ifdef X86_PAE
-    unsigned int i;
-
-    cpu_table->pdpt = pmap_cpu_kpdpts[cpu];
-    cpu_table->pdpt_pa = BOOT_VTOP((unsigned long)pmap_cpu_kpdpts[cpu]);
-
-    for (i = 0; i < PMAP_NR_RPTPS; i++) {
-        cpu_table->pdpt[i] = (cpu_table->root_ptp_pa + (i * PAGE_SIZE)) | PMAP_PTE_P;
-    }
+    dptp = vm_page_direct_ptr(page);
 #endif /* X86_PAE */
+
+    pmap_copy_cpu_table_recursive(sptp, level, dptp, VM_MIN_ADDRESS);
 }
 
 void __init
@@ -1610,9 +1595,5 @@ pmap_load(struct pmap *pmap)
     /* TODO Implement per-CPU page tables for non-kernel pmaps */
     cpu_table = pmap->cpu_tables[cpu_id()];
 
-#ifdef X86_PAE
-    cpu_set_cr3(cpu_table->pdpt_pa);
-#else /* X86_PAE */
     cpu_set_cr3(cpu_table->root_ptp_pa);
-#endif /* X86_PAE */
 }

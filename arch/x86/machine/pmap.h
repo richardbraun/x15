@@ -53,8 +53,10 @@
                          | PMAP_PTE_PWT | PMAP_PTE_US | PMAP_PTE_RW \
                          | PMAP_PTE_P)
 
+#define PMAP_PAE_L2_MASK    (PMAP_PA_MASK | PMAP_PTE_PCD | PMAP_PTE_PWT \
+                             | PMAP_PTE_P)
+
 #ifdef __LP64__
-#define PMAP_RPTP_ORDER 0
 #define PMAP_NR_LEVELS  4
 #define PMAP_L0_BITS    9
 #define PMAP_L1_BITS    9
@@ -66,14 +68,14 @@
 #define PMAP_L3_MASK    PMAP_L1_MASK
 #else /* __LP64__ */
 #ifdef X86_PAE
-#define PMAP_RPTP_ORDER 2   /* Assume two levels with a 4-page root table */
-#define PMAP_NR_LEVELS  2
+#define PMAP_NR_LEVELS  3
 #define PMAP_L0_BITS    9
-#define PMAP_L1_BITS    11
+#define PMAP_L1_BITS    9
+#define PMAP_L2_BITS    2
 #define PMAP_VA_MASK    DECL_CONST(0xffffffff, UL)
 #define PMAP_PA_MASK    DECL_CONST(0x000ffffffffff000, ULL)
+#define PMAP_L2_MASK    PMAP_PAE_L2_MASK
 #else /* X86_PAE */
-#define PMAP_RPTP_ORDER 0
 #define PMAP_NR_LEVELS  2
 #define PMAP_L0_BITS    10
 #define PMAP_L1_BITS    10
@@ -91,8 +93,6 @@
 #define PMAP_L1_PTES_PER_PTP    (1 << PMAP_L1_BITS)
 #define PMAP_L2_PTES_PER_PTP    (1 << PMAP_L2_BITS)
 #define PMAP_L3_PTES_PER_PTP    (1 << PMAP_L3_BITS)
-
-#define PMAP_NR_RPTPS   (1 << PMAP_RPTP_ORDER)
 
 #ifndef __ASSEMBLER__
 
