@@ -46,13 +46,14 @@ typedef void (*kmem_ctor_fn_t)(void *);
  * Cache creation flags.
  */
 #define KMEM_CACHE_NOOFFSLAB    0x1 /* Don't allocate external slab data */
-#define KMEM_CACHE_VERIFY       0x2 /* Use debugging facilities */
+#define KMEM_CACHE_PAGE_ONLY    0x2 /* Allocate slabs from the page allocator */
+#define KMEM_CACHE_VERIFY       0x4 /* Use debugging facilities */
 
 /*
  * Initialize a cache.
  *
- * If a slab allocation/free function pointer is NULL, the default backend
- * (vm_kmem on the kernel map) is used for the allocation/free action.
+ * Slabs may be allocated either from the page allocator or from kernel
+ * virtual memory, unless KMEM_CACHE_PAGE_ONLY is set.
  */
 void kmem_cache_init(struct kmem_cache *cache, const char *name,
                      size_t obj_size, size_t align, kmem_ctor_fn_t ctor,

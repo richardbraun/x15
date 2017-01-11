@@ -39,6 +39,7 @@
 #define vm_page_ptoa(page)      ((page) << PAGE_SHIFT)
 #define vm_page_trunc(addr)     P2ALIGN(addr, PAGE_SIZE)
 #define vm_page_round(addr)     P2ROUND(addr, PAGE_SIZE)
+#define vm_page_end(addr)       P2END(addr, PAGE_SIZE)
 #define vm_page_aligned(addr)   P2ALIGNED(addr, PAGE_SIZE)
 
 /*
@@ -62,7 +63,7 @@
 #define VM_PAGE_RESERVED    1   /* Page reserved at boot time */
 #define VM_PAGE_TABLE       2   /* Page is part of the page table */
 #define VM_PAGE_PMAP        3   /* Page stores pmap-specific data */
-#define VM_PAGE_KMEM        4   /* Page is part of a kmem slab */
+#define VM_PAGE_KMEM        4   /* Page is a direct-mapped kmem slab */
 #define VM_PAGE_OBJECT      5   /* Page is part of a VM object */
 #define VM_PAGE_KERNEL      6   /* Type for generic kernel allocations */
 

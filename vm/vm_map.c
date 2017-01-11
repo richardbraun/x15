@@ -720,7 +720,8 @@ vm_map_setup(void)
     vm_map_init(kernel_map, kernel_pmap,
                 VM_MIN_KMEM_ADDRESS, VM_MAX_KMEM_ADDRESS);
     kmem_cache_init(&vm_map_entry_cache, "vm_map_entry",
-                    sizeof(struct vm_map_entry), 0, NULL, 0);
+                    sizeof(struct vm_map_entry), 0, NULL,
+                    KMEM_CACHE_PAGE_ONLY);
     kmem_cache_init(&vm_map_cache, "vm_map", sizeof(struct vm_map),
                     0, NULL, 0);
 }

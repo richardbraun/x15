@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 Richard Braun.
+ * Copyright (c) 2010-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -160,7 +160,6 @@ struct kmem_slab {
  */
 #define KMEM_CF_SLAB_EXTERNAL   0x1 /* Slab data is off slab */
 #define KMEM_CF_VERIFY          0x2 /* Debugging facilities enabled */
-#define KMEM_CF_DIRECT          0x4 /* Quick buf-to-slab lookup */
 
 /*
  * Cache of objects.
@@ -182,7 +181,6 @@ struct kmem_cache {
     size_t align;
     size_t buf_size;    /* Aligned object size */
     size_t bufctl_dist; /* Distance from buffer to bufctl */
-    unsigned int slab_order;
     size_t slab_size;
     size_t color;
     size_t color_max;
