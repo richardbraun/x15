@@ -667,8 +667,8 @@ kmem_cache_register(struct kmem_cache *cache, struct kmem_slab *slab)
         assert(page != NULL);
         assert((virtual && vm_page_type(page) == VM_PAGE_KERNEL)
                || (!virtual && vm_page_type(page) == VM_PAGE_KMEM));
-        assert(page->slab_priv == NULL);
-        page->slab_priv = slab;
+        assert(vm_page_get_priv(page) == NULL);
+        vm_page_set_priv(page, slab);
     }
 }
 
@@ -708,7 +708,7 @@ kmem_cache_lookup(struct kmem_cache *cache, void *buf)
         return NULL;
     }
 
-    slab = page->slab_priv;
+    slab = vm_page_get_priv(page);
     assert((unsigned long)buf >= kmem_slab_buf(slab));
     assert((unsigned long)buf < (kmem_slab_buf(slab) + cache->slab_size));
     return slab;

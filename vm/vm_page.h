@@ -76,7 +76,7 @@ struct vm_page {
     unsigned short seg_index;
     unsigned short order;
     phys_addr_t phys_addr;
-    void *slab_priv;
+    void *priv;
 };
 
 static inline unsigned short
@@ -119,6 +119,21 @@ static inline void *
 vm_page_direct_ptr(const struct vm_page *page)
 {
     return (void *)vm_page_direct_va(vm_page_to_pa(page));
+}
+
+/*
+ * Associate private data with a page.
+ */
+static inline void
+vm_page_set_priv(struct vm_page *page, void *priv)
+{
+    page->priv = priv;
+}
+
+static inline void *
+vm_page_get_priv(const struct vm_page *page)
+{
+    return page->priv;
 }
 
 /*
