@@ -154,34 +154,34 @@
 #define VM_PAGE_DMA_LIMIT       DECL_CONST(0x1000000, UL)
 
 #ifdef __LP64__
-#define VM_PAGE_MAX_SEGS 4
+#define VM_PAGE_MAX_ZONES       4
 #define VM_PAGE_DMA32_LIMIT     DECL_CONST(0x100000000, UL)
 #define VM_PAGE_DIRECTMAP_LIMIT DECL_CONST(0x400000000000, UL)
 #define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, UL)
 #else /* __LP64__ */
 #define VM_PAGE_DIRECTMAP_LIMIT DECL_CONST(0x38000000, ULL)
 #ifdef X86_PAE
-#define VM_PAGE_MAX_SEGS 3
+#define VM_PAGE_MAX_ZONES       3
 #define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, ULL)
 #else /* X86_PAE */
-#define VM_PAGE_MAX_SEGS 3
+#define VM_PAGE_MAX_ZONES       3
 #define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0xfffff000, UL)
 #endif /* X86_PAE */
 #endif /* __LP64__ */
 
 /*
- * Physical segment indexes.
+ * Physical zone indexes.
  */
-#define VM_PAGE_SEG_DMA         0
+#define VM_PAGE_ZONE_DMA        0
 
 #ifdef __LP64__
-#define VM_PAGE_SEG_DMA32       1
-#define VM_PAGE_SEG_DIRECTMAP   2
-#define VM_PAGE_SEG_HIGHMEM     3
+#define VM_PAGE_ZONE_DMA32      1
+#define VM_PAGE_ZONE_DIRECTMAP  2
+#define VM_PAGE_ZONE_HIGHMEM    3
 #else /* __LP64__ */
-#define VM_PAGE_SEG_DMA32       1   /* Alias for the DIRECTMAP segment */
-#define VM_PAGE_SEG_DIRECTMAP   1
-#define VM_PAGE_SEG_HIGHMEM     2
+#define VM_PAGE_ZONE_DMA32      1   /* Alias for the DIRECTMAP zone */
+#define VM_PAGE_ZONE_DIRECTMAP  1
+#define VM_PAGE_ZONE_HIGHMEM    2
 #endif /* __LP64__ */
 
 #endif /* _X86_PARAM_H */

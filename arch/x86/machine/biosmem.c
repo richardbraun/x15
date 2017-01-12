@@ -97,15 +97,15 @@ static unsigned int biosmem_map_size __bootdata;
 /*
  * Contiguous block of physical memory.
  */
-struct biosmem_segment {
+struct biosmem_zone {
     phys_addr_t start;
     phys_addr_t end;
 };
 
 /*
- * Physical segment boundaries.
+ * Physical zone boundaries.
  */
-static struct biosmem_segment biosmem_segments[VM_PAGE_MAX_SEGS] __bootdata;
+static struct biosmem_zone biosmem_zones[VM_PAGE_MAX_ZONES] __bootdata;
 
 /*
  * Boundaries of the simple bootstrap heap.
@@ -121,7 +121,7 @@ static phys_addr_t biosmem_heap_end __bootdata;
  * Boot allocation policy.
  *
  * Top-down allocations are normally preferred to avoid unnecessarily
- * filling the DMA segment.
+ * filling the DMA zone.
  */
 static bool biosmem_heap_topdown __bootdata;
 
@@ -133,8 +133,8 @@ static char biosmem_panic_too_big_msg[] __bootdata
     = "biosmem: too many memory map entries";
 static char biosmem_panic_setup_msg[] __bootdata
     = "biosmem: unable to set up the early memory allocator";
-static char biosmem_panic_noseg_msg[] __bootdata
-    = "biosmem: unable to find any memory segment";
+static char biosmem_panic_nozone_msg[] __bootdata
+    = "biosmem: unable to find any memory zone";
 static char biosmem_panic_inval_msg[] __bootdata
     = "biosmem: attempt to allocate 0 page";
 static char biosmem_panic_nomem_msg[] __bootdata
@@ -444,17 +444,17 @@ biosmem_map_adjust(void)
  * in *phys_start, and the highest address of unusable memory immediately
  * following physical memory in *phys_end.
  *
- * These addresses are normally used to establish the range of a segment.
+ * These addresses are normally used to establish the range of a zone.
  */
 static int __boot
 biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
 {
     const struct biosmem_map_entry *entry, *map_end;
-    phys_addr_t seg_start, seg_end;
+    phys_addr_t zone_start, zone_end;
     uint64_t start, end;
 
-    seg_start = (phys_addr_t)-1;
-    seg_end = (phys_addr_t)-1;
+    zone_start = (phys_addr_t)-1;
+    zone_end = (phys_addr_t)-1;
     map_end = biosmem_map + biosmem_map_size;
 
     for (entry = biosmem_map; entry < map_end; entry++) {
@@ -471,46 +471,46 @@ biosmem_map_find_avail(phys_addr_t *phys_start, phys_addr_t *phys_end)
         end = vm_page_trunc(entry->base_addr + entry->length);
 
         if ((start < end) && (start < *phys_end) && (end > *phys_start)) {
-            if (seg_start == (phys_addr_t)-1) {
-                seg_start = start;
+            if (zone_start == (phys_addr_t)-1) {
+                zone_start = start;
             }
 
-            seg_end = end;
+            zone_end = end;
         }
     }
 
-    if ((seg_start == (phys_addr_t)-1) || (seg_end == (phys_addr_t)-1)) {
+    if ((zone_start == (phys_addr_t)-1) || (zone_end == (phys_addr_t)-1)) {
         return -1;
     }
 
-    if (seg_start > *phys_start) {
-        *phys_start = seg_start;
+    if (zone_start > *phys_start) {
+        *phys_start = zone_start;
     }
 
-    if (seg_end < *phys_end) {
-        *phys_end = seg_end;
+    if (zone_end < *phys_end) {
+        *phys_end = zone_end;
     }
 
     return 0;
 }
 
 static void __boot
-biosmem_set_segment(unsigned int seg_index, phys_addr_t start, phys_addr_t end)
+biosmem_set_zone(unsigned int zone_index, phys_addr_t start, phys_addr_t end)
 {
-    biosmem_segments[seg_index].start = start;
-    biosmem_segments[seg_index].end = end;
+    biosmem_zones[zone_index].start = start;
+    biosmem_zones[zone_index].end = end;
 }
 
 static phys_addr_t __boot
-biosmem_segment_end(unsigned int seg_index)
+biosmem_zone_end(unsigned int zone_index)
 {
-    return biosmem_segments[seg_index].end;
+    return biosmem_zones[zone_index].end;
 }
 
 static phys_addr_t __boot
-biosmem_segment_size(unsigned int seg_index)
+biosmem_zone_size(unsigned int zone_index)
 {
-    return biosmem_segments[seg_index].end - biosmem_segments[seg_index].start;
+    return biosmem_zones[zone_index].end - biosmem_zones[zone_index].start;
 }
 
 static int __boot
@@ -660,10 +660,10 @@ biosmem_bootstrap(const struct multiboot_raw_info *mbi)
     error = biosmem_map_find_avail(&phys_start, &phys_end);
 
     if (error) {
-        boot_panic(biosmem_panic_noseg_msg);
+        boot_panic(biosmem_panic_nozone_msg);
     }
 
-    biosmem_set_segment(VM_PAGE_SEG_DMA, phys_start, phys_end);
+    biosmem_set_zone(VM_PAGE_ZONE_DMA, phys_start, phys_end);
 
     phys_start = VM_PAGE_DMA_LIMIT;
 #ifdef VM_PAGE_DMA32_LIMIT
@@ -674,7 +674,7 @@ biosmem_bootstrap(const struct multiboot_raw_info *mbi)
         goto out;
     }
 
-    biosmem_set_segment(VM_PAGE_SEG_DMA32, phys_start, phys_end);
+    biosmem_set_zone(VM_PAGE_ZONE_DMA32, phys_start, phys_end);
 
     phys_start = VM_PAGE_DMA32_LIMIT;
 #endif /* VM_PAGE_DMA32_LIMIT */
@@ -685,7 +685,7 @@ biosmem_bootstrap(const struct multiboot_raw_info *mbi)
         goto out;
     }
 
-    biosmem_set_segment(VM_PAGE_SEG_DIRECTMAP, phys_start, phys_end);
+    biosmem_set_zone(VM_PAGE_ZONE_DIRECTMAP, phys_start, phys_end);
 
     phys_start = VM_PAGE_DIRECTMAP_LIMIT;
     phys_end = VM_PAGE_HIGHMEM_LIMIT;
@@ -695,7 +695,7 @@ biosmem_bootstrap(const struct multiboot_raw_info *mbi)
         goto out;
     }
 
-    biosmem_set_segment(VM_PAGE_SEG_HIGHMEM, phys_start, phys_end);
+    biosmem_set_zone(VM_PAGE_ZONE_HIGHMEM, phys_start, phys_end);
 
 out:
     biosmem_setup_allocator(mbi);
@@ -739,12 +739,12 @@ biosmem_bootalloc(unsigned int nr_pages)
 phys_addr_t __boot
 biosmem_directmap_end(void)
 {
-    if (biosmem_segment_size(VM_PAGE_SEG_DIRECTMAP) != 0) {
-        return biosmem_segment_end(VM_PAGE_SEG_DIRECTMAP);
-    } else if (biosmem_segment_size(VM_PAGE_SEG_DMA32) != 0) {
-        return biosmem_segment_end(VM_PAGE_SEG_DMA32);
+    if (biosmem_zone_size(VM_PAGE_ZONE_DIRECTMAP) != 0) {
+        return biosmem_zone_end(VM_PAGE_ZONE_DIRECTMAP);
+    } else if (biosmem_zone_size(VM_PAGE_ZONE_DMA32) != 0) {
+        return biosmem_zone_end(VM_PAGE_ZONE_DMA32);
     } else {
-        return biosmem_segment_end(VM_PAGE_SEG_DMA);
+        return biosmem_zone_end(VM_PAGE_ZONE_DMA);
     }
 }
 
@@ -793,32 +793,32 @@ biosmem_map_show(void)
 #endif /* DEBUG */
 
 static void __init
-biosmem_load_segment(struct biosmem_segment *seg, uint64_t max_phys_end)
+biosmem_load_zone(struct biosmem_zone *zone, uint64_t max_phys_end)
 {
     phys_addr_t phys_start, phys_end, avail_start, avail_end;
-    unsigned int seg_index;
+    unsigned int zone_index;
 
-    phys_start = seg->start;
-    phys_end = seg->end;
-    seg_index = seg - biosmem_segments;
+    phys_start = zone->start;
+    phys_end = zone->end;
+    zone_index = zone - biosmem_zones;
 
     if (phys_end > max_phys_end) {
         if (max_phys_end <= phys_start) {
-            printk("biosmem: warning: segment %s physically unreachable, "
-                   "not loaded\n", vm_page_seg_name(seg_index));
+            printk("biosmem: warning: zone %s physically unreachable, "
+                   "not loaded\n", vm_page_zone_name(zone_index));
             return;
         }
 
-        printk("biosmem: warning: segment %s truncated to %#llx\n",
-               vm_page_seg_name(seg_index), max_phys_end);
+        printk("biosmem: warning: zone %s truncated to %#llx\n",
+               vm_page_zone_name(zone_index), max_phys_end);
         phys_end = max_phys_end;
     }
 
-    vm_page_load(seg_index, phys_start, phys_end);
+    vm_page_load(zone_index, phys_start, phys_end);
 
     /*
      * Clip the remaining available heap to fit it into the loaded
-     * segment if possible.
+     * zone if possible.
      */
 
     if ((biosmem_heap_top > phys_start) && (biosmem_heap_bottom < phys_end)) {
@@ -834,7 +834,7 @@ biosmem_load_segment(struct biosmem_segment *seg, uint64_t max_phys_end)
             avail_end = phys_end;
         }
 
-        vm_page_load_heap(seg_index, avail_start, avail_end);
+        vm_page_load_heap(zone_index, avail_start, avail_end);
     }
 }
 
@@ -842,7 +842,7 @@ void __init
 biosmem_setup(void)
 {
     uint64_t max_phys_end;
-    struct biosmem_segment *seg;
+    struct biosmem_zone *zone;
     struct cpu *cpu;
     unsigned int i;
 
@@ -853,13 +853,13 @@ biosmem_setup(void)
                    ? (uint64_t)-1
                    : (uint64_t)1 << cpu->phys_addr_width;
 
-    for (i = 0; i < ARRAY_SIZE(biosmem_segments); i++) {
-        if (biosmem_segment_size(i) == 0) {
+    for (i = 0; i < ARRAY_SIZE(biosmem_zones); i++) {
+        if (biosmem_zone_size(i) == 0) {
             break;
         }
 
-        seg = &biosmem_segments[i];
-        biosmem_load_segment(seg, max_phys_end);
+        zone = &biosmem_zones[i];
+        biosmem_load_zone(zone, max_phys_end);
     }
 }
 

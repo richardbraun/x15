@@ -43,9 +43,9 @@
 #define vm_page_aligned(addr)   P2ALIGNED(addr, PAGE_SIZE)
 
 /*
- * Segment selectors.
+ * Zone selectors.
  *
- * Selector-to-segment-list translation table :
+ * Selector-to-zone-list translation table :
  * DMA          DMA
  * DMA32        DMA32 DMA
  * DIRECTMAP    DIRECTMAP DMA32 DMA
@@ -73,7 +73,7 @@
 struct vm_page {
     struct list node;
     unsigned short type;
-    unsigned short seg_index;
+    unsigned short zone_index;
     unsigned short order;
     phys_addr_t phys_addr;
     void *priv;
@@ -139,17 +139,17 @@ vm_page_get_priv(const struct vm_page *page)
 /*
  * Load physical memory into the vm_page module at boot time.
  *
- * All addresses must be page-aligned. Segments can be loaded in any order.
+ * All addresses must be page-aligned. Zones can be loaded in any order.
  */
-void vm_page_load(unsigned int seg_index, phys_addr_t start, phys_addr_t end);
+void vm_page_load(unsigned int zone_index, phys_addr_t start, phys_addr_t end);
 
 /*
  * Load available physical memory into the vm_page module at boot time.
  *
- * The segment referred to must have been loaded with vm_page_load
+ * The zone referred to must have been loaded with vm_page_load
  * before loading its heap.
  */
-void vm_page_load_heap(unsigned int seg_index, phys_addr_t start,
+void vm_page_load_heap(unsigned int zone_index, phys_addr_t start,
                        phys_addr_t end);
 
 /*
@@ -162,10 +162,10 @@ int vm_page_ready(void);
 /*
  * Set up the vm_page module.
  *
- * Architecture-specific code must have loaded segments before calling this
- * function. Segments must comply with the selector-to-segment-list table,
+ * Architecture-specific code must have loaded zones before calling this
+ * function. Zones must comply with the selector-to-zone-list table,
  * e.g. HIGHMEM is loaded if and only if DIRECTMAP, DMA32 and DMA are loaded,
- * notwithstanding segment aliasing.
+ * notwithstanding zone aliasing.
  *
  * Once this function returns, the vm_page module is ready, and normal
  * allocation functions can be used.
@@ -188,7 +188,7 @@ struct vm_page * vm_page_lookup(phys_addr_t pa);
 /*
  * Allocate a block of 2^order physical pages.
  *
- * The selector is used to determine the segments from which allocation can
+ * The selector is used to determine the zones from which allocation can
  * be attempted.
  */
 struct vm_page * vm_page_alloc(unsigned int order, unsigned int selector,
@@ -200,9 +200,9 @@ struct vm_page * vm_page_alloc(unsigned int order, unsigned int selector,
 void vm_page_free(struct vm_page *page, unsigned int order);
 
 /*
- * Return the name of the given segment.
+ * Return the name of the given zone.
  */
-const char * vm_page_seg_name(unsigned int seg_index);
+const char * vm_page_zone_name(unsigned int zone_index);
 
 /*
  * Display internal information about the module.
