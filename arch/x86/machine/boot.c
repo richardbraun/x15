@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 Richard Braun.
+ * Copyright (c) 2010-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -188,17 +188,17 @@ boot_save_cmdline_sizes(struct multiboot_raw_info *mbi)
     uint32_t i;
 
     if (mbi->flags & MULTIBOOT_LOADER_CMDLINE) {
-        mbi->unused0 = boot_strlen((char *)(unsigned long)mbi->cmdline) + 1;
+        mbi->unused0 = boot_strlen((char *)(uintptr_t)mbi->cmdline) + 1;
     }
 
     if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
-        unsigned long addr;
+        uintptr_t addr;
 
         addr = mbi->mods_addr;
 
         for (i = 0; i < mbi->mods_count; i++) {
             mod = (struct multiboot_raw_module *)addr + i;
-            mod->reserved = boot_strlen((char *)(unsigned long)mod->string) + 1;
+            mod->reserved = boot_strlen((char *)(uintptr_t)mod->string) + 1;
         }
     }
 }
@@ -208,11 +208,11 @@ boot_register_data(const struct multiboot_raw_info *mbi)
 {
     struct multiboot_raw_module *mod;
     struct elf_shdr *shdr;
-    unsigned long tmp;
+    uintptr_t tmp;
     unsigned int i;
 
-    biosmem_register_boot_data((unsigned long)&_boot,
-                               BOOT_VTOP((unsigned long)&_end), false);
+    biosmem_register_boot_data((uintptr_t)&_boot,
+                               BOOT_VTOP((uintptr_t)&_end), false);
 
     if ((mbi->flags & MULTIBOOT_LOADER_CMDLINE) && (mbi->cmdline != 0)) {
         biosmem_register_boot_data(mbi->cmdline, mbi->cmdline + mbi->unused0, true);
@@ -298,7 +298,7 @@ boot_show_version(void)
 static void * __init
 boot_save_memory(uint32_t addr, size_t size)
 {
-    unsigned long map_addr;
+    uintptr_t map_addr;
     size_t map_size;
     const void *src;
     void *copy;
@@ -329,7 +329,7 @@ static void __init
 boot_save_mod(struct multiboot_module *dest_mod,
               const struct multiboot_raw_module *src_mod)
 {
-    unsigned long map_addr;
+    uintptr_t map_addr;
     size_t size, map_size;
     const void *src;
     void *copy;
@@ -365,7 +365,7 @@ boot_save_mods(void)
 {
     const struct multiboot_raw_module *src;
     struct multiboot_module *dest;
-    unsigned long map_addr;
+    uintptr_t map_addr;
     size_t size, map_size;
     uint32_t i;
 

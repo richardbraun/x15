@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Richard Braun.
+ * Copyright (c) 2014-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,6 +55,7 @@
 
 #include <kern/assert.h>
 #include <kern/macros.h>
+#include <kern/stdint.h>
 
 #define PERCPU_SECTION .percpu
 #define __percpu __section(QUOTE(PERCPU_SECTION))
@@ -72,7 +73,7 @@ extern char _epercpu;
  * Expands to the address of a percpu variable.
  */
 #define percpu_ptr(var, cpu) \
-    ((typeof(var) *)(percpu_area(cpu) + ((unsigned long)(&(var)))))
+    ((typeof(var) *)(percpu_area(cpu) + ((uintptr_t)(&(var)))))
 
 /*
  * Expands to the lvalue of a percpu variable.

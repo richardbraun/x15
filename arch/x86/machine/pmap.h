@@ -177,7 +177,7 @@ int pmap_thread_init(struct thread *thread);
  * This function walks the page tables to retrieve the physical address
  * mapped at the given virtual address.
  */
-int pmap_kextract(unsigned long va, phys_addr_t *pap);
+int pmap_kextract(uintptr_t va, phys_addr_t *pap);
 
 /*
  * Create a pmap for a user task.
@@ -196,7 +196,7 @@ int pmap_create(struct pmap **pmapp);
  *
  * This function may trigger an implicit update.
  */
-int pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
+int pmap_enter(struct pmap *pmap, uintptr_t va, phys_addr_t pa,
                int prot, int flags);
 
 /*
@@ -206,7 +206,7 @@ int pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
  *
  * This function may trigger an implicit update.
  */
-int pmap_remove(struct pmap *pmap, unsigned long va,
+int pmap_remove(struct pmap *pmap, uintptr_t va,
                 const struct cpumap *cpumap);
 
 /*
@@ -214,7 +214,7 @@ int pmap_remove(struct pmap *pmap, unsigned long va,
  *
  * This function may trigger an implicit update.
  */
-int pmap_protect(struct pmap *pmap, unsigned long va, int prot,
+int pmap_protect(struct pmap *pmap, uintptr_t va, int prot,
                  const struct cpumap *cpumap);
 
 /*

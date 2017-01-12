@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2010-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <kern/rbtree.h>
 #include <kern/rbtree_i.h>
 #include <kern/stddef.h>
+#include <kern/stdint.h>
 
 /*
  * Return the index of a node in the children array of its parent.
@@ -79,7 +80,7 @@ rbtree_node_set_parent(struct rbtree_node *node, struct rbtree_node *parent)
     assert(rbtree_node_check_alignment(node));
     assert(rbtree_node_check_alignment(parent));
 
-    node->parent = (unsigned long)parent | (node->parent & RBTREE_COLOR_MASK);
+    node->parent = (uintptr_t)parent | (node->parent & RBTREE_COLOR_MASK);
 }
 
 /*
@@ -179,7 +180,7 @@ rbtree_insert_rebalance(struct rbtree *tree, struct rbtree_node *parent,
     assert(rbtree_node_check_alignment(parent));
     assert(rbtree_node_check_alignment(node));
 
-    node->parent = (unsigned long)parent | RBTREE_COLOR_RED;
+    node->parent = (uintptr_t)parent | RBTREE_COLOR_RED;
     node->children[RBTREE_LEFT] = NULL;
     node->children[RBTREE_RIGHT] = NULL;
 

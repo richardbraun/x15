@@ -181,7 +181,7 @@ kmem_buf_fill(void *buf, uint64_t pattern, size_t size)
 {
     uint64_t *ptr, *end;
 
-    assert(P2ALIGNED((unsigned long)buf, sizeof(uint64_t)));
+    assert(P2ALIGNED((uintptr_t)buf, sizeof(uint64_t)));
     assert(P2ALIGNED(size, sizeof(uint64_t)));
 
     end = buf + size;
@@ -196,7 +196,7 @@ kmem_buf_verify_fill(void *buf, uint64_t old, uint64_t new, size_t size)
 {
     uint64_t *ptr, *end;
 
-    assert(P2ALIGNED((unsigned long)buf, sizeof(uint64_t)));
+    assert(P2ALIGNED((uintptr_t)buf, sizeof(uint64_t)));
     assert(P2ALIGNED(size, sizeof(uint64_t)));
 
     end = buf + size;
@@ -263,7 +263,7 @@ kmem_pagefree(void *ptr, size_t size)
     } else {
         struct vm_page *page;
 
-        page = vm_page_lookup(vm_page_direct_pa((unsigned long)ptr));
+        page = vm_page_lookup(vm_page_direct_pa((uintptr_t)ptr));
         assert(page != NULL);
         vm_page_free(page, vm_page_order(size));
     }
@@ -341,10 +341,10 @@ kmem_slab_create(struct kmem_cache *cache, size_t color)
     return slab;
 }
 
-static inline unsigned long
+static inline uintptr_t
 kmem_slab_buf(const struct kmem_slab *slab)
 {
-    return P2ALIGN((unsigned long)slab->addr, PAGE_SIZE);
+    return P2ALIGN((uintptr_t)slab->addr, PAGE_SIZE);
 }
 
 static void
@@ -628,7 +628,7 @@ kmem_cache_buf_to_slab(const struct kmem_cache *cache, void *buf)
         return NULL;
     }
 
-    return (struct kmem_slab *)vm_page_end((unsigned long)buf) - 1;
+    return (struct kmem_slab *)vm_page_end((uintptr_t)buf) - 1;
 }
 
 static inline bool
@@ -643,7 +643,7 @@ static void
 kmem_cache_register(struct kmem_cache *cache, struct kmem_slab *slab)
 {
     struct vm_page *page;
-    unsigned long va, end;
+    uintptr_t va, end;
     phys_addr_t pa;
     bool virtual;
     int error;
@@ -677,7 +677,7 @@ kmem_cache_lookup(struct kmem_cache *cache, void *buf)
 {
     struct kmem_slab *slab;
     struct vm_page *page;
-    unsigned long va;
+    uintptr_t va;
     phys_addr_t pa;
     bool virtual;
     int error;
@@ -685,7 +685,7 @@ kmem_cache_lookup(struct kmem_cache *cache, void *buf)
     assert(kmem_cache_registration_required(cache));
 
     virtual = kmem_pagealloc_virtual(cache->slab_size);
-    va = (unsigned long)buf;
+    va = (uintptr_t)buf;
 
     if (virtual) {
         error = pmap_kextract(va, &pa);
@@ -709,8 +709,8 @@ kmem_cache_lookup(struct kmem_cache *cache, void *buf)
     }
 
     slab = vm_page_get_priv(page);
-    assert((unsigned long)buf >= kmem_slab_buf(slab));
-    assert((unsigned long)buf < (kmem_slab_buf(slab) + cache->slab_size));
+    assert((uintptr_t)buf >= kmem_slab_buf(slab));
+    assert((uintptr_t)buf < (kmem_slab_buf(slab) + cache->slab_size));
     return slab;
 }
 
@@ -965,7 +965,7 @@ kmem_cache_free_verify(struct kmem_cache *cache, void *buf)
     struct kmem_slab *slab;
     union kmem_bufctl *bufctl;
     unsigned char *redzone_byte;
-    unsigned long slabend;
+    uintptr_t slabend;
 
     slab = kmem_cache_lookup(cache, buf);
 
@@ -973,13 +973,13 @@ kmem_cache_free_verify(struct kmem_cache *cache, void *buf)
         kmem_cache_error(cache, buf, KMEM_ERR_INVALID, NULL);
     }
 
-    slabend = P2ALIGN((unsigned long)slab->addr + cache->slab_size, PAGE_SIZE);
+    slabend = P2ALIGN((uintptr_t)slab->addr + cache->slab_size, PAGE_SIZE);
 
-    if ((unsigned long)buf >= slabend) {
+    if ((uintptr_t)buf >= slabend) {
         kmem_cache_error(cache, buf, KMEM_ERR_INVALID, NULL);
     }
 
-    if ((((unsigned long)buf - (unsigned long)slab->addr) % cache->buf_size)
+    if ((((uintptr_t)buf - (uintptr_t)slab->addr) % cache->buf_size)
         != 0) {
         kmem_cache_error(cache, buf, KMEM_ERR_INVALID, NULL);
     }

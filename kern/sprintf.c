@@ -340,7 +340,7 @@ integer:
                 }
                 break;
             case SPRINTF_MODIFIER_PTR:
-                n = (unsigned long)va_arg(ap, void *);
+                n = (uintptr_t)va_arg(ap, void *);
                 break;
             case SPRINTF_MODIFIER_SIZE:
                 if (flags & SPRINTF_FORMAT_CONV_SIGNED) {

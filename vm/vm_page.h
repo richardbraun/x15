@@ -27,6 +27,7 @@
 #include <kern/macros.h>
 #include <kern/param.h>
 #include <kern/stddef.h>
+#include <kern/stdint.h>
 #include <kern/types.h>
 #include <machine/pmap.h>
 
@@ -100,15 +101,15 @@ vm_page_to_pa(const struct vm_page *page)
     return page->phys_addr;
 }
 
-static inline unsigned long
+static inline uintptr_t
 vm_page_direct_va(phys_addr_t pa)
 {
     assert(pa < VM_PAGE_DIRECTMAP_LIMIT);
-    return ((unsigned long)pa + VM_MIN_DIRECTMAP_ADDRESS);
+    return ((uintptr_t)pa + VM_MIN_DIRECTMAP_ADDRESS);
 }
 
 static inline phys_addr_t
-vm_page_direct_pa(unsigned long va)
+vm_page_direct_pa(uintptr_t va)
 {
     assert(va >= VM_MIN_DIRECTMAP_ADDRESS);
     assert(va < VM_MAX_DIRECTMAP_ADDRESS);

@@ -26,6 +26,7 @@
 #include <kern/error.h>
 #include <kern/list.h>
 #include <kern/stddef.h>
+#include <kern/stdint.h>
 #include <kern/thread.h>
 #include <machine/pmap.h>
 #include <test/test.h>
@@ -42,8 +43,8 @@ static void
 test_write_pages(void)
 {
     struct vm_page *page;
-    unsigned long va;
     int error, flags;
+    uintptr_t va;
 
     for (;;) {
         page = vm_page_alloc(0, VM_PAGE_SEL_HIGHMEM, VM_PAGE_KERNEL);
@@ -77,8 +78,8 @@ static void
 test_reset_pages(void)
 {
     struct vm_page *page;
-    unsigned long va;
     int error, flags;
+    uintptr_t va;
 
     while (!list_empty(&test_pages)) {
         page = list_first_entry(&test_pages, struct vm_page, node);

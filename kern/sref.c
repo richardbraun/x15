@@ -240,18 +240,18 @@ sref_queue_concat(struct sref_queue *queue1, struct sref_queue *queue2)
     queue1->size += queue2->size;
 }
 
-static inline unsigned long
+static inline uintptr_t
 sref_counter_hash(const struct sref_counter *counter)
 {
-    unsigned long va;
+    uintptr_t va;
 
-    va = (unsigned long)counter;
+    va = (uintptr_t)counter;
 
     assert(P2ALIGNED(va, 1UL << SREF_HASH_SHIFT));
     return (va >> SREF_HASH_SHIFT);
 }
 
-static inline unsigned long
+static inline uintptr_t
 sref_counter_index(const struct sref_counter *counter)
 {
     return (sref_counter_hash(counter) & (SREF_MAX_DELTAS - 1));
@@ -430,7 +430,7 @@ sref_end_epoch(struct sref_queue *queue)
 }
 
 static inline struct sref_delta *
-sref_cache_delta(struct sref_cache *cache, unsigned int i)
+sref_cache_delta(struct sref_cache *cache, unsigned long i)
 {
     assert(i < ARRAY_SIZE(cache->deltas));
     return &cache->deltas[i];
@@ -441,7 +441,7 @@ sref_cache_init(struct sref_cache *cache, unsigned int cpu)
 {
     char name[EVCNT_NAME_SIZE];
     struct sref_delta *delta;
-    unsigned int i;
+    unsigned long i;
 
     mutex_init(&cache->lock);
 

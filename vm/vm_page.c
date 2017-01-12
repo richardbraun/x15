@@ -41,6 +41,7 @@
 #include <kern/printk.h>
 #include <kern/sprintf.h>
 #include <kern/stddef.h>
+#include <kern/stdint.h>
 #include <kern/string.h>
 #include <kern/thread.h>
 #include <kern/types.h>
@@ -647,7 +648,7 @@ vm_page_setup(void)
     struct vm_page_zone *zone;
     struct vm_page *table, *page, *end;
     size_t nr_pages, table_size;
-    unsigned long va;
+    uintptr_t va;
     unsigned int i;
     phys_addr_t pa;
 
@@ -666,7 +667,7 @@ vm_page_setup(void)
     printk("vm_page: page table size: %zu entries (%zuk)\n", nr_pages,
            table_size >> 10);
     table = vm_page_bootalloc(table_size);
-    va = (unsigned long)table;
+    va = (uintptr_t)table;
 
     /*
      * Initialize the zones, associating them to the page table. When
@@ -691,7 +692,7 @@ vm_page_setup(void)
         table += vm_page_atop(vm_page_zone_size(zone));
     }
 
-    while (va < (unsigned long)table) {
+    while (va < (uintptr_t)table) {
         pa = vm_page_direct_pa(va);
         page = vm_page_lookup(pa);
         assert((page != NULL) && (page->type == VM_PAGE_RESERVED));

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Richard Braun.
+ * Copyright (c) 2014-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <kern/percpu.h>
 #include <kern/printk.h>
 #include <kern/stddef.h>
+#include <kern/stdint.h>
 #include <kern/string.h>
 #include <machine/cpu.h>
 #include <vm/vm_kmem.h>
@@ -111,9 +112,9 @@ void
 percpu_cleanup(void)
 {
     struct vm_page *page;
-    unsigned long va;
+    uintptr_t va;
 
-    va = (unsigned long)percpu_area_content;
+    va = (uintptr_t)percpu_area_content;
     page = vm_page_lookup(vm_page_direct_pa(va));
     vm_page_free(page, vm_page_order(percpu_area_size));
 }

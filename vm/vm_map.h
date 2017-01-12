@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 Richard Braun.
+ * Copyright (c) 2011-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -66,8 +66,8 @@
 struct vm_map_entry {
     struct list list_node;
     struct rbtree_node tree_node;
-    unsigned long start;
-    unsigned long end;
+    uintptr_t start;
+    uintptr_t end;
     struct vm_object *object;
     uint64_t offset;
     int flags;
@@ -81,11 +81,11 @@ struct vm_map {
     struct list entry_list;
     struct rbtree entry_tree;
     unsigned int nr_entries;
-    unsigned long start;
-    unsigned long end;
+    uintptr_t start;
+    uintptr_t end;
     size_t size;
     struct vm_map_entry *lookup_cache;
-    unsigned long find_cache;
+    uintptr_t find_cache;
     size_t find_cache_threshold;
     struct pmap *pmap;
 };
@@ -93,14 +93,14 @@ struct vm_map {
 /*
  * Create a virtual mapping.
  */
-int vm_map_enter(struct vm_map *map, unsigned long *startp,
+int vm_map_enter(struct vm_map *map, uintptr_t *startp,
                  size_t size, size_t align, int flags,
                  struct vm_object *object, uint64_t offset);
 
 /*
  * Remove mappings from start to end.
  */
-void vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end);
+void vm_map_remove(struct vm_map *map, uintptr_t start, uintptr_t end);
 
 /*
  * Set up the vm_map module.

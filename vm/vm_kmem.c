@@ -24,6 +24,7 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/stddef.h>
+#include <kern/stdint.h>
 #include <kern/types.h>
 #include <machine/pmap.h>
 #include <vm/vm_adv.h>
@@ -51,7 +52,7 @@ vm_kmem_alloc_check(size_t size)
 }
 
 static int
-vm_kmem_free_check(unsigned long va, size_t size)
+vm_kmem_free_check(uintptr_t va, size_t size)
 {
     if (!vm_page_aligned(va)) {
         return -1;
@@ -63,8 +64,8 @@ vm_kmem_free_check(unsigned long va, size_t size)
 void *
 vm_kmem_alloc_va(size_t size)
 {
-    unsigned long va;
     int error, flags;
+    uintptr_t va;
 
     assert(vm_kmem_alloc_check(size) == 0);
 
@@ -83,9 +84,9 @@ vm_kmem_alloc_va(size_t size)
 void
 vm_kmem_free_va(void *addr, size_t size)
 {
-    unsigned long va;
+    uintptr_t va;
 
-    va = (unsigned long)addr;
+    va = (uintptr_t)addr;
     assert(vm_kmem_free_check(va, size) == 0);
     vm_map_remove(kernel_map, va, va + vm_page_round(size));
 }
@@ -94,10 +95,10 @@ void *
 vm_kmem_alloc(size_t size)
 {
     struct vm_page *page;
-    unsigned long va, start, end;
+    uintptr_t va, start, end;
 
     size = vm_page_round(size);
-    va = (unsigned long)vm_kmem_alloc_va(size);
+    va = (uintptr_t)vm_kmem_alloc_va(size);
 
     if (va == 0) {
         return 0;
@@ -139,11 +140,11 @@ vm_kmem_free(void *addr, size_t size)
 {
     const struct cpumap *cpumap;
     struct vm_page *page;
-    unsigned long va, end;
+    uintptr_t va, end;
     phys_addr_t pa;
     int error;
 
-    va = (unsigned long)addr;
+    va = (uintptr_t)addr;
     size = vm_page_round(size);
     end = va + size;
     cpumap = cpumap_all();
@@ -164,15 +165,15 @@ vm_kmem_free(void *addr, size_t size)
 
 void *
 vm_kmem_map_pa(phys_addr_t pa, size_t size,
-               unsigned long *map_vap, size_t *map_sizep)
+               uintptr_t *map_vap, size_t *map_sizep)
 {
-    unsigned long offset, map_va;
+    uintptr_t offset, map_va;
     size_t map_size;
     phys_addr_t start;
 
     start = vm_page_trunc(pa);
     map_size = vm_page_round(pa + size) - start;
-    map_va = (unsigned long)vm_kmem_alloc_va(map_size);
+    map_va = (uintptr_t)vm_kmem_alloc_va(map_size);
 
     if (map_va == 0) {
         return NULL;
@@ -192,14 +193,14 @@ vm_kmem_map_pa(phys_addr_t pa, size_t size,
         *map_sizep = map_size;
     }
 
-    return (void *)(map_va + (unsigned long)(pa & PAGE_MASK));
+    return (void *)(map_va + (uintptr_t)(pa & PAGE_MASK));
 }
 
 void
-vm_kmem_unmap_pa(unsigned long map_va, size_t map_size)
+vm_kmem_unmap_pa(uintptr_t map_va, size_t map_size)
 {
     const struct cpumap *cpumap;
-    unsigned long va, end;
+    uintptr_t va, end;
 
     cpumap = cpumap_all();
     end = map_va + map_size;

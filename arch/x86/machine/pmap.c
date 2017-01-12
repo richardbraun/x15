@@ -139,20 +139,20 @@ static pmap_pte_t pmap_prot_table[VM_PROT_ALL + 1] __read_mostly;
 #define PMAP_UPDATE_OP_PROTECT  3
 
 struct pmap_update_enter_args {
-    unsigned long va;
+    uintptr_t va;
     phys_addr_t pa;
     int prot;
     int flags;
 };
 
 struct pmap_update_remove_args {
-    unsigned long start;
-    unsigned long end;
+    uintptr_t start;
+    uintptr_t end;
 };
 
 struct pmap_update_protect_args {
-    unsigned long start;
-    unsigned long end;
+    uintptr_t start;
+    uintptr_t end;
     int prot;
 };
 
@@ -283,13 +283,13 @@ static char pmap_panic_directmap_msg[] __bootdata
     = "pmap: invalid direct physical mapping";
 
 static __always_inline unsigned long
-pmap_pte_index(unsigned long va, const struct pmap_pt_level *pt_level)
+pmap_pte_index(uintptr_t va, const struct pmap_pt_level *pt_level)
 {
     return ((va >> pt_level->skip) & ((1UL << pt_level->bits) - 1));
 }
 
 static void __boot
-pmap_boot_enter(pmap_pte_t *root_ptp, unsigned long va, phys_addr_t pa,
+pmap_boot_enter(pmap_pte_t *root_ptp, uintptr_t va, phys_addr_t pa,
                 unsigned long pgsize)
 {
     const struct pmap_pt_level *pt_level, *pt_levels;
@@ -316,7 +316,7 @@ pmap_boot_enter(pmap_pte_t *root_ptp, unsigned long va, phys_addr_t pa,
         last_level = 0;
     }
 
-    pt_levels = (void *)BOOT_VTOP((unsigned long)pmap_pt_levels);
+    pt_levels = (void *)BOOT_VTOP((uintptr_t)pmap_pt_levels);
     pt = root_ptp;
 
     for (level = PMAP_NR_LEVELS - 1; level != last_level; level--) {
@@ -324,10 +324,10 @@ pmap_boot_enter(pmap_pte_t *root_ptp, unsigned long va, phys_addr_t pa,
         pte = &pt[pmap_pte_index(va, pt_level)];
 
         if (*pte != 0) {
-            ptp = (void *)(unsigned long)(*pte & PMAP_PA_MASK);
+            ptp = (void *)(uintptr_t)(*pte & PMAP_PA_MASK);
         } else {
             ptp = biosmem_bootalloc(1);
-            *pte = ((unsigned long)ptp | PMAP_PTE_RW | PMAP_PTE_P)
+            *pte = ((uintptr_t)ptp | PMAP_PTE_RW | PMAP_PTE_P)
                    & pt_level->mask;
         }
 
@@ -417,8 +417,9 @@ pmap_setup_paging(void)
 {
     struct pmap_cpu_table *cpu_table;
     phys_addr_t pa, directmap_end;
-    unsigned long i, va, size, pgsize;
+    unsigned long i, size, pgsize;
     pmap_pte_t *root_ptp;
+    uintptr_t va;
 
     /* Use large pages for the direct physical mapping when possible */
     pgsize = pmap_boot_get_pgsize();
@@ -431,14 +432,14 @@ pmap_setup_paging(void)
      */
 
 #ifdef X86_PAE
-    root_ptp = (void *)BOOT_VTOP((unsigned long)pmap_cpu_kpdpts[0]);
+    root_ptp = (void *)BOOT_VTOP((uintptr_t)pmap_cpu_kpdpts[0]);
 #else /* X86_PAE */
     root_ptp = biosmem_bootalloc(1);
 #endif /* X86_PAE */
 
-    va = vm_page_trunc((unsigned long)&_boot);
+    va = vm_page_trunc((uintptr_t)&_boot);
     pa = va;
-    size = vm_page_round((unsigned long)&_eboot) - va;
+    size = vm_page_round((uintptr_t)&_eboot) - va;
 
     for (i = 0; i < size; i += PAGE_SIZE) {
         pmap_boot_enter(root_ptp, va, pa, PAGE_SIZE);
@@ -467,9 +468,9 @@ pmap_setup_paging(void)
      * in the direct mapping, which requires the creation of an additional
      * mapping for it. See param.h for more details.
      */
-    va = P2ALIGN((unsigned long)&_init, pgsize);
+    va = P2ALIGN((uintptr_t)&_init, pgsize);
     pa = BOOT_VTOP(va);
-    size = vm_page_round((unsigned long)&_end) - va;
+    size = vm_page_round((uintptr_t)&_end) - va;
 
     for (i = 0; i < size; i += pgsize) {
         pmap_boot_enter(root_ptp, va, pa, pgsize);
@@ -478,8 +479,8 @@ pmap_setup_paging(void)
     }
 #endif /* __LP64__ */
 
-    cpu_table = (void *)BOOT_VTOP((unsigned long)&kernel_pmap_cpu_tables[0]);
-    cpu_table->root_ptp_pa = (unsigned long)root_ptp;
+    cpu_table = (void *)BOOT_VTOP((uintptr_t)&kernel_pmap_cpu_tables[0]);
+    cpu_table->root_ptp_pa = (uintptr_t)root_ptp;
 
     return root_ptp;
 }
@@ -494,8 +495,8 @@ pmap_ap_setup_paging(void)
     pgsize = pmap_boot_get_pgsize();
     pmap_boot_enable_pgext(pgsize);
 
-    pmap = (void *)BOOT_VTOP((unsigned long)&kernel_pmap_store);
-    cpu_table = (void *)BOOT_VTOP((unsigned long)pmap->cpu_tables[boot_ap_id]);
+    pmap = (void *)BOOT_VTOP((uintptr_t)&kernel_pmap_store);
+    cpu_table = (void *)BOOT_VTOP((uintptr_t)pmap->cpu_tables[boot_ap_id]);
 
 #ifdef X86_PAE
     return (void *)(uint32_t)cpu_table->root_ptp_pa;
@@ -523,7 +524,7 @@ MACRO_END
 static inline pmap_pte_t *
 pmap_ptp_from_pa(phys_addr_t pa)
 {
-    unsigned long va;
+    uintptr_t va;
 
     va = vm_page_direct_va(pa);
     return (pmap_pte_t *)va;
@@ -572,13 +573,13 @@ pmap_pte_next(pmap_pte_t pte)
  * page properties.
  */
 static void __init
-pmap_walk_vas(unsigned long start, unsigned long end, pmap_walk_fn_t walk_fn)
+pmap_walk_vas(uintptr_t start, uintptr_t end, pmap_walk_fn_t walk_fn)
 {
     const struct pmap_pt_level *pt_level;
     phys_addr_t root_ptp_pa, ptp_pa;
     pmap_pte_t *ptp, *pte;
     unsigned int index, level;
-    unsigned long va;
+    uintptr_t va;
 
     assert(vm_page_aligned(start));
     assert(start < end);
@@ -931,13 +932,13 @@ pmap_copy_cpu_table_page(const pmap_pte_t *sptp, unsigned int level,
 
 static void __init
 pmap_copy_cpu_table_recursive(const pmap_pte_t *sptp, unsigned int level,
-                              pmap_pte_t *dptp, unsigned long start_va)
+                              pmap_pte_t *dptp, uintptr_t start_va)
 {
     const struct pmap_pt_level *pt_level;
     struct vm_page *page;
     phys_addr_t pa;
-    unsigned long va;
     unsigned int i;
+    uintptr_t va;
 
     assert(level != 0);
 
@@ -994,7 +995,7 @@ pmap_copy_cpu_table(unsigned int cpu)
     sptp = pmap_ptp_from_pa(kernel_pmap->cpu_tables[cpu_id()]->root_ptp_pa);
 
 #ifdef X86_PAE
-    cpu_table->root_ptp_pa = BOOT_VTOP((unsigned long)pmap_cpu_kpdpts[cpu]);
+    cpu_table->root_ptp_pa = BOOT_VTOP((uintptr_t)pmap_cpu_kpdpts[cpu]);
     dptp = pmap_ptp_from_pa(cpu_table->root_ptp_pa);
 #else /* X86_PAE */
     struct vm_page *page;
@@ -1081,7 +1082,7 @@ pmap_thread_init(struct thread *thread)
 }
 
 int
-pmap_kextract(unsigned long va, phys_addr_t *pap)
+pmap_kextract(uintptr_t va, phys_addr_t *pap)
 {
     const struct pmap_pt_level *pt_level;
     pmap_pte_t *ptp, *pte;
@@ -1131,7 +1132,7 @@ pmap_create(struct pmap **pmapp)
 }
 
 static int
-pmap_enter_local(struct pmap *pmap, unsigned long va, phys_addr_t pa,
+pmap_enter_local(struct pmap *pmap, uintptr_t va, phys_addr_t pa,
                  int prot, int flags)
 {
     const struct pmap_pt_level *pt_level;
@@ -1186,7 +1187,7 @@ pmap_enter_local(struct pmap *pmap, unsigned long va, phys_addr_t pa,
 }
 
 int
-pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
+pmap_enter(struct pmap *pmap, uintptr_t va, phys_addr_t pa,
            int prot, int flags)
 {
     struct pmap_update_oplist *oplist;
@@ -1223,7 +1224,7 @@ pmap_enter(struct pmap *pmap, unsigned long va, phys_addr_t pa,
 }
 
 static void
-pmap_remove_local_single(struct pmap *pmap, unsigned long va)
+pmap_remove_local_single(struct pmap *pmap, uintptr_t va)
 {
     const struct pmap_pt_level *pt_level;
     pmap_pte_t *ptp, *pte;
@@ -1252,7 +1253,7 @@ pmap_remove_local_single(struct pmap *pmap, unsigned long va)
 }
 
 static void
-pmap_remove_local(struct pmap *pmap, unsigned long start, unsigned long end)
+pmap_remove_local(struct pmap *pmap, uintptr_t start, uintptr_t end)
 {
     while (start < end) {
         pmap_remove_local_single(pmap, start);
@@ -1261,7 +1262,7 @@ pmap_remove_local(struct pmap *pmap, unsigned long start, unsigned long end)
 }
 
 int
-pmap_remove(struct pmap *pmap, unsigned long va, const struct cpumap *cpumap)
+pmap_remove(struct pmap *pmap, uintptr_t va, const struct cpumap *cpumap)
 {
     struct pmap_update_oplist *oplist;
     struct pmap_update_op *op;
@@ -1298,8 +1299,8 @@ pmap_remove(struct pmap *pmap, unsigned long va, const struct cpumap *cpumap)
 }
 
 static void
-pmap_protect_local(struct pmap *pmap, unsigned long start,
-                   unsigned long end, int prot)
+pmap_protect_local(struct pmap *pmap, uintptr_t start,
+                   uintptr_t end, int prot)
 {
     (void)pmap;
     (void)start;
@@ -1311,7 +1312,7 @@ pmap_protect_local(struct pmap *pmap, unsigned long start,
 }
 
 int
-pmap_protect(struct pmap *pmap, unsigned long va, int prot,
+pmap_protect(struct pmap *pmap, uintptr_t va, int prot,
              const struct cpumap *cpumap)
 {
     struct pmap_update_oplist *oplist;
@@ -1351,7 +1352,7 @@ pmap_protect(struct pmap *pmap, unsigned long va, int prot,
 }
 
 static void
-pmap_flush_tlb(struct pmap *pmap, unsigned long start, unsigned long end)
+pmap_flush_tlb(struct pmap *pmap, uintptr_t start, uintptr_t end)
 {
     if ((pmap != pmap_current()) && (pmap != kernel_pmap)) {
         return;

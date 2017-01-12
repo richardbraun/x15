@@ -39,7 +39,7 @@ static struct elf_sym *strace_symtab_end __read_mostly;
 static char *strace_strtab __read_mostly;
 
 static const char *
-strace_lookup(unsigned long addr, unsigned long *offset, unsigned long *size)
+strace_lookup(uintptr_t addr, uintptr_t *offset, uintptr_t *size)
 {
     struct elf_sym *sym;
 
@@ -67,7 +67,7 @@ strace_lookup(unsigned long addr, unsigned long *offset, unsigned long *size)
 static void
 strace_show_one(unsigned int index, unsigned long ip)
 {
-    unsigned long offset, size;
+    uintptr_t offset, size;
     const char *name;
 
     name = strace_lookup(ip, &offset, &size);
@@ -76,7 +76,7 @@ strace_show_one(unsigned int index, unsigned long ip)
         printk("strace: #%u [" STRACE_ADDR_FORMAT "]\n", index, ip);
     } else
         printk("strace: #%u [" STRACE_ADDR_FORMAT "] %s+%#lx/%#lx\n",
-               index, ip, name, offset, size);
+               index, ip, name, (unsigned long)offset, (unsigned long)size);
 }
 
 void
@@ -98,7 +98,7 @@ strace_show(unsigned long ip, unsigned long bp)
             break;
         }
 
-        error = pmap_kextract((unsigned long)&frame[1], &pa);
+        error = pmap_kextract((uintptr_t)&frame[1], &pa);
 
         if (error) {
             printk("strace: unmapped return address at %p\n", &frame[1]);
@@ -106,7 +106,7 @@ strace_show(unsigned long ip, unsigned long bp)
         }
 
         strace_show_one(i, (unsigned long)frame[1]);
-        error = pmap_kextract((unsigned long)frame, &pa);
+        error = pmap_kextract((uintptr_t)frame, &pa);
 
         if (error) {
             printk("strace: unmapped frame address at %p\n", frame);
@@ -123,7 +123,7 @@ strace_show(unsigned long ip, unsigned long bp)
 static void * __init
 strace_copy_section(const struct elf_shdr *shdr)
 {
-    unsigned long map_addr;
+    uintptr_t map_addr;
     size_t map_size;
     const void *src;
     void *copy;
@@ -176,7 +176,7 @@ void __init
 strace_setup(const struct multiboot_raw_info *mbi)
 {
     const struct elf_shdr *shstrtab_hdr, *symtab_hdr, *strtab_hdr;
-    unsigned long map_addr, shstrtab_map_addr;
+    uintptr_t map_addr, shstrtab_map_addr;
     size_t size, map_size, shstrtab_map_size;
     const char *shstrtab;
     const void *table;

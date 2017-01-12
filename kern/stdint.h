@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011 Richard Braun.
+ * Copyright (c) 2010-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 
 #ifndef _KERN_STDINT_H
 #define _KERN_STDINT_H
+
+typedef unsigned long uintptr_t;
 
 typedef signed char int8_t;
 typedef unsigned char uint8_t;

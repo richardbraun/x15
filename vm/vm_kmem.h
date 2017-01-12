@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 Richard Braun
+ * Copyright (c) 2010-2017 Richard Braun
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #define _VM_VM_KMEM_H
 
 #include <kern/types.h>
+#include <kern/stdint.h>
 
 /*
  * The kernel space is required not to start at address 0, which is used to
@@ -79,11 +80,11 @@ void vm_kmem_free(void *addr, size_t size);
  * caching on the mapping.
  */
 void * vm_kmem_map_pa(phys_addr_t pa, size_t size,
-                      unsigned long *map_vap, size_t *map_sizep);
+                      uintptr_t *map_vap, size_t *map_sizep);
 
 /*
  * Unmap physical memory from the kernel map.
  */
-void vm_kmem_unmap_pa(unsigned long map_va, size_t map_size);
+void vm_kmem_unmap_pa(uintptr_t map_va, size_t map_size);
 
 #endif /* _VM_VM_KMEM_H */

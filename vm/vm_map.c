@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 Richard Braun.
+ * Copyright (c) 2011-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@
  * by the mapping functions.
  */
 struct vm_map_request {
-    unsigned long start;
+    uintptr_t start;
     size_t size;
     size_t align;
     int flags;
@@ -62,7 +62,7 @@ struct vm_map_request {
     struct vm_map_entry *next;
 };
 
-static int vm_map_prepare(struct vm_map *map, unsigned long start,
+static int vm_map_prepare(struct vm_map *map, uintptr_t start,
                           size_t size, size_t align, int flags,
                           struct vm_object *object, uint64_t offset,
                           struct vm_map_request *request);
@@ -95,7 +95,7 @@ vm_map_entry_destroy(struct vm_map_entry *entry)
 }
 
 static inline int
-vm_map_entry_cmp_lookup(unsigned long addr, const struct rbtree_node *node)
+vm_map_entry_cmp_lookup(uintptr_t addr, const struct rbtree_node *node)
 {
     struct vm_map_entry *entry;
 
@@ -153,7 +153,7 @@ vm_map_request_assert_valid(const struct vm_map_request *request)
  * address), or NULL if there is no such entry.
  */
 static struct vm_map_entry *
-vm_map_lookup_nearest(struct vm_map *map, unsigned long addr)
+vm_map_lookup_nearest(struct vm_map *map, uintptr_t addr)
 {
     struct vm_map_entry *entry;
     struct rbtree_node *node;
@@ -190,7 +190,7 @@ static int
 vm_map_find_fixed(struct vm_map *map, struct vm_map_request *request)
 {
     struct vm_map_entry *next;
-    unsigned long start;
+    uintptr_t start;
     size_t size;
 
     start = request->start;
@@ -224,7 +224,7 @@ vm_map_find_avail(struct vm_map *map, struct vm_map_request *request)
 {
     struct vm_map_entry *next;
     struct list *node;
-    unsigned long base, start;
+    uintptr_t base, start;
     size_t size, align, space;
     int error;
 
@@ -374,7 +374,7 @@ vm_map_unlink(struct vm_map *map, struct vm_map_entry *entry)
  * prepare the mapping request for that region.
  */
 static int
-vm_map_prepare(struct vm_map *map, unsigned long start,
+vm_map_prepare(struct vm_map *map, uintptr_t start,
                size_t size, size_t align, int flags,
                struct vm_object *object, uint64_t offset,
                struct vm_map_request *request)
@@ -446,7 +446,7 @@ vm_map_try_merge_next(struct vm_map *map, const struct vm_map_request *request,
                       struct vm_map_entry *entry)
 {
     struct vm_map_entry *prev, *next;
-    unsigned long end;
+    uintptr_t end;
 
     assert(entry != NULL);
 
@@ -566,7 +566,7 @@ out:
 }
 
 int
-vm_map_enter(struct vm_map *map, unsigned long *startp,
+vm_map_enter(struct vm_map *map, uintptr_t *startp,
              size_t size, size_t align, int flags,
              struct vm_object *object, uint64_t offset)
 {
@@ -601,9 +601,9 @@ error_enter:
 
 static void
 vm_map_split_entries(struct vm_map_entry *prev, struct vm_map_entry *next,
-                     unsigned long split_addr)
+                     uintptr_t split_addr)
 {
-    unsigned long delta;
+    uintptr_t delta;
 
     delta = split_addr - prev->start;
     prev->end = split_addr;
@@ -616,7 +616,7 @@ vm_map_split_entries(struct vm_map_entry *prev, struct vm_map_entry *next,
 
 static void
 vm_map_clip_start(struct vm_map *map, struct vm_map_entry *entry,
-                  unsigned long start)
+                  uintptr_t start)
 {
     struct vm_map_entry *new_entry, *next;
 
@@ -634,8 +634,7 @@ vm_map_clip_start(struct vm_map *map, struct vm_map_entry *entry,
 }
 
 static void
-vm_map_clip_end(struct vm_map *map, struct vm_map_entry *entry,
-                unsigned long end)
+vm_map_clip_end(struct vm_map *map, struct vm_map_entry *entry, uintptr_t end)
 {
     struct vm_map_entry *new_entry, *prev;
 
@@ -653,7 +652,7 @@ vm_map_clip_end(struct vm_map *map, struct vm_map_entry *entry,
 }
 
 void
-vm_map_remove(struct vm_map *map, unsigned long start, unsigned long end)
+vm_map_remove(struct vm_map *map, uintptr_t start, uintptr_t end)
 {
     struct vm_map_entry *entry;
     struct list *node;
@@ -696,7 +695,7 @@ out:
 
 static void
 vm_map_init(struct vm_map *map, struct pmap *pmap,
-            unsigned long start, unsigned long end)
+            uintptr_t start, uintptr_t end)
 {
     assert(vm_page_aligned(start));
     assert(vm_page_aligned(end));
@@ -772,7 +771,8 @@ vm_map_info(struct vm_map *map)
 
     printk("vm_map: %s: %016lx-%016lx\n"
            "vm_map:      start             end          "
-           "size     offset   flags    type\n", name, map->start, map->end);
+           "size     offset   flags    type\n", name,
+           (unsigned long)map->start, (unsigned long)map->end);
 
     list_for_each_entry(&map->entry_list, entry, list_node) {
         if (entry->object == NULL) {
@@ -781,9 +781,10 @@ vm_map_info(struct vm_map *map)
             type = "object";
         }
 
-        printk("vm_map: %016lx %016lx %8luk %08llx %08x %s\n", entry->start,
-               entry->end, (entry->end - entry->start) >> 10, entry->offset,
-               entry->flags, type);
+        printk("vm_map: %016lx %016lx %8luk %08llx %08x %s\n",
+               (unsigned long)entry->start, (unsigned long)entry->end,
+               (unsigned long)(entry->end - entry->start) >> 10,
+               entry->offset, entry->flags, type);
     }
 
     printk("vm_map: total: %zuk\n", map->size >> 10);

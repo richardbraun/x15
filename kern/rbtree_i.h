@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011, 2012 Richard Braun.
+ * Copyright (c) 2010-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <kern/assert.h>
 #include <kern/macros.h>
 #include <kern/stddef.h>
+#include <kern/stdint.h>
 
 /*
  * Red-black node structure.
@@ -37,7 +38,7 @@
  * special alignment constraints such as member packing.
  */
 struct rbtree_node {
-    unsigned long parent;
+    uintptr_t parent;
     struct rbtree_node *children[2];
 };
 
@@ -52,8 +53,8 @@ struct rbtree {
  * Masks applied on the parent member of a node to obtain either the
  * color or the parent address.
  */
-#define RBTREE_COLOR_MASK   0x1UL
-#define RBTREE_PARENT_MASK  (~0x3UL)
+#define RBTREE_COLOR_MASK   ((uintptr_t)1)
+#define RBTREE_PARENT_MASK  (~(uintptr_t)0x3)
 
 /*
  * Node colors.
@@ -65,7 +66,7 @@ struct rbtree {
  * Masks applied on slots to obtain either the child index or the parent
  * address.
  */
-#define RBTREE_SLOT_INDEX_MASK  0x1UL
+#define RBTREE_SLOT_INDEX_MASK  ((uintptr_t)0x1)
 #define RBTREE_SLOT_PARENT_MASK (~RBTREE_SLOT_INDEX_MASK)
 
 /*
@@ -95,7 +96,7 @@ rbtree_d2i(int diff)
 static inline int
 rbtree_node_check_alignment(const struct rbtree_node *node)
 {
-    return ((unsigned long)node & (~RBTREE_PARENT_MASK)) == 0;
+    return ((uintptr_t)node & (~RBTREE_PARENT_MASK)) == 0;
 }
 
 /*
@@ -110,19 +111,19 @@ rbtree_node_parent(const struct rbtree_node *node)
 /*
  * Translate an insertion point into a slot.
  */
-static inline unsigned long
+static inline rbtree_slot_t
 rbtree_slot(struct rbtree_node *parent, int index)
 {
     assert(rbtree_node_check_alignment(parent));
     assert(rbtree_check_index(index));
-    return (unsigned long)parent | index;
+    return (rbtree_slot_t)parent | index;
 }
 
 /*
  * Extract the parent address from a slot.
  */
 static inline struct rbtree_node *
-rbtree_slot_parent(unsigned long slot)
+rbtree_slot_parent(rbtree_slot_t slot)
 {
     return (struct rbtree_node *)(slot & RBTREE_SLOT_PARENT_MASK);
 }
@@ -131,7 +132,7 @@ rbtree_slot_parent(unsigned long slot)
  * Extract the index from a slot.
  */
 static inline int
-rbtree_slot_index(unsigned long slot)
+rbtree_slot_index(rbtree_slot_t slot)
 {
     return slot & RBTREE_SLOT_INDEX_MASK;
 }

@@ -252,7 +252,7 @@ static int __init
 acpimp_get_rsdp(phys_addr_t start, size_t size, struct acpimp_rsdp *rsdp)
 {
     const struct acpimp_rsdp *src;
-    unsigned long addr, end, map_addr;
+    uintptr_t addr, end, map_addr;
     size_t map_size;
     int error;
 
@@ -263,7 +263,7 @@ acpimp_get_rsdp(phys_addr_t start, size_t size, struct acpimp_rsdp *rsdp)
         return -1;
     }
 
-    addr = (unsigned long)vm_kmem_map_pa(start, size, &map_addr, &map_size);
+    addr = (uintptr_t)vm_kmem_map_pa(start, size, &map_addr, &map_size);
 
     if (addr == 0) {
         panic("acpimp: unable to map bios memory in kernel map");
@@ -295,7 +295,7 @@ static int __init
 acpimp_find_rsdp(struct acpimp_rsdp *rsdp)
 {
     const uint16_t *ptr;
-    unsigned long base, map_addr;
+    uintptr_t base, map_addr;
     size_t map_size;
     int error;
 
@@ -344,7 +344,7 @@ acpimp_copy_table(uint32_t addr)
 {
     const struct acpimp_sdth *table;
     struct acpimp_sdth *copy;
-    unsigned long map_addr;
+    uintptr_t map_addr;
     size_t size, map_size;
     unsigned int checksum;
 
