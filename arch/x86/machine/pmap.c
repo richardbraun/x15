@@ -53,7 +53,7 @@
 struct pmap_pt_level {
     unsigned int skip;
     unsigned int bits;
-    unsigned int ptes_per_ptp;
+    unsigned int ptes_per_pt;
     pmap_pte_t mask;
 };
 
@@ -61,12 +61,12 @@ struct pmap_pt_level {
  * Table of page translation properties.
  */
 static struct pmap_pt_level pmap_pt_levels[] __read_mostly = {
-    { PMAP_L0_SKIP, PMAP_L0_BITS, PMAP_L0_PTES_PER_PTP, PMAP_L0_MASK },
-    { PMAP_L1_SKIP, PMAP_L1_BITS, PMAP_L1_PTES_PER_PTP, PMAP_L1_MASK },
+    { PMAP_L0_SKIP, PMAP_L0_BITS, PMAP_L0_PTES_PER_PT, PMAP_L0_MASK },
+    { PMAP_L1_SKIP, PMAP_L1_BITS, PMAP_L1_PTES_PER_PT, PMAP_L1_MASK },
 #if PMAP_NR_LEVELS > 2
-    { PMAP_L2_SKIP, PMAP_L2_BITS, PMAP_L2_PTES_PER_PTP, PMAP_L2_MASK },
+    { PMAP_L2_SKIP, PMAP_L2_BITS, PMAP_L2_PTES_PER_PT, PMAP_L2_MASK },
 #if PMAP_NR_LEVELS > 3
-    { PMAP_L3_SKIP, PMAP_L3_BITS, PMAP_L3_PTES_PER_PTP, PMAP_L3_MASK },
+    { PMAP_L3_SKIP, PMAP_L3_BITS, PMAP_L3_PTES_PER_PT, PMAP_L3_MASK },
 #endif /* PMAP_NR_LEVELS > 3 */
 #endif /* PMAP_NR_LEVELS > 2 */
 };
@@ -114,7 +114,7 @@ struct pmap *pmap_current_ptr __percpu;
 /*
  * "Hidden" kernel root page tables for PAE mode.
  */
-static pmap_pte_t pmap_cpu_kpdpts[MAX_CPUS][PMAP_L2_PTES_PER_PTP] __read_mostly
+static pmap_pte_t pmap_cpu_kpdpts[MAX_CPUS][PMAP_L2_PTES_PER_PT] __read_mostly
     __aligned(PMAP_PDPT_ALIGN);
 
 #endif /* X86_PAE */
@@ -927,7 +927,7 @@ pmap_copy_cpu_table_page(const pmap_pte_t *sptp, unsigned int level,
 
     pt_level = &pmap_pt_levels[level];
     dptp = vm_page_direct_ptr(page);
-    memcpy(dptp, sptp, pt_level->ptes_per_ptp * sizeof(pmap_pte_t));
+    memcpy(dptp, sptp, pt_level->ptes_per_pt * sizeof(pmap_pte_t));
 }
 
 static void __init
@@ -943,10 +943,10 @@ pmap_copy_cpu_table_recursive(const pmap_pte_t *sptp, unsigned int level,
     assert(level != 0);
 
     pt_level = &pmap_pt_levels[level];
-    memset(dptp, 0, pt_level->ptes_per_ptp * sizeof(pmap_pte_t));
+    memset(dptp, 0, pt_level->ptes_per_pt * sizeof(pmap_pte_t));
 
     for (i = 0, va = start_va;
-         i < pt_level->ptes_per_ptp;
+         i < pt_level->ptes_per_pt;
          i++, va = P2END(va, 1UL << pt_level->skip)) {
 #ifdef __LP64__
         /* Handle long mode canonical form */

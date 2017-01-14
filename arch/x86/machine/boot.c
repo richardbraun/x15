@@ -77,9 +77,9 @@ char boot_ap_stack[STACK_SIZE] __aligned(DATA_ALIGN) __bootdata;
 unsigned int boot_ap_id __bootdata;
 
 #ifdef __LP64__
-pmap_pte_t boot_pml4[PMAP_L3_PTES_PER_PTP] __aligned(PAGE_SIZE) __bootdata;
-pmap_pte_t boot_pdpt[PMAP_L2_PTES_PER_PTP] __aligned(PAGE_SIZE) __bootdata;
-pmap_pte_t boot_pdir[4 * PMAP_L1_PTES_PER_PTP] __aligned(PAGE_SIZE) __bootdata;
+pmap_pte_t boot_pml4[PMAP_L3_PTES_PER_PT] __aligned(PAGE_SIZE) __bootdata;
+pmap_pte_t boot_pdpt[PMAP_L2_PTES_PER_PT] __aligned(PAGE_SIZE) __bootdata;
+pmap_pte_t boot_pdir[4 * PMAP_L1_PTES_PER_PT] __aligned(PAGE_SIZE) __bootdata;
 char boot_panic_long_mode_msg[] __bootdata
     = "boot: processor doesn't support long mode";
 #endif /* __LP64__ */

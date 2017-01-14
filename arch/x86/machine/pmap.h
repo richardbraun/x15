@@ -89,10 +89,10 @@
 #define PMAP_L2_SKIP    (PMAP_L1_SKIP + PMAP_L1_BITS)
 #define PMAP_L3_SKIP    (PMAP_L2_SKIP + PMAP_L2_BITS)
 
-#define PMAP_L0_PTES_PER_PTP    (1 << PMAP_L0_BITS)
-#define PMAP_L1_PTES_PER_PTP    (1 << PMAP_L1_BITS)
-#define PMAP_L2_PTES_PER_PTP    (1 << PMAP_L2_BITS)
-#define PMAP_L3_PTES_PER_PTP    (1 << PMAP_L3_BITS)
+#define PMAP_L0_PTES_PER_PT     (1 << PMAP_L0_BITS)
+#define PMAP_L1_PTES_PER_PT     (1 << PMAP_L1_BITS)
+#define PMAP_L2_PTES_PER_PT     (1 << PMAP_L2_BITS)
+#define PMAP_L3_PTES_PER_PT     (1 << PMAP_L3_BITS)
 
 #ifndef __ASSEMBLER__
 
