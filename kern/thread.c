@@ -111,6 +111,20 @@
 #include <vm/vm_map.h>
 
 /*
+ * Preemption level of a suspended thread.
+ *
+ * The expected interrupt, preemption and run queue lock state when
+ * dispatching a thread is :
+ *  - interrupts disabled
+ *  - preemption disabled
+ *  - run queue locked
+ *
+ * Locking the run queue increases the preemption counter once more,
+ * making its value 2.
+ */
+#define THREAD_SUSPEND_PREEMPT_LEVEL 2
+
+/*
  * Default time slice for real-time round-robin scheduling.
  */
 #define THREAD_DEFAULT_RR_TIME_SLICE (HZ / 10)
@@ -484,11 +498,13 @@ thread_runq_wakeup_balancer(struct thread_runq *runq)
 }
 
 static struct thread_runq *
-thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
+thread_runq_schedule(struct thread_runq *runq)
 {
-    struct thread *next;
+    struct thread *prev, *next;
 
-    assert(prev->preempt == 2);
+    prev = thread_self();
+
+    assert(prev->preempt == THREAD_SUSPEND_PREEMPT_LEVEL);
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
 
@@ -508,7 +524,7 @@ thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
     next = thread_runq_get_next(runq);
     assert((next != runq->idler) || (runq->nr_threads == 0));
 
-    if (prev != next) {
+    if (likely(prev != next)) {
         pmap_load(next->task->map->pmap);
 
         /*
@@ -526,7 +542,7 @@ thread_runq_schedule(struct thread_runq *runq, struct thread *prev)
         runq = thread_runq_local();
     }
 
-    assert(prev->preempt == 2);
+    assert(prev->preempt == THREAD_SUSPEND_PREEMPT_LEVEL);
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
     return runq;
@@ -1527,20 +1543,10 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     cpumap = (attr->cpumap == NULL) ? &caller->cpumap : attr->cpumap;
     assert(attr->policy < THREAD_NR_SCHED_POLICIES);
 
-    /*
-     * The expected interrupt, preemption and run queue lock state when
-     * dispatching a thread is :
-     *  - interrupts disabled
-     *  - preemption disabled
-     *  - run queue locked
-     *
-     * Locking the run queue increases the preemption counter once more,
-     * making its value 2.
-     */
     thread->flags = 0;
     thread->runq = NULL;
     thread->state = THREAD_SLEEPING;
-    thread->preempt = 2;
+    thread->preempt = THREAD_SUSPEND_PREEMPT_LEVEL;
     thread->pinned = 0;
     thread->llsync_read = 0;
     thread->sched_policy = attr->policy;
@@ -1722,7 +1728,7 @@ thread_balance(void *arg)
     for (;;) {
         runq->idle_balance_ticks = THREAD_IDLE_BALANCE_TICKS;
         self->state = THREAD_SLEEPING;
-        runq = thread_runq_schedule(runq, self);
+        runq = thread_runq_schedule(runq);
         assert(runq == arg);
 
         /*
@@ -1975,7 +1981,7 @@ thread_exit(void)
 
     thread->state = THREAD_DEAD;
 
-    thread_runq_schedule(runq, thread);
+    thread_runq_schedule(runq);
     panic("thread: dead thread walking");
 }
 
@@ -2006,7 +2012,7 @@ thread_sleep(struct spinlock *interlock)
 
     thread->state = THREAD_SLEEPING;
 
-    runq = thread_runq_schedule(runq, thread);
+    runq = thread_runq_schedule(runq);
     assert(thread->state == THREAD_RUNNING);
 
     spinlock_unlock_intr_restore(&runq->lock, flags);
@@ -2110,7 +2116,7 @@ thread_yield(void)
         thread_preempt_disable();
         runq = thread_runq_local();
         spinlock_lock_intr_save(&runq->lock, &flags);
-        runq = thread_runq_schedule(runq, thread);
+        runq = thread_runq_schedule(runq);
         spinlock_unlock_intr_restore(&runq->lock, flags);
         thread_preempt_enable_no_resched();
     } while (thread_test_flag(thread, THREAD_YIELD));
