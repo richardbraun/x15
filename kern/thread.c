@@ -497,6 +497,12 @@ thread_runq_wakeup_balancer(struct thread_runq *runq)
     thread_runq_wakeup(runq, runq->balancer);
 }
 
+static void
+thread_runq_schedule_prepare(struct thread *thread)
+{
+    pmap_load(thread->task->map->pmap);
+}
+
 static struct thread_runq *
 thread_runq_schedule(struct thread_runq *runq)
 {
@@ -523,10 +529,9 @@ thread_runq_schedule(struct thread_runq *runq)
 
     next = thread_runq_get_next(runq);
     assert((next != runq->idler) || (runq->nr_threads == 0));
+    assert(next->preempt == THREAD_SUSPEND_PREEMPT_LEVEL);
 
     if (likely(prev != next)) {
-        pmap_load(next->task->map->pmap);
-
         /*
          * That's where the true context switch occurs. The next thread must
          * unlock the run queue and reenable preemption. Note that unlocking
@@ -536,10 +541,18 @@ thread_runq_schedule(struct thread_runq *runq)
         tcb_switch(&prev->tcb, &next->tcb);
 
         /*
-         * When dispatched again, the thread might have been moved to another
-         * processor.
+         * The thread is dispatched on a processor once again.
+         *
+         * Keep in mind the system state may have changed a lot since this
+         * function was called. In particular, the next thread may have been
+         * destroyed, and must not be referenced any more.
          */
+        barrier();
+
+        /* The thread might have been moved to another processor */
         runq = thread_runq_local();
+
+        thread_runq_schedule_prepare(prev);
     }
 
     assert(prev->preempt == THREAD_SUSPEND_PREEMPT_LEVEL);
@@ -1485,11 +1498,13 @@ thread_main(void)
     assert(!cpu_intr_enabled());
     assert(!thread_preempt_enabled());
 
+    thread = thread_self();
+    thread_runq_schedule_prepare(thread);
+
     spinlock_unlock(&thread_runq_local()->lock);
     cpu_intr_enable();
     thread_preempt_enable();
 
-    thread = thread_self();
     thread->fn(thread->arg);
     thread_exit();
 }
@@ -2095,7 +2110,6 @@ thread_run_scheduler(void)
     spinlock_lock(&runq->lock);
     thread = thread_runq_get_next(thread_runq_local());
 
-    pmap_load(thread->task->map->pmap);
     tcb_load(&thread->tcb);
 }
 
