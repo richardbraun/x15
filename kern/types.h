@@ -21,6 +21,11 @@
 #include <machine/types.h>
 
 /*
+ * Forward declarations.
+ */
+struct task;
+
+/*
  * Types defined here to avoid inclusion loops.
  */
 

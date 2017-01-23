@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Richard Braun.
+ * Copyright (c) 2012-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,42 +36,21 @@
 
 #include <kern/assert.h>
 #include <kern/cpumap.h>
-#include <kern/list.h>
 #include <kern/macros.h>
-#include <kern/param.h>
 #include <kern/types.h>
-#include <machine/atomic.h>
-#include <machine/cpu.h>
 #include <machine/tcb.h>
 
 /*
- * Forward declarations.
+ * Thread structure.
  */
-struct spinlock;
-struct task;
-struct thread_runq;
-struct thread_ts_runq;
+struct thread;
 
 /*
  * Thread name buffer size.
  */
 #define THREAD_NAME_SIZE 32
 
-/*
- * Thread flags.
- */
-#define THREAD_YIELD    0x1UL /* Must yield the processor ASAP */
-#define THREAD_DETACHED 0x2UL /* Resources automatically released on exit */
-
-/*
- * Thread states.
- *
- * Threads in the running state may not be on a run queue if they're being
- * awaken.
- */
-#define THREAD_RUNNING  0
-#define THREAD_SLEEPING 1
-#define THREAD_DEAD     2
+#include <kern/thread_i.h>
 
 /*
  * Scheduling policies.
@@ -85,32 +64,10 @@ struct thread_ts_runq;
 #define THREAD_NR_SCHED_POLICIES    4
 
 /*
- * Scheduling classes.
- *
- * Classes are sorted by order of priority (lower indexes first). The same
- * class can apply to several policies.
- *
- * The idle class is reserved for the per-CPU idle threads.
- */
-#define THREAD_SCHED_CLASS_RT   0
-#define THREAD_SCHED_CLASS_TS   1
-#define THREAD_SCHED_CLASS_IDLE 2
-#define THREAD_NR_SCHED_CLASSES 3
-
-/*
  * Real-time priority properties.
  */
 #define THREAD_SCHED_RT_PRIO_MIN        0
 #define THREAD_SCHED_RT_PRIO_MAX        63
-
-/*
- * Scheduling data for a real-time thread.
- */
-struct thread_rt_data {
-    struct list node;
-    unsigned short priority;
-    unsigned short time_slice;
-};
 
 /*
  * Time-sharing priority properties.
@@ -118,77 +75,6 @@ struct thread_rt_data {
 #define THREAD_SCHED_TS_PRIO_MIN        0
 #define THREAD_SCHED_TS_PRIO_DEFAULT    20
 #define THREAD_SCHED_TS_PRIO_MAX        39
-
-/*
- * Scheduling data for a time-sharing thread.
- */
-struct thread_ts_data {
-    struct list group_node;
-    struct list runq_node;
-    struct thread_ts_runq *ts_runq;
-    unsigned long round;
-    unsigned short priority;
-    unsigned short weight;
-    unsigned short work;
-};
-
-/*
- * Maximum number of thread-specific data keys.
- */
-#define THREAD_KEYS_MAX 4
-
-/*
- * Thread structure.
- *
- * Thread members are normally protected by the lock of the run queue they're
- * associated with. Thread-local members are accessed without synchronization.
- */
-struct thread {
-    struct tcb tcb;
-
-    /* Flags must be changed atomically */
-    unsigned long flags;
-
-    /* Sleep/wakeup synchronization members */
-    struct thread_runq *runq;
-    unsigned short state;
-
-    /* Thread-local members */
-    unsigned short preempt;
-    unsigned short pinned;
-    unsigned short llsync_read;
-
-    /* Common scheduling properties */
-    unsigned char sched_policy;
-    unsigned char sched_class;
-
-    /* Processors on which this thread is allowed to run */
-    struct cpumap cpumap;
-
-    /* Scheduling class specific data */
-    union {
-        struct thread_rt_data rt_data;
-        struct thread_ts_data ts_data;
-    };
-
-    /* Thread-specific data */
-    void *tsd[THREAD_KEYS_MAX];
-
-    /* Members related to termination */
-    struct mutex join_lock;
-    struct condition join_cond;
-    int exited;
-
-    /* Read-only members */
-    struct task *task;
-    struct list task_node;
-    void *stack;
-    char name[THREAD_NAME_SIZE];
-    void (*fn)(void *);
-    void *arg;
-} __aligned(CPU_L1_SIZE);
-
-#define THREAD_ATTR_DETACHED 0x1
 
 /*
  * Thread creation attributes.
@@ -372,29 +258,6 @@ static inline struct thread *
 thread_self(void)
 {
     return thread_from_tcb(tcb_current());
-}
-
-/*
- * Flag access functions.
- */
-
-static inline void
-thread_set_flag(struct thread *thread, unsigned long flag)
-{
-    atomic_or_ulong(&thread->flags, flag);
-}
-
-static inline void
-thread_clear_flag(struct thread *thread, unsigned long flag)
-{
-    atomic_and_ulong(&thread->flags, ~flag);
-}
-
-static inline int
-thread_test_flag(struct thread *thread, unsigned long flag)
-{
-    barrier();
-    return ((thread->flags & flag) != 0);
 }
 
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Richard Braun.
+ * Copyright (c) 2012-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -123,6 +123,19 @@
  * making its value 2.
  */
 #define THREAD_SUSPEND_PREEMPT_LEVEL 2
+
+/*
+ * Scheduling classes.
+ *
+ * Classes are sorted by order of priority (lower indexes first). The same
+ * class can apply to several policies.
+ *
+ * The idle class is reserved for the per-CPU idle threads.
+ */
+#define THREAD_SCHED_CLASS_RT   0
+#define THREAD_SCHED_CLASS_TS   1
+#define THREAD_SCHED_CLASS_IDLE 2
+#define THREAD_NR_SCHED_CLASSES 3
 
 /*
  * Default time slice for real-time round-robin scheduling.

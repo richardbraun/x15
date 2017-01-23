@@ -55,6 +55,7 @@ x15_SOURCES +=              \
 	kern/task.h         \
 	kern/thread.c       \
 	kern/thread.h       \
+	kern/thread_i.h     \
 	kern/types.h        \
 	kern/work.c         \
 	kern/work.h         \
