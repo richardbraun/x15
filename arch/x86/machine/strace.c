@@ -74,9 +74,10 @@ strace_show_one(unsigned int index, unsigned long ip)
 
     if (name == NULL) {
         printk("strace: #%u [" STRACE_ADDR_FORMAT "]\n", index, ip);
-    } else
+    } else {
         printk("strace: #%u [" STRACE_ADDR_FORMAT "] %s+%#lx/%#lx\n",
                index, ip, name, (unsigned long)offset, (unsigned long)size);
+    }
 }
 
 void

@@ -514,11 +514,12 @@ MACRO_BEGIN                                             \
     assert(((end) <= VM_MIN_DIRECTMAP_ADDRESS)          \
            || ((start) >= VM_MAX_DIRECTMAP_ADDRESS));   \
                                                         \
-    if ((pmap) == kernel_pmap)                          \
+    if ((pmap) == kernel_pmap) {                        \
         assert(((start) >= VM_MIN_KMEM_ADDRESS)         \
                && ((end) <= VM_MAX_KMEM_ADDRESS));      \
-    else                                                \
+    } else {                                            \
         assert((end) <= VM_MAX_ADDRESS);                \
+    }                                                   \
 MACRO_END
 
 static inline pmap_pte_t *
