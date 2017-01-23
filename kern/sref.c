@@ -737,7 +737,7 @@ sref_setup_manager(struct sref_cache *cache, unsigned int cpu)
 
     cpumap_zero(cpumap);
     cpumap_set(cpumap, cpu);
-    snprintf(name, sizeof(name), "x15_sref_manage/%u", cpu);
+    snprintf(name, sizeof(name), THREAD_KERNEL_PREFIX "sref_manage/%u", cpu);
     thread_attr_init(&attr, name);
     thread_attr_set_cpumap(&attr, cpumap);
     thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_FIFO);

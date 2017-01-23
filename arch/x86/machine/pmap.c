@@ -1038,7 +1038,7 @@ pmap_mp_setup(void)
 
     for (cpu = 0; cpu < cpu_count(); cpu++) {
         syncer = percpu_ptr(pmap_syncer, cpu);
-        snprintf(name, sizeof(name), "x15_pmap_sync/%u", cpu);
+        snprintf(name, sizeof(name), THREAD_KERNEL_PREFIX "pmap_sync/%u", cpu);
         cpumap_zero(cpumap);
         cpumap_set(cpumap, cpu);
         thread_attr_init(&attr, name);

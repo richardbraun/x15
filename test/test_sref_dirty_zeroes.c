@@ -113,12 +113,12 @@ test_setup(void)
     sref_counter_init(&test_counter, test_noref);
     test_transient_ref = 0;
 
-    thread_attr_init(&attr, "x15_test_inc");
+    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_inc");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_inc, NULL);
     error_check(error, "thread_create");
 
-    thread_attr_init(&attr, "x15_test_dec");
+    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_dec");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_dec, NULL);
     error_check(error, "thread_create");

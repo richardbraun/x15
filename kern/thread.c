@@ -1711,7 +1711,7 @@ thread_setup_reaper(void)
     condition_init(&thread_reap_cond);
     list_init(&thread_reap_list);
 
-    thread_attr_init(&attr, "x15_thread_reap");
+    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "thread_reap");
     error = thread_create(&thread, &attr, thread_reap, NULL);
 
     if (error) {
@@ -1785,7 +1785,7 @@ thread_setup_balancer(struct thread_runq *runq)
 
     cpumap_zero(cpumap);
     cpumap_set(cpumap, thread_runq_cpu(runq));
-    snprintf(name, sizeof(name), "x15_thread_balance/%u",
+    snprintf(name, sizeof(name), THREAD_KERNEL_PREFIX "thread_balance/%u",
              thread_runq_cpu(runq));
     thread_attr_init(&attr, name);
     thread_attr_set_cpumap(&attr, cpumap);
@@ -1871,7 +1871,8 @@ thread_setup_idler(struct thread_runq *runq)
         panic("thread: unable to allocate idler thread stack");
     }
 
-    snprintf(name, sizeof(name), "x15_thread_idle/%u", thread_runq_cpu(runq));
+    snprintf(name, sizeof(name), THREAD_KERNEL_PREFIX "thread_idle/%u",
+             thread_runq_cpu(runq));
     thread_attr_init(&attr, name);
     thread_attr_set_cpumap(&attr, cpumap);
     thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_IDLE);

@@ -194,17 +194,17 @@ test_setup(void)
     kmem_cache_init(&test_pdsc_cache, "test_pdsc",
                     sizeof(struct test_pdsc), 0, NULL, 0);
 
-    thread_attr_init(&attr, "x15_test_alloc");
+    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_alloc");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_alloc, NULL);
     error_check(error, "thread_create");
 
-    thread_attr_init(&attr,"x15_test_free");
+    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_free");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_free, NULL);
     error_check(error, "thread_create");
 
-    thread_attr_init(&attr, "x15_test_read");
+    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_read");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_read, NULL);
     error_check(error, "thread_create");

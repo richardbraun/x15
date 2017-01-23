@@ -52,6 +52,8 @@ struct thread;
 
 #include <kern/thread_i.h>
 
+#define THREAD_KERNEL_PREFIX PACKAGE "_"
+
 /*
  * Scheduling policies.
  *

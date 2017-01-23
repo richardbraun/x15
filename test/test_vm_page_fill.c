@@ -132,7 +132,7 @@ test_setup(void)
     cpumap_zero(&test_cpumap);
     cpumap_set(&test_cpumap, cpu_id());
 
-    thread_attr_init(&attr, "x15_test_run");
+    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_run");
     thread_attr_set_detached(&attr);
     thread_attr_set_cpumap(&attr, &test_cpumap);
     error = thread_create(&thread, &attr, test_run, NULL);

@@ -128,7 +128,7 @@ test_run(void *arg)
     }
 
     for (i = 0; i < nr_threads; i++) {
-        snprintf(name, sizeof(name), "x15_test_ref/%u", i);
+        snprintf(name, sizeof(name), THREAD_KERNEL_PREFIX "test_ref/%u", i);
         thread_attr_init(&attr, name);
         error = thread_create(&threads[i], &attr, test_ref, NULL);
         error_check(error, "thread_create");
@@ -177,7 +177,7 @@ test_setup(void)
     condition_init(&test_condition);
     mutex_init(&test_lock);
 
-    thread_attr_init(&attr, "x15_test_run");
+    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_run");
     thread_attr_set_detached(&attr);
     error = thread_create(&thread, &attr, test_run, NULL);
     error_check(error, "thread_create");

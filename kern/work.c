@@ -419,7 +419,8 @@ work_thread_create(struct work_pool *pool, unsigned int id)
 
     if (pool->flags & WORK_PF_GLOBAL) {
         cpumap = NULL;
-        snprintf(name, sizeof(name), "x15_work_process/g:%u%s",
+        snprintf(name, sizeof(name),
+                 THREAD_KERNEL_PREFIX "work_process/g:%u%s",
                  worker->id, suffix);
     } else {
         unsigned int pool_id;
@@ -433,7 +434,8 @@ work_thread_create(struct work_pool *pool, unsigned int id)
         pool_id = work_pool_cpu_id(pool);
         cpumap_zero(cpumap);
         cpumap_set(cpumap, pool_id);
-        snprintf(name, sizeof(name), "x15_work_process/%u:%u%s",
+        snprintf(name, sizeof(name),
+                 THREAD_KERNEL_PREFIX "work_process/%u:%u%s",
                  pool_id, worker->id, suffix);
     }
 
