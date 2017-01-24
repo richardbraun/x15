@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Richard Braun.
+ * Copyright (c) 2014-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,15 @@
 #ifndef _KERN_SREF_H
 #define _KERN_SREF_H
 
+/*
+ * Scalable reference counter.
+ */
 struct sref_counter;
+
+/*
+ * Weak reference.
+ */
+struct sref_weakref;
 
 /*
  * Type for no-reference functions.
@@ -86,12 +94,22 @@ void sref_report_periodic_event(void);
  * The counter is set to 1. The no-reference function is called (from thread
  * context) when it is certain that the true number of references is 0.
  */
-void sref_counter_init(struct sref_counter *counter, sref_noref_fn_t noref_fn);
+void sref_counter_init(struct sref_counter *counter,
+                       struct sref_weakref *weakref,
+                       sref_noref_fn_t noref_fn);
 
 /*
  * Counter operations.
  */
 void sref_counter_inc(struct sref_counter *counter);
 void sref_counter_dec(struct sref_counter *counter);
+
+/*
+ * Attempt to get a reference from a weak reference.
+ *
+ * If successful, increment the reference counter before returning it.
+ * Otherwise return NULL.
+ */
+struct sref_counter * sref_weakref_get(struct sref_weakref *weakref);
 
 #endif /* _KERN_SREF_H */

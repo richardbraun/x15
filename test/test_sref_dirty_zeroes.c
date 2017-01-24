@@ -110,7 +110,7 @@ test_setup(void)
     condition_init(&test_condition);
     mutex_init(&test_lock);
 
-    sref_counter_init(&test_counter, test_noref);
+    sref_counter_init(&test_counter, NULL, test_noref);
     test_transient_ref = 0;
 
     thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_inc");

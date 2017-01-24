@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Richard Braun.
+ * Copyright (c) 2014-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,23 @@
 #define _KERN_SREF_I_H
 
 #include <kern/spinlock.h>
+#include <kern/stdint.h>
 #include <kern/work.h>
+
+#define SREF_WEAKREF_DYING  ((uintptr_t)1)
+#define SREF_WEAKREF_MASK   (~SREF_WEAKREF_DYING)
+
+/*
+ * Weak reference.
+ *
+ * A weak reference is a pointer to a reference counter in which the
+ * least-significant bit is used to indicate whether the counter is
+ * "dying", i.e. about to be destroyed. It must be accessed with atomic
+ * instructions.
+ */
+struct sref_weakref {
+    uintptr_t addr;
+};
 
 #define SREF_QUEUED 0x1
 #define SREF_DIRTY  0x2
@@ -39,6 +55,7 @@ struct sref_counter {
             struct spinlock lock;
             int flags;
             unsigned long value;
+            struct sref_weakref *weakref;
         };
 
         struct work work;

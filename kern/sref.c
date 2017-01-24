@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Richard Braun.
+ * Copyright (c) 2014-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +21,6 @@
  * the Refcache component described in the paper, with a few differences
  * outlined below.
  *
- * For now, this module doesn't provide weak references.
- *
  * Refcache synchronizes access to delta caches by disabling preemption.
  * That behaviour is realtime-unfriendly because of the large number of
  * deltas in a cache. This module uses dedicated manager threads to
@@ -40,6 +38,8 @@
  *
  * Locking protocol : cache -> counter -> global data
  */
+
+#include <stdbool.h>
 
 #include <kern/assert.h>
 #include <kern/condition.h>
@@ -104,6 +104,7 @@ struct sref_data {
     struct sref_queue queue1;
     struct evcnt ev_epoch;
     struct evcnt ev_dirty_zero;
+    struct evcnt ev_revive;
     struct evcnt ev_true_zero;
     int no_warning;
 };
@@ -240,6 +241,61 @@ sref_queue_concat(struct sref_queue *queue1, struct sref_queue *queue2)
     queue1->size += queue2->size;
 }
 
+static inline bool
+sref_counter_aligned(const struct sref_counter *counter)
+{
+    return (((uintptr_t)counter & (~SREF_WEAKREF_MASK)) == 0);
+}
+
+static void
+sref_weakref_init(struct sref_weakref *weakref, struct sref_counter *counter)
+{
+    assert(sref_counter_aligned(counter));
+    weakref->addr = (uintptr_t)counter;
+}
+
+static void
+sref_weakref_mark_dying(struct sref_weakref *weakref)
+{
+    atomic_or_uintptr(&weakref->addr, SREF_WEAKREF_DYING);
+}
+
+static void
+sref_weakref_clear_dying(struct sref_weakref *weakref)
+{
+    atomic_and_uintptr(&weakref->addr, SREF_WEAKREF_MASK);
+}
+
+static int
+sref_weakref_kill(struct sref_weakref *weakref)
+{
+    uintptr_t addr, oldval;
+
+    addr = weakref->addr | SREF_WEAKREF_DYING;
+    oldval = atomic_cas_uintptr(&weakref->addr, addr, (uintptr_t)NULL);
+
+    if (oldval != addr) {
+        assert((oldval & SREF_WEAKREF_MASK) == (addr & SREF_WEAKREF_MASK));
+        return ERROR_BUSY;
+    }
+
+    return 0;
+}
+
+static struct sref_counter *
+sref_weakref_tryget(struct sref_weakref *weakref)
+{
+    uintptr_t addr, oldval, newval;
+
+    do {
+        addr = weakref->addr;
+        newval = addr & SREF_WEAKREF_MASK;
+        oldval = atomic_cas_uintptr(&weakref->addr, addr, newval);
+    } while (oldval != addr);
+
+    return (struct sref_counter *)newval;
+}
+
 static inline uintptr_t
 sref_counter_hash(const struct sref_counter *counter)
 {
@@ -293,6 +349,36 @@ sref_counter_clear_dirty(struct sref_counter *counter)
     counter->flags &= ~SREF_DIRTY;
 }
 
+static inline void
+sref_counter_mark_dying(struct sref_counter *counter)
+{
+    if (counter->weakref == NULL) {
+        return;
+    }
+
+    sref_weakref_mark_dying(counter->weakref);
+}
+
+static inline void
+sref_counter_clear_dying(struct sref_counter *counter)
+{
+    if (counter->weakref == NULL) {
+        return;
+    }
+
+    sref_weakref_clear_dying(counter->weakref);
+}
+
+static inline int
+sref_counter_kill_weakref(struct sref_counter *counter)
+{
+    if (counter->weakref == NULL) {
+        return 0;
+    }
+
+    return sref_weakref_kill(counter->weakref);
+}
+
 static void
 sref_counter_schedule_review(struct sref_counter *counter)
 {
@@ -300,6 +386,7 @@ sref_counter_schedule_review(struct sref_counter *counter)
     assert(!sref_counter_is_dirty(counter));
 
     sref_counter_mark_queued(counter);
+    sref_counter_mark_dying(counter);
 
     spinlock_lock(&sref_data.lock);
     sref_queue_push(&sref_data.queue0, counter);
@@ -630,11 +717,14 @@ sref_noref(struct work *work)
 static void
 sref_review(struct sref_queue *queue)
 {
+    unsigned long nr_dirty, nr_revive, nr_true;
     struct sref_counter *counter;
     struct work_queue works;
-    unsigned long nr_dirty, nr_true;
+    bool requeue;
+    int error;
 
     nr_dirty = 0;
+    nr_revive = 0;
     nr_true = 0;
     work_queue_init(&works);
 
@@ -644,27 +734,42 @@ sref_review(struct sref_queue *queue)
         spinlock_lock(&counter->lock);
 
         assert(sref_counter_is_queued(counter));
+        sref_counter_clear_queued(counter);
 
-        if ((counter->value != 0) || (sref_counter_is_dirty(counter))) {
-            sref_counter_clear_queued(counter);
+        if (counter->value != 0) {
             sref_counter_clear_dirty(counter);
-
-            if (counter->value == 0) {
-                sref_counter_schedule_review(counter);
-                nr_dirty++;
-            }
-
+            sref_counter_clear_dying(counter);
             spinlock_unlock(&counter->lock);
         } else {
-            /*
-             * Keep in mind that the work structure shares memory with
-             * the counter data. Unlocking isn't needed here, since this
-             * counter is now really at 0, but do it for consistency.
-             */
-            spinlock_unlock(&counter->lock);
-            nr_true++;
-            work_init(&counter->work, sref_noref);
-            work_queue_push(&works, &counter->work);
+            if (sref_counter_is_dirty(counter)) {
+                requeue = true;
+                nr_dirty++;
+                sref_counter_clear_dirty(counter);
+            } else {
+                error = sref_counter_kill_weakref(counter);
+
+                if (!error) {
+                    requeue = false;
+                } else {
+                    requeue = true;
+                    nr_revive++;
+                }
+            }
+
+            if (requeue) {
+                sref_counter_schedule_review(counter);
+                spinlock_unlock(&counter->lock);
+            } else {
+                /*
+                 * Keep in mind that the work structure shares memory with
+                 * the counter data. Unlocking isn't needed here, since this
+                 * counter is now really at 0, but do it for consistency.
+                 */
+                spinlock_unlock(&counter->lock);
+                nr_true++;
+                work_init(&counter->work, sref_noref);
+                work_queue_push(&works, &counter->work);
+            }
         }
     }
 
@@ -672,9 +777,10 @@ sref_review(struct sref_queue *queue)
         work_queue_schedule(&works, 0);
     }
 
-    if ((nr_dirty + nr_true) != 0) {
+    if ((nr_dirty + nr_revive + nr_true) != 0) {
         spinlock_lock(&sref_data.lock);
         evcnt_add(&sref_data.ev_dirty_zero, nr_dirty);
+        evcnt_add(&sref_data.ev_revive, nr_revive);
         evcnt_add(&sref_data.ev_true_zero, nr_true);
         spinlock_unlock(&sref_data.lock);
     }
@@ -715,6 +821,7 @@ sref_bootstrap(void)
     sref_queue_init(&sref_data.queue1);
     evcnt_register(&sref_data.ev_epoch, "sref_epoch");
     evcnt_register(&sref_data.ev_dirty_zero, "sref_dirty_zero");
+    evcnt_register(&sref_data.ev_revive, "sref_revive");
     evcnt_register(&sref_data.ev_true_zero, "sref_true_zero");
 
     sref_cache_init(sref_cache_get(), 0);
@@ -876,24 +983,38 @@ sref_report_periodic_event(void)
 }
 
 void
-sref_counter_init(struct sref_counter *counter, sref_noref_fn_t noref_fn)
+sref_counter_init(struct sref_counter *counter,
+                  struct sref_weakref *weakref,
+                  sref_noref_fn_t noref_fn)
 {
     counter->noref_fn = noref_fn;
     spinlock_init(&counter->lock);
     counter->flags = 0;
     counter->value = 1;
+    counter->weakref = weakref;
+
+    if (weakref != NULL) {
+        sref_weakref_init(weakref, counter);
+    }
+}
+
+static void
+sref_counter_inc_common(struct sref_counter *counter, struct sref_cache *cache)
+{
+    struct sref_delta *delta;
+
+    sref_cache_mark_dirty(cache);
+    delta = sref_cache_get_delta(cache, counter);
+    sref_delta_inc(delta);
 }
 
 void
 sref_counter_inc(struct sref_counter *counter)
 {
     struct sref_cache *cache;
-    struct sref_delta *delta;
 
     cache = sref_cache_acquire();
-    sref_cache_mark_dirty(cache);
-    delta = sref_cache_get_delta(cache, counter);
-    sref_delta_inc(delta);
+    sref_counter_inc_common(counter, cache);
     sref_cache_release(cache);
 }
 
@@ -908,4 +1029,23 @@ sref_counter_dec(struct sref_counter *counter)
     delta = sref_cache_get_delta(cache, counter);
     sref_delta_dec(delta);
     sref_cache_release(cache);
+}
+
+struct sref_counter *
+sref_weakref_get(struct sref_weakref *weakref)
+{
+    struct sref_counter *counter;
+    struct sref_cache *cache;
+
+    cache = sref_cache_acquire();
+
+    counter = sref_weakref_tryget(weakref);
+
+    if (counter != NULL) {
+        sref_counter_inc_common(counter, cache);
+    }
+
+    sref_cache_release(cache);
+
+    return counter;
 }

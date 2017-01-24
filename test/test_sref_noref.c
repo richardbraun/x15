@@ -141,7 +141,7 @@ test_run(void *arg)
         panic("vm_kmem_alloc: %s", error_str(ERROR_NOMEM));
     }
 
-    sref_counter_init(&obj->ref_counter, test_obj_noref);
+    sref_counter_init(&obj->ref_counter, NULL, test_obj_noref);
 
     printk("page allocated, 1 reference, publishing\n");
 
