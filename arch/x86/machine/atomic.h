@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Richard Braun.
+ * Copyright (c) 2012-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 
 #ifndef _X86_ATOMIC_H
 #define _X86_ATOMIC_H
+
+#include <kern/stdint.h>
 
 #define ATOMIC_ADD(ptr, delta)      \
     asm volatile("lock add %1, %0"  \
@@ -163,67 +165,6 @@ atomic_cas_uint(volatile unsigned int *ptr, unsigned int predicate,
 }
 
 static inline void
-atomic_add_ulong(volatile unsigned long *ptr, long delta)
-{
-    ATOMIC_ADD(ptr, delta);
-}
-
-/*
- * Implies a full memory barrier.
- */
-static inline unsigned long
-atomic_fetchadd_ulong(volatile unsigned long *ptr, long delta)
-{
-    unsigned long oldval;
-
-    ATOMIC_FETCHADD(ptr, oldval, delta);
-    return oldval;
-}
-
-static inline void
-atomic_and_ulong(volatile unsigned long *ptr, unsigned long bits)
-{
-    ATOMIC_AND(ptr, bits);
-}
-
-static inline void
-atomic_or_ulong(volatile unsigned long *ptr, unsigned long bits)
-{
-    ATOMIC_OR(ptr, bits);
-}
-
-static inline void
-atomic_xor_ulong(volatile unsigned long *ptr, unsigned long bits)
-{
-    ATOMIC_XOR(ptr, bits);
-}
-
-/*
- * Implies a full memory barrier.
- */
-static inline unsigned long
-atomic_swap_ulong(volatile unsigned long *ptr, unsigned long newval)
-{
-    unsigned long oldval;
-
-    ATOMIC_SWAP(ptr, oldval, newval);
-    return oldval;
-}
-
-/*
- * Implies a full memory barrier.
- */
-static inline unsigned long
-atomic_cas_ulong(volatile unsigned long *ptr, unsigned long predicate,
-                 unsigned long newval)
-{
-    unsigned long oldval;
-
-    ATOMIC_CAS(ptr, oldval, predicate, newval);
-    return oldval;
-}
-
-static inline void
 atomic_local_add_uint(volatile unsigned int *ptr, int delta)
 {
     ATOMIC_LOCAL_ADD(ptr, delta);
@@ -285,6 +226,67 @@ atomic_local_cas_uint(volatile unsigned int *ptr, unsigned int predicate,
 }
 
 static inline void
+atomic_add_ulong(volatile unsigned long *ptr, long delta)
+{
+    ATOMIC_ADD(ptr, delta);
+}
+
+/*
+ * Implies a full memory barrier.
+ */
+static inline unsigned long
+atomic_fetchadd_ulong(volatile unsigned long *ptr, long delta)
+{
+    unsigned long oldval;
+
+    ATOMIC_FETCHADD(ptr, oldval, delta);
+    return oldval;
+}
+
+static inline void
+atomic_and_ulong(volatile unsigned long *ptr, unsigned long bits)
+{
+    ATOMIC_AND(ptr, bits);
+}
+
+static inline void
+atomic_or_ulong(volatile unsigned long *ptr, unsigned long bits)
+{
+    ATOMIC_OR(ptr, bits);
+}
+
+static inline void
+atomic_xor_ulong(volatile unsigned long *ptr, unsigned long bits)
+{
+    ATOMIC_XOR(ptr, bits);
+}
+
+/*
+ * Implies a full memory barrier.
+ */
+static inline unsigned long
+atomic_swap_ulong(volatile unsigned long *ptr, unsigned long newval)
+{
+    unsigned long oldval;
+
+    ATOMIC_SWAP(ptr, oldval, newval);
+    return oldval;
+}
+
+/*
+ * Implies a full memory barrier.
+ */
+static inline unsigned long
+atomic_cas_ulong(volatile unsigned long *ptr, unsigned long predicate,
+                 unsigned long newval)
+{
+    unsigned long oldval;
+
+    ATOMIC_CAS(ptr, oldval, predicate, newval);
+    return oldval;
+}
+
+static inline void
 atomic_local_add_ulong(volatile unsigned long *ptr, long delta)
 {
     ATOMIC_LOCAL_ADD(ptr, delta);
@@ -340,6 +342,128 @@ atomic_local_cas_ulong(volatile unsigned long *ptr, unsigned long predicate,
                        unsigned long newval)
 {
     unsigned long oldval;
+
+    ATOMIC_LOCAL_CAS(ptr, oldval, predicate, newval);
+    return oldval;
+}
+
+static inline void
+atomic_add_uintptr(volatile uintptr_t *ptr, intptr_t delta)
+{
+    ATOMIC_ADD(ptr, delta);
+}
+
+/*
+ * Implies a full memory barrier.
+ */
+static inline uintptr_t
+atomic_fetchadd_uintptr(volatile uintptr_t *ptr, intptr_t delta)
+{
+    uintptr_t oldval;
+
+    ATOMIC_FETCHADD(ptr, oldval, delta);
+    return oldval;
+}
+
+static inline void
+atomic_and_uintptr(volatile uintptr_t *ptr, uintptr_t bits)
+{
+    ATOMIC_AND(ptr, bits);
+}
+
+static inline void
+atomic_or_uintptr(volatile uintptr_t *ptr, uintptr_t bits)
+{
+    ATOMIC_OR(ptr, bits);
+}
+
+static inline void
+atomic_xor_uintptr(volatile uintptr_t *ptr, uintptr_t bits)
+{
+    ATOMIC_XOR(ptr, bits);
+}
+
+/*
+ * Implies a full memory barrier.
+ */
+static inline uintptr_t
+atomic_swap_uintptr(volatile uintptr_t *ptr, uintptr_t newval)
+{
+    uintptr_t oldval;
+
+    ATOMIC_SWAP(ptr, oldval, newval);
+    return oldval;
+}
+
+/*
+ * Implies a full memory barrier.
+ */
+static inline uintptr_t
+atomic_cas_uintptr(volatile uintptr_t *ptr, uintptr_t predicate,
+                   uintptr_t newval)
+{
+    uintptr_t oldval;
+
+    ATOMIC_CAS(ptr, oldval, predicate, newval);
+    return oldval;
+}
+
+static inline void
+atomic_local_add_uintptr(volatile uintptr_t *ptr, intptr_t delta)
+{
+    ATOMIC_LOCAL_ADD(ptr, delta);
+}
+
+/*
+ * Implies a compiler barrier.
+ */
+static inline uintptr_t
+atomic_local_fetchadd_uintptr(volatile uintptr_t *ptr, intptr_t delta)
+{
+    uintptr_t oldval;
+
+    ATOMIC_LOCAL_FETCHADD(ptr, oldval, delta);
+    return oldval;
+}
+
+static inline void
+atomic_local_and_uintptr(volatile uintptr_t *ptr, uintptr_t bits)
+{
+    ATOMIC_LOCAL_AND(ptr, bits);
+}
+
+static inline void
+atomic_local_or_uintptr(volatile uintptr_t *ptr, uintptr_t bits)
+{
+    ATOMIC_LOCAL_OR(ptr, bits);
+}
+
+static inline void
+atomic_local_xor_uintptr(volatile uintptr_t *ptr, uintptr_t bits)
+{
+    ATOMIC_LOCAL_XOR(ptr, bits);
+}
+
+/*
+ * Implies a compiler barrier.
+ */
+static inline uintptr_t
+atomic_local_swap_uintptr(volatile uintptr_t *ptr, uintptr_t newval)
+{
+    uintptr_t oldval;
+
+    ATOMIC_LOCAL_SWAP(ptr, oldval, newval);
+    return oldval;
+}
+
+/*
+ * Implies a compiler barrier.
+ */
+static inline uintptr_t
+atomic_local_cas_uintptr(volatile uintptr_t *ptr, uintptr_t predicate,
+                         uintptr_t newval)
+{
+    uintptr_t oldval;
 
     ATOMIC_LOCAL_CAS(ptr, oldval, predicate, newval);
     return oldval;
