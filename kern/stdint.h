@@ -18,6 +18,7 @@
 #ifndef _KERN_STDINT_H
 #define _KERN_STDINT_H
 
+typedef long intptr_t;
 typedef unsigned long uintptr_t;
 
 typedef signed char int8_t;
