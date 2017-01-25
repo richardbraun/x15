@@ -93,7 +93,7 @@ test_ref(void *arg)
             sref_counter_dec(counter);
         }
 
-        if ((i % 10000000) == 0) {
+        if ((i % 100000000) == 0) {
             printk("ref: iterations: %lu\n", i);
         }
     }
