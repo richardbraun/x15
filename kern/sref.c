@@ -37,6 +37,8 @@
  * infrequent in practice, keeping the impact on contention low.
  *
  * Locking protocol : cache -> counter -> global data
+ *
+ * TODO Reconsider whether it's possible to bring back local review queues.
  */
 
 #include <stdbool.h>
@@ -633,6 +635,7 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
 
     mutex_lock(&cache->lock);
 
+    /* TODO Consider a list of valid deltas to speed things up */
     for (i = 0; i < ARRAY_SIZE(cache->deltas); i++) {
         delta = sref_cache_delta(cache, i);
 
