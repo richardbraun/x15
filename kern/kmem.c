@@ -549,7 +549,6 @@ kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
     struct kmem_cpu_pool_type *cpu_pool_type;
     size_t i, buf_size;
 
-#define KMEM_VERIFY
 #ifdef KMEM_VERIFY
     cache->flags = KMEM_CF_VERIFY;
 #else /* KMEM_CF_VERIFY */
