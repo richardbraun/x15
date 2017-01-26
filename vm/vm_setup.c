@@ -17,6 +17,7 @@
 
 #include <kern/init.h>
 #include <kern/kmem.h>
+#include <kern/rdxtree.h>
 #include <kern/percpu.h>
 #include <machine/pmap.h>
 #include <vm/vm_map.h>
@@ -29,6 +30,7 @@ vm_setup(void)
     vm_page_setup();
     kmem_setup();
     vm_map_setup();
+    rdxtree_setup();
     pmap_setup();
     percpu_setup();
 }
