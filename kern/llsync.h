@@ -70,6 +70,8 @@
 #ifndef _KERN_LLSYNC_H
 #define _KERN_LLSYNC_H
 
+#include <stdbool.h>
+
 #include <kern/list.h>
 #include <kern/macros.h>
 #include <kern/llsync_i.h>
@@ -121,6 +123,11 @@ llsync_read_exit(void)
         thread_preempt_enable();
     }
 }
+
+/*
+ * Return true if the llsync module is initialized, false otherwise.
+ */
+bool llsync_ready(void);
 
 /*
  * Initialize the llsync module.

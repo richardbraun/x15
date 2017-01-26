@@ -32,6 +32,8 @@
  * TODO Gracefully handle large amounts of deferred works.
  */
 
+#include <stdbool.h>
+
 #include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
@@ -73,6 +75,14 @@ struct llsync_waiter {
     int done;
 };
 
+static bool llsync_is_ready __read_mostly = false;
+
+bool
+llsync_ready(void)
+{
+    return llsync_is_ready;
+}
+
 void __init
 llsync_setup(void)
 {
@@ -94,6 +104,8 @@ llsync_setup(void)
         cpu_data = percpu_ptr(llsync_cpu_data, i);
         work_queue_init(&cpu_data->queue0);
     }
+
+    llsync_is_ready = true;
 }
 
 static void

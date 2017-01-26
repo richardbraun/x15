@@ -160,12 +160,8 @@ rdxtree_node_create(struct rdxtree_node **nodep, unsigned short height)
 }
 
 static void
-rdxtree_node_destroy(struct work *work)
+rdxtree_node_destroy(struct rdxtree_node *node)
 {
-    struct rdxtree_node *node;
-
-    node = structof(work, struct rdxtree_node, work);
-
     /* See rdxtree_shrink() */
     if (node->nr_entries != 0) {
         assert(node->nr_entries == 1);
@@ -179,11 +175,30 @@ rdxtree_node_destroy(struct work *work)
 }
 
 static void
+rdxtree_node_destroy_deferred(struct work *work)
+{
+    struct rdxtree_node *node;
+
+    node = structof(work, struct rdxtree_node, work);
+    rdxtree_node_destroy(node);
+}
+
+static void
 rdxtree_node_schedule_destruction(struct rdxtree_node *node)
 {
     assert(node->parent == NULL);
 
-    work_init(&node->work, rdxtree_node_destroy);
+    work_init(&node->work, rdxtree_node_destroy_deferred);
+
+    /*
+     * This assumes that llsync is initialized before scheduling is started
+     * so that there can be no read-side reference when destroying the node.
+     */
+    if (!llsync_ready()) {
+        rdxtree_node_destroy(node);
+        return;
+    }
+
     llsync_defer(&node->work);
 }
 
