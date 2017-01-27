@@ -1181,6 +1181,7 @@ pmap_enter_local(struct pmap *pmap, uintptr_t va, phys_addr_t pa,
         level--;
     }
 
+    assert(!pmap_pte_valid(*pte));
     pte_bits = ((pmap == kernel_pmap) ? PMAP_PTE_G : PMAP_PTE_US)
                | pmap_prot_table[prot & VM_PROT_ALL];
     pmap_pte_set(pte, pa, pte_bits, pt_level);
