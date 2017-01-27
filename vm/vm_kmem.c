@@ -75,7 +75,7 @@ vm_kmem_alloc_va(size_t size)
     error = vm_map_enter(kernel_map, &va, size, 0, flags, NULL, 0);
 
     if (error) {
-        return 0;
+        return NULL;
     }
 
     return (void *)va;
@@ -101,7 +101,7 @@ vm_kmem_alloc(size_t size)
     va = (uintptr_t)vm_kmem_alloc_va(size);
 
     if (va == 0) {
-        return 0;
+        return NULL;
     }
 
     for (start = va, end = va + size; start < end; start += PAGE_SIZE) {
