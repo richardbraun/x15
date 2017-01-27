@@ -618,37 +618,39 @@ static void
 vm_map_clip_start(struct vm_map *map, struct vm_map_entry *entry,
                   uintptr_t start)
 {
-    struct vm_map_entry *new_entry, *next;
+    struct vm_map_entry *new_entry, *prev, *next;
 
     if ((start <= entry->start) || (start >= entry->end)) {
         return;
     }
 
+    prev = vm_map_prev(map, entry);
     next = vm_map_next(map, entry);
     vm_map_unlink(map, entry);
     new_entry = vm_map_entry_create();
     *new_entry = *entry;
     vm_map_split_entries(new_entry, entry, start);
-    vm_map_link(map, entry, NULL, next);
-    vm_map_link(map, new_entry, NULL, entry);
+    vm_map_link(map, entry, prev, next);
+    vm_map_link(map, new_entry, prev, entry);
 }
 
 static void
 vm_map_clip_end(struct vm_map *map, struct vm_map_entry *entry, uintptr_t end)
 {
-    struct vm_map_entry *new_entry, *prev;
+    struct vm_map_entry *new_entry, *prev, *next;
 
     if ((end <= entry->start) || (end >= entry->end)) {
         return;
     }
 
     prev = vm_map_prev(map, entry);
+    next = vm_map_next(map, entry);
     vm_map_unlink(map, entry);
     new_entry = vm_map_entry_create();
     *new_entry = *entry;
     vm_map_split_entries(entry, new_entry, end);
-    vm_map_link(map, entry, prev, NULL);
-    vm_map_link(map, new_entry, entry, NULL);
+    vm_map_link(map, entry, prev, next);
+    vm_map_link(map, new_entry, entry, next);
 }
 
 void
