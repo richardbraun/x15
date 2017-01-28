@@ -20,7 +20,6 @@
 
 #include <kern/assert.h>
 #include <kern/list.h>
-#include <kern/spinlock.h>
 #include <kern/thread.h>
 #include <kern/types.h>
 #include <machine/atomic.h>
