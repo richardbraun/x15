@@ -133,7 +133,7 @@
  * The idle class is reserved for the per-CPU idle threads.
  */
 #define THREAD_SCHED_CLASS_RT   0
-#define THREAD_SCHED_CLASS_TS   1
+#define THREAD_SCHED_CLASS_FS   1
 #define THREAD_SCHED_CLASS_IDLE 2
 #define THREAD_NR_SCHED_CLASSES 3
 
@@ -166,17 +166,17 @@ struct thread_rt_runq {
  *
  * Set to a high value to make sure overflows are correctly handled.
  */
-#define THREAD_TS_INITIAL_ROUND ((unsigned long)-10)
+#define THREAD_FS_INITIAL_ROUND ((unsigned long)-10)
 
 /*
- * Round slice base unit for time-sharing threads.
+ * Round slice base unit for fair-scheduling threads.
  */
-#define THREAD_TS_ROUND_SLICE_BASE (HZ / 10)
+#define THREAD_FS_ROUND_SLICE_BASE (HZ / 10)
 
 /*
  * Group of threads sharing the same weight.
  */
-struct thread_ts_group {
+struct thread_fs_group {
     struct list node;
     struct list threads;
     unsigned int weight;
@@ -184,16 +184,16 @@ struct thread_ts_group {
 };
 
 /*
- * Run queue properties for time-sharing threads.
+ * Run queue properties for fair-scheduling threads.
  *
  * The current group pointer has a valid address only when the run queue isn't
  * empty.
  */
-struct thread_ts_runq {
-    struct thread_ts_group group_array[THREAD_SCHED_TS_PRIO_MAX + 1];
+struct thread_fs_runq {
+    struct thread_fs_group group_array[THREAD_SCHED_FS_PRIO_MAX + 1];
     struct list groups;
     struct list threads;
-    struct thread_ts_group *current;
+    struct thread_fs_group *current;
     unsigned int nr_threads;
     unsigned int weight;
     unsigned int work;
@@ -217,18 +217,18 @@ struct thread_runq {
     struct thread_rt_runq rt_runq;
 
     /*
-     * Time-sharing related members.
+     * Fair-scheduling related members.
      *
      * The current round is set when the active run queue becomes non-empty.
      * It's not reset when both run queues become empty. As a result, the
      * current round has a meaningful value only when at least one thread is
      * present, i.e. the global weight isn't zero.
      */
-    unsigned long ts_round;
-    unsigned int ts_weight;
-    struct thread_ts_runq ts_runqs[2];
-    struct thread_ts_runq *ts_runq_active;
-    struct thread_ts_runq *ts_runq_expired;
+    unsigned long fs_round;
+    unsigned int fs_weight;
+    struct thread_fs_runq fs_runqs[2];
+    struct thread_fs_runq *fs_runq_active;
+    struct thread_fs_runq *fs_runq_expired;
 
     struct thread *balancer;
     struct thread *idler;
@@ -303,9 +303,9 @@ static struct cpumap thread_idle_runqs;
  */
 static struct {
     volatile unsigned long value __aligned(CPU_L1_SIZE);
-} thread_ts_highest_round_struct;
+} thread_fs_highest_round_struct;
 
-#define thread_ts_highest_round (thread_ts_highest_round_struct.value)
+#define thread_fs_highest_round (thread_fs_highest_round_struct.value)
 
 /*
  * Number of TSD keys actually allocated.
@@ -344,7 +344,7 @@ thread_runq_init_rt(struct thread_runq *runq)
 }
 
 static void __init
-thread_ts_group_init(struct thread_ts_group *group)
+thread_fs_group_init(struct thread_fs_group *group)
 {
     list_init(&group->threads);
     group->weight = 0;
@@ -352,29 +352,29 @@ thread_ts_group_init(struct thread_ts_group *group)
 }
 
 static void __init
-thread_ts_runq_init(struct thread_ts_runq *ts_runq)
+thread_fs_runq_init(struct thread_fs_runq *fs_runq)
 {
     size_t i;
 
-    for (i = 0; i < ARRAY_SIZE(ts_runq->group_array); i++) {
-        thread_ts_group_init(&ts_runq->group_array[i]);
+    for (i = 0; i < ARRAY_SIZE(fs_runq->group_array); i++) {
+        thread_fs_group_init(&fs_runq->group_array[i]);
     }
 
-    list_init(&ts_runq->groups);
-    list_init(&ts_runq->threads);
-    ts_runq->nr_threads = 0;
-    ts_runq->weight = 0;
-    ts_runq->work = 0;
+    list_init(&fs_runq->groups);
+    list_init(&fs_runq->threads);
+    fs_runq->nr_threads = 0;
+    fs_runq->weight = 0;
+    fs_runq->work = 0;
 }
 
 static void __init
-thread_runq_init_ts(struct thread_runq *runq)
+thread_runq_init_fs(struct thread_runq *runq)
 {
-    runq->ts_weight = 0;
-    runq->ts_runq_active = &runq->ts_runqs[0];
-    runq->ts_runq_expired = &runq->ts_runqs[1];
-    thread_ts_runq_init(runq->ts_runq_active);
-    thread_ts_runq_init(runq->ts_runq_expired);
+    runq->fs_weight = 0;
+    runq->fs_runq_active = &runq->fs_runqs[0];
+    runq->fs_runq_expired = &runq->fs_runqs[1];
+    thread_fs_runq_init(runq->fs_runq_active);
+    thread_fs_runq_init(runq->fs_runq_expired);
 }
 
 static void __init
@@ -388,7 +388,7 @@ thread_runq_init(struct thread_runq *runq, unsigned int cpu,
     runq->nr_threads = 0;
     runq->current = booter;
     thread_runq_init_rt(runq);
-    thread_runq_init_ts(runq);
+    thread_runq_init_fs(runq);
     runq->balancer = NULL;
     runq->idler = NULL;
     runq->idle_balance_ticks = (unsigned int)-1;
@@ -700,24 +700,24 @@ thread_sched_rt_tick(struct thread_runq *runq, struct thread *thread)
 }
 
 static inline unsigned short
-thread_sched_ts_prio2weight(unsigned short priority)
+thread_sched_fs_prio2weight(unsigned short priority)
 {
-    return ((priority + 1) * THREAD_TS_ROUND_SLICE_BASE);
+    return ((priority + 1) * THREAD_FS_ROUND_SLICE_BASE);
 }
 
 static void
-thread_sched_ts_init_thread(struct thread *thread, unsigned short priority)
+thread_sched_fs_init_thread(struct thread *thread, unsigned short priority)
 {
-    assert(priority <= THREAD_SCHED_TS_PRIO_MAX);
-    thread->ts_data.ts_runq = NULL;
-    thread->ts_data.round = 0;
-    thread->ts_data.priority = priority;
-    thread->ts_data.weight = thread_sched_ts_prio2weight(priority);
-    thread->ts_data.work = 0;
+    assert(priority <= THREAD_SCHED_FS_PRIO_MAX);
+    thread->fs_data.fs_runq = NULL;
+    thread->fs_data.round = 0;
+    thread->fs_data.priority = priority;
+    thread->fs_data.weight = thread_sched_fs_prio2weight(priority);
+    thread->fs_data.work = 0;
 }
 
 static struct thread_runq *
-thread_sched_ts_select_runq(struct thread *thread)
+thread_sched_fs_select_runq(struct thread *thread)
 {
     struct thread_runq *runq, *tmp;
     long delta;
@@ -764,19 +764,19 @@ thread_sched_ts_select_runq(struct thread *thread)
         }
 
         /*
-         * The run queue isn't idle, but there are no time-sharing thread,
+         * The run queue isn't idle, but there are no fair-scheduling thread,
          * which means there are real-time threads.
          */
-        if (tmp->ts_weight == 0) {
+        if (tmp->fs_weight == 0) {
             spinlock_unlock(&tmp->lock);
             continue;
         }
 
-        delta = (long)(tmp->ts_round - runq->ts_round);
+        delta = (long)(tmp->fs_round - runq->fs_round);
 
         /* Look for the least loaded of the run queues in the highest round */
         if ((delta > 0)
-            || ((delta == 0) && (tmp->ts_weight < runq->ts_weight))) {
+            || ((delta == 0) && (tmp->fs_weight < runq->fs_weight))) {
             spinlock_unlock(&runq->lock);
             runq = tmp;
             continue;
@@ -792,7 +792,7 @@ out:
 }
 
 static unsigned int
-thread_sched_ts_enqueue_scale(unsigned int work, unsigned int old_weight,
+thread_sched_fs_enqueue_scale(unsigned int work, unsigned int old_weight,
                               unsigned int new_weight)
 {
     assert(old_weight != 0);
@@ -807,25 +807,25 @@ thread_sched_ts_enqueue_scale(unsigned int work, unsigned int old_weight,
 }
 
 static void
-thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, unsigned long round,
+thread_sched_fs_enqueue(struct thread_fs_runq *fs_runq, unsigned long round,
                         struct thread *thread)
 {
-    struct thread_ts_group *group, *tmp;
+    struct thread_fs_group *group, *tmp;
     struct list *node, *init_node;
     unsigned int group_weight, total_weight;
 
-    assert(thread->ts_data.ts_runq == NULL);
+    assert(thread->fs_data.fs_runq == NULL);
 
-    group = &ts_runq->group_array[thread->ts_data.priority];
-    group_weight = group->weight + thread->ts_data.weight;
-    total_weight = ts_runq->weight + thread->ts_data.weight;
+    group = &fs_runq->group_array[thread->fs_data.priority];
+    group_weight = group->weight + thread->fs_data.weight;
+    total_weight = fs_runq->weight + thread->fs_data.weight;
     node = (group->weight == 0)
-           ? list_last(&ts_runq->groups)
+           ? list_last(&fs_runq->groups)
            : list_prev(&group->node);
     init_node = node;
 
-    while (!list_end(&ts_runq->groups, node)) {
-        tmp = list_entry(node, struct thread_ts_group, node);
+    while (!list_end(&fs_runq->groups, node)) {
+        tmp = list_entry(node, struct thread_fs_group, node);
 
         if (tmp->weight >= group_weight) {
             break;
@@ -846,98 +846,98 @@ thread_sched_ts_enqueue(struct thread_ts_runq *ts_runq, unsigned long round,
      * thread is "lucky" enough to have the same round value. This should be
      * rare and harmless otherwise.
      */
-    if (thread->ts_data.round == round) {
-        ts_runq->work += thread->ts_data.work;
-        group->work += thread->ts_data.work;
+    if (thread->fs_data.round == round) {
+        fs_runq->work += thread->fs_data.work;
+        group->work += thread->fs_data.work;
     } else {
         unsigned int group_work, thread_work;
 
-        if (ts_runq->weight == 0) {
+        if (fs_runq->weight == 0) {
             thread_work = 0;
         } else {
             group_work = (group->weight == 0)
-                         ? thread_sched_ts_enqueue_scale(ts_runq->work,
-                                                         ts_runq->weight,
-                                                         thread->ts_data.weight)
-                         : thread_sched_ts_enqueue_scale(group->work,
+                         ? thread_sched_fs_enqueue_scale(fs_runq->work,
+                                                         fs_runq->weight,
+                                                         thread->fs_data.weight)
+                         : thread_sched_fs_enqueue_scale(group->work,
                                                          group->weight,
                                                          group_weight);
             thread_work = group_work - group->work;
-            ts_runq->work += thread_work;
+            fs_runq->work += thread_work;
             group->work = group_work;
         }
 
-        thread->ts_data.round = round;
-        thread->ts_data.work = thread_work;
+        thread->fs_data.round = round;
+        thread->fs_data.work = thread_work;
     }
 
-    ts_runq->nr_threads++;
-    ts_runq->weight = total_weight;
+    fs_runq->nr_threads++;
+    fs_runq->weight = total_weight;
     group->weight = group_weight;
 
     /* Insert at the front of the group to improve interactivity */
-    list_insert_head(&group->threads, &thread->ts_data.group_node);
-    list_insert_tail(&ts_runq->threads, &thread->ts_data.runq_node);
-    thread->ts_data.ts_runq = ts_runq;
+    list_insert_head(&group->threads, &thread->fs_data.group_node);
+    list_insert_tail(&fs_runq->threads, &thread->fs_data.runq_node);
+    thread->fs_data.fs_runq = fs_runq;
 }
 
 static void
-thread_sched_ts_restart(struct thread_runq *runq)
+thread_sched_fs_restart(struct thread_runq *runq)
 {
-    struct thread_ts_runq *ts_runq;
+    struct thread_fs_runq *fs_runq;
     struct list *node;
 
-    ts_runq = runq->ts_runq_active;
-    node = list_first(&ts_runq->groups);
+    fs_runq = runq->fs_runq_active;
+    node = list_first(&fs_runq->groups);
     assert(node != NULL);
-    ts_runq->current = list_entry(node, struct thread_ts_group, node);
+    fs_runq->current = list_entry(node, struct thread_fs_group, node);
 
-    if (runq->current->sched_class == THREAD_SCHED_CLASS_TS) {
+    if (runq->current->sched_class == THREAD_SCHED_CLASS_FS) {
         thread_set_flag(runq->current, THREAD_YIELD);
     }
 }
 
 static void
-thread_sched_ts_add(struct thread_runq *runq, struct thread *thread)
+thread_sched_fs_add(struct thread_runq *runq, struct thread *thread)
 {
     unsigned int total_weight;
 
-    if (runq->ts_weight == 0) {
-        runq->ts_round = thread_ts_highest_round;
+    if (runq->fs_weight == 0) {
+        runq->fs_round = thread_fs_highest_round;
     }
 
-    total_weight = runq->ts_weight + thread->ts_data.weight;
+    total_weight = runq->fs_weight + thread->fs_data.weight;
 
     /* TODO Limit the maximum number of threads to prevent this situation */
-    if (total_weight < runq->ts_weight) {
+    if (total_weight < runq->fs_weight) {
         panic("thread: weight overflow");
     }
 
-    runq->ts_weight = total_weight;
-    thread_sched_ts_enqueue(runq->ts_runq_active, runq->ts_round, thread);
-    thread_sched_ts_restart(runq);
+    runq->fs_weight = total_weight;
+    thread_sched_fs_enqueue(runq->fs_runq_active, runq->fs_round, thread);
+    thread_sched_fs_restart(runq);
 }
 
 static void
-thread_sched_ts_dequeue(struct thread *thread)
+thread_sched_fs_dequeue(struct thread *thread)
 {
-    struct thread_ts_runq *ts_runq;
-    struct thread_ts_group *group, *tmp;
+    struct thread_fs_runq *fs_runq;
+    struct thread_fs_group *group, *tmp;
     struct list *node, *init_node;
 
-    assert(thread->ts_data.ts_runq != NULL);
+    assert(thread->fs_data.fs_runq != NULL);
 
-    ts_runq = thread->ts_data.ts_runq;
-    group = &ts_runq->group_array[thread->ts_data.priority];
+    fs_runq = thread->fs_data.fs_runq;
+    group = &fs_runq->group_array[thread->fs_data.priority];
 
-    thread->ts_data.ts_runq = NULL;
-    list_remove(&thread->ts_data.runq_node);
-    list_remove(&thread->ts_data.group_node);
-    ts_runq->work -= thread->ts_data.work;
-    group->work -= thread->ts_data.work;
-    ts_runq->weight -= thread->ts_data.weight;
-    group->weight -= thread->ts_data.weight;
-    ts_runq->nr_threads--;
+    thread->fs_data.fs_runq = NULL;
+    list_remove(&thread->fs_data.runq_node);
+    list_remove(&thread->fs_data.group_node);
+    fs_runq->work -= thread->fs_data.work;
+    group->work -= thread->fs_data.work;
+    fs_runq->weight -= thread->fs_data.weight;
+    group->weight -= thread->fs_data.weight;
+    fs_runq->nr_threads--;
 
     if (group->weight == 0) {
         list_remove(&group->node);
@@ -945,8 +945,8 @@ thread_sched_ts_dequeue(struct thread *thread)
         node = list_next(&group->node);
         init_node = node;
 
-        while (!list_end(&ts_runq->groups, node)) {
-            tmp = list_entry(node, struct thread_ts_group, node);
+        while (!list_end(&fs_runq->groups, node)) {
+            tmp = list_entry(node, struct thread_fs_group, node);
 
             if (tmp->weight <= group->weight) {
                 break;
@@ -963,57 +963,57 @@ thread_sched_ts_dequeue(struct thread *thread)
 }
 
 static void
-thread_sched_ts_remove(struct thread_runq *runq, struct thread *thread)
+thread_sched_fs_remove(struct thread_runq *runq, struct thread *thread)
 {
-    struct thread_ts_runq *ts_runq;
+    struct thread_fs_runq *fs_runq;
 
-    runq->ts_weight -= thread->ts_data.weight;
-    ts_runq = thread->ts_data.ts_runq;
-    thread_sched_ts_dequeue(thread);
+    runq->fs_weight -= thread->fs_data.weight;
+    fs_runq = thread->fs_data.fs_runq;
+    thread_sched_fs_dequeue(thread);
 
-    if (ts_runq == runq->ts_runq_active) {
-        if (ts_runq->nr_threads == 0) {
+    if (fs_runq == runq->fs_runq_active) {
+        if (fs_runq->nr_threads == 0) {
             thread_runq_wakeup_balancer(runq);
         } else {
-            thread_sched_ts_restart(runq);
+            thread_sched_fs_restart(runq);
         }
     }
 }
 
 static void
-thread_sched_ts_deactivate(struct thread_runq *runq, struct thread *thread)
+thread_sched_fs_deactivate(struct thread_runq *runq, struct thread *thread)
 {
-    assert(thread->ts_data.ts_runq == runq->ts_runq_active);
-    assert(thread->ts_data.round == runq->ts_round);
+    assert(thread->fs_data.fs_runq == runq->fs_runq_active);
+    assert(thread->fs_data.round == runq->fs_round);
 
-    thread_sched_ts_dequeue(thread);
-    thread->ts_data.round++;
-    thread->ts_data.work -= thread->ts_data.weight;
-    thread_sched_ts_enqueue(runq->ts_runq_expired, runq->ts_round + 1, thread);
+    thread_sched_fs_dequeue(thread);
+    thread->fs_data.round++;
+    thread->fs_data.work -= thread->fs_data.weight;
+    thread_sched_fs_enqueue(runq->fs_runq_expired, runq->fs_round + 1, thread);
 
-    if (runq->ts_runq_active->nr_threads == 0) {
+    if (runq->fs_runq_active->nr_threads == 0) {
         thread_runq_wakeup_balancer(runq);
     }
 }
 
 static void
-thread_sched_ts_put_prev(struct thread_runq *runq, struct thread *thread)
+thread_sched_fs_put_prev(struct thread_runq *runq, struct thread *thread)
 {
-    struct thread_ts_runq *ts_runq;
-    struct thread_ts_group *group;
+    struct thread_fs_runq *fs_runq;
+    struct thread_fs_group *group;
 
-    ts_runq = runq->ts_runq_active;
-    group = &ts_runq->group_array[thread->ts_data.priority];
-    list_insert_tail(&group->threads, &thread->ts_data.group_node);
+    fs_runq = runq->fs_runq_active;
+    group = &fs_runq->group_array[thread->fs_data.priority];
+    list_insert_tail(&group->threads, &thread->fs_data.group_node);
 
-    if (thread->ts_data.work >= thread->ts_data.weight) {
-        thread_sched_ts_deactivate(runq, thread);
+    if (thread->fs_data.work >= thread->fs_data.weight) {
+        thread_sched_fs_deactivate(runq, thread);
     }
 }
 
 static int
-thread_sched_ts_ratio_exceeded(struct thread_ts_group *current,
-                               struct thread_ts_group *next)
+thread_sched_fs_ratio_exceeded(struct thread_fs_group *current,
+                               struct thread_fs_group *next)
 {
     unsigned long long a, b;
 
@@ -1033,76 +1033,76 @@ thread_sched_ts_ratio_exceeded(struct thread_ts_group *current,
 }
 
 static struct thread *
-thread_sched_ts_get_next(struct thread_runq *runq)
+thread_sched_fs_get_next(struct thread_runq *runq)
 {
-    struct thread_ts_runq *ts_runq;
-    struct thread_ts_group *group, *next;
+    struct thread_fs_runq *fs_runq;
+    struct thread_fs_group *group, *next;
     struct thread *thread;
     struct list *node;
 
-    ts_runq = runq->ts_runq_active;
+    fs_runq = runq->fs_runq_active;
 
-    if (ts_runq->nr_threads == 0) {
+    if (fs_runq->nr_threads == 0) {
         return NULL;
     }
 
-    group = ts_runq->current;
+    group = fs_runq->current;
     node = list_next(&group->node);
 
-    if (list_end(&ts_runq->groups, node)) {
-        node = list_first(&ts_runq->groups);
-        group = list_entry(node, struct thread_ts_group, node);
+    if (list_end(&fs_runq->groups, node)) {
+        node = list_first(&fs_runq->groups);
+        group = list_entry(node, struct thread_fs_group, node);
     } else {
-        next = list_entry(node, struct thread_ts_group, node);
+        next = list_entry(node, struct thread_fs_group, node);
 
-        if (thread_sched_ts_ratio_exceeded(group, next)) {
+        if (thread_sched_fs_ratio_exceeded(group, next)) {
             group = next;
         } else {
-            node = list_first(&ts_runq->groups);
-            group = list_entry(node, struct thread_ts_group, node);
+            node = list_first(&fs_runq->groups);
+            group = list_entry(node, struct thread_fs_group, node);
         }
     }
 
-    ts_runq->current = group;
+    fs_runq->current = group;
     node = list_first(&group->threads);
-    thread = list_entry(node, struct thread, ts_data.group_node);
+    thread = list_entry(node, struct thread, fs_data.group_node);
     list_remove(node);
     return thread;
 }
 
 static void
-thread_sched_ts_tick(struct thread_runq *runq, struct thread *thread)
+thread_sched_fs_tick(struct thread_runq *runq, struct thread *thread)
 {
-    struct thread_ts_runq *ts_runq;
-    struct thread_ts_group *group;
+    struct thread_fs_runq *fs_runq;
+    struct thread_fs_group *group;
 
-    ts_runq = runq->ts_runq_active;
-    ts_runq->work++;
-    group = &ts_runq->group_array[thread->ts_data.priority];
+    fs_runq = runq->fs_runq_active;
+    fs_runq->work++;
+    group = &fs_runq->group_array[thread->fs_data.priority];
     group->work++;
     thread_set_flag(thread, THREAD_YIELD);
-    thread->ts_data.work++;
+    thread->fs_data.work++;
 }
 
 static void
-thread_sched_ts_start_next_round(struct thread_runq *runq)
+thread_sched_fs_start_next_round(struct thread_runq *runq)
 {
-    struct thread_ts_runq *tmp;
+    struct thread_fs_runq *tmp;
     long delta;
 
-    tmp = runq->ts_runq_expired;
-    runq->ts_runq_expired = runq->ts_runq_active;
-    runq->ts_runq_active = tmp;
+    tmp = runq->fs_runq_expired;
+    runq->fs_runq_expired = runq->fs_runq_active;
+    runq->fs_runq_active = tmp;
 
-    if (runq->ts_runq_active->nr_threads != 0) {
-        runq->ts_round++;
-        delta = (long)(runq->ts_round - thread_ts_highest_round);
+    if (runq->fs_runq_active->nr_threads != 0) {
+        runq->fs_round++;
+        delta = (long)(runq->fs_round - thread_fs_highest_round);
 
         if (delta > 0) {
-            thread_ts_highest_round = runq->ts_round;
+            thread_fs_highest_round = runq->fs_round;
         }
 
-        thread_sched_ts_restart(runq);
+        thread_sched_fs_restart(runq);
     }
 }
 
@@ -1110,26 +1110,26 @@ thread_sched_ts_start_next_round(struct thread_runq *runq)
  * Check that a remote run queue satisfies the minimum migration requirements.
  */
 static int
-thread_sched_ts_balance_eligible(struct thread_runq *runq,
+thread_sched_fs_balance_eligible(struct thread_runq *runq,
                                  unsigned long highest_round)
 {
     unsigned int nr_threads;
 
-    if (runq->ts_weight == 0) {
+    if (runq->fs_weight == 0) {
         return 0;
     }
 
-    if ((runq->ts_round != highest_round)
-        && (runq->ts_round != (highest_round - 1))) {
+    if ((runq->fs_round != highest_round)
+        && (runq->fs_round != (highest_round - 1))) {
         return 0;
     }
 
-    nr_threads = runq->ts_runq_active->nr_threads
-                 + runq->ts_runq_expired->nr_threads;
+    nr_threads = runq->fs_runq_active->nr_threads
+                 + runq->fs_runq_expired->nr_threads;
 
     if ((nr_threads == 0)
         || ((nr_threads == 1)
-            && (runq->current->sched_class == THREAD_SCHED_CLASS_TS))) {
+            && (runq->current->sched_class == THREAD_SCHED_CLASS_FS))) {
         return 0;
     }
 
@@ -1140,7 +1140,7 @@ thread_sched_ts_balance_eligible(struct thread_runq *runq,
  * Try to find the most suitable run queue from which to pull threads.
  */
 static struct thread_runq *
-thread_sched_ts_balance_scan(struct thread_runq *runq,
+thread_sched_fs_balance_scan(struct thread_runq *runq,
                              unsigned long highest_round)
 {
     struct thread_runq *remote_runq, *tmp;
@@ -1161,7 +1161,7 @@ thread_sched_ts_balance_scan(struct thread_runq *runq,
 
         spinlock_lock(&tmp->lock);
 
-        if (!thread_sched_ts_balance_eligible(tmp, highest_round)) {
+        if (!thread_sched_fs_balance_eligible(tmp, highest_round)) {
             spinlock_unlock(&tmp->lock);
             continue;
         }
@@ -1171,7 +1171,7 @@ thread_sched_ts_balance_scan(struct thread_runq *runq,
             continue;
         }
 
-        if (tmp->ts_weight > remote_runq->ts_weight) {
+        if (tmp->fs_weight > remote_runq->fs_weight) {
             spinlock_unlock(&remote_runq->lock);
             remote_runq = tmp;
             continue;
@@ -1191,9 +1191,9 @@ thread_sched_ts_balance_scan(struct thread_runq *runq,
 }
 
 static unsigned int
-thread_sched_ts_balance_pull(struct thread_runq *runq,
+thread_sched_fs_balance_pull(struct thread_runq *runq,
                              struct thread_runq *remote_runq,
-                             struct thread_ts_runq *ts_runq,
+                             struct thread_fs_runq *fs_runq,
                              unsigned int nr_pulls)
 {
     struct thread *thread, *tmp;
@@ -1201,8 +1201,8 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
 
     cpu = thread_runq_cpu(runq);
 
-    list_for_each_entry_safe(&ts_runq->threads, thread, tmp,
-                             ts_data.runq_node) {
+    list_for_each_entry_safe(&fs_runq->threads, thread, tmp,
+                             fs_data.runq_node) {
         if (thread == remote_runq->current) {
             continue;
         }
@@ -1229,15 +1229,15 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
          * thread has already been pulled, take weights into account.
          */
         if ((nr_pulls != 0)
-            && ((runq->ts_weight + thread->ts_data.weight)
-                > (remote_runq->ts_weight - thread->ts_data.weight))) {
+            && ((runq->fs_weight + thread->fs_data.weight)
+                > (remote_runq->fs_weight - thread->fs_data.weight))) {
             break;
         }
 
         thread_runq_remove(remote_runq, thread);
 
         /* Don't discard the work already accounted for */
-        thread->ts_data.round = runq->ts_round;
+        thread->fs_data.round = runq->fs_round;
 
         thread_runq_add(runq, thread);
         nr_pulls++;
@@ -1251,7 +1251,7 @@ thread_sched_ts_balance_pull(struct thread_runq *runq,
 }
 
 static unsigned int
-thread_sched_ts_balance_migrate(struct thread_runq *runq,
+thread_sched_fs_balance_migrate(struct thread_runq *runq,
                                 struct thread_runq *remote_runq,
                                 unsigned long highest_round)
 {
@@ -1259,12 +1259,12 @@ thread_sched_ts_balance_migrate(struct thread_runq *runq,
 
     nr_pulls = 0;
 
-    if (!thread_sched_ts_balance_eligible(remote_runq, highest_round)) {
+    if (!thread_sched_fs_balance_eligible(remote_runq, highest_round)) {
         goto out;
     }
 
-    nr_pulls = thread_sched_ts_balance_pull(runq, remote_runq,
-                                            remote_runq->ts_runq_active, 0);
+    nr_pulls = thread_sched_fs_balance_pull(runq, remote_runq,
+                                            remote_runq->fs_runq_active, 0);
 
     if (nr_pulls == THREAD_MAX_MIGRATIONS) {
         goto out;
@@ -1274,9 +1274,9 @@ thread_sched_ts_balance_migrate(struct thread_runq *runq,
      * Threads in the expired queue of a processor in round highest are
      * actually in round highest + 1.
      */
-    if (remote_runq->ts_round != highest_round)
-        nr_pulls = thread_sched_ts_balance_pull(runq, remote_runq,
-                                                remote_runq->ts_runq_expired,
+    if (remote_runq->fs_round != highest_round)
+        nr_pulls = thread_sched_fs_balance_pull(runq, remote_runq,
+                                                remote_runq->fs_runq_expired,
                                                 nr_pulls);
 
 out:
@@ -1284,14 +1284,14 @@ out:
 }
 
 /*
- * Inter-processor load balancing for time-sharing threads.
+ * Inter-processor load balancing for fair-scheduling threads.
  *
  * Preemption must be disabled, and the local run queue must be locked when
  * calling this function. If balancing actually occurs, the lock will be
  * released and preemption enabled when needed.
  */
 static void
-thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
+thread_sched_fs_balance(struct thread_runq *runq, unsigned long *flags)
 {
     struct thread_runq *remote_runq;
     unsigned long highest_round;
@@ -1302,23 +1302,23 @@ thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
      * Grab the highest round now and only use the copy so the value is stable
      * during the balancing operation.
      */
-    highest_round = thread_ts_highest_round;
+    highest_round = thread_fs_highest_round;
 
-    if ((runq->ts_round != highest_round)
-        && (runq->ts_runq_expired->nr_threads != 0)) {
+    if ((runq->fs_round != highest_round)
+        && (runq->fs_runq_expired->nr_threads != 0)) {
         goto no_migration;
     }
 
     spinlock_unlock_intr_restore(&runq->lock, *flags);
     thread_preempt_enable();
 
-    remote_runq = thread_sched_ts_balance_scan(runq, highest_round);
+    remote_runq = thread_sched_fs_balance_scan(runq, highest_round);
 
     if (remote_runq != NULL) {
         thread_preempt_disable();
         cpu_intr_save(flags);
         thread_runq_double_lock(runq, remote_runq);
-        nr_migrations = thread_sched_ts_balance_migrate(runq, remote_runq,
+        nr_migrations = thread_sched_fs_balance_migrate(runq, remote_runq,
                                                         highest_round);
         spinlock_unlock(&remote_runq->lock);
 
@@ -1346,7 +1346,7 @@ thread_sched_ts_balance(struct thread_runq *runq, unsigned long *flags)
         thread_preempt_disable();
         cpu_intr_save(flags);
         thread_runq_double_lock(runq, remote_runq);
-        nr_migrations = thread_sched_ts_balance_migrate(runq, remote_runq,
+        nr_migrations = thread_sched_fs_balance_migrate(runq, remote_runq,
                                                         highest_round);
         spinlock_unlock(&remote_runq->lock);
 
@@ -1370,8 +1370,8 @@ no_migration:
      * queue lock must remain held until the next scheduling decision to
      * prevent a remote balancer thread from stealing active threads.
      */
-    if (runq->ts_runq_active->nr_threads == 0) {
-        thread_sched_ts_start_next_round(runq);
+    if (runq->fs_runq_active->nr_threads == 0) {
+        thread_sched_fs_start_next_round(runq);
     }
 }
 
@@ -1458,7 +1458,7 @@ thread_bootstrap(void)
 
     thread_policy_table[THREAD_SCHED_POLICY_FIFO] = THREAD_SCHED_CLASS_RT;
     thread_policy_table[THREAD_SCHED_POLICY_RR] = THREAD_SCHED_CLASS_RT;
-    thread_policy_table[THREAD_SCHED_POLICY_TS] = THREAD_SCHED_CLASS_TS;
+    thread_policy_table[THREAD_SCHED_POLICY_FS] = THREAD_SCHED_CLASS_FS;
     thread_policy_table[THREAD_SCHED_POLICY_IDLE] = THREAD_SCHED_CLASS_IDLE;
 
     ops = &thread_sched_ops[THREAD_SCHED_CLASS_RT];
@@ -1470,14 +1470,14 @@ thread_bootstrap(void)
     ops->get_next = thread_sched_rt_get_next;
     ops->tick = thread_sched_rt_tick;
 
-    ops = &thread_sched_ops[THREAD_SCHED_CLASS_TS];
-    ops->init_thread = thread_sched_ts_init_thread;
-    ops->select_runq = thread_sched_ts_select_runq;
-    ops->add = thread_sched_ts_add;
-    ops->remove = thread_sched_ts_remove;
-    ops->put_prev = thread_sched_ts_put_prev;
-    ops->get_next = thread_sched_ts_get_next;
-    ops->tick = thread_sched_ts_tick;
+    ops = &thread_sched_ops[THREAD_SCHED_CLASS_FS];
+    ops->init_thread = thread_sched_fs_init_thread;
+    ops->select_runq = thread_sched_fs_select_runq;
+    ops->add = thread_sched_fs_add;
+    ops->remove = thread_sched_fs_remove;
+    ops->put_prev = thread_sched_fs_put_prev;
+    ops->get_next = thread_sched_fs_get_next;
+    ops->tick = thread_sched_fs_tick;
 
     ops = &thread_sched_ops[THREAD_SCHED_CLASS_IDLE];
     ops->init_thread = thread_sched_idle_init_thread;
@@ -1491,7 +1491,7 @@ thread_bootstrap(void)
     cpumap_zero(&thread_active_runqs);
     cpumap_zero(&thread_idle_runqs);
 
-    thread_ts_highest_round = THREAD_TS_INITIAL_ROUND;
+    thread_fs_highest_round = THREAD_FS_INITIAL_ROUND;
 
     thread_bootstrap_common(0);
     tcb_set_current(&thread_booters[0].tcb);
@@ -1764,7 +1764,7 @@ thread_balance(void *arg)
          * run queue lock, but on return, the lock must remain held until this
          * balancer thread sleeps.
          */
-        thread_sched_ts_balance(runq, &flags);
+        thread_sched_fs_balance(runq, &flags);
     }
 }
 
@@ -2210,8 +2210,8 @@ thread_schedclass_to_str(const struct thread *thread)
     switch (thread->sched_class) {
     case THREAD_SCHED_CLASS_RT:
         return "rt";
-    case THREAD_SCHED_CLASS_TS:
-        return "ts";
+    case THREAD_SCHED_CLASS_FS:
+        return "fs";
     case THREAD_SCHED_CLASS_IDLE:
         return "idle";
     default:
@@ -2225,8 +2225,8 @@ thread_schedprio(const struct thread *thread)
     switch (thread->sched_class) {
     case THREAD_SCHED_CLASS_RT:
         return thread->rt_data.priority;
-    case THREAD_SCHED_CLASS_TS:
-        return thread->ts_data.priority;
+    case THREAD_SCHED_CLASS_FS:
+        return thread->fs_data.priority;
     case THREAD_SCHED_CLASS_IDLE:
         return 0;
     default:

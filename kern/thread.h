@@ -19,8 +19,7 @@
  * POSIX scheduling policies. As such, it provides scheduling classes and
  * policies that closely match the standard ones. The "real-time" policies
  * (FIFO and RR) directly map the first-in first-out (SCHED_FIFO) and
- * round-robin (SCHED_RR) policies, while the "time-sharing" policy (TS,
- * named that way because, unlike real-time threads, time sharing is enforced)
+ * round-robin (SCHED_RR) policies, while the "fair-scheduling" policy (FS)
  * can be used for the normal SCHED_OTHER policy. The idle policy is reserved
  * for idling kernel threads.
  *
@@ -61,7 +60,7 @@ struct thread;
  */
 #define THREAD_SCHED_POLICY_FIFO    0
 #define THREAD_SCHED_POLICY_RR      1
-#define THREAD_SCHED_POLICY_TS      2
+#define THREAD_SCHED_POLICY_FS      2
 #define THREAD_SCHED_POLICY_IDLE    3
 #define THREAD_NR_SCHED_POLICIES    4
 
@@ -72,11 +71,11 @@ struct thread;
 #define THREAD_SCHED_RT_PRIO_MAX        63
 
 /*
- * Time-sharing priority properties.
+ * Fair-scheduling priority properties.
  */
-#define THREAD_SCHED_TS_PRIO_MIN        0
-#define THREAD_SCHED_TS_PRIO_DEFAULT    20
-#define THREAD_SCHED_TS_PRIO_MAX        39
+#define THREAD_SCHED_FS_PRIO_MIN        0
+#define THREAD_SCHED_FS_PRIO_DEFAULT    20
+#define THREAD_SCHED_FS_PRIO_MAX        39
 
 /*
  * Thread creation attributes.
@@ -97,8 +96,8 @@ struct thread_attr {
  *  - thread is joinable
  *  - no processor affinity
  *  - task is inherited from parent thread
- *  - policy is time-sharing
- *  - priority is time-sharing default
+ *  - policy is fair-scheduling
+ *  - priority is fair-scheduling default
  *
  * If the policy is changed, the priority, if applicable, must be updated
  * as well.
@@ -110,8 +109,8 @@ thread_attr_init(struct thread_attr *attr, const char *name)
     attr->flags = 0;
     attr->cpumap = NULL;
     attr->task = NULL;
-    attr->policy = THREAD_SCHED_POLICY_TS;
-    attr->priority = THREAD_SCHED_TS_PRIO_DEFAULT;
+    attr->policy = THREAD_SCHED_POLICY_FS;
+    attr->priority = THREAD_SCHED_FS_PRIO_DEFAULT;
 }
 
 static inline void

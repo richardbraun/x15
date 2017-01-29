@@ -33,8 +33,8 @@
 #include <kern/work.h>
 #include <machine/cpu.h>
 
-#define WORK_PRIO_NORMAL    THREAD_SCHED_TS_PRIO_DEFAULT
-#define WORK_PRIO_HIGH      THREAD_SCHED_TS_PRIO_MAX
+#define WORK_PRIO_NORMAL    THREAD_SCHED_FS_PRIO_DEFAULT
+#define WORK_PRIO_HIGH      THREAD_SCHED_FS_PRIO_MAX
 
 #define WORK_INVALID_CPU ((unsigned int)-1)
 

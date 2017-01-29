@@ -27,7 +27,7 @@
 #include <machine/tcb.h>
 
 struct thread_runq;
-struct thread_ts_runq;
+struct thread_fs_runq;
 
 /*
  * Thread flags.
@@ -55,12 +55,12 @@ struct thread_rt_data {
 };
 
 /*
- * Scheduling data for a time-sharing thread.
+ * Scheduling data for a fair-scheduling thread.
  */
-struct thread_ts_data {
+struct thread_fs_data {
     struct list group_node;
     struct list runq_node;
-    struct thread_ts_runq *ts_runq;
+    struct thread_fs_runq *fs_runq;
     unsigned long round;
     unsigned short priority;
     unsigned short weight;
@@ -103,7 +103,7 @@ struct thread {
     /* Scheduling class specific data */
     union {
         struct thread_rt_data rt_data;
-        struct thread_ts_data ts_data;
+        struct thread_fs_data fs_data;
     };
 
     /*
