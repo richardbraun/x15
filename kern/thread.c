@@ -62,7 +62,7 @@
  *
  * TODO Sub-tick accounting.
  *
- * TODO Setting affinity/priority after thread creation.
+ * TODO Setting affinity after thread creation.
  *
  * TODO Take into account the underlying CPU topology (and adjust load
  * balancing to access the global highest round less frequently on large
@@ -244,12 +244,14 @@ struct thread_runq {
  * Operations of a scheduling class.
  */
 struct thread_sched_ops {
-    void (*init_thread)(struct thread *thread, unsigned short priority);
+    void (*init_sched)(struct thread *thread, unsigned short priority);
     struct thread_runq * (*select_runq)(struct thread *thread);
     void (*add)(struct thread_runq *runq, struct thread *thread);
     void (*remove)(struct thread_runq *runq, struct thread *thread);
     void (*put_prev)(struct thread_runq *runq, struct thread *thread);
     struct thread * (*get_next)(struct thread_runq *runq);
+    void (*set_priority)(struct thread *thread, unsigned short priority);
+    void (*set_next)(struct thread_runq *runq, struct thread *thread);
     void (*tick)(struct thread_runq *runq, struct thread *thread);
 };
 
@@ -425,7 +427,8 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
 
     runq->nr_threads++;
 
-    if (thread->sched_class < runq->current->sched_class) {
+    if ((runq->current != NULL)
+        && (runq->current->sched_class > thread->sched_class)) {
         thread_set_flag(runq->current, THREAD_YIELD);
     }
 
@@ -454,6 +457,7 @@ thread_runq_put_prev(struct thread_runq *runq, struct thread *thread)
     spinlock_assert_locked(&runq->lock);
 
     thread_sched_ops[thread->sched_class].put_prev(runq, thread);
+    runq->current = NULL;
 }
 
 static struct thread *
@@ -464,6 +468,7 @@ thread_runq_get_next(struct thread_runq *runq)
 
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
+    assert(runq->current == NULL);
 
     for (i = 0; i < ARRAY_SIZE(thread_sched_ops); i++) {
         thread = thread_sched_ops[i].get_next(runq);
@@ -479,6 +484,18 @@ thread_runq_get_next(struct thread_runq *runq)
 }
 
 static void
+thread_runq_set_next(struct thread_runq *runq, struct thread *thread)
+{
+    assert(runq->current == NULL);
+
+    if (thread_sched_ops[thread->sched_class].set_next != NULL) {
+        thread_sched_ops[thread->sched_class].set_next(runq, thread);
+    }
+
+    runq->current = thread;
+}
+
+static void
 thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 {
     assert(!cpu_intr_enabled());
@@ -488,6 +505,7 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
     thread_runq_add(runq, thread);
 
     if ((runq != thread_runq_local())
+        && (runq->current != NULL)
         && thread_test_flag(runq->current, THREAD_YIELD)) {
         /*
          * Make the new flags globally visible before sending the scheduling
@@ -591,7 +609,7 @@ thread_runq_double_lock(struct thread_runq *a, struct thread_runq *b)
 }
 
 static void
-thread_sched_rt_init_thread(struct thread *thread, unsigned short priority)
+thread_sched_rt_init_sched(struct thread *thread, unsigned short priority)
 {
     assert(priority <= THREAD_SCHED_RT_PRIO_MAX);
     thread->rt_data.priority = priority;
@@ -631,8 +649,9 @@ thread_sched_rt_add(struct thread_runq *runq, struct thread *thread)
         rt_runq->bitmap |= (1ULL << thread->rt_data.priority);
     }
 
-    if ((thread->sched_class == runq->current->sched_class)
-        && (thread->rt_data.priority > runq->current->rt_data.priority)) {
+    if ((runq->current != NULL)
+        && (runq->current->sched_class == thread->sched_class)
+        && (runq->current->rt_data.priority < thread->rt_data.priority)) {
         thread_set_flag(runq->current, THREAD_YIELD);
     }
 }
@@ -681,6 +700,18 @@ thread_sched_rt_get_next(struct thread_runq *runq)
 }
 
 static void
+thread_sched_rt_set_priority(struct thread *thread, unsigned short priority)
+{
+    thread->rt_data.priority = priority;
+}
+
+static void
+thread_sched_rt_set_next(struct thread_runq *runq, struct thread *thread)
+{
+    thread_sched_rt_remove(runq, thread);
+}
+
+static void
 thread_sched_rt_tick(struct thread_runq *runq, struct thread *thread)
 {
     (void)runq;
@@ -706,7 +737,7 @@ thread_sched_fs_prio2weight(unsigned short priority)
 }
 
 static void
-thread_sched_fs_init_thread(struct thread *thread, unsigned short priority)
+thread_sched_fs_init_sched(struct thread *thread, unsigned short priority)
 {
     assert(priority <= THREAD_SCHED_FS_PRIO_MAX);
     thread->fs_data.fs_runq = NULL;
@@ -815,6 +846,7 @@ thread_sched_fs_enqueue(struct thread_fs_runq *fs_runq, unsigned long round,
     unsigned int group_weight, total_weight;
 
     assert(thread->fs_data.fs_runq == NULL);
+    assert(thread->fs_data.work <= thread->fs_data.weight);
 
     group = &fs_runq->group_array[thread->fs_data.priority];
     group_weight = group->weight + thread->fs_data.weight;
@@ -892,7 +924,8 @@ thread_sched_fs_restart(struct thread_runq *runq)
     assert(node != NULL);
     fs_runq->current = list_entry(node, struct thread_fs_group, node);
 
-    if (runq->current->sched_class == THREAD_SCHED_CLASS_FS) {
+    if ((runq->current != NULL)
+        && (runq->current->sched_class == THREAD_SCHED_CLASS_FS)) {
         thread_set_flag(runq->current, THREAD_YIELD);
     }
 }
@@ -1068,6 +1101,25 @@ thread_sched_fs_get_next(struct thread_runq *runq)
     thread = list_entry(node, struct thread, fs_data.group_node);
     list_remove(node);
     return thread;
+}
+
+static void
+thread_sched_fs_set_priority(struct thread *thread, unsigned short priority)
+{
+    thread->fs_data.priority = priority;
+    thread->fs_data.weight = thread_sched_fs_prio2weight(priority);
+
+    if (thread->fs_data.work >= thread->fs_data.weight) {
+        thread->fs_data.work = thread->fs_data.weight;
+    }
+}
+
+static void
+thread_sched_fs_set_next(struct thread_runq *runq, struct thread *thread)
+{
+    (void)runq;
+
+    list_remove(&thread->fs_data.group_node);
 }
 
 static void
@@ -1376,7 +1428,7 @@ no_migration:
 }
 
 static void
-thread_sched_idle_init_thread(struct thread *thread, unsigned short priority)
+thread_sched_idle_init_sched(struct thread *thread, unsigned short priority)
 {
     (void)thread;
     (void)priority;
@@ -1462,30 +1514,36 @@ thread_bootstrap(void)
     thread_policy_table[THREAD_SCHED_POLICY_IDLE] = THREAD_SCHED_CLASS_IDLE;
 
     ops = &thread_sched_ops[THREAD_SCHED_CLASS_RT];
-    ops->init_thread = thread_sched_rt_init_thread;
+    ops->init_sched = thread_sched_rt_init_sched;
     ops->select_runq = thread_sched_rt_select_runq;
     ops->add = thread_sched_rt_add;
     ops->remove = thread_sched_rt_remove;
     ops->put_prev = thread_sched_rt_put_prev;
     ops->get_next = thread_sched_rt_get_next;
+    ops->set_priority = thread_sched_rt_set_priority;
+    ops->set_next = thread_sched_rt_set_next;
     ops->tick = thread_sched_rt_tick;
 
     ops = &thread_sched_ops[THREAD_SCHED_CLASS_FS];
-    ops->init_thread = thread_sched_fs_init_thread;
+    ops->init_sched = thread_sched_fs_init_sched;
     ops->select_runq = thread_sched_fs_select_runq;
     ops->add = thread_sched_fs_add;
     ops->remove = thread_sched_fs_remove;
     ops->put_prev = thread_sched_fs_put_prev;
     ops->get_next = thread_sched_fs_get_next;
+    ops->set_priority = thread_sched_fs_set_priority;
+    ops->set_next = thread_sched_fs_set_next;
     ops->tick = thread_sched_fs_tick;
 
     ops = &thread_sched_ops[THREAD_SCHED_CLASS_IDLE];
-    ops->init_thread = thread_sched_idle_init_thread;
+    ops->init_sched = thread_sched_idle_init_sched;
     ops->select_runq = thread_sched_idle_select_runq;
     ops->add = thread_sched_idle_add;
     ops->remove = thread_sched_idle_remove;
     ops->put_prev = thread_sched_idle_put_prev;
     ops->get_next = thread_sched_idle_get_next;
+    ops->set_priority = NULL;
+    ops->set_next = NULL;
     ops->tick = thread_sched_idle_tick;
 
     cpumap_zero(&thread_active_runqs);
@@ -1553,7 +1611,15 @@ thread_destroy_tsd(struct thread *thread)
 static void
 thread_init_sched(struct thread *thread, unsigned short priority)
 {
-    thread_sched_ops[thread->sched_class].init_thread(thread, priority);
+    thread_sched_ops[thread->sched_class].init_sched(thread, priority);
+}
+
+static void
+thread_set_priority(struct thread *thread, unsigned short priority)
+{
+    if (thread_sched_ops[thread->sched_class].set_priority != NULL) {
+        thread_sched_ops[thread->sched_class].set_priority(thread, priority);
+    }
 }
 
 static int
@@ -1615,8 +1681,6 @@ thread_lock_runq(struct thread *thread, unsigned long *flags)
 {
     struct thread_runq *runq;
 
-    assert(thread != thread_self());
-
     for (;;) {
         runq = thread->runq;
 
@@ -1641,6 +1705,8 @@ thread_destroy(struct thread *thread)
 {
     struct thread_runq *runq;
     unsigned long flags, state;
+
+    assert(thread != thread_self());
 
     do {
         runq = thread_lock_runq(thread, &flags);
@@ -2122,6 +2188,7 @@ thread_run_scheduler(void)
     sref_register();
 
     spinlock_lock(&runq->lock);
+    runq->current = NULL;
     thread = thread_runq_get_next(thread_runq_local());
 
     tcb_load(&thread->tcb);
@@ -2219,7 +2286,7 @@ thread_schedclass_to_str(const struct thread *thread)
     }
 }
 
-unsigned int
+unsigned short
 thread_schedprio(const struct thread *thread)
 {
     switch (thread->sched_class) {
@@ -2232,6 +2299,49 @@ thread_schedprio(const struct thread *thread)
     default:
         panic("thread: unknown scheduling class");
     }
+}
+
+void
+thread_setscheduler(struct thread *thread, unsigned char policy,
+                    unsigned short priority)
+{
+    struct thread_runq *runq;
+    unsigned long flags;
+    bool current;
+
+    runq = thread_lock_runq(thread, &flags);
+
+    if (thread->state != THREAD_RUNNING) {
+        current = false;
+    } else {
+        if (thread != runq->current) {
+            current = false;
+        } else {
+            thread_runq_put_prev(runq, thread);
+            current = true;
+        }
+
+        thread_runq_remove(runq, thread);
+    }
+
+    if (thread->sched_policy == policy) {
+        thread_set_priority(thread, priority);
+    } else {
+        thread->sched_policy = policy;
+        assert(policy < ARRAY_SIZE(thread_policy_table));
+        thread->sched_class = thread_policy_table[policy];
+        thread_init_sched(thread, priority);
+    }
+
+    if (thread->state == THREAD_RUNNING) {
+        thread_runq_add(runq, thread);
+
+        if (current) {
+            thread_runq_set_next(runq, thread);
+        }
+    }
+
+    thread_unlock_runq(runq, flags);
 }
 
 void

@@ -233,6 +233,12 @@ void thread_schedule_intr(void);
 void thread_tick_intr(void);
 
 /*
+ * Set thread scheduling parameters.
+ */
+void thread_setscheduler(struct thread *thread, unsigned char policy,
+                         unsigned short priority);
+
+/*
  * Return a character representation of the state of a thread.
  */
 char thread_state_to_chr(const struct thread *thread);
@@ -247,7 +253,7 @@ const char * thread_schedclass_to_str(const struct thread *thread);
  *
  * If the scheduling class doesn't use a priority, return 0.
  */
-unsigned int thread_schedprio(const struct thread *thread);
+unsigned short thread_schedprio(const struct thread *thread);
 
 static inline struct thread *
 thread_from_tcb(struct tcb *tcb)
