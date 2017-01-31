@@ -248,12 +248,23 @@ char thread_state_to_chr(const struct thread *thread);
  */
 const char * thread_schedclass_to_str(const struct thread *thread);
 
-/*
- * Return the priority of a thread.
- *
- * If the scheduling class doesn't use a priority, return 0.
- */
-unsigned short thread_schedprio(const struct thread *thread);
+static inline unsigned char
+thread_sched_policy(const struct thread *thread)
+{
+    return thread->sched_data.sched_policy;
+}
+
+static inline unsigned char
+thread_sched_class(const struct thread *thread)
+{
+    return thread->sched_data.sched_class;
+}
+
+static inline unsigned short
+thread_priority(const struct thread *thread)
+{
+    return thread->sched_data.priority;
+}
 
 static inline struct thread *
 thread_from_tcb(struct tcb *tcb)

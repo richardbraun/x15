@@ -139,7 +139,7 @@ task_info(struct task *task)
     list_for_each_entry(&task->threads, thread, task_node) {
         printk("task: %s: %p %c %.2s:%02hu %s\n", task->name, thread,
                thread_state_to_chr(thread), thread_schedclass_to_str(thread),
-               thread_schedprio(thread), thread->name);
+               thread_priority(thread), thread->name);
     }
 
     spinlock_unlock(&task->lock);

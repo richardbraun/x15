@@ -50,7 +50,6 @@ struct thread_fs_runq;
  */
 struct thread_rt_data {
     struct list node;
-    unsigned short priority;
     unsigned short time_slice;
 };
 
@@ -62,9 +61,17 @@ struct thread_fs_data {
     struct list runq_node;
     struct thread_fs_runq *fs_runq;
     unsigned long round;
-    unsigned short priority;
     unsigned short weight;
     unsigned short work;
+};
+
+/*
+ * Common scheduling data.
+ */
+struct thread_sched_data {
+    unsigned char sched_policy;
+    unsigned char sched_class;
+    unsigned short priority;
 };
 
 /*
@@ -93,14 +100,13 @@ struct thread {
     unsigned short pinned;
     unsigned short llsync_read;
 
-    /* Common scheduling properties */
-    unsigned char sched_policy;
-    unsigned char sched_class;
-
     /* Processors on which this thread is allowed to run */
     struct cpumap cpumap;
 
-    /* Scheduling class specific data */
+    /* Scheduling data */
+    struct thread_sched_data sched_data;
+
+    /* Class specific scheduling data */
     union {
         struct thread_rt_data rt_data;
         struct thread_fs_data fs_data;
