@@ -310,20 +310,6 @@ retry:
 }
 
 static inline struct vm_map_entry *
-vm_map_prev(struct vm_map *map, struct vm_map_entry *entry)
-{
-    struct list *node;
-
-    node = list_prev(&entry->list_node);
-
-    if (list_end(&map->entry_list, node)) {
-        return NULL;
-    } else {
-        return list_entry(node, struct vm_map_entry, list_node);
-    }
-}
-
-static inline struct vm_map_entry *
 vm_map_next(struct vm_map *map, struct vm_map_entry *entry)
 {
     struct list *node;
