@@ -2326,6 +2326,11 @@ thread_setscheduler(struct thread *thread, unsigned char policy,
 
     runq = thread_lock_runq(thread, &flags);
 
+    if ((thread_sched_policy(thread) == policy)
+        && (thread_priority(thread) == priority)) {
+        goto out;
+    }
+
     if (thread->state != THREAD_RUNNING) {
         current = false;
     } else {
@@ -2356,6 +2361,7 @@ thread_setscheduler(struct thread *thread, unsigned char policy,
         }
     }
 
+out:
     thread_unlock_runq(runq, flags);
 }
 
