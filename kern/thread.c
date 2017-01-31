@@ -331,6 +331,16 @@ struct thread_zombie {
     struct thread *thread;
 };
 
+static const struct thread_sched_ops *
+thread_get_sched_ops(const struct thread *thread)
+{
+    unsigned char sched_class;
+
+    sched_class = thread_sched_class(thread);
+    assert(sched_class < ARRAY_SIZE(thread_sched_ops));
+    return &thread_sched_ops[sched_class];
+}
+
 static void __init
 thread_runq_init_rt(struct thread_runq *runq)
 {
@@ -416,10 +426,13 @@ thread_runq_cpu(struct thread_runq *runq)
 static void
 thread_runq_add(struct thread_runq *runq, struct thread *thread)
 {
+    const struct thread_sched_ops *ops;
+
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
 
-    thread_sched_ops[thread_sched_class(thread)].add(runq, thread);
+    ops = thread_get_sched_ops(thread);
+    ops->add(runq, thread);
 
     if (runq->nr_threads == 0) {
         cpumap_clear_atomic(&thread_idle_runqs, thread_runq_cpu(runq));
@@ -438,6 +451,8 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
 static void
 thread_runq_remove(struct thread_runq *runq, struct thread *thread)
 {
+    const struct thread_sched_ops *ops;
+
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
 
@@ -447,16 +462,24 @@ thread_runq_remove(struct thread_runq *runq, struct thread *thread)
         cpumap_set_atomic(&thread_idle_runqs, thread_runq_cpu(runq));
     }
 
-    thread_sched_ops[thread_sched_class(thread)].remove(runq, thread);
+    ops = thread_get_sched_ops(thread);
+    ops->remove(runq, thread);
 }
 
 static void
 thread_runq_put_prev(struct thread_runq *runq, struct thread *thread)
 {
+    const struct thread_sched_ops *ops;
+
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
 
-    thread_sched_ops[thread_sched_class(thread)].put_prev(runq, thread);
+    ops = thread_get_sched_ops(thread);
+
+    if (ops->put_prev != NULL) {
+        ops->put_prev(runq, thread);
+    }
+
     runq->current = NULL;
 }
 
@@ -486,10 +509,14 @@ thread_runq_get_next(struct thread_runq *runq)
 static void
 thread_runq_set_next(struct thread_runq *runq, struct thread *thread)
 {
+    const struct thread_sched_ops *ops;
+
     assert(runq->current == NULL);
 
-    if (thread_sched_ops[thread_sched_class(thread)].set_next != NULL) {
-        thread_sched_ops[thread_sched_class(thread)].set_next(runq, thread);
+    ops = thread_get_sched_ops(thread);
+
+    if (ops->set_next != NULL) {
+        ops->set_next(runq, thread);
     }
 
     runq->current = thread;
@@ -1418,13 +1445,6 @@ no_migration:
     }
 }
 
-static void
-thread_sched_idle_init_sched(struct thread *thread, unsigned short priority)
-{
-    (void)thread;
-    (void)priority;
-}
-
 static struct thread_runq *
 thread_sched_idle_select_runq(struct thread *thread)
 {
@@ -1456,24 +1476,10 @@ thread_sched_idle_remove(struct thread_runq *runq, struct thread *thread)
     thread_sched_idle_panic();
 }
 
-static void
-thread_sched_idle_put_prev(struct thread_runq *runq, struct thread *thread)
-{
-    (void)runq;
-    (void)thread;
-}
-
 static struct thread *
 thread_sched_idle_get_next(struct thread_runq *runq)
 {
     return runq->idler;
-}
-
-static void
-thread_sched_idle_tick(struct thread_runq *runq, struct thread *thread)
-{
-    (void)runq;
-    (void)thread;
 }
 
 static void
@@ -1491,8 +1497,12 @@ thread_set_sched_class(struct thread *thread, unsigned char sched_class)
 static void
 thread_set_priority(struct thread *thread, unsigned short priority)
 {
-    if (thread_sched_ops[thread_sched_class(thread)].set_priority != NULL) {
-        thread_sched_ops[thread_sched_class(thread)].set_priority(thread, priority);
+    const struct thread_sched_ops *ops;
+
+    ops = thread_get_sched_ops(thread);
+
+    if (ops->set_priority != NULL) {
+        ops->set_priority(thread, priority);
     }
 
     thread->sched_data.priority = priority;
@@ -1551,15 +1561,15 @@ thread_bootstrap(void)
     ops->tick = thread_sched_fs_tick;
 
     ops = &thread_sched_ops[THREAD_SCHED_CLASS_IDLE];
-    ops->init_sched = thread_sched_idle_init_sched;
+    ops->init_sched = NULL;
     ops->select_runq = thread_sched_idle_select_runq;
     ops->add = thread_sched_idle_add;
     ops->remove = thread_sched_idle_remove;
-    ops->put_prev = thread_sched_idle_put_prev;
+    ops->put_prev = NULL;
     ops->get_next = thread_sched_idle_get_next;
     ops->set_priority = NULL;
     ops->set_next = NULL;
-    ops->tick = thread_sched_idle_tick;
+    ops->tick = NULL;
 
     cpumap_zero(&thread_active_runqs);
     cpumap_zero(&thread_idle_runqs);
@@ -1626,7 +1636,14 @@ thread_destroy_tsd(struct thread *thread)
 static void
 thread_init_sched(struct thread *thread, unsigned short priority)
 {
-    thread_sched_ops[thread_sched_class(thread)].init_sched(thread, priority);
+    const struct thread_sched_ops *ops;
+
+    ops = thread_get_sched_ops(thread);
+
+    if (ops->init_sched != NULL) {
+        ops->init_sched(thread, priority);
+    }
+
     thread->sched_data.priority = priority;
 }
 
@@ -2240,6 +2257,7 @@ thread_schedule_intr(void)
 void
 thread_tick_intr(void)
 {
+    const struct thread_sched_ops *ops;
     struct thread_runq *runq;
     struct thread *thread;
 
@@ -2259,7 +2277,11 @@ thread_tick_intr(void)
         thread_balance_idle_tick(runq);
     }
 
-    thread_sched_ops[thread_sched_class(thread)].tick(runq, thread);
+    ops = thread_get_sched_ops(thread);
+
+    if (ops->tick != NULL) {
+        ops->tick(runq, thread);
+    }
 
     spinlock_unlock(&runq->lock);
 }
