@@ -138,6 +138,17 @@
 #define THREAD_NR_SCHED_CLASSES 3
 
 /*
+ * Global priority bases for each scheduling class.
+ *
+ * Global priorities are only used to determine which of two threads
+ * has the higher priority, and should only matter for priority
+ * inheritance.
+ */
+#define THREAD_SCHED_GLOBAL_PRIO_RT     (THREAD_SCHED_FS_PRIO_MAX + 2)
+#define THREAD_SCHED_GLOBAL_PRIO_FS     1
+#define THREAD_SCHED_GLOBAL_PRIO_IDLE   0
+
+/*
  * Default time slice for real-time round-robin scheduling.
  */
 #define THREAD_DEFAULT_RR_TIME_SLICE (HZ / 10)
@@ -251,6 +262,7 @@ struct thread_sched_ops {
     void (*put_prev)(struct thread_runq *runq, struct thread *thread);
     struct thread * (*get_next)(struct thread_runq *runq);
     void (*set_priority)(struct thread *thread, unsigned short priority);
+    unsigned int (*get_global_priority)(const struct thread *thread);
     void (*set_next)(struct thread_runq *runq, struct thread *thread);
     void (*tick)(struct thread_runq *runq, struct thread *thread);
 };
@@ -719,6 +731,12 @@ thread_sched_rt_get_next(struct thread_runq *runq)
     return thread;
 }
 
+static unsigned int
+thread_sched_rt_get_global_priority(const struct thread *thread)
+{
+    return THREAD_SCHED_GLOBAL_PRIO_RT + thread_priority(thread);
+}
+
 static void
 thread_sched_rt_set_next(struct thread_runq *runq, struct thread *thread)
 {
@@ -1126,6 +1144,12 @@ thread_sched_fs_set_priority(struct thread *thread, unsigned short priority)
     }
 }
 
+static unsigned int
+thread_sched_fs_get_global_priority(const struct thread *thread)
+{
+    return THREAD_SCHED_GLOBAL_PRIO_FS + thread_priority(thread);
+}
+
 static void
 thread_sched_fs_set_next(struct thread_runq *runq, struct thread *thread)
 {
@@ -1476,6 +1500,13 @@ thread_sched_idle_get_next(struct thread_runq *runq)
     return runq->idler;
 }
 
+static unsigned int
+thread_sched_idle_get_global_priority(const struct thread *thread)
+{
+	(void)thread;
+    return THREAD_SCHED_GLOBAL_PRIO_IDLE;
+}
+
 static const struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES] = {
     [THREAD_SCHED_CLASS_RT] = {
         .init_sched = thread_sched_rt_init_sched,
@@ -1485,6 +1516,7 @@ static const struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES] =
         .put_prev = thread_sched_rt_put_prev,
         .get_next = thread_sched_rt_get_next,
         .set_priority = NULL,
+        .get_global_priority = thread_sched_rt_get_global_priority,
         .set_next = thread_sched_rt_set_next,
         .tick = thread_sched_rt_tick,
     },
@@ -1496,6 +1528,7 @@ static const struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES] =
         .put_prev = thread_sched_fs_put_prev,
         .get_next = thread_sched_fs_get_next,
         .set_priority = thread_sched_fs_set_priority,
+        .get_global_priority = thread_sched_fs_get_global_priority,
         .set_next = thread_sched_fs_set_next,
         .tick = thread_sched_fs_tick,
     },
@@ -1507,6 +1540,7 @@ static const struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES] =
         .put_prev = NULL,
         .get_next = thread_sched_idle_get_next,
         .set_priority = NULL,
+        .get_global_priority = thread_sched_idle_get_global_priority,
         .set_next = NULL,
         .tick = NULL,
     },
@@ -2304,6 +2338,12 @@ thread_schedclass_to_str(const struct thread *thread)
     default:
         panic("thread: unknown scheduling class");
     }
+}
+
+unsigned int
+thread_global_priority(const struct thread *thread)
+{
+    return thread_get_sched_ops(thread)->get_global_priority(thread);
 }
 
 void

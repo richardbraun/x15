@@ -266,6 +266,12 @@ thread_priority(const struct thread *thread)
     return thread->sched_data.priority;
 }
 
+/*
+ * The global priority of a thread is meant to be compared against
+ * another global priority to determine which thread has higher priority.
+ */
+unsigned int thread_global_priority(const struct thread *thread);
+
 static inline struct thread *
 thread_from_tcb(struct tcb *tcb)
 {
