@@ -263,23 +263,17 @@ static struct thread_runq thread_runq __percpu;
  */
 static struct thread thread_booters[MAX_CPUS] __initdata;
 
-/*
- * Caches for allocated threads and their stacks.
- */
 static struct kmem_cache thread_cache;
 static struct kmem_cache thread_stack_cache;
 
-/*
- * Table used to quickly map policies to classes.
- */
-static unsigned char thread_policy_table[THREAD_NR_SCHED_POLICIES]
-    __read_mostly;
+static const unsigned char thread_policy_table[THREAD_NR_SCHED_POLICIES] = {
+    [THREAD_SCHED_POLICY_FIFO] = THREAD_SCHED_CLASS_RT,
+    [THREAD_SCHED_POLICY_RR] = THREAD_SCHED_CLASS_RT,
+    [THREAD_SCHED_POLICY_FS] = THREAD_SCHED_CLASS_FS,
+    [THREAD_SCHED_POLICY_IDLE] = THREAD_SCHED_CLASS_IDLE,
+};
 
-/*
- * Scheduling class operations.
- */
-static struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES]
-    __read_mostly;
+static const struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES];
 
 /*
  * Map of run queues for which a processor is running.
@@ -1482,6 +1476,42 @@ thread_sched_idle_get_next(struct thread_runq *runq)
     return runq->idler;
 }
 
+static const struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES] = {
+    [THREAD_SCHED_CLASS_RT] = {
+        .init_sched = thread_sched_rt_init_sched,
+        .select_runq = thread_sched_rt_select_runq,
+        .add = thread_sched_rt_add,
+        .remove = thread_sched_rt_remove,
+        .put_prev = thread_sched_rt_put_prev,
+        .get_next = thread_sched_rt_get_next,
+        .set_priority = NULL,
+        .set_next = thread_sched_rt_set_next,
+        .tick = thread_sched_rt_tick,
+    },
+    [THREAD_SCHED_CLASS_FS] = {
+        .init_sched = thread_sched_fs_init_sched,
+        .select_runq = thread_sched_fs_select_runq,
+        .add = thread_sched_fs_add,
+        .remove = thread_sched_fs_remove,
+        .put_prev = thread_sched_fs_put_prev,
+        .get_next = thread_sched_fs_get_next,
+        .set_priority = thread_sched_fs_set_priority,
+        .set_next = thread_sched_fs_set_next,
+        .tick = thread_sched_fs_tick,
+    },
+    [THREAD_SCHED_CLASS_IDLE] = {
+        .init_sched = NULL,
+        .select_runq = thread_sched_idle_select_runq,
+        .add = thread_sched_idle_add,
+        .remove = thread_sched_idle_remove,
+        .put_prev = NULL,
+        .get_next = thread_sched_idle_get_next,
+        .set_priority = NULL,
+        .set_next = NULL,
+        .tick = NULL,
+    },
+};
+
 static void
 thread_set_sched_policy(struct thread *thread, unsigned char sched_policy)
 {
@@ -1531,46 +1561,6 @@ thread_bootstrap_common(unsigned int cpu)
 void __init
 thread_bootstrap(void)
 {
-    struct thread_sched_ops *ops;
-
-    thread_policy_table[THREAD_SCHED_POLICY_FIFO] = THREAD_SCHED_CLASS_RT;
-    thread_policy_table[THREAD_SCHED_POLICY_RR] = THREAD_SCHED_CLASS_RT;
-    thread_policy_table[THREAD_SCHED_POLICY_FS] = THREAD_SCHED_CLASS_FS;
-    thread_policy_table[THREAD_SCHED_POLICY_IDLE] = THREAD_SCHED_CLASS_IDLE;
-
-    ops = &thread_sched_ops[THREAD_SCHED_CLASS_RT];
-    ops->init_sched = thread_sched_rt_init_sched;
-    ops->select_runq = thread_sched_rt_select_runq;
-    ops->add = thread_sched_rt_add;
-    ops->remove = thread_sched_rt_remove;
-    ops->put_prev = thread_sched_rt_put_prev;
-    ops->get_next = thread_sched_rt_get_next;
-    ops->set_priority = NULL;
-    ops->set_next = thread_sched_rt_set_next;
-    ops->tick = thread_sched_rt_tick;
-
-    ops = &thread_sched_ops[THREAD_SCHED_CLASS_FS];
-    ops->init_sched = thread_sched_fs_init_sched;
-    ops->select_runq = thread_sched_fs_select_runq;
-    ops->add = thread_sched_fs_add;
-    ops->remove = thread_sched_fs_remove;
-    ops->put_prev = thread_sched_fs_put_prev;
-    ops->get_next = thread_sched_fs_get_next;
-    ops->set_priority = thread_sched_fs_set_priority;
-    ops->set_next = thread_sched_fs_set_next;
-    ops->tick = thread_sched_fs_tick;
-
-    ops = &thread_sched_ops[THREAD_SCHED_CLASS_IDLE];
-    ops->init_sched = NULL;
-    ops->select_runq = thread_sched_idle_select_runq;
-    ops->add = thread_sched_idle_add;
-    ops->remove = thread_sched_idle_remove;
-    ops->put_prev = NULL;
-    ops->get_next = thread_sched_idle_get_next;
-    ops->set_priority = NULL;
-    ops->set_next = NULL;
-    ops->tick = NULL;
-
     cpumap_zero(&thread_active_runqs);
     cpumap_zero(&thread_idle_runqs);
 
