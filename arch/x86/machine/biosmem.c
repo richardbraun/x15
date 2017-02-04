@@ -810,7 +810,7 @@ biosmem_load_zone(struct biosmem_zone *zone, uint64_t max_phys_end)
         }
 
         printk("biosmem: warning: zone %s truncated to %#llx\n",
-               vm_page_zone_name(zone_index), max_phys_end);
+               vm_page_zone_name(zone_index), (unsigned long long)max_phys_end);
         phys_end = max_phys_end;
     }
 

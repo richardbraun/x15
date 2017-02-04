@@ -766,7 +766,7 @@ vm_map_info(struct vm_map *map)
         printk("vm_map: %016lx %016lx %8luk %08llx %08x %s\n",
                (unsigned long)entry->start, (unsigned long)entry->end,
                (unsigned long)(entry->end - entry->start) >> 10,
-               entry->offset, entry->flags, type);
+               (unsigned long long)entry->offset, entry->flags, type);
     }
 
     printk("vm_map: total: %zuk\n", map->size >> 10);
