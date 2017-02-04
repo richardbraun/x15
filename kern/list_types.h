@@ -18,17 +18,12 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_CONDITION_TYPES_H
-#define _KERN_CONDITION_TYPES_H
+#ifndef _KERN_LIST_TYPES_H
+#define _KERN_LIST_TYPES_H
 
-#include <kern/list_types.h>
-#include <kern/mutex_types.h>
-#include <kern/spinlock_types.h>
-
-struct condition {
-    struct spinlock lock;
-    struct mutex *mutex;
-    struct list waiters;
+struct list {
+    struct list *prev;
+    struct list *next;
 };
 
-#endif /* _KERN_CONDITION_TYPES_H */
+#endif /* _KERN_LIST_TYPES_H */

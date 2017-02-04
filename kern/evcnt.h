@@ -21,7 +21,7 @@
 #ifndef _KERN_EVCNT_H
 #define _KERN_EVCNT_H
 
-#include <kern/list.h>
+#include <kern/list_types.h>
 
 /*
  * Size of the buffer storing an event counter name.

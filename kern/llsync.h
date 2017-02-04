@@ -72,7 +72,6 @@
 
 #include <stdbool.h>
 
-#include <kern/list.h>
 #include <kern/macros.h>
 #include <kern/llsync_i.h>
 #include <kern/thread.h>

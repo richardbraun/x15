@@ -21,7 +21,7 @@
 #ifndef _KERN_MUTEX_TYPES_H
 #define _KERN_MUTEX_TYPES_H
 
-#include <kern/list.h>
+#include <kern/list_types.h>
 #include <kern/spinlock_types.h>
 
 struct mutex {

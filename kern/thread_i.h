@@ -20,7 +20,7 @@
 
 #include <kern/condition_types.h>
 #include <kern/cpumap.h>
-#include <kern/list.h>
+#include <kern/list_types.h>
 #include <kern/macros.h>
 #include <kern/mutex_types.h>
 #include <kern/param.h>
