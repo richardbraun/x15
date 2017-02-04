@@ -21,11 +21,11 @@
 #include <kern/printk.h>
 #include <kern/stddef.h>
 #include <kern/string.h>
-#include <kern/types.h>
 #include <machine/elf.h>
 #include <machine/multiboot.h>
 #include <machine/pmap.h>
 #include <machine/strace.h>
+#include <machine/types.h>
 #include <vm/vm_kmem.h>
 
 #ifdef __LP64__

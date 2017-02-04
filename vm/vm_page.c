@@ -44,9 +44,9 @@
 #include <kern/stdint.h>
 #include <kern/string.h>
 #include <kern/thread.h>
-#include <kern/types.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>
+#include <machine/types.h>
 #include <vm/vm_page.h>
 
 #define DEBUG 0

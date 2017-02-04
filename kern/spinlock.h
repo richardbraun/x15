@@ -26,8 +26,8 @@
 #include <kern/assert.h>
 #include <kern/macros.h>
 #include <kern/spinlock_i.h>
+#include <kern/spinlock_types.h>
 #include <kern/thread.h>
-#include <kern/types.h>
 #include <machine/cpu.h>
 
 struct spinlock;

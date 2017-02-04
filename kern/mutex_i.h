@@ -20,8 +20,8 @@
 
 #include <kern/assert.h>
 #include <kern/list.h>
+#include <kern/mutex_types.h>
 #include <kern/thread.h>
-#include <kern/types.h>
 #include <machine/atomic.h>
 
 #define MUTEX_UNLOCKED  0

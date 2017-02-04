@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,29 +15,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * Condition variables.
+ * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_CONDITION_H
-#define _KERN_CONDITION_H
+#ifndef _KERN_CONDITION_TYPES_H
+#define _KERN_CONDITION_TYPES_H
 
-#include <kern/condition_types.h>
 #include <kern/list.h>
-#include <kern/spinlock.h>
-#include <kern/stddef.h>
+#include <kern/mutex_types.h>
+#include <kern/spinlock_types.h>
 
-static inline void
-condition_init(struct condition *condition)
-{
-    spinlock_init(&condition->lock);
-    condition->mutex = NULL;
-    list_init(&condition->waiters);
-}
+struct condition {
+    struct spinlock lock;
+    struct mutex *mutex;
+    struct list waiters;
+};
 
-void condition_wait(struct condition *cond, struct mutex *mutex);
-
-void condition_signal(struct condition *cond);
-
-void condition_broadcast(struct condition *cond);
-
-#endif /* _KERN_CONDITION_H */
+#endif /* _KERN_CONDITION_TYPES_H */

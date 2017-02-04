@@ -19,7 +19,7 @@
 #define _KERN_SPINLOCK_I_H
 
 #include <kern/assert.h>
-#include <kern/types.h>
+#include <kern/spinlock_types.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 

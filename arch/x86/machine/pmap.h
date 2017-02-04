@@ -101,9 +101,9 @@
 #include <kern/mutex.h>
 #include <kern/stdint.h>
 #include <kern/thread.h>
-#include <kern/types.h>
 #include <machine/cpu.h>
 #include <machine/trap.h>
+#include <machine/types.h>
 
 /*
  * Mapping creation flags.

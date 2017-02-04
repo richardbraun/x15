@@ -18,11 +18,12 @@
 #ifndef _KERN_THREAD_I_H
 #define _KERN_THREAD_I_H
 
+#include <kern/condition_types.h>
 #include <kern/cpumap.h>
 #include <kern/list.h>
 #include <kern/macros.h>
+#include <kern/mutex_types.h>
 #include <kern/param.h>
-#include <kern/types.h>
 #include <machine/atomic.h>
 #include <machine/tcb.h>
 

@@ -18,8 +18,8 @@
 #ifndef _VM_VM_KMEM_H
 #define _VM_VM_KMEM_H
 
-#include <kern/types.h>
 #include <kern/stdint.h>
+#include <machine/types.h>
 
 /*
  * The kernel space is required not to start at address 0, which is used to

@@ -20,8 +20,8 @@
 
 #include <stdbool.h>
 
-#include <kern/types.h>
 #include <machine/multiboot.h>
+#include <machine/types.h>
 
 /*
  * Address where the address of the Extended BIOS Data Area segment can be

@@ -28,8 +28,8 @@
 #include <kern/param.h>
 #include <kern/stddef.h>
 #include <kern/stdint.h>
-#include <kern/types.h>
 #include <machine/pmap.h>
+#include <machine/types.h>
 
 /*
  * Address/page conversion and rounding macros (not inline functions to

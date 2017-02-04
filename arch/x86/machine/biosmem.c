@@ -26,11 +26,11 @@
 #include <kern/stddef.h>
 #include <kern/stdint.h>
 #include <kern/string.h>
-#include <kern/types.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/multiboot.h>
+#include <machine/types.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 

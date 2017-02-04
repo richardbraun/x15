@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,27 +13,16 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_TYPES_H
-#define _KERN_TYPES_H
-
-#include <machine/types.h>
-
-/*
- * Forward declarations.
- */
-struct task;
-
-/*
- * Types defined here to avoid inclusion loops.
- */
+#ifndef _KERN_MUTEX_TYPES_H
+#define _KERN_MUTEX_TYPES_H
 
 #include <kern/list.h>
-
-struct spinlock {
-    unsigned int locked;
-};
+#include <kern/spinlock_types.h>
 
 struct mutex {
     unsigned int state;
@@ -41,10 +30,4 @@ struct mutex {
     struct list waiters;
 };
 
-struct condition {
-    struct spinlock lock;
-    struct mutex *mutex;
-    struct list waiters;
-};
-
-#endif /* _KERN_TYPES_H */
+#endif /* _KERN_MUTEX_TYPES_H */

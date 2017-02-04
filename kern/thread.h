@@ -36,8 +36,12 @@
 #include <kern/assert.h>
 #include <kern/cpumap.h>
 #include <kern/macros.h>
-#include <kern/types.h>
 #include <machine/tcb.h>
+
+/*
+ * Forward declaration
+ */
+struct spinlock;
 
 /*
  * Thread structure.

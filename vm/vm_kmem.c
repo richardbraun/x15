@@ -25,8 +25,8 @@
 #include <kern/param.h>
 #include <kern/stddef.h>
 #include <kern/stdint.h>
-#include <kern/types.h>
 #include <machine/pmap.h>
+#include <machine/types.h>
 #include <vm/vm_adv.h>
 #include <vm/vm_inherit.h>
 #include <vm/vm_kmem.h>

@@ -36,13 +36,13 @@
 #include <kern/stddef.h>
 #include <kern/string.h>
 #include <kern/thread.h>
-#include <kern/types.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
+#include <machine/types.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 #include <vm/vm_prot.h>

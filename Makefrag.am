@@ -7,6 +7,7 @@ x15_SOURCES +=              \
 	kern/bitmap_i.h     \
 	kern/condition.c    \
 	kern/condition.h    \
+	kern/condition_types.h \
 	kern/config.h       \
 	kern/cpumap.c       \
 	kern/cpumap.h       \
@@ -30,6 +31,7 @@ x15_SOURCES +=              \
 	kern/mutex.c        \
 	kern/mutex.h        \
 	kern/mutex_i.h      \
+	kern/mutex_types.h  \
 	kern/panic.c        \
 	kern/panic.h        \
 	kern/param.h        \
@@ -45,6 +47,7 @@ x15_SOURCES +=              \
 	kern/rdxtree_i.h    \
 	kern/spinlock.h     \
 	kern/spinlock_i.h   \
+	kern/spinlock_types.h \
 	kern/sprintf.c      \
 	kern/sprintf.h      \
 	kern/sref.c         \
@@ -59,7 +62,6 @@ x15_SOURCES +=              \
 	kern/thread.c       \
 	kern/thread.h       \
 	kern/thread_i.h     \
-	kern/types.h        \
 	kern/work.c         \
 	kern/work.h         \
 	kern/xcall.c        \
