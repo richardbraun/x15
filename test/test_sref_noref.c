@@ -32,6 +32,8 @@
  * to occur.
  */
 
+#include <stddef.h>
+
 #include <kern/condition.h>
 #include <kern/error.h>
 #include <kern/evcnt.h>
@@ -41,7 +43,6 @@
 #include <kern/panic.h>
 #include <kern/sprintf.h>
 #include <kern/sref.h>
-#include <kern/stddef.h>
 #include <kern/thread.h>
 #include <test/test.h>
 #include <vm/vm_kmem.h>

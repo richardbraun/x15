@@ -21,13 +21,14 @@
 #ifndef _VM_VM_PAGE_H
 #define _VM_VM_PAGE_H
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <kern/assert.h>
 #include <kern/list.h>
 #include <kern/log2.h>
 #include <kern/macros.h>
 #include <kern/param.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
 #include <machine/pmap.h>
 #include <machine/types.h>
 

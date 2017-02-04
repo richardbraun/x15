@@ -18,7 +18,7 @@
 #ifndef _X86_IO_H
 #define _X86_IO_H
 
-#include <kern/stdint.h>
+#include <stdint.h>
 
 /*
  * Read a byte from an I/O port.

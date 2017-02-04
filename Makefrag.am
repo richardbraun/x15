@@ -1,5 +1,8 @@
 include arch/x86/Makefrag.am
 
+x15_SOURCES += \
+	include/string.h
+
 x15_SOURCES +=              \
 	kern/assert.h       \
 	kern/bitmap.c       \
@@ -54,8 +57,6 @@ x15_SOURCES +=              \
 	kern/sref.c         \
 	kern/sref.h         \
 	kern/sref_i.h       \
-	kern/stddef.h       \
-	kern/stdint.h       \
 	kern/string.c       \
 	kern/string.h       \
 	kern/task.c         \
@@ -63,6 +64,7 @@ x15_SOURCES +=              \
 	kern/thread.c       \
 	kern/thread.h       \
 	kern/thread_i.h     \
+	kern/types.h        \
 	kern/work.c         \
 	kern/work.h         \
 	kern/xcall.c        \

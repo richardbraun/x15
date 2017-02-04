@@ -96,10 +96,11 @@
 
 #ifndef __ASSEMBLER__
 
+#include <stdint.h>
+
 #include <kern/cpumap.h>
 #include <kern/list.h>
 #include <kern/mutex.h>
-#include <kern/stdint.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/trap.h>

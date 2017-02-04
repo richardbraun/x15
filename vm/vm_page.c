@@ -30,6 +30,9 @@
  */
 
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
 #include <kern/assert.h>
 #include <kern/init.h>
@@ -40,9 +43,6 @@
 #include <kern/param.h>
 #include <kern/printk.h>
 #include <kern/sprintf.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
-#include <kern/string.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>

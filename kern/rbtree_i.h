@@ -18,10 +18,11 @@
 #ifndef _KERN_RBTREE_I_H
 #define _KERN_RBTREE_I_H
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <kern/assert.h>
 #include <kern/macros.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
 
 /*
  * Red-black node structure.

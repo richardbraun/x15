@@ -15,12 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
+
 #include <kern/assert.h>
 #include <kern/macros.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
-#include <kern/stddef.h>
 #include <kern/thread.h>
 #include <kern/xcall.h>
 #include <machine/mb.h>

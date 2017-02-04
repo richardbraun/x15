@@ -33,6 +33,7 @@
  */
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include <kern/assert.h>
 #include <kern/condition.h>
@@ -49,7 +50,6 @@
 #include <kern/printk.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
-#include <kern/stddef.h>
 #include <kern/work.h>
 #include <machine/cpu.h>
 

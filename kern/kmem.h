@@ -21,7 +21,7 @@
 #ifndef _KERN_KMEM_H
 #define _KERN_KMEM_H
 
-#include <kern/stddef.h>
+#include <stddef.h>
 
 /*
  * Object cache.

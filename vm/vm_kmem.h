@@ -18,7 +18,8 @@
 #ifndef _VM_VM_KMEM_H
 #define _VM_VM_KMEM_H
 
-#include <kern/stdint.h>
+#include <stdint.h>
+
 #include <machine/types.h>
 
 /*

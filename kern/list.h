@@ -22,11 +22,11 @@
 #define _KERN_LIST_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #include <kern/list_types.h>
 #include <kern/llsync.h>
 #include <kern/macros.h>
-#include <kern/stddef.h>
 
 /*
  * Structure used as both head and node.

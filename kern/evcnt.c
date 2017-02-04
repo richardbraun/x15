@@ -15,12 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include <kern/evcnt.h>
 #include <kern/init.h>
 #include <kern/list.h>
 #include <kern/mutex.h>
 #include <kern/printk.h>
-#include <kern/string.h>
 
 /*
  * Global list of all registered counters.

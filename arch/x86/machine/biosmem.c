@@ -16,6 +16,9 @@
  */
 
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
 #include <kern/assert.h>
 #include <kern/init.h>
@@ -23,9 +26,6 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
-#include <kern/string.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>

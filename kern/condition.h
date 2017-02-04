@@ -21,10 +21,11 @@
 #ifndef _KERN_CONDITION_H
 #define _KERN_CONDITION_H
 
+#include <stddef.h>
+
 #include <kern/condition_types.h>
 #include <kern/list.h>
 #include <kern/spinlock.h>
-#include <kern/stddef.h>
 
 static inline void
 condition_init(struct condition *condition)

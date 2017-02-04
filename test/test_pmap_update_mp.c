@@ -24,6 +24,9 @@
  * tables of the current processor have been updated.
  */
 
+#include <stddef.h>
+#include <string.h>
+
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
@@ -31,8 +34,6 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
-#include <kern/stddef.h>
-#include <kern/string.h>
 #include <kern/thread.h>
 #include <test/test.h>
 #include <vm/vm_kmem.h>

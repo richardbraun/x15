@@ -15,11 +15,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdint.h>
+#include <string.h>
+
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/param.h>
-#include <kern/stdint.h>
-#include <kern/string.h>
 #include <machine/io.h>
 #include <machine/cga.h>
 #include <vm/vm_page.h>

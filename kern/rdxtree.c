@@ -16,6 +16,9 @@
  */
 
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
 #include <kern/assert.h>
 #include <kern/error.h>
@@ -25,9 +28,6 @@
 #include <kern/macros.h>
 #include <kern/rdxtree.h>
 #include <kern/rdxtree_i.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
-#include <kern/string.h>
 #include <kern/work.h>
 
 /*

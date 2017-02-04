@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2011 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,23 +13,14 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Machine-independent definitions for non-standard C types.
  */
 
-#ifndef _KERN_STDDEF_H
-#define _KERN_STDDEF_H
+#ifndef _KERN_TYPES_H
+#define _KERN_TYPES_H
 
-#define NULL ((void *)0)
-
-#define offsetof(type, member) __builtin_offsetof(type, member)
-
-#ifdef __LP64__
-typedef unsigned long size_t;
 typedef long ssize_t;
-typedef long ptrdiff_t;
-#else /* __LP64__ */
-typedef unsigned int size_t;
-typedef int ssize_t;
-typedef int ptrdiff_t;
-#endif /* __LP64__ */
 
-#endif /* _KERN_STDDEF_H */
+#endif /* _KERN_TYPES_H */

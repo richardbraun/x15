@@ -19,6 +19,9 @@
  * needed for kernel allocation.
  */
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <kern/assert.h>
 #include <kern/error.h>
 #include <kern/init.h>
@@ -30,8 +33,6 @@
 #include <kern/param.h>
 #include <kern/printk.h>
 #include <kern/rbtree.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
 #include <machine/pmap.h>
 #include <vm/vm_adv.h>
 #include <vm/vm_inherit.h>

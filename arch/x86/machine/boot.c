@@ -43,6 +43,9 @@
  */
 
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
 #include <kern/evcnt.h>
 #include <kern/init.h>
@@ -54,9 +57,6 @@
 #include <kern/percpu.h>
 #include <kern/printk.h>
 #include <kern/sref.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
-#include <kern/string.h>
 #include <kern/thread.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>

@@ -81,6 +81,9 @@
  * weights in a smoother way than a raw scaling).
  */
 
+#include <stddef.h>
+#include <string.h>
+
 #include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
@@ -98,8 +101,6 @@
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/sref.h>
-#include <kern/stddef.h>
-#include <kern/string.h>
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <kern/work.h>

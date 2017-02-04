@@ -18,8 +18,9 @@
 #ifndef _KERN_SREF_I_H
 #define _KERN_SREF_I_H
 
+#include <stdint.h>
+
 #include <kern/spinlock.h>
-#include <kern/stdint.h>
 #include <kern/work.h>
 
 #define SREF_WEAKREF_DYING  ((uintptr_t)1)

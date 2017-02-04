@@ -28,6 +28,9 @@
  * Each thread regularly prints a string to report that it's making progress.
  */
 
+#include <stddef.h>
+#include <string.h>
+
 #include <kern/condition.h>
 #include <kern/error.h>
 #include <kern/kmem.h>
@@ -37,8 +40,6 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/printk.h>
-#include <kern/stddef.h>
-#include <kern/string.h>
 #include <kern/thread.h>
 #include <kern/work.h>
 #include <test/test.h>

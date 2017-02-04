@@ -26,8 +26,8 @@
 #ifndef _KERN_RDXTREE_H
 #define _KERN_RDXTREE_H
 
-#include <kern/stddef.h>
-#include <kern/stdint.h>
+#include <stddef.h>
+#include <stdint.h>
 
 typedef uint32_t rdxtree_key_t;
 

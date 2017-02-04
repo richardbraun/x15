@@ -18,8 +18,9 @@
  * Trivial, portable implementations.
  */
 
-#include <kern/stddef.h>
-#include <kern/string.h>
+#include <stddef.h>
+#include <string.h>
+
 #include <kern/param.h>
 
 #ifndef ARCH_STRING_MEMCPY

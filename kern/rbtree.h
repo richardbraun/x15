@@ -21,10 +21,11 @@
 #ifndef _KERN_RBTREE_H
 #define _KERN_RBTREE_H
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <kern/assert.h>
 #include <kern/macros.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
 
 /*
  * Indexes of the left and right nodes in the children array of a node.

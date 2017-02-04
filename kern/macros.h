@@ -22,7 +22,7 @@
 #define _KERN_MACROS_H
 
 #ifndef __ASSEMBLER__
-#include <kern/stddef.h>
+#include <stddef.h>
 #endif /* __ASSEMBLER__ */
 
 #define MACRO_BEGIN         ({
@@ -64,7 +64,11 @@
 
 #define __noreturn          __attribute__((noreturn))
 #define __aligned(x)        __attribute__((aligned(x)))
+
+#ifndef __always_inline
 #define __always_inline     inline __attribute__((always_inline))
+#endif /* __attribute__ */
+
 #define __section(x)        __attribute__((section(x)))
 #define __packed            __attribute__((packed))
 #define __alias(x)          __attribute__((alias(x)))

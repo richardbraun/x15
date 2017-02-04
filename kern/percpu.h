@@ -53,9 +53,10 @@
 #ifndef _KERN_PERCPU_H
 #define _KERN_PERCPU_H
 
+#include <stdint.h>
+
 #include <kern/assert.h>
 #include <kern/macros.h>
-#include <kern/stdint.h>
 
 #define PERCPU_SECTION .percpu
 #define __percpu __section(QUOTE(PERCPU_SECTION))

@@ -18,13 +18,14 @@
  * TODO Rework so that pmap update errors can be handled.
  */
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <kern/assert.h>
 #include <kern/cpumap.h>
 #include <kern/init.h>
 #include <kern/panic.h>
 #include <kern/param.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
 #include <machine/pmap.h>
 #include <machine/types.h>
 #include <vm/vm_adv.h>

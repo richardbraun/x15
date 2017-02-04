@@ -95,9 +95,10 @@
 
 #ifndef __ASSEMBLER__
 
+#include <stdint.h>
+
 #include <kern/macros.h>
 #include <kern/percpu.h>
-#include <kern/stdint.h>
 #include <machine/lapic.h>
 #include <machine/pit.h>
 

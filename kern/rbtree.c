@@ -15,12 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <kern/assert.h>
 #include <kern/macros.h>
 #include <kern/rbtree.h>
 #include <kern/rbtree_i.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
 
 /*
  * Return the index of a node in the children array of its parent.

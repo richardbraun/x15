@@ -18,10 +18,11 @@
 #ifndef _KERN_KMEM_I_H
 #define _KERN_KMEM_I_H
 
+#include <stddef.h>
+
 #include <kern/list.h>
 #include <kern/mutex.h>
 #include <kern/param.h>
-#include <kern/stddef.h>
 
 /*
  * Per-processor cache of pre-constructed objects.

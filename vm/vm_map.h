@@ -21,10 +21,11 @@
 #ifndef _VM_VM_MAP_H
 #define _VM_VM_MAP_H
 
+#include <stdint.h>
+
 #include <kern/list.h>
 #include <kern/mutex.h>
 #include <kern/rbtree.h>
-#include <kern/stdint.h>
 #include <machine/pmap.h>
 #include <vm/vm_adv.h>
 #include <vm/vm_inherit.h>

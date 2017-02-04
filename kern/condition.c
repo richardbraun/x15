@@ -22,13 +22,14 @@
  * locked, the current owner does the same when unlocking.
  */
 
+#include <stddef.h>
+
 #include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/list.h>
 #include <kern/mutex.h>
 #include <kern/mutex_i.h>
 #include <kern/spinlock.h>
-#include <kern/stddef.h>
 #include <kern/thread.h>
 
 void

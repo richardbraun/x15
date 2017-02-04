@@ -15,12 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
+#include <string.h>
+
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/param.h>
 #include <kern/printk.h>
-#include <kern/stddef.h>
-#include <kern/string.h>
 #include <machine/elf.h>
 #include <machine/multiboot.h>
 #include <machine/pmap.h>

@@ -46,8 +46,9 @@
 
 #ifndef __ASSEMBLER__
 
+#include <stdint.h>
+
 #include <kern/macros.h>
-#include <kern/stdint.h>
 
 /*
  * A multiboot module.

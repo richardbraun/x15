@@ -15,6 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
+
 #include <kern/assert.h>
 #include <kern/bitmap.h>
 #include <kern/error.h>
@@ -28,7 +30,6 @@
 #include <kern/printk.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
-#include <kern/stddef.h>
 #include <kern/thread.h>
 #include <kern/work.h>
 #include <machine/cpu.h>

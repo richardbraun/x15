@@ -15,14 +15,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
+#include <string.h>
+
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
 #include <kern/param.h>
 #include <kern/spinlock.h>
-#include <kern/stddef.h>
-#include <kern/string.h>
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <vm/vm_kmem.h>

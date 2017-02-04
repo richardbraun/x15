@@ -16,11 +16,12 @@
  */
 
 #include <stdarg.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include <kern/limits.h>
 #include <kern/sprintf.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
+#include <kern/types.h>
 
 /*
  * Formatting flags.

@@ -32,11 +32,12 @@
  * first thread reinitializes the weak reference.
  */
 
+#include <stddef.h>
+
 #include <kern/error.h>
 #include <kern/evcnt.h>
 #include <kern/macros.h>
 #include <kern/sref.h>
-#include <kern/stddef.h>
 #include <kern/thread.h>
 #include <test/test.h>
 #include <vm/vm_kmem.h>

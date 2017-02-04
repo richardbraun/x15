@@ -1,23 +1,41 @@
 EXTRA_DIST =
 MOSTLYCLEANFILES =
+AM_CPPFLAGS =
+AM_CFLAGS =
 
-AM_CPPFLAGS = \
-	-pipe \
-	-std=gnu99 \
-	-imacros config.h \
+AM_CPPFLAGS += -pipe
+AM_CPPFLAGS += -imacros config.h
+
+# Do not include headers from the hosted environment, but
+# do include headers from the compiler.
+AM_CPPFLAGS += -nostdinc
+AM_CPPFLAGS += -isystem $(shell $(CC) -print-file-name=include)
+
+AM_CPPFLAGS += \
 	-I$(top_srcdir) \
+	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/arch/$(arch)
 
-AM_CFLAGS = \
+AM_CFLAGS += -ffreestanding
+
+# TODO Adopt C11
+AM_CFLAGS += -std=gnu99
+
+AM_CFLAGS += \
 	-Wall \
 	-Wextra \
 	-Wshadow \
 	-Wmissing-prototypes \
-	-Wstrict-prototypes \
+	-Wstrict-prototypes
+
+AM_CFLAGS += \
 	-fsigned-char \
-	-ffreestanding \
-	-fno-common \
-	-fno-stack-protector
+	-fno-common
+
+# TODO Add stack protector support
+AM_CFLAGS += -fno-stack-protector
+
+AM_CFLAGS += -nostdlib
 
 SUFFIXES = .lds .lds.S
 

@@ -21,7 +21,7 @@
 #ifndef _X86_CGA_H
 #define _X86_CGA_H
 
-#include <kern/stdint.h>
+#include <stdint.h>
 
 /*
  * Initialize the cga module.

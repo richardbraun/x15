@@ -15,12 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
+
 #include <kern/bitmap.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/kmem.h>
 #include <kern/param.h>
-#include <kern/stddef.h>
 #include <machine/cpu.h>
 
 static struct cpumap cpumap_active_cpus __read_mostly = { { 1 } };

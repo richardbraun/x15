@@ -18,6 +18,9 @@
  * TODO Review locking.
  */
 
+#include <stddef.h>
+#include <string.h>
+
 #include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
@@ -33,8 +36,6 @@
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
-#include <kern/stddef.h>
-#include <kern/string.h>
 #include <kern/thread.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>

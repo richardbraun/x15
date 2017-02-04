@@ -24,9 +24,10 @@
 #ifndef _KERN_BITMAP_H
 #define _KERN_BITMAP_H
 
+#include <string.h>
+
 #include <kern/bitmap_i.h>
 #include <kern/limits.h>
-#include <kern/string.h>
 #include <machine/atomic.h>
 
 #define BITMAP_DECLARE(name, nr_bits) unsigned long name[BITMAP_LONGS(nr_bits)]

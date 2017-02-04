@@ -23,7 +23,7 @@
 #ifndef _X86_ATOMIC_H
 #define _X86_ATOMIC_H
 
-#include <kern/stdint.h>
+#include <stdint.h>
 
 #define ATOMIC_ADD(ptr, delta)      \
     asm volatile("lock add %1, %0"  \

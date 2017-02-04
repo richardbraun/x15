@@ -22,11 +22,12 @@
  * in which case this test will catch the error.
  */
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/list.h>
-#include <kern/stddef.h>
-#include <kern/stdint.h>
 #include <kern/thread.h>
 #include <machine/pmap.h>
 #include <test/test.h>
