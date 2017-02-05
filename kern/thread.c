@@ -1504,7 +1504,7 @@ thread_sched_idle_get_next(struct thread_runq *runq)
 static unsigned int
 thread_sched_idle_get_global_priority(const struct thread *thread)
 {
-	(void)thread;
+    (void)thread;
     return THREAD_SCHED_GLOBAL_PRIO_IDLE;
 }
 
