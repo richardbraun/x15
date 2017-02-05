@@ -18,8 +18,7 @@ AM_CPPFLAGS += \
 
 AM_CFLAGS += -ffreestanding
 
-# TODO Adopt C11
-AM_CFLAGS += -std=gnu99
+AM_CFLAGS += -std=gnu11
 
 AM_CFLAGS += \
 	-Wall \
