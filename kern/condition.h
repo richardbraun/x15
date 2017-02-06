@@ -27,6 +27,11 @@
 #include <kern/list.h>
 #include <kern/spinlock.h>
 
+/*
+ * Condition variable.
+ */
+struct condition;
+
 static inline void
 condition_init(struct condition *condition)
 {
