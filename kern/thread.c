@@ -447,8 +447,7 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
 
     runq->nr_threads++;
 
-    if ((runq->current != NULL)
-        && (thread_sched_class(runq->current) > thread_sched_class(thread))) {
+    if (thread_sched_class(thread) < thread_sched_class(runq->current)) {
         thread_set_flag(runq->current, THREAD_YIELD);
     }
 
@@ -486,8 +485,6 @@ thread_runq_put_prev(struct thread_runq *runq, struct thread *thread)
     if (ops->put_prev != NULL) {
         ops->put_prev(runq, thread);
     }
-
-    runq->current = NULL;
 }
 
 static struct thread *
@@ -498,7 +495,6 @@ thread_runq_get_next(struct thread_runq *runq)
 
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
-    assert(runq->current == NULL);
 
     for (i = 0; i < ARRAY_SIZE(thread_sched_ops); i++) {
         thread = thread_sched_ops[i].get_next(runq);
@@ -517,8 +513,6 @@ static void
 thread_runq_set_next(struct thread_runq *runq, struct thread *thread)
 {
     const struct thread_sched_ops *ops;
-
-    assert(runq->current == NULL);
 
     ops = thread_get_sched_ops(thread);
 
@@ -539,7 +533,6 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
     thread_runq_add(runq, thread);
 
     if ((runq != thread_runq_local())
-        && (runq->current != NULL)
         && thread_test_flag(runq->current, THREAD_YIELD)) {
         /*
          * Make the new flags globally visible before sending the scheduling
@@ -682,9 +675,8 @@ thread_sched_rt_add(struct thread_runq *runq, struct thread *thread)
         rt_runq->bitmap |= (1ULL << thread_priority(thread));
     }
 
-    if ((runq->current != NULL)
-        && (thread_sched_class(runq->current) == thread_sched_class(thread))
-        && (thread_priority(runq->current) < thread_priority(thread))) {
+    if ((thread_sched_class(thread) == thread_sched_class(runq->current))
+        && (thread_priority(thread) > thread_priority(runq->current))) {
         thread_set_flag(runq->current, THREAD_YIELD);
     }
 }
@@ -956,8 +948,7 @@ thread_sched_fs_restart(struct thread_runq *runq)
     assert(node != NULL);
     fs_runq->current = list_entry(node, struct thread_fs_group, node);
 
-    if ((runq->current != NULL)
-        && (thread_sched_class(runq->current) == THREAD_SCHED_CLASS_FS)) {
+    if (thread_sched_class(runq->current) == THREAD_SCHED_CLASS_FS) {
         thread_set_flag(runq->current, THREAD_YIELD);
     }
 }
@@ -2238,7 +2229,6 @@ thread_run_scheduler(void)
     sref_register();
 
     spinlock_lock(&runq->lock);
-    runq->current = NULL;
     thread = thread_runq_get_next(thread_runq_local());
 
     tcb_load(&thread->tcb);
