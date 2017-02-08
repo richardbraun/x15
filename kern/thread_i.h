@@ -94,6 +94,8 @@ struct thread {
 
     /* Sleep/wakeup synchronization members */
     struct thread_runq *runq;
+    const void *wchan_addr;
+    const char *wchan_desc;
     unsigned short state;
 
     /* Thread-local members */

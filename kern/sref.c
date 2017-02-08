@@ -803,7 +803,7 @@ sref_manage(void *arg)
         cpu_intr_save(&flags);
 
         while (!sref_cache_is_dirty(cache)) {
-            thread_sleep(NULL);
+            thread_sleep(NULL, cache, "sref");
         }
 
         cpu_intr_restore(flags);

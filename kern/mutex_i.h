@@ -77,7 +77,7 @@ mutex_wait(struct mutex *mutex, struct mutex_waiter *waiter)
     unsigned int state;
 
     do {
-        thread_sleep(&mutex->lock);
+        thread_sleep(&mutex->lock, mutex, "mutex");
         state = mutex_tryacquire_slow(mutex);
     } while (state != MUTEX_UNLOCKED);
 

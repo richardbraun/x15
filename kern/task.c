@@ -29,6 +29,12 @@
 #include <vm/vm_kmem.h>
 #include <vm/vm_map.h>
 
+#ifdef __LP64__
+#define TASK_INFO_ADDR_FMT "%016lx"
+#else /* __LP64__ */
+#define TASK_INFO_ADDR_FMT "%08lx"
+#endif /* __LP64__ */
+
 /*
  * Kernel task and storage.
  */
@@ -138,9 +144,15 @@ task_info(struct task *task)
     printk("task: name: %s, threads:\n", task->name);
 
     list_for_each_entry(&task->threads, thread, task_node) {
-        printk("task: %s: %p %c %.2s:%02hu %s\n", task->name, thread,
-               thread_state_to_chr(thread), thread_schedclass_to_str(thread),
-               thread_priority(thread), thread->name);
+        printk("task: " TASK_INFO_ADDR_FMT " %c %8s:" TASK_INFO_ADDR_FMT
+               " %.2s:%02hu %s\n",
+               (unsigned long)thread,
+               thread_state_to_chr(thread),
+               thread_wchan_desc(thread),
+               (unsigned long)thread_wchan_addr(thread),
+               thread_schedclass_to_str(thread),
+               thread_priority(thread),
+               thread->name);
     }
 
     spinlock_unlock(&task->lock);

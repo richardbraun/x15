@@ -338,6 +338,20 @@ struct thread_zombie {
     struct thread *thread;
 };
 
+static void
+thread_set_wchan(struct thread *thread, const void *wchan_addr,
+                 const char *wchan_desc)
+{
+    thread->wchan_addr = wchan_addr;
+    thread->wchan_desc = wchan_desc;
+}
+
+static void
+thread_clear_wchan(struct thread *thread)
+{
+    thread_set_wchan(thread, NULL, NULL);
+}
+
 static const struct thread_sched_ops *
 thread_get_sched_ops(const struct thread *thread)
 {
@@ -551,6 +565,7 @@ thread_runq_wakeup_balancer(struct thread_runq *runq)
         return;
     }
 
+    thread_clear_wchan(runq->balancer);
     runq->balancer->state = THREAD_RUNNING;
     thread_runq_wakeup(runq, runq->balancer);
 }
@@ -1680,6 +1695,7 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
 
     thread->flags = 0;
     thread->runq = NULL;
+    thread_set_wchan(thread, thread, "init");
     thread->state = THREAD_SLEEPING;
     thread->preempt = THREAD_SUSPEND_PREEMPT_LEVEL;
     thread->pinned = 0;
@@ -1862,6 +1878,7 @@ thread_balance(void *arg)
 
     for (;;) {
         runq->idle_balance_ticks = THREAD_IDLE_BALANCE_TICKS;
+        thread_set_wchan(self, runq, "runq");
         self->state = THREAD_SLEEPING;
         runq = thread_runq_schedule(runq);
         assert(runq == arg);
@@ -1992,6 +2009,7 @@ thread_setup_idler(struct thread_runq *runq)
     cpumap_destroy(cpumap);
 
     /* An idler thread needs special tuning */
+    thread_clear_wchan(idler);
     idler->state = THREAD_RUNNING;
     idler->runq = runq;
     runq->idler = idler;
@@ -2129,7 +2147,8 @@ thread_join(struct thread *thread)
 }
 
 void
-thread_sleep(struct spinlock *interlock)
+thread_sleep(struct spinlock *interlock, const void *wchan_addr,
+             const char *wchan_desc)
 {
     struct thread_runq *runq;
     struct thread *thread;
@@ -2146,6 +2165,7 @@ thread_sleep(struct spinlock *interlock)
         spinlock_unlock(interlock);
     }
 
+    thread_set_wchan(thread, wchan_addr, wchan_desc);
     thread->state = THREAD_SLEEPING;
 
     runq = thread_runq_schedule(runq);
@@ -2173,6 +2193,7 @@ thread_wakeup(struct thread *thread)
      */
     if (thread->runq == NULL) {
         assert(thread->state != THREAD_RUNNING);
+        thread_clear_wchan(thread);
         thread->state = THREAD_RUNNING;
     } else {
         /*
@@ -2192,6 +2213,7 @@ thread_wakeup(struct thread *thread)
             return;
         }
 
+        thread_clear_wchan(thread);
         thread->state = THREAD_RUNNING;
         thread_unlock_runq(runq, flags);
     }

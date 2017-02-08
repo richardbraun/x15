@@ -315,7 +315,7 @@ work_process(void *arg)
             pool->nr_available_threads++;
 
             do {
-                thread_sleep(lock);
+                thread_sleep(lock, pool, "work_spr");
             } while (pool->manager != NULL);
 
             list_remove(&self->node);
@@ -351,7 +351,7 @@ work_process(void *arg)
             pool->manager = self;
 
             do {
-                thread_sleep(lock);
+                thread_sleep(lock, pool, "work_mgr");
             } while (work_pool_nr_works(pool) == 0);
 
             pool->manager = NULL;

@@ -192,12 +192,17 @@ void thread_join(struct thread *thread);
  * In any case, the preemption nesting level must strictly be one when calling
  * this function.
  *
+ * The wait channel describes the reason why the thread is sleeping. The
+ * address should refer to a relevant synchronization object, normally
+ * containing the interlock, but not necessarily.
+ *
  * This is a low level thread control primitive that should only be called by
  * higher thread synchronization functions.
  *
  * Implies a memory barrier.
  */
-void thread_sleep(struct spinlock *interlock);
+void thread_sleep(struct spinlock *interlock, const void *wchan_addr,
+                  const char *wchan_desc);
 
 /*
  * Schedule a thread for execution on a processor.
@@ -241,6 +246,18 @@ void thread_tick_intr(void);
  */
 void thread_setscheduler(struct thread *thread, unsigned char policy,
                          unsigned short priority);
+
+static inline const void *
+thread_wchan_addr(const struct thread *thread)
+{
+    return thread->wchan_addr;
+}
+
+static inline const char *
+thread_wchan_desc(const struct thread *thread)
+{
+    return thread->wchan_desc;
+}
 
 /*
  * Return a character representation of the state of a thread.
