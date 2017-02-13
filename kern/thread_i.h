@@ -67,15 +67,6 @@ struct thread_fs_data {
 };
 
 /*
- * Common scheduling data.
- */
-struct thread_sched_data {
-    unsigned char sched_policy;
-    unsigned char sched_class;
-    unsigned short priority;
-};
-
-/*
  * Maximum number of thread-specific data keys.
  */
 #define THREAD_KEYS_MAX 4

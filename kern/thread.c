@@ -263,7 +263,7 @@ struct thread_sched_ops {
     void (*put_prev)(struct thread_runq *runq, struct thread *thread);
     struct thread * (*get_next)(struct thread_runq *runq);
     void (*set_priority)(struct thread *thread, unsigned short priority);
-    unsigned int (*get_global_priority)(const struct thread *thread);
+    unsigned int (*get_global_priority)(unsigned short priority);
     void (*set_next)(struct thread_runq *runq, struct thread *thread);
     void (*tick)(struct thread_runq *runq, struct thread *thread);
 };
@@ -740,9 +740,9 @@ thread_sched_rt_get_next(struct thread_runq *runq)
 }
 
 static unsigned int
-thread_sched_rt_get_global_priority(const struct thread *thread)
+thread_sched_rt_get_global_priority(unsigned short priority)
 {
-    return THREAD_SCHED_GLOBAL_PRIO_RT + thread_priority(thread);
+    return THREAD_SCHED_GLOBAL_PRIO_RT + priority;
 }
 
 static void
@@ -1152,9 +1152,9 @@ thread_sched_fs_set_priority(struct thread *thread, unsigned short priority)
 }
 
 static unsigned int
-thread_sched_fs_get_global_priority(const struct thread *thread)
+thread_sched_fs_get_global_priority(unsigned short priority)
 {
-    return THREAD_SCHED_GLOBAL_PRIO_FS + thread_priority(thread);
+    return THREAD_SCHED_GLOBAL_PRIO_FS + priority;
 }
 
 static void
@@ -1508,9 +1508,9 @@ thread_sched_idle_get_next(struct thread_runq *runq)
 }
 
 static unsigned int
-thread_sched_idle_get_global_priority(const struct thread *thread)
+thread_sched_idle_get_global_priority(unsigned short priority)
 {
-    (void)thread;
+    (void)priority;
     return THREAD_SCHED_GLOBAL_PRIO_IDLE;
 }
 
@@ -1577,6 +1577,7 @@ thread_set_priority(struct thread *thread, unsigned short priority)
     }
 
     thread->sched_data.priority = priority;
+    thread->sched_data.global_priority = ops->get_global_priority(priority);
 }
 
 static void __init
@@ -1676,6 +1677,7 @@ thread_init_sched(struct thread *thread, unsigned short priority)
     }
 
     thread->sched_data.priority = priority;
+    thread->sched_data.global_priority = ops->get_global_priority(priority);
 }
 
 static int
@@ -2351,12 +2353,6 @@ thread_schedclass_to_str(const struct thread *thread)
     default:
         panic("thread: unknown scheduling class");
     }
-}
-
-unsigned int
-thread_global_priority(const struct thread *thread)
-{
-    return thread_get_sched_ops(thread)->get_global_priority(thread);
 }
 
 void

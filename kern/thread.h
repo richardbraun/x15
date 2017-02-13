@@ -53,6 +53,19 @@ struct thread;
  */
 #define THREAD_NAME_SIZE 32
 
+/*
+ * Common scheduling data.
+ *
+ * The global priority of a thread is meant to be compared against
+ * another global priority to determine which thread has higher priority.
+ */
+struct thread_sched_data {
+    unsigned char sched_policy;
+    unsigned char sched_class;
+    unsigned short priority;
+    unsigned int global_priority;
+};
+
 #include <kern/thread_i.h>
 
 #define THREAD_KERNEL_PREFIX PACKAGE "_"
@@ -269,29 +282,35 @@ char thread_state_to_chr(const struct thread *thread);
  */
 const char * thread_schedclass_to_str(const struct thread *thread);
 
+static inline const struct thread_sched_data *
+thread_get_sched_data(const struct thread *thread)
+{
+    return &thread->sched_data;
+}
+
 static inline unsigned char
 thread_sched_policy(const struct thread *thread)
 {
-    return thread->sched_data.sched_policy;
+    return thread_get_sched_data(thread)->sched_policy;
 }
 
 static inline unsigned char
 thread_sched_class(const struct thread *thread)
 {
-    return thread->sched_data.sched_class;
+    return thread_get_sched_data(thread)->sched_class;
 }
 
 static inline unsigned short
 thread_priority(const struct thread *thread)
 {
-    return thread->sched_data.priority;
+    return thread_get_sched_data(thread)->priority;
 }
 
-/*
- * The global priority of a thread is meant to be compared against
- * another global priority to determine which thread has higher priority.
- */
-unsigned int thread_global_priority(const struct thread *thread);
+static inline unsigned short
+thread_global_priority(const struct thread *thread)
+{
+    return thread_get_sched_data(thread)->global_priority;
+}
 
 static inline struct thread *
 thread_from_tcb(struct tcb *tcb)
