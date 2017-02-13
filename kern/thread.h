@@ -277,11 +277,6 @@ thread_wchan_desc(const struct thread *thread)
  */
 char thread_state_to_chr(const struct thread *thread);
 
-/*
- * Return a string representation of the scheduling class of a thread.
- */
-const char * thread_schedclass_to_str(const struct thread *thread);
-
 static inline const struct thread_sched_data *
 thread_get_sched_data(const struct thread *thread)
 {
@@ -306,11 +301,16 @@ thread_priority(const struct thread *thread)
     return thread_get_sched_data(thread)->priority;
 }
 
-static inline unsigned short
+static inline unsigned int
 thread_global_priority(const struct thread *thread)
 {
     return thread_get_sched_data(thread)->global_priority;
 }
+
+/*
+ * Return a string representation of the scheduling class of a thread.
+ */
+const char * thread_sched_class_to_str(unsigned char sched_class);
 
 static inline struct thread *
 thread_from_tcb(struct tcb *tcb)

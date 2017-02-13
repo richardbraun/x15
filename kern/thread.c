@@ -2341,9 +2341,9 @@ thread_state_to_chr(const struct thread *thread)
 }
 
 const char *
-thread_schedclass_to_str(const struct thread *thread)
+thread_sched_class_to_str(unsigned char sched_policy)
 {
-    switch (thread_sched_class(thread)) {
+    switch (sched_policy) {
     case THREAD_SCHED_CLASS_RT:
         return "rt";
     case THREAD_SCHED_CLASS_FS:
