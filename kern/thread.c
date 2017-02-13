@@ -144,8 +144,11 @@
  * Global priorities are only used to determine which of two threads
  * has the higher priority, and should only matter for priority
  * inheritance.
+ *
+ * In the current configuration, all fair-scheduling threads have the
+ * same global priority.
  */
-#define THREAD_SCHED_GLOBAL_PRIO_RT     (THREAD_SCHED_FS_PRIO_MAX + 2)
+#define THREAD_SCHED_GLOBAL_PRIO_RT     2
 #define THREAD_SCHED_GLOBAL_PRIO_FS     1
 #define THREAD_SCHED_GLOBAL_PRIO_IDLE   0
 
@@ -1154,7 +1157,8 @@ thread_sched_fs_set_priority(struct thread *thread, unsigned short priority)
 static unsigned int
 thread_sched_fs_get_global_priority(unsigned short priority)
 {
-    return THREAD_SCHED_GLOBAL_PRIO_FS + priority;
+    (void)priority;
+    return THREAD_SCHED_GLOBAL_PRIO_FS;
 }
 
 static void
