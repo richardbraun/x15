@@ -1593,6 +1593,7 @@ thread_bootstrap_common(unsigned int cpu)
 
     /* Initialize only what's needed during bootstrap */
     booter = &thread_booters[cpu];
+    booter->nr_refs = 0; /* Make sure booters aren't destroyed */
     booter->flags = 0;
     booter->preempt = 1;
     cpumap_fill(&booter->cpumap);
@@ -1699,6 +1700,7 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     cpumap = (attr->cpumap == NULL) ? &caller->cpumap : attr->cpumap;
     assert(attr->policy < ARRAY_SIZE(thread_policy_table));
 
+    thread->nr_refs = 1;
     thread->flags = 0;
     thread->runq = NULL;
     thread_set_wchan(thread, thread, "init");
@@ -1763,7 +1765,7 @@ thread_unlock_runq(struct thread_runq *runq, unsigned long flags)
     spinlock_unlock_intr_restore(&runq->lock, flags);
 }
 
-static void
+void
 thread_destroy(struct thread *thread)
 {
     struct thread_runq *runq;
@@ -1796,7 +1798,7 @@ thread_join_common(struct thread *thread)
 
     mutex_unlock(&thread->join_lock);
 
-    thread_destroy(thread);
+    thread_unref(thread);
 }
 
 static void

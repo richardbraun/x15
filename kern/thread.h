@@ -36,6 +36,7 @@
 #include <kern/assert.h>
 #include <kern/cpumap.h>
 #include <kern/macros.h>
+#include <machine/atomic.h>
 #include <machine/tcb.h>
 
 /*
@@ -259,6 +260,28 @@ void thread_tick_intr(void);
  */
 void thread_setscheduler(struct thread *thread, unsigned char policy,
                          unsigned short priority);
+
+static inline void
+thread_ref(struct thread *thread)
+{
+    unsigned long nr_refs;
+
+    nr_refs = atomic_fetchadd_ulong(&thread->nr_refs, 1);
+    assert(nr_refs != (unsigned long)-1);
+}
+
+static inline void
+thread_unref(struct thread *thread)
+{
+    unsigned long nr_refs;
+
+    nr_refs = atomic_fetchadd_ulong(&thread->nr_refs, -1);
+    assert(nr_refs != 0);
+
+    if (nr_refs == 1) {
+        thread_destroy(thread);
+    }
+}
 
 static inline const void *
 thread_wchan_addr(const struct thread *thread)

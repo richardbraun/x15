@@ -80,6 +80,9 @@ struct thread_fs_data {
 struct thread {
     struct tcb tcb;
 
+    /* Reference counter, must be changed atomically */
+    unsigned long nr_refs;
+
     /* Flags must be changed atomically */
     unsigned long flags;
 
@@ -129,6 +132,8 @@ struct thread {
 } __aligned(CPU_L1_SIZE);
 
 #define THREAD_ATTR_DETACHED 0x1
+
+void thread_destroy(struct thread *thread);
 
 /*
  * Flag access functions.
