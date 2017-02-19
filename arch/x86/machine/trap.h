@@ -67,57 +67,63 @@
 
 #ifndef __ASSEMBLER__
 
+#include <stdint.h>
+
 #include <kern/macros.h>
 #include <kern/printk.h>
 
 #ifdef __LP64__
 
 struct trap_frame {
-    unsigned long rax;
-    unsigned long rbx;
-    unsigned long rcx;
-    unsigned long rdx;
-    unsigned long rbp;
-    unsigned long rsi;
-    unsigned long rdi;
-    unsigned long r8;
-    unsigned long r9;
-    unsigned long r10;
-    unsigned long r11;
-    unsigned long r12;
-    unsigned long r13;
-    unsigned long r14;
-    unsigned long r15;
-    unsigned long vector;
-    unsigned long error;
-    unsigned long rip;
-    unsigned long cs;
-    unsigned long rflags;
-    unsigned long rsp;
-    unsigned long ss;
+    uint64_t rax;
+    uint64_t rbx;
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rbp;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t r8;
+    uint64_t r9;
+    uint64_t r10;
+    uint64_t r11;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+    uint64_t vector;
+    uint64_t error;
+    uint64_t rip;
+    uint64_t cs;
+    uint64_t rflags;
+    uint64_t rsp;
+    uint64_t ss;
 } __packed;
 
 #else /* __LP64__ */
 
 struct trap_frame {
-    unsigned long eax;
-    unsigned long ebx;
-    unsigned long ecx;
-    unsigned long edx;
-    unsigned long ebp;
-    unsigned long esi;
-    unsigned long edi;
-    unsigned long ds;
-    unsigned long es;
-    unsigned long fs;
-    unsigned long gs;
-    unsigned long vector;
-    unsigned long error;
-    unsigned long eip;
-    unsigned long cs;
-    unsigned long eflags;
-    unsigned long esp;      /* esp and ss are undefined if trapped in kernel */
-    unsigned long ss;
+    uint32_t eax;
+    uint32_t ebx;
+    uint32_t ecx;
+    uint32_t edx;
+    uint32_t ebp;
+    uint32_t esi;
+    uint32_t edi;
+    uint16_t ds;
+    uint16_t _unused0;
+    uint16_t es;
+    uint16_t _unused1;
+    uint16_t fs;
+    uint16_t _unused2;
+    uint16_t gs;
+    uint16_t _unused3;
+    uint32_t vector;
+    uint32_t error;
+    uint32_t eip;
+    uint32_t cs;
+    uint32_t eflags;
+    uint32_t esp;       /* esp and ss are undefined if trapped in kernel */
+    uint32_t ss;
 } __packed;
 
 #endif /* __LP64__ */

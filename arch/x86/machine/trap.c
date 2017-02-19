@@ -260,15 +260,21 @@ trap_frame_show(struct trap_frame *frame)
            "trap: vector: %lu error: %08lx\n"
            "trap: rip: %016lx cs: %lu rflags: %016lx\n"
            "trap: rsp: %016lx ss: %lu\n",
-           frame->rax, frame->rbx, frame->rcx, frame->rdx, frame->rbp,
-           frame->rsi, frame->rdi, frame->r8, frame->r9, frame->r10,
-           frame->r11, frame->r12, frame->r13, frame->r14, frame->r15,
-           frame->vector, frame->error, frame->rip, frame->cs, frame->rflags,
-           frame->rsp, frame->ss);
+           (unsigned long)frame->rax, (unsigned long)frame->rbx,
+           (unsigned long)frame->rcx, (unsigned long)frame->rdx,
+           (unsigned long)frame->rbp, (unsigned long)frame->rsi,
+           (unsigned long)frame->rdi, (unsigned long)frame->r8,
+           (unsigned long)frame->r9, (unsigned long)frame->r10,
+           (unsigned long)frame->r11, (unsigned long)frame->r12,
+           (unsigned long)frame->r13, (unsigned long)frame->r14,
+           (unsigned long)frame->r15, (unsigned long)frame->vector,
+           (unsigned long)frame->error, (unsigned long)frame->rip,
+           (unsigned long)frame->cs, (unsigned long)frame->rflags,
+           (unsigned long)frame->rsp, (unsigned long)frame->ss);
 
     /* XXX Until the page fault handler is written */
     if (frame->vector == 14) {
-        printk("trap: cr2: %016lx\n", cpu_get_cr2());
+        printk("trap: cr2: %016lx\n", (unsigned long)cpu_get_cr2());
     }
 }
 
@@ -289,19 +295,24 @@ trap_frame_show(struct trap_frame *frame)
 
     printk("trap: eax: %08lx ebx: %08lx ecx: %08lx edx: %08lx\n"
            "trap: ebp: %08lx esi: %08lx edi: %08lx\n"
-           "trap: ds: %lu es: %lu fs: %lu gs: %lu\n"
+           "trap: ds: %hu es: %hu fs: %hu gs: %hu\n"
            "trap: vector: %lu error: %08lx\n"
            "trap: eip: %08lx cs: %lu eflags: %08lx\n"
            "trap: esp: %08lx ss: %lu\n",
-           frame->eax, frame->ebx, frame->ecx, frame->edx, frame->ebp,
-           frame->esi, frame->edi, frame->ds, frame->es, frame->fs, frame->gs,
-           frame->vector, frame->error, frame->eip, frame->cs, frame->eflags,
-           esp, ss);
+           (unsigned long)frame->eax, (unsigned long)frame->ebx,
+           (unsigned long)frame->ecx, (unsigned long)frame->edx,
+           (unsigned long)frame->ebp, (unsigned long)frame->esi,
+           (unsigned long)frame->edi, (unsigned short)frame->ds,
+           (unsigned short)frame->es, (unsigned short)frame->fs,
+           (unsigned short)frame->gs, (unsigned long)frame->vector,
+           (unsigned long)frame->error, (unsigned long)frame->eip,
+           (unsigned long)frame->cs, (unsigned long)frame->eflags,
+           (unsigned long)esp, (unsigned long)ss);
 
 
     /* XXX Until the page fault handler is written */
     if (frame->vector == 14) {
-        printk("trap: cr2: %08lx\n", cpu_get_cr2());
+        printk("trap: cr2: %08lx\n", (unsigned long)cpu_get_cr2());
     }
 }
 
