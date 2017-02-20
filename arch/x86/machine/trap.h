@@ -110,13 +110,9 @@ struct trap_frame {
     uint32_t esi;
     uint32_t edi;
     uint16_t ds;
-    uint16_t _unused0;
     uint16_t es;
-    uint16_t _unused1;
     uint16_t fs;
-    uint16_t _unused2;
     uint16_t gs;
-    uint16_t _unused3;
     uint32_t vector;
     uint32_t error;
     uint32_t eip;

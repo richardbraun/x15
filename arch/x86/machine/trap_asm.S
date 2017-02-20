@@ -83,10 +83,10 @@ ASM_END(trap_common)
 #else /* __LP64__ */
 
 .macro TRAP_STORE_REGISTERS
- pushl %gs
- pushl %fs
- pushl %es
- pushl %ds
+ pushw %gs
+ pushw %fs
+ pushw %es
+ pushw %ds
  pushl %edi
  pushl %esi
  pushl %ebp
@@ -105,7 +105,7 @@ ASM_END(trap_common)
  popl %ebp
  popl %esi
  popl %edi
- addl $24, %esp /* skip segment registers, vector and error */
+ addl $16, %esp /* skip segment registers, vector and error */
 .endm
 
 #define TRAP(vector, name)  \
