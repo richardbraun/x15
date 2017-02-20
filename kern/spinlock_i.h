@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Richard Braun.
+ * Copyright (c) 2012-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,23 +19,37 @@
 #define _KERN_SPINLOCK_I_H
 
 #include <kern/assert.h>
+#include <kern/error.h>
 #include <kern/spinlock_types.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 
-/*
- * Return 0 on success, 1 if busy.
- */
 static inline int
 spinlock_tryacquire(struct spinlock *lock)
 {
-    return atomic_swap_uint(&lock->locked, 1);
+    unsigned int state;
+
+    state = atomic_swap_uint(&lock->locked, 1);
+
+    if (state == 0) {
+        return 0;
+    }
+
+    return ERROR_BUSY;
 }
 
 static inline void
 spinlock_acquire(struct spinlock *lock)
 {
-    while (spinlock_tryacquire(lock)) {
+    int error;
+
+    for (;;) {
+        error = spinlock_tryacquire(lock);
+
+        if (!error) {
+            break;
+        }
+
         cpu_pause();
     }
 }

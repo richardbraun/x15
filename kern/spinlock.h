@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Richard Braun.
+ * Copyright (c) 2012-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,22 +40,19 @@ spinlock_init(struct spinlock *lock)
 
 #define spinlock_assert_locked(lock) assert((lock)->locked)
 
-/*
- * Return 0 on success, 1 if busy.
- */
 static inline int
 spinlock_trylock(struct spinlock *lock)
 {
-    int busy;
+    int error;
 
     thread_preempt_disable();
-    busy = spinlock_tryacquire(lock);
+    error = spinlock_tryacquire(lock);
 
-    if (busy) {
+    if (error) {
         thread_preempt_enable();
     }
 
-    return busy;
+    return error;
 }
 
 static inline void
@@ -80,18 +77,18 @@ spinlock_unlock(struct spinlock *lock)
 static inline int
 spinlock_trylock_intr_save(struct spinlock *lock, unsigned long *flags)
 {
-    int busy;
+    int error;
 
     thread_preempt_disable();
     cpu_intr_save(flags);
-    busy = spinlock_tryacquire(lock);
+    error = spinlock_tryacquire(lock);
 
-    if (busy) {
+    if (error) {
         cpu_intr_restore(*flags);
         thread_preempt_enable();
     }
 
-    return busy;
+    return error;
 }
 
 static inline void
