@@ -45,6 +45,8 @@
 #include <test/test.h>
 #include <vm/vm_kmem.h>
 
+#define TEST_LOOPS_PER_PRINT 100000
+
 struct test_pdsc {
     struct work work;
     void *addr;
@@ -88,7 +90,7 @@ test_alloc(void *arg)
         llsync_assign_ptr(test_pdsc, pdsc);
         condition_signal(&test_condition);
 
-        if ((i % 100000) == 0) {
+        if ((i % TEST_LOOPS_PER_PRINT) == 0) {
             printk("alloc ");
         }
 
@@ -137,7 +139,7 @@ test_free(void *arg)
 
         condition_signal(&test_condition);
 
-        if ((i % 100000) == 0) {
+        if ((i % TEST_LOOPS_PER_PRINT) == 0) {
             printk("free ");
         }
 
@@ -170,7 +172,7 @@ test_read(void *arg)
                         panic("invalid content");
                     }
 
-                if ((i % 100000) == 0) {
+                if ((i % TEST_LOOPS_PER_PRINT) == 0) {
                     printk("read ");
                 }
 
