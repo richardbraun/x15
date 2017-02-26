@@ -159,8 +159,12 @@ trap_install_double_fault(void)
 static void
 trap_default(struct trap_frame *frame)
 {
+    struct thread *thread;
+
     cpu_halt_broadcast();
+    thread = thread_self();
     printk("trap: unhandled interrupt or exception (cpu%u):\n", cpu_id());
+    printk("trap: interrupted thread: %p (%s)\n", thread, thread->name);
     trap_frame_show(frame);
     trap_stack_show(frame);
     cpu_halt();
