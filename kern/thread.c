@@ -345,6 +345,8 @@ static void
 thread_set_wchan(struct thread *thread, const void *wchan_addr,
                  const char *wchan_desc)
 {
+    assert((wchan_addr != NULL) && (wchan_desc != NULL));
+
     thread->wchan_addr = wchan_addr;
     thread->wchan_desc = wchan_desc;
 }
@@ -352,7 +354,8 @@ thread_set_wchan(struct thread *thread, const void *wchan_addr,
 static void
 thread_clear_wchan(struct thread *thread)
 {
-    thread_set_wchan(thread, NULL, NULL);
+    thread->wchan_addr = NULL;
+    thread->wchan_desc = NULL;
 }
 
 static const struct thread_sched_ops *
