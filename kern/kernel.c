@@ -20,6 +20,7 @@
 #include <kern/kernel.h>
 #include <kern/llsync.h>
 #include <kern/percpu.h>
+#include <kern/sleepq.h>
 #include <kern/sref.h>
 #include <kern/task.h>
 #include <kern/thread.h>
@@ -41,6 +42,7 @@ kernel_main(void)
     cpumap_setup();
     xcall_setup();
     task_setup();
+    sleepq_setup();
     thread_setup();
     work_setup();
     llsync_setup();

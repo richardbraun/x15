@@ -49,6 +49,8 @@ x15_SOURCES +=                                              \
 	kern/rdxtree.c                                      \
 	kern/rdxtree.h                                      \
 	kern/rdxtree_i.h                                    \
+	kern/sleepq.c                                       \
+	kern/sleepq.h                                       \
 	kern/spinlock.h                                     \
 	kern/spinlock_i.h                                   \
 	kern/spinlock_types.h                               \

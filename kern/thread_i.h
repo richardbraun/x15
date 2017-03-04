@@ -27,6 +27,11 @@
 #include <machine/atomic.h>
 #include <machine/tcb.h>
 
+/*
+ * Forward declarations.
+ */
+struct sleepq;
+
 struct thread_runq;
 struct thread_fs_runq;
 
@@ -91,6 +96,9 @@ struct thread {
     const void *wchan_addr;
     const char *wchan_desc;
     unsigned short state;
+
+    /* Sleep queue available for lending */
+    struct sleepq *priv_sleepq;
 
     /* Thread-local members */
     unsigned short preempt;

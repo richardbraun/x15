@@ -98,6 +98,7 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
+#include <kern/sleepq.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/sref.h>
@@ -1705,6 +1706,13 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     thread->runq = NULL;
     thread_set_wchan(thread, thread, "init");
     thread->state = THREAD_SLEEPING;
+    thread->priv_sleepq = sleepq_create();
+
+    if (thread->priv_sleepq == NULL) {
+        error = ERROR_NOMEM;
+        goto error_sleepq;
+    }
+
     thread->preempt = THREAD_SUSPEND_PREEMPT_LEVEL;
     thread->pinned = 0;
     thread->llsync_read = 0;
@@ -1729,15 +1737,17 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     error = tcb_init(&thread->tcb, stack, thread_main);
 
     if (error) {
-        goto error_tsd;
+        goto error_tcb;
     }
 
     task_add_thread(task, thread);
 
     return 0;
 
-error_tsd:
+error_tcb:
     thread_destroy_tsd(thread);
+    sleepq_destroy(thread->priv_sleepq);
+error_sleepq:
     return error;
 }
 
@@ -1781,6 +1791,8 @@ thread_destroy(struct thread *thread)
 
     thread_destroy_tsd(thread);
     task_remove_thread(thread->task, thread);
+
+    sleepq_destroy(thread->priv_sleepq);
     kmem_cache_free(&thread_stack_cache, thread->stack);
     kmem_cache_free(&thread_cache, thread);
 }

@@ -367,6 +367,29 @@ thread_schedule(void)
 }
 
 /*
+ * Sleep queue lending functions.
+ */
+
+static inline struct sleepq *
+thread_sleepq_lend(void)
+{
+    struct sleepq *sleepq;
+
+    sleepq = thread_self()->priv_sleepq;
+    assert(sleepq != NULL);
+    thread_self()->priv_sleepq = NULL;
+    return sleepq;
+}
+
+static inline void
+thread_sleepq_return(struct sleepq *sleepq)
+{
+    assert(sleepq != NULL);
+    assert(thread_self()->priv_sleepq == NULL);
+    thread_self()->priv_sleepq = sleepq;
+}
+
+/*
  * Migration control functions.
  *
  * Functions that change the migration state are implicit compiler barriers.
