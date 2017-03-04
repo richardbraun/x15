@@ -551,9 +551,10 @@ cpu_info(const struct cpu *cpu)
         printk("cpu%u: %s\n", cpu->id, cpu->model_name);
     }
 
-    if ((cpu->phys_addr_width != 0) && (cpu->virt_addr_width != 0))
+    if ((cpu->phys_addr_width != 0) && (cpu->virt_addr_width != 0)) {
         printk("cpu%u: address widths: physical: %hu, virtual: %hu\n",
                cpu->id, cpu->phys_addr_width, cpu->virt_addr_width);
+    }
 }
 
 void __init

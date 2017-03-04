@@ -412,10 +412,10 @@ boot_save_data(void)
 {
     boot_mbi.flags = boot_raw_mbi.flags;
 
-    if (boot_mbi.flags & MULTIBOOT_LOADER_CMDLINE)
+    if (boot_mbi.flags & MULTIBOOT_LOADER_CMDLINE) {
         boot_mbi.cmdline = boot_save_memory(boot_raw_mbi.cmdline,
                                             boot_raw_mbi.unused0);
-    else {
+    } else {
         boot_mbi.cmdline = NULL;
     }
 

@@ -30,9 +30,10 @@
  */
 #define assert(expression)                                          \
 MACRO_BEGIN                                                         \
-    if (unlikely(!(expression)))                                    \
+    if (unlikely(!(expression))) {                                  \
         panic("assertion (%s) failed in %s:%d, function %s()",      \
               __QUOTE(expression), __FILE__, __LINE__, __func__);   \
+    }                                                               \
 MACRO_END
 
 #endif /* NDEBUG */

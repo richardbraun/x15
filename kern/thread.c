@@ -1405,10 +1405,11 @@ thread_sched_fs_balance_migrate(struct thread_runq *runq,
      * Threads in the expired queue of a processor in round highest are
      * actually in round highest + 1.
      */
-    if (remote_runq->fs_round != highest_round)
+    if (remote_runq->fs_round != highest_round) {
         nr_pulls = thread_sched_fs_balance_pull(runq, remote_runq,
                                                 remote_runq->fs_runq_expired,
                                                 nr_pulls);
+    }
 
 out:
     return nr_pulls;

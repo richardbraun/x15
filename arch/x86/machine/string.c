@@ -42,11 +42,11 @@ memmove(void *dest, const void *src, size_t n)
 
     orig_dest = dest;
 
-    if (dest <= src)
+    if (dest <= src) {
         asm volatile("rep movsb"
                      : "+D" (dest), "+S" (src), "+c" (n)
                      : : "memory");
-    else {
+    } else {
         dest += n - 1;
         src += n - 1;
         asm volatile("std; rep movsb; cld"

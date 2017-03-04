@@ -168,10 +168,11 @@ kmem_buf_verify_bytes(void *buf, void *pattern, size_t size)
 
     end = buf + size;
 
-    for (ptr = buf, pattern_ptr = pattern; ptr < end; ptr++, pattern_ptr++)
+    for (ptr = buf, pattern_ptr = pattern; ptr < end; ptr++, pattern_ptr++) {
         if (*ptr != *pattern_ptr) {
             return ptr;
         }
+    }
 
     return NULL;
 }
