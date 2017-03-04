@@ -143,15 +143,22 @@ task_info(struct task *task)
 
     printk("task: name: %s, threads:\n", task->name);
 
+    /*
+     * Don't grab any lock when accessing threads, so that the function
+     * can be used to debug in the middle of most critical sections.
+     * Threads are only destroyed after being removed from their task
+     * so holding the task lock is enough to guarantee existence.
+     */
     list_for_each_entry(&task->threads, thread, task_node) {
-        printk("task: " TASK_INFO_ADDR_FMT " %c %8s:" TASK_INFO_ADDR_FMT
-               " %.2s:%02hu %s\n",
+        printk(TASK_INFO_ADDR_FMT " %c %8s:" TASK_INFO_ADDR_FMT
+               " %.2s:%02hu %02u %s\n",
                (unsigned long)thread,
                thread_state_to_chr(thread),
                thread_wchan_desc(thread),
                (unsigned long)thread_wchan_addr(thread),
                thread_sched_class_to_str(thread_user_sched_class(thread)),
                thread_user_priority(thread),
+               thread_real_global_priority(thread),
                thread->name);
     }
 

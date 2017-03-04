@@ -1884,9 +1884,10 @@ thread_destroy(struct thread *thread)
         thread_unlock_runq(runq, flags);
     } while (state != THREAD_DEAD);
 
-    thread_destroy_tsd(thread);
+    /* See task_info() */
     task_remove_thread(thread->task, thread);
 
+    thread_destroy_tsd(thread);
     turnstile_destroy(thread->priv_turnstile);
     sleepq_destroy(thread->priv_sleepq);
     kmem_cache_free(&thread_stack_cache, thread->stack);
