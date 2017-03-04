@@ -41,6 +41,9 @@ x15_SOURCES +=                                              \
 	kern/param.h                                        \
 	kern/percpu.c                                       \
 	kern/percpu.h                                       \
+	kern/plist.c                                        \
+	kern/plist.h                                        \
+	kern/plist_types.h                                  \
 	kern/printk.c                                       \
 	kern/printk.h                                       \
 	kern/rbtree.c                                       \
