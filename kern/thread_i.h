@@ -18,14 +18,22 @@
 #ifndef _KERN_THREAD_I_H
 #define _KERN_THREAD_I_H
 
+#include <stdbool.h>
+
 #include <kern/condition_types.h>
 #include <kern/cpumap.h>
 #include <kern/list_types.h>
 #include <kern/macros.h>
 #include <kern/mutex_types.h>
 #include <kern/param.h>
+#include <kern/turnstile_types.h>
 #include <machine/atomic.h>
 #include <machine/tcb.h>
+
+/*
+ * Forward declarations.
+ */
+struct sleepq;
 
 struct thread_runq;
 struct thread_fs_runq;
@@ -86,11 +94,37 @@ struct thread {
     /* Flags must be changed atomically */
     unsigned long flags;
 
-    /* Sleep/wakeup synchronization members */
+    /* Sleep/wake-up synchronization members */
     struct thread_runq *runq;
+    bool in_runq;
     const void *wchan_addr;
     const char *wchan_desc;
     unsigned short state;
+
+    /* Sleep queue available for lending */
+    struct sleepq *priv_sleepq;
+
+    /* Turnstile available for lending */
+    struct turnstile *priv_turnstile;
+
+    /*
+     * When a thread wakes up after waiting for a condition variable,
+     * it sets this variable so that other waiters are only awaken
+     * after the associated mutex has actually been released.
+     *
+     * This member is thread-local.
+     */
+    struct condition *last_cond;
+
+    /* Per-thread turnstile data */
+    struct turnstile_td turnstile_td;
+
+    /*
+     * True if priority must be propagated when preemption is reenabled
+     *
+     * This member is thread-local.
+     */
+    bool propagate_priority;
 
     /* Thread-local members */
     unsigned short preempt;
@@ -100,8 +134,21 @@ struct thread {
     /* Processors on which this thread is allowed to run */
     struct cpumap cpumap;
 
-    /* Scheduling data */
-    struct thread_sched_data sched_data;
+    /*
+     * Scheduling data.
+     */
+    struct thread_sched_data user_sched_data; /* User-provided */
+    struct thread_sched_data real_sched_data; /* Computed from
+                                                 priority propagation */
+
+    /*
+     * True if the real scheduling data are not the user scheduling data.
+     *
+     * Note that it doesn't provide any information about priority inheritance.
+     * A thread may be part of a priority inheritance chain without its
+     * priority being boosted.
+     */
+    bool boosted;
 
     /* Class specific scheduling data */
     union {

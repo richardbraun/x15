@@ -81,6 +81,7 @@
  * weights in a smoother way than a raw scaling).
  */
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -98,11 +99,13 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
+#include <kern/sleepq.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/sref.h>
 #include <kern/task.h>
 #include <kern/thread.h>
+#include <kern/turnstile.h>
 #include <kern/work.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
@@ -259,13 +262,13 @@ struct thread_runq {
  * Operations of a scheduling class.
  */
 struct thread_sched_ops {
-    void (*init_sched)(struct thread *thread, unsigned short priority);
     struct thread_runq * (*select_runq)(struct thread *thread);
     void (*add)(struct thread_runq *runq, struct thread *thread);
     void (*remove)(struct thread_runq *runq, struct thread *thread);
     void (*put_prev)(struct thread_runq *runq, struct thread *thread);
     struct thread * (*get_next)(struct thread_runq *runq);
-    void (*set_priority)(struct thread *thread, unsigned short priority);
+    void (*reset_priority)(struct thread *thread, unsigned short priority);
+    void (*update_priority)(struct thread *thread, unsigned short priority);
     unsigned int (*get_global_priority)(unsigned short priority);
     void (*set_next)(struct thread_runq *runq, struct thread *thread);
     void (*tick)(struct thread_runq *runq, struct thread *thread);
@@ -341,6 +344,13 @@ struct thread_zombie {
     struct thread *thread;
 };
 
+static unsigned char
+thread_policy_to_class(unsigned char policy)
+{
+    assert(policy < ARRAY_SIZE(thread_policy_table));
+    return thread_policy_table[policy];
+}
+
 static void
 thread_set_wchan(struct thread *thread, const void *wchan_addr,
                  const char *wchan_desc)
@@ -359,13 +369,22 @@ thread_clear_wchan(struct thread *thread)
 }
 
 static const struct thread_sched_ops *
-thread_get_sched_ops(const struct thread *thread)
+thread_get_sched_ops(unsigned char sched_class)
 {
-    unsigned char sched_class;
-
-    sched_class = thread_sched_class(thread);
     assert(sched_class < ARRAY_SIZE(thread_sched_ops));
     return &thread_sched_ops[sched_class];
+}
+
+static const struct thread_sched_ops *
+thread_get_user_sched_ops(const struct thread *thread)
+{
+    return thread_get_sched_ops(thread_user_sched_class(thread));
+}
+
+static const struct thread_sched_ops *
+thread_get_real_sched_ops(const struct thread *thread)
+{
+    return thread_get_sched_ops(thread_real_sched_class(thread));
 }
 
 static void __init
@@ -457,8 +476,9 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
 
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
+    assert(!thread->in_runq);
 
-    ops = thread_get_sched_ops(thread);
+    ops = thread_get_real_sched_ops(thread);
     ops->add(runq, thread);
 
     if (runq->nr_threads == 0) {
@@ -467,11 +487,13 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
 
     runq->nr_threads++;
 
-    if (thread_sched_class(thread) < thread_sched_class(runq->current)) {
+    if (thread_real_sched_class(thread)
+        < thread_real_sched_class(runq->current)) {
         thread_set_flag(runq->current, THREAD_YIELD);
     }
 
     thread->runq = runq;
+    thread->in_runq = true;
 }
 
 static void
@@ -481,6 +503,7 @@ thread_runq_remove(struct thread_runq *runq, struct thread *thread)
 
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
+    assert(thread->in_runq);
 
     runq->nr_threads--;
 
@@ -488,8 +511,10 @@ thread_runq_remove(struct thread_runq *runq, struct thread *thread)
         cpumap_set_atomic(&thread_idle_runqs, thread_runq_cpu(runq));
     }
 
-    ops = thread_get_sched_ops(thread);
+    ops = thread_get_real_sched_ops(thread);
     ops->remove(runq, thread);
+
+    thread->in_runq = false;
 }
 
 static void
@@ -500,7 +525,7 @@ thread_runq_put_prev(struct thread_runq *runq, struct thread *thread)
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
 
-    ops = thread_get_sched_ops(thread);
+    ops = thread_get_real_sched_ops(thread);
 
     if (ops->put_prev != NULL) {
         ops->put_prev(runq, thread);
@@ -534,7 +559,7 @@ thread_runq_set_next(struct thread_runq *runq, struct thread *thread)
 {
     const struct thread_sched_ops *ops;
 
-    ops = thread_get_sched_ops(thread);
+    ops = thread_get_real_sched_ops(thread);
 
     if (ops->set_next != NULL) {
         ops->set_next(runq, thread);
@@ -656,13 +681,6 @@ thread_runq_double_lock(struct thread_runq *a, struct thread_runq *b)
     }
 }
 
-static void
-thread_sched_rt_init_sched(struct thread *thread, unsigned short priority)
-{
-    assert(priority <= THREAD_SCHED_RT_PRIO_MAX);
-    thread->rt_data.time_slice = THREAD_DEFAULT_RR_TIME_SLICE;
-}
-
 static struct thread_runq *
 thread_sched_rt_select_runq(struct thread *thread)
 {
@@ -689,15 +707,17 @@ thread_sched_rt_add(struct thread_runq *runq, struct thread *thread)
     struct list *threads;
 
     rt_runq = &runq->rt_runq;
-    threads = &rt_runq->threads[thread_priority(thread)];
+    threads = &rt_runq->threads[thread_real_priority(thread)];
     list_insert_tail(threads, &thread->rt_data.node);
 
     if (list_singular(threads)) {
-        rt_runq->bitmap |= (1ULL << thread_priority(thread));
+        rt_runq->bitmap |= (1ULL << thread_real_priority(thread));
     }
 
-    if ((thread_sched_class(thread) == thread_sched_class(runq->current))
-        && (thread_priority(thread) > thread_priority(runq->current))) {
+    if ((thread_real_sched_class(thread)
+         == thread_real_sched_class(runq->current))
+        && (thread_real_priority(thread)
+            > thread_real_priority(runq->current))) {
         thread_set_flag(runq->current, THREAD_YIELD);
     }
 }
@@ -709,11 +729,11 @@ thread_sched_rt_remove(struct thread_runq *runq, struct thread *thread)
     struct list *threads;
 
     rt_runq = &runq->rt_runq;
-    threads = &rt_runq->threads[thread_priority(thread)];
+    threads = &rt_runq->threads[thread_real_priority(thread)];
     list_remove(&thread->rt_data.node);
 
     if (list_empty(threads)) {
-        rt_runq->bitmap &= ~(1ULL << thread_priority(thread));
+        rt_runq->bitmap &= ~(1ULL << thread_real_priority(thread));
     }
 }
 
@@ -745,6 +765,13 @@ thread_sched_rt_get_next(struct thread_runq *runq)
     return thread;
 }
 
+static void
+thread_sched_rt_reset_priority(struct thread *thread, unsigned short priority)
+{
+    assert(priority <= THREAD_SCHED_RT_PRIO_MAX);
+    thread->rt_data.time_slice = THREAD_DEFAULT_RR_TIME_SLICE;
+}
+
 static unsigned int
 thread_sched_rt_get_global_priority(unsigned short priority)
 {
@@ -762,7 +789,7 @@ thread_sched_rt_tick(struct thread_runq *runq, struct thread *thread)
 {
     (void)runq;
 
-    if (thread_sched_policy(thread) != THREAD_SCHED_POLICY_RR) {
+    if (thread_real_sched_policy(thread) != THREAD_SCHED_POLICY_RR) {
         return;
     }
 
@@ -780,16 +807,6 @@ static inline unsigned short
 thread_sched_fs_prio2weight(unsigned short priority)
 {
     return ((priority + 1) * THREAD_FS_ROUND_SLICE_BASE);
-}
-
-static void
-thread_sched_fs_init_sched(struct thread *thread, unsigned short priority)
-{
-    assert(priority <= THREAD_SCHED_FS_PRIO_MAX);
-    thread->fs_data.fs_runq = NULL;
-    thread->fs_data.round = 0;
-    thread->fs_data.weight = thread_sched_fs_prio2weight(priority);
-    thread->fs_data.work = 0;
 }
 
 static struct thread_runq *
@@ -893,7 +910,7 @@ thread_sched_fs_enqueue(struct thread_fs_runq *fs_runq, unsigned long round,
     assert(thread->fs_data.fs_runq == NULL);
     assert(thread->fs_data.work <= thread->fs_data.weight);
 
-    group = &fs_runq->group_array[thread_priority(thread)];
+    group = &fs_runq->group_array[thread_real_priority(thread)];
     group_weight = group->weight + thread->fs_data.weight;
     total_weight = fs_runq->weight + thread->fs_data.weight;
     node = (group->weight == 0)
@@ -969,7 +986,7 @@ thread_sched_fs_restart(struct thread_runq *runq)
     assert(node != NULL);
     fs_runq->current = list_entry(node, struct thread_fs_group, node);
 
-    if (thread_sched_class(runq->current) == THREAD_SCHED_CLASS_FS) {
+    if (thread_real_sched_class(runq->current) == THREAD_SCHED_CLASS_FS) {
         thread_set_flag(runq->current, THREAD_YIELD);
     }
 }
@@ -1005,7 +1022,7 @@ thread_sched_fs_dequeue(struct thread *thread)
     assert(thread->fs_data.fs_runq != NULL);
 
     fs_runq = thread->fs_data.fs_runq;
-    group = &fs_runq->group_array[thread_priority(thread)];
+    group = &fs_runq->group_array[thread_real_priority(thread)];
 
     thread->fs_data.fs_runq = NULL;
     list_remove(&thread->fs_data.runq_node);
@@ -1080,7 +1097,7 @@ thread_sched_fs_put_prev(struct thread_runq *runq, struct thread *thread)
     struct thread_fs_group *group;
 
     fs_runq = runq->fs_runq_active;
-    group = &fs_runq->group_array[thread_priority(thread)];
+    group = &fs_runq->group_array[thread_real_priority(thread)];
     list_insert_tail(&group->threads, &thread->fs_data.group_node);
 
     if (thread->fs_data.work >= thread->fs_data.weight) {
@@ -1148,8 +1165,19 @@ thread_sched_fs_get_next(struct thread_runq *runq)
 }
 
 static void
-thread_sched_fs_set_priority(struct thread *thread, unsigned short priority)
+thread_sched_fs_reset_priority(struct thread *thread, unsigned short priority)
 {
+    assert(priority <= THREAD_SCHED_FS_PRIO_MAX);
+    thread->fs_data.fs_runq = NULL;
+    thread->fs_data.round = 0;
+    thread->fs_data.weight = thread_sched_fs_prio2weight(priority);
+    thread->fs_data.work = 0;
+}
+
+static void
+thread_sched_fs_update_priority(struct thread *thread, unsigned short priority)
+{
+    assert(priority <= THREAD_SCHED_FS_PRIO_MAX);
     thread->fs_data.weight = thread_sched_fs_prio2weight(priority);
 
     if (thread->fs_data.work >= thread->fs_data.weight) {
@@ -1180,7 +1208,7 @@ thread_sched_fs_tick(struct thread_runq *runq, struct thread *thread)
 
     fs_runq = runq->fs_runq_active;
     fs_runq->work++;
-    group = &fs_runq->group_array[thread_priority(thread)];
+    group = &fs_runq->group_array[thread_real_priority(thread)];
     group->work++;
     thread_set_flag(thread, THREAD_YIELD);
     thread->fs_data.work++;
@@ -1231,7 +1259,8 @@ thread_sched_fs_balance_eligible(struct thread_runq *runq,
 
     if ((nr_threads == 0)
         || ((nr_threads == 1)
-            && (thread_sched_class(runq->current) == THREAD_SCHED_CLASS_FS))) {
+            && (thread_real_sched_class(runq->current)
+                == THREAD_SCHED_CLASS_FS))) {
         return 0;
     }
 
@@ -1521,39 +1550,40 @@ thread_sched_idle_get_global_priority(unsigned short priority)
     return THREAD_SCHED_GLOBAL_PRIO_IDLE;
 }
 
-static const struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES] = {
+static const struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES]
+    = {
     [THREAD_SCHED_CLASS_RT] = {
-        .init_sched = thread_sched_rt_init_sched,
         .select_runq = thread_sched_rt_select_runq,
         .add = thread_sched_rt_add,
         .remove = thread_sched_rt_remove,
         .put_prev = thread_sched_rt_put_prev,
         .get_next = thread_sched_rt_get_next,
-        .set_priority = NULL,
+        .reset_priority = thread_sched_rt_reset_priority,
+        .update_priority = NULL,
         .get_global_priority = thread_sched_rt_get_global_priority,
         .set_next = thread_sched_rt_set_next,
         .tick = thread_sched_rt_tick,
     },
     [THREAD_SCHED_CLASS_FS] = {
-        .init_sched = thread_sched_fs_init_sched,
         .select_runq = thread_sched_fs_select_runq,
         .add = thread_sched_fs_add,
         .remove = thread_sched_fs_remove,
         .put_prev = thread_sched_fs_put_prev,
         .get_next = thread_sched_fs_get_next,
-        .set_priority = thread_sched_fs_set_priority,
+        .reset_priority = thread_sched_fs_reset_priority,
+        .update_priority = thread_sched_fs_update_priority,
         .get_global_priority = thread_sched_fs_get_global_priority,
         .set_next = thread_sched_fs_set_next,
         .tick = thread_sched_fs_tick,
     },
     [THREAD_SCHED_CLASS_IDLE] = {
-        .init_sched = NULL,
         .select_runq = thread_sched_idle_select_runq,
         .add = thread_sched_idle_add,
         .remove = thread_sched_idle_remove,
         .put_prev = NULL,
         .get_next = thread_sched_idle_get_next,
-        .set_priority = NULL,
+        .reset_priority = NULL,
+        .update_priority = NULL,
         .get_global_priority = thread_sched_idle_get_global_priority,
         .set_next = NULL,
         .tick = NULL,
@@ -1561,30 +1591,95 @@ static const struct thread_sched_ops thread_sched_ops[THREAD_NR_SCHED_CLASSES] =
 };
 
 static void
-thread_set_sched_policy(struct thread *thread, unsigned char sched_policy)
+thread_set_user_sched_policy(struct thread *thread, unsigned char sched_policy)
 {
-    thread->sched_data.sched_policy = sched_policy;
+    thread->user_sched_data.sched_policy = sched_policy;
 }
 
 static void
-thread_set_sched_class(struct thread *thread, unsigned char sched_class)
+thread_set_user_sched_class(struct thread *thread, unsigned char sched_class)
 {
-    thread->sched_data.sched_class = sched_class;
+    thread->user_sched_data.sched_class = sched_class;
 }
 
 static void
-thread_set_priority(struct thread *thread, unsigned short priority)
+thread_set_user_priority(struct thread *thread, unsigned short priority)
 {
     const struct thread_sched_ops *ops;
 
-    ops = thread_get_sched_ops(thread);
+    ops = thread_get_user_sched_ops(thread);
 
-    if (ops->set_priority != NULL) {
-        ops->set_priority(thread, priority);
+    thread->user_sched_data.priority = priority;
+    thread->user_sched_data.global_priority
+        = ops->get_global_priority(priority);
+}
+
+static void
+thread_update_user_priority(struct thread *thread, unsigned short priority)
+{
+    thread_set_user_priority(thread, priority);
+}
+
+static void
+thread_set_real_sched_policy(struct thread *thread, unsigned char sched_policy)
+{
+    thread->real_sched_data.sched_policy = sched_policy;
+}
+
+static void
+thread_set_real_sched_class(struct thread *thread, unsigned char sched_class)
+{
+    thread->real_sched_data.sched_class = sched_class;
+}
+
+static void
+thread_set_real_priority(struct thread *thread, unsigned short priority)
+{
+    const struct thread_sched_ops *ops;
+
+    ops = thread_get_real_sched_ops(thread);
+
+    thread->real_sched_data.priority = priority;
+    thread->real_sched_data.global_priority
+        = ops->get_global_priority(priority);
+
+    if (ops->reset_priority != NULL) {
+        ops->reset_priority(thread, priority);
     }
+}
 
-    thread->sched_data.priority = priority;
-    thread->sched_data.global_priority = ops->get_global_priority(priority);
+static void
+thread_update_real_priority(struct thread *thread, unsigned short priority)
+{
+    const struct thread_sched_ops *ops;
+
+    ops = thread_get_real_sched_ops(thread);
+
+    thread->real_sched_data.priority = priority;
+    thread->real_sched_data.global_priority
+        = ops->get_global_priority(priority);
+
+    if (ops->update_priority != NULL) {
+        ops->update_priority(thread, priority);
+    }
+}
+
+static void
+thread_reset_real_priority(struct thread *thread)
+{
+    const struct thread_sched_ops *ops;
+    struct thread_sched_data *user, *real;
+
+    user = &thread->user_sched_data;
+    real = &thread->real_sched_data;
+    *real = *user;
+    thread->boosted = false;
+
+    ops = thread_get_user_sched_ops(thread);
+
+    if (ops->reset_priority != NULL) {
+        ops->reset_priority(thread, real->priority);
+    }
 }
 
 static void __init
@@ -1600,9 +1695,10 @@ thread_bootstrap_common(unsigned int cpu)
     booter->flags = 0;
     booter->preempt = 1;
     cpumap_fill(&booter->cpumap);
-    thread_set_sched_policy(booter, THREAD_SCHED_POLICY_IDLE);
-    thread_set_sched_class(booter, THREAD_SCHED_CLASS_IDLE);
-    thread_set_priority(booter, 0);
+    thread_set_user_sched_policy(booter, THREAD_SCHED_POLICY_IDLE);
+    thread_set_user_sched_class(booter, THREAD_SCHED_CLASS_IDLE);
+    thread_set_user_priority(booter, 0);
+    thread_reset_real_priority(booter);
     memset(booter->tsd, 0, sizeof(booter->tsd));
     booter->task = kernel_task;
     thread_runq_init(percpu_ptr(thread_runq, cpu), cpu, booter);
@@ -1616,8 +1712,8 @@ thread_bootstrap(void)
 
     thread_fs_highest_round = THREAD_FS_INITIAL_ROUND;
 
-    thread_bootstrap_common(0);
     tcb_set_current(&thread_booters[0].tcb);
+    thread_bootstrap_common(0);
 }
 
 void __init
@@ -1673,23 +1769,9 @@ thread_destroy_tsd(struct thread *thread)
     }
 }
 
-static void
-thread_init_sched(struct thread *thread, unsigned short priority)
-{
-    const struct thread_sched_ops *ops;
-
-    ops = thread_get_sched_ops(thread);
-
-    if (ops->init_sched != NULL) {
-        ops->init_sched(thread, priority);
-    }
-
-    thread->sched_data.priority = priority;
-    thread->sched_data.global_priority = ops->get_global_priority(priority);
-}
-
 static int
-thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
+thread_init(struct thread *thread, void *stack,
+            const struct thread_attr *attr,
             void (*fn)(void *), void *arg)
 {
     struct thread *caller;
@@ -1706,15 +1788,34 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     thread->nr_refs = 1;
     thread->flags = 0;
     thread->runq = NULL;
+    thread->in_runq = false;
     thread_set_wchan(thread, thread, "init");
     thread->state = THREAD_SLEEPING;
+    thread->priv_sleepq = sleepq_create();
+
+    if (thread->priv_sleepq == NULL) {
+        error = ERROR_NOMEM;
+        goto error_sleepq;
+    }
+
+    thread->priv_turnstile = turnstile_create();
+
+    if (thread->priv_turnstile == NULL) {
+        error = ERROR_NOMEM;
+        goto error_turnstile;
+    }
+
+    turnstile_td_init(&thread->turnstile_td);
+    thread->last_cond = NULL;
+    thread->propagate_priority = false;
     thread->preempt = THREAD_SUSPEND_PREEMPT_LEVEL;
     thread->pinned = 0;
     thread->llsync_read = 0;
     cpumap_copy(&thread->cpumap, cpumap);
-    thread_set_sched_policy(thread, attr->policy);
-    thread_set_sched_class(thread, thread_policy_table[attr->policy]);
-    thread_init_sched(thread, attr->priority);
+    thread_set_user_sched_policy(thread, attr->policy);
+    thread_set_user_sched_class(thread, thread_policy_to_class(attr->policy));
+    thread_set_user_priority(thread, attr->priority);
+    thread_reset_real_priority(thread);
     memset(thread->tsd, 0, sizeof(thread->tsd));
     mutex_init(&thread->join_lock);
     condition_init(&thread->join_cond);
@@ -1732,15 +1833,19 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     error = tcb_init(&thread->tcb, stack, thread_main);
 
     if (error) {
-        goto error_tsd;
+        goto error_tcb;
     }
 
     task_add_thread(task, thread);
 
     return 0;
 
-error_tsd:
+error_tcb:
     thread_destroy_tsd(thread);
+    turnstile_destroy(thread->priv_turnstile);
+error_turnstile:
+    sleepq_destroy(thread->priv_sleepq);
+error_sleepq:
     return error;
 }
 
@@ -1782,8 +1887,12 @@ thread_destroy(struct thread *thread)
         thread_unlock_runq(runq, flags);
     } while (state != THREAD_DEAD);
 
-    thread_destroy_tsd(thread);
+    /* See task_info() */
     task_remove_thread(thread->task, thread);
+
+    thread_destroy_tsd(thread);
+    turnstile_destroy(thread->priv_turnstile);
+    sleepq_destroy(thread->priv_sleepq);
     kmem_cache_free(&thread_stack_cache, thread->stack);
     kmem_cache_free(&thread_cache, thread);
 }
@@ -2208,7 +2317,7 @@ thread_wakeup(struct thread *thread)
         thread->state = THREAD_RUNNING;
     } else {
         /*
-         * If another wakeup was attempted right before this one, the thread
+         * If another wake-up was attempted right before this one, the thread
          * may currently be pushed on a remote run queue, and the run queue
          * being locked here is actually the previous one. The run queue
          * pointer may be modified concurrently, now being protected by the
@@ -2233,7 +2342,7 @@ thread_wakeup(struct thread *thread)
     cpu_intr_save(&flags);
 
     if (!thread->pinned) {
-        runq = thread_sched_ops[thread_sched_class(thread)].select_runq(thread);
+        runq = thread_get_real_sched_ops(thread)->select_runq(thread);
     } else {
         runq = thread->runq;
         spinlock_lock(&runq->lock);
@@ -2325,7 +2434,7 @@ thread_tick_intr(void)
         thread_balance_idle_tick(runq);
     }
 
-    ops = thread_get_sched_ops(thread);
+    ops = thread_get_real_sched_ops(thread);
 
     if (ops->tick != NULL) {
         ops->tick(runq, thread);
@@ -2334,6 +2443,7 @@ thread_tick_intr(void)
     spinlock_unlock(&runq->lock);
 }
 
+/* TODO Move outside */
 char
 thread_state_to_chr(const struct thread *thread)
 {
@@ -2349,6 +2459,7 @@ thread_state_to_chr(const struct thread *thread)
     }
 }
 
+/* TODO Move outside */
 const char *
 thread_sched_class_to_str(unsigned char sched_class)
 {
@@ -2369,17 +2480,23 @@ thread_setscheduler(struct thread *thread, unsigned char policy,
                     unsigned short priority)
 {
     struct thread_runq *runq;
+    struct turnstile_td *td;
     unsigned long flags;
-    bool current;
+    bool requeue, current, update;
 
+    td = thread_turnstile_td(thread);
+
+    turnstile_td_lock(td);
     runq = thread_lock_runq(thread, &flags);
 
-    if ((thread_sched_policy(thread) == policy)
-        && (thread_priority(thread) == priority)) {
+    if ((thread_user_sched_policy(thread) == policy)
+        && (thread_user_priority(thread) == priority)) {
         goto out;
     }
 
-    if (thread->state != THREAD_RUNNING) {
+    requeue = thread->in_runq;
+
+    if (!requeue) {
         current = false;
     } else {
         if (thread != runq->current) {
@@ -2392,16 +2509,32 @@ thread_setscheduler(struct thread *thread, unsigned char policy,
         thread_runq_remove(runq, thread);
     }
 
-    if (thread_sched_policy(thread) == policy) {
-        thread_set_priority(thread, priority);
+    if (thread_user_sched_policy(thread) == policy) {
+        thread_update_user_priority(thread, priority);
+        update = true;
     } else {
-        thread_set_sched_policy(thread, policy);
-        assert(policy < ARRAY_SIZE(thread_policy_table));
-        thread_set_sched_class(thread, thread_policy_table[policy]);
-        thread_init_sched(thread, priority);
+        thread_set_user_sched_policy(thread, policy);
+        thread_set_user_sched_class(thread, thread_policy_to_class(policy));
+        thread_set_user_priority(thread, priority);
+        update = false;
     }
 
-    if (thread->state == THREAD_RUNNING) {
+    if (thread->boosted) {
+        if (thread_user_global_priority(thread)
+            >= thread_real_global_priority(thread)) {
+            thread_reset_real_priority(thread);
+        }
+    } else {
+        if (update) {
+            thread_update_real_priority(thread, priority);
+        } else {
+            thread_set_real_sched_policy(thread, policy);
+            thread_set_real_sched_class(thread, thread_policy_to_class(policy));
+            thread_set_real_priority(thread, priority);
+        }
+    }
+
+    if (requeue) {
         thread_runq_add(runq, thread);
 
         if (current) {
@@ -2411,6 +2544,96 @@ thread_setscheduler(struct thread *thread, unsigned char policy,
 
 out:
     thread_unlock_runq(runq, flags);
+    turnstile_td_unlock(td);
+
+    turnstile_td_propagate_priority(td);
+}
+
+void
+thread_pi_setscheduler(struct thread *thread, unsigned char policy,
+                       unsigned short priority)
+{
+    const struct thread_sched_ops *ops;
+    struct thread_runq *runq;
+    struct turnstile_td *td;
+    unsigned int global_priority;
+    unsigned long flags;
+    bool requeue, current;
+
+    td = thread_turnstile_td(thread);
+    turnstile_td_assert_lock(td);
+
+    ops = thread_get_sched_ops(thread_policy_to_class(policy));
+    global_priority = ops->get_global_priority(priority);
+
+    runq = thread_lock_runq(thread, &flags);
+
+    if ((thread_real_sched_policy(thread) == policy)
+        && (thread_real_priority(thread) == priority)) {
+        goto out;
+    }
+
+    requeue = thread->in_runq;
+
+    if (!requeue) {
+        current = false;
+    } else {
+        if (thread != runq->current) {
+            current = false;
+        } else {
+            thread_runq_put_prev(runq, thread);
+            current = true;
+        }
+
+        thread_runq_remove(runq, thread);
+    }
+
+    if (global_priority <= thread_user_global_priority(thread)) {
+        thread_reset_real_priority(thread);
+    } else {
+        if (thread_real_sched_policy(thread) == policy) {
+            thread_update_real_priority(thread, priority);
+        } else {
+            thread_set_real_sched_policy(thread, policy);
+            thread_set_real_sched_class(thread, thread_policy_to_class(policy));
+            thread_set_real_priority(thread, priority);
+        }
+
+        thread->boosted = true;
+    }
+
+    if (requeue) {
+        thread_runq_add(runq, thread);
+
+        if (current) {
+            thread_runq_set_next(runq, thread);
+        }
+    }
+
+out:
+    thread_unlock_runq(runq, flags);
+}
+
+void
+thread_propagate_priority(void)
+{
+    struct thread *thread;
+
+    /*
+     * Although it's possible to propagate priority with preemption
+     * disabled, the operation can be too expensive to allow it.
+     */
+    if (!thread_preempt_enabled()) {
+        thread_set_priority_propagation_needed();
+        return;
+    }
+
+    thread = thread_self();
+
+    /* Clear before propagation to avoid infinite recursion */
+    thread->propagate_priority = false;
+
+    turnstile_td_propagate_priority(thread_turnstile_td(thread));
 }
 
 void

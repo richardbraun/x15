@@ -34,12 +34,19 @@ AC_ARG_WITH([max-cpus],
             [opt_max_cpus=$withval],
             [opt_max_cpus=128])
 
+AC_ARG_ENABLE([mutex-pi],
+              [AS_HELP_STRING([--enable-mutex-pi],
+                              [enable priority inheritance for regular mutexes
+                               (note that priority inheritance is always
+                                enabled for real-time mutexes)])])
+
 AC_DEFINE([__KERNEL__], [1], [kernel code])
 AC_DEFINE_UNQUOTED([ARCH], [$arch], [arch])
 
 m4_define([ENABLE_TEST_MODULE],
           [AS_CASE(["$enable_test_module"],
                    [llsync_defer], [test_llsync_defer=yes],
+                   [mutex_pi], [test_mutex_pi=yes],
                    [pmap_update_mp], [test_pmap_update_mp=yes],
                    [sref_dirty_zeroes], [test_sref_dirty_zeroes=yes],
                    [sref_noref], [test_sref_noref=yes],
@@ -55,6 +62,8 @@ m4_define([ENABLE_TEST_MODULE],
 AS_IF([test x"$enable_test_module" != xno], [ENABLE_TEST_MODULE])
 AM_CONDITIONAL([TEST_LLSYNC_DEFER],
                [test x"$test_llsync_defer" = xyes])
+AM_CONDITIONAL([TEST_MUTEX_PI],
+               [test x"$test_mutex_pi" = xyes])
 AM_CONDITIONAL([TEST_PMAP_UPDATE_MP],
                [test x"$test_pmap_update_mp" = xyes])
 AM_CONDITIONAL([TEST_SREF_DIRTY_ZEROES],
@@ -73,6 +82,10 @@ AM_CONDITIONAL([TEST_XCALL],
 AC_DEFINE_UNQUOTED([MAX_CPUS], [$opt_max_cpus],
                    [maximum number of supported processors])
 AC_MSG_NOTICE([maximum number of supported processors: $opt_max_cpus])
+
+AS_IF([test x"$enable_mutex_pi" = xyes],
+      [AC_DEFINE_UNQUOTED([X15_MUTEX_PI], [],
+                          [Enable priority inheritance for regular mutexes])])
 
 AH_BOTTOM([#include <kern/config.h>])
 AC_CONFIG_HEADER([config.h])

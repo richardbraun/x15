@@ -18,12 +18,13 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_CONDITION_TYPES_H
-#define _KERN_CONDITION_TYPES_H
+#ifndef _KERN_RTMUTEX_TYPES_H
+#define _KERN_RTMUTEX_TYPES_H
 
-struct condition {
-    unsigned short nr_sleeping_waiters;
-    unsigned short nr_pending_waiters;
+#include <stdint.h>
+
+struct rtmutex {
+    uintptr_t owner;
 };
 
-#endif /* _KERN_CONDITION_TYPES_H */
+#endif /* _KERN_RTMUTEX_TYPES_H */

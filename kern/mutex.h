@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Richard Braun.
+ * Copyright (c) 2013-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,33 +15,84 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * Mutual exclusion locks.
+ * Mutual exclusion sleep locks.
  *
  * Unlike spin locks, acquiring a mutex may make the calling thread sleep.
+ *
+ * TODO Adaptive spinning.
  */
 
 #ifndef _KERN_MUTEX_H
 #define _KERN_MUTEX_H
 
-#include <kern/assert.h>
-#include <kern/error.h>
-#include <kern/list.h>
-#include <kern/mutex_i.h>
 #include <kern/mutex_types.h>
-#include <kern/spinlock.h>
+
+#ifdef X15_MUTEX_PI
+
+#include <kern/rtmutex.h>
 
 struct mutex;
+
+#define mutex_assert_locked(mutex) rtmutex_assert_locked(&(mutex)->rtmutex)
 
 static inline void
 mutex_init(struct mutex *mutex)
 {
-    mutex->state = MUTEX_UNLOCKED;
-    spinlock_init(&mutex->lock);
-    list_init(&mutex->waiters);
+    rtmutex_init(&mutex->rtmutex);
 }
+
+static inline int
+mutex_trylock(struct mutex *mutex)
+{
+    return rtmutex_trylock(&mutex->rtmutex);
+}
+
+static inline void
+mutex_lock(struct mutex *mutex)
+{
+    rtmutex_lock(&mutex->rtmutex);
+}
+
+static inline void
+mutex_unlock(struct mutex *mutex)
+{
+    rtmutex_unlock(&mutex->rtmutex);
+
+    /*
+     * If this mutex was used along with a condition variable, wake up
+     * a potential pending waiter. This must be done after the mutex is
+     * unlocked so that a higher priority thread can directly acquire it.
+     */
+    thread_wakeup_last_cond();
+}
+
+#else /* X15_MUTEX_PI */
+
+#include <kern/assert.h>
+#include <kern/error.h>
+#include <kern/mutex_i.h>
+#include <kern/thread.h>
+
+struct mutex;
 
 #define mutex_assert_locked(mutex) assert((mutex)->state != MUTEX_UNLOCKED)
 
+/*
+ * Initialize a mutex.
+ */
+static inline void
+mutex_init(struct mutex *mutex)
+{
+    mutex->state = MUTEX_UNLOCKED;
+}
+
+/*
+ * Attempt to lock the given mutex.
+ *
+ * This function may not sleep.
+ *
+ * Return 0 on success, ERROR_BUSY if the mutex is already locked.
+ */
 static inline int
 mutex_trylock(struct mutex *mutex)
 {
@@ -56,6 +107,14 @@ mutex_trylock(struct mutex *mutex)
     return ERROR_BUSY;
 }
 
+/*
+ * Lock a mutex.
+ *
+ * If the mutex is already locked, the calling thread sleeps until the
+ * mutex is unlocked.
+ *
+ * A mutex can only be locked once.
+ */
 static inline void
 mutex_lock(struct mutex *mutex)
 {
@@ -72,6 +131,12 @@ mutex_lock(struct mutex *mutex)
     mutex_lock_slow(mutex);
 }
 
+/*
+ * Unlock a mutex.
+ *
+ * The mutex must be locked, and must have been locked by the calling
+ * thread.
+ */
 static inline void
 mutex_unlock(struct mutex *mutex)
 {
@@ -79,13 +144,18 @@ mutex_unlock(struct mutex *mutex)
 
     state = mutex_release(mutex);
 
-    if (state == MUTEX_LOCKED) {
-        return;
+    if (state != MUTEX_LOCKED) {
+        assert(state == MUTEX_CONTENDED);
+        mutex_unlock_slow(mutex);
     }
 
-    assert(state == MUTEX_CONTENDED);
-
-    mutex_unlock_slow(mutex);
+    /*
+     * If this mutex was used along with a condition variable, wake up
+     * a potential pending waiter.
+     */
+    thread_wakeup_last_cond();
 }
+
+#endif /* X15_MUTEX_PI */
 
 #endif /* _KERN_MUTEX_H */

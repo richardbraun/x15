@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Richard Braun.
+ * Copyright (c) 2013-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,34 +16,62 @@
  *
  *
  * Condition variables.
+ *
+ * A condition variable is a synchronization primitive used to wait
+ * until a predicate becomes true. Multiple threads can be waiting
+ * for this condition. In order to synchronize changes on the predicate
+ * with waiting and signalling, a condition variable must be associated
+ * with a mutex.
  */
 
 #ifndef _KERN_CONDITION_H
 #define _KERN_CONDITION_H
 
-#include <stddef.h>
-
 #include <kern/condition_types.h>
-#include <kern/list.h>
-#include <kern/spinlock.h>
+#include <kern/mutex_types.h>
 
-/*
- * Condition variable.
- */
 struct condition;
 
+/*
+ * Initialize a condition variable.
+ */
 static inline void
 condition_init(struct condition *condition)
 {
-    spinlock_init(&condition->lock);
-    condition->mutex = NULL;
-    list_init(&condition->waiters);
+    condition->nr_sleeping_waiters = 0;
+    condition->nr_pending_waiters = 0;
 }
 
-void condition_wait(struct condition *cond, struct mutex *mutex);
+/*
+ * Wait for a wake-up on the given condition variable.
+ *
+ * The associated mutex must be locked when calling this function.
+ * It is unlocked before waiting and relocked before returning.
+ */
+void condition_wait(struct condition *condition, struct mutex *mutex);
 
-void condition_signal(struct condition *cond);
+/*
+ * Wake up one (signal) or all (broadcast) threads waiting on a
+ * condition variable, if any.
+ *
+ * Although it is not necessary to hold the mutex associated to the
+ * condition variable when calling these functions, doing so guarantees
+ * that a wake-up done when changing the predicate cannot be missed by
+ * waiting threads.
+ */
+void condition_signal(struct condition *condition);
+void condition_broadcast(struct condition *condition);
 
-void condition_broadcast(struct condition *cond);
+/*
+ * Wake up a pending thread.
+ *
+ * This function isn't part of the standard condition variable interface.
+ * It is used to chain wake-ups to avoid the thundering herd effect.
+ * When broadcasting a condition variable, a single thread is actually
+ * awaken. Other threads become "pending waiters", still asleep but
+ * eligible for wake-up when the mutex associated to the condition variable,
+ * relocked when returning from condition_wait(), is finally unlocked.
+ */
+void condition_wakeup(struct condition *condition);
 
 #endif /* _KERN_CONDITION_H */
