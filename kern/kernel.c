@@ -24,6 +24,7 @@
 #include <kern/sref.h>
 #include <kern/task.h>
 #include <kern/thread.h>
+#include <kern/turnstile.h>
 #include <kern/work.h>
 #include <kern/xcall.h>
 #include <machine/cpu.h>
@@ -43,6 +44,7 @@ kernel_main(void)
     xcall_setup();
     task_setup();
     sleepq_setup();
+    turnstile_setup();
     thread_setup();
     work_setup();
     llsync_setup();

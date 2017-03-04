@@ -33,16 +33,16 @@
 #ifndef _KERN_THREAD_H
 #define _KERN_THREAD_H
 
+#include <stdbool.h>
+#include <stddef.h>
+
 #include <kern/assert.h>
 #include <kern/cpumap.h>
 #include <kern/macros.h>
+#include <kern/spinlock_types.h>
+#include <kern/turnstile_types.h>
 #include <machine/atomic.h>
 #include <machine/tcb.h>
-
-/*
- * Forward declaration
- */
-struct spinlock;
 
 /*
  * Thread structure.
@@ -50,13 +50,6 @@ struct spinlock;
 struct thread;
 
 /*
- * Thread name buffer size.
- */
-#define THREAD_NAME_SIZE 32
-
-/*
- * Common scheduling data.
- *
  * The global priority of a thread is meant to be compared against
  * another global priority to determine which thread has higher priority.
  */
@@ -66,6 +59,11 @@ struct thread_sched_data {
     unsigned short priority;
     unsigned int global_priority;
 };
+
+/*
+ * Thread name buffer size.
+ */
+#define THREAD_NAME_SIZE 32
 
 #include <kern/thread_i.h>
 
@@ -261,6 +259,15 @@ void thread_tick_intr(void);
 void thread_setscheduler(struct thread *thread, unsigned char policy,
                          unsigned short priority);
 
+/*
+ * Variant used for priority inheritance.
+ *
+ * The caller must hold the turnstile thread data lock and no turnstile
+ * locks when calling this function.
+ */
+void thread_pi_setscheduler(struct thread *thread, unsigned char policy,
+                            unsigned short priority);
+
 static inline void
 thread_ref(struct thread *thread)
 {
@@ -301,33 +308,72 @@ thread_wchan_desc(const struct thread *thread)
 char thread_state_to_chr(const struct thread *thread);
 
 static inline const struct thread_sched_data *
-thread_get_sched_data(const struct thread *thread)
+thread_get_user_sched_data(const struct thread *thread)
 {
-    return &thread->sched_data;
+    return &thread->user_sched_data;
+}
+
+static inline const struct thread_sched_data *
+thread_get_real_sched_data(const struct thread *thread)
+{
+    return &thread->real_sched_data;
+}
+
+/*
+ * If the caller requires the scheduling data to be stable, it
+ * must lock one of the following objects :
+ *  - the containing run queue
+ *  - the per-thread turnstile data (turnstile_td)
+ *
+ * Both are locked when scheduling data are updated.
+ */
+
+static inline unsigned char
+thread_user_sched_policy(const struct thread *thread)
+{
+    return thread_get_user_sched_data(thread)->sched_policy;
 }
 
 static inline unsigned char
-thread_sched_policy(const struct thread *thread)
+thread_user_sched_class(const struct thread *thread)
 {
-    return thread_get_sched_data(thread)->sched_policy;
-}
-
-static inline unsigned char
-thread_sched_class(const struct thread *thread)
-{
-    return thread_get_sched_data(thread)->sched_class;
+    return thread_get_user_sched_data(thread)->sched_class;
 }
 
 static inline unsigned short
-thread_priority(const struct thread *thread)
+thread_user_priority(const struct thread *thread)
 {
-    return thread_get_sched_data(thread)->priority;
+    return thread_get_user_sched_data(thread)->priority;
 }
 
 static inline unsigned int
-thread_global_priority(const struct thread *thread)
+thread_user_global_priority(const struct thread *thread)
 {
-    return thread_get_sched_data(thread)->global_priority;
+    return thread_get_user_sched_data(thread)->global_priority;
+}
+
+static inline unsigned char
+thread_real_sched_policy(const struct thread *thread)
+{
+    return thread_get_real_sched_data(thread)->sched_policy;
+}
+
+static inline unsigned char
+thread_real_sched_class(const struct thread *thread)
+{
+    return thread_get_real_sched_data(thread)->sched_class;
+}
+
+static inline unsigned short
+thread_real_priority(const struct thread *thread)
+{
+    return thread_get_real_sched_data(thread)->priority;
+}
+
+static inline unsigned int
+thread_real_global_priority(const struct thread *thread)
+{
+    return thread_get_real_sched_data(thread)->global_priority;
 }
 
 /*
@@ -390,6 +436,53 @@ thread_sleepq_return(struct sleepq *sleepq)
 }
 
 /*
+ * Turnstile lending functions.
+ */
+
+static inline struct turnstile *
+thread_turnstile_lend(void)
+{
+    struct turnstile *turnstile;
+
+    turnstile = thread_self()->priv_turnstile;
+    assert(turnstile != NULL);
+    thread_self()->priv_turnstile = NULL;
+    return turnstile;
+}
+
+static inline void
+thread_turnstile_return(struct turnstile *turnstile)
+{
+    assert(turnstile != NULL);
+    assert(thread_self()->priv_turnstile == NULL);
+    thread_self()->priv_turnstile = turnstile;
+}
+
+static inline struct turnstile_td *
+thread_turnstile_td(struct thread *thread)
+{
+    return &thread->turnstile_td;
+}
+
+/*
+ * Priority propagation functions.
+ */
+
+static inline bool
+thread_priority_propagation_needed(void)
+{
+    return thread_self()->propagate_priority;
+}
+
+static inline void
+thread_set_priority_propagation_needed(void)
+{
+    thread_self()->propagate_priority = true;
+}
+
+void thread_propagate_priority(void);
+
+/*
  * Migration control functions.
  *
  * Functions that change the migration state are implicit compiler barriers.
@@ -444,6 +537,10 @@ thread_preempt_enable_no_resched(void)
     thread = thread_self();
     assert(thread->preempt != 0);
     thread->preempt--;
+
+    if (thread_preempt_enabled() && thread_priority_propagation_needed()) {
+        thread_propagate_priority();
+    }
 }
 
 static inline void

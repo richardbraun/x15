@@ -150,8 +150,8 @@ task_info(struct task *task)
                thread_state_to_chr(thread),
                thread_wchan_desc(thread),
                (unsigned long)thread_wchan_addr(thread),
-               thread_sched_class_to_str(thread_sched_class(thread)),
-               thread_priority(thread),
+               thread_sched_class_to_str(thread_user_sched_class(thread)),
+               thread_user_priority(thread),
                thread->name);
     }
 

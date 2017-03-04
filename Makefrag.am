@@ -69,6 +69,9 @@ x15_SOURCES +=                                              \
 	kern/thread.c                                       \
 	kern/thread.h                                       \
 	kern/thread_i.h                                     \
+	kern/turnstile.c                                    \
+	kern/turnstile.h                                    \
+	kern/turnstile_types.h                              \
 	kern/types.h                                        \
 	kern/work.c                                         \
 	kern/work.h                                         \

@@ -26,6 +26,7 @@
 #include <kern/macros.h>
 #include <kern/mutex_types.h>
 #include <kern/param.h>
+#include <kern/turnstile_types.h>
 #include <machine/atomic.h>
 #include <machine/tcb.h>
 
@@ -103,6 +104,19 @@ struct thread {
     /* Sleep queue available for lending */
     struct sleepq *priv_sleepq;
 
+    /* Turnstile available for lending */
+    struct turnstile *priv_turnstile;
+
+    /* Per-thread turnstile data */
+    struct turnstile_td turnstile_td;
+
+    /*
+     * True if priority must be propagated when preemption is reenabled
+     *
+     * This member is thread-local.
+     */
+    bool propagate_priority;
+
     /* Thread-local members */
     unsigned short preempt;
     unsigned short pinned;
@@ -111,8 +125,21 @@ struct thread {
     /* Processors on which this thread is allowed to run */
     struct cpumap cpumap;
 
-    /* Scheduling data */
-    struct thread_sched_data sched_data;
+    /*
+     * Scheduling data.
+     */
+    struct thread_sched_data user_sched_data; /* User-provided */
+    struct thread_sched_data real_sched_data; /* Computed from
+                                                 priority propagation */
+
+    /*
+     * True if the real scheduling data are not the user scheduling data.
+     *
+     * Note that it doesn't provide any information about priority inheritance.
+     * A thread may be part of a priority inheritance chain without its
+     * priority being boosted.
+     */
+    bool boosted;
 
     /* Class specific scheduling data */
     union {
