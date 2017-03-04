@@ -34,6 +34,12 @@ AC_ARG_WITH([max-cpus],
             [opt_max_cpus=$withval],
             [opt_max_cpus=128])
 
+AC_ARG_ENABLE([mutex-pi],
+              [AS_HELP_STRING([--enable-mutex-pi],
+                              [enable priority inheritance for regular mutexes
+                               (note that priority inheritance is always
+                                enabled for real-time mutexes)])])
+
 AC_DEFINE([__KERNEL__], [1], [kernel code])
 AC_DEFINE_UNQUOTED([ARCH], [$arch], [arch])
 
@@ -73,6 +79,10 @@ AM_CONDITIONAL([TEST_XCALL],
 AC_DEFINE_UNQUOTED([MAX_CPUS], [$opt_max_cpus],
                    [maximum number of supported processors])
 AC_MSG_NOTICE([maximum number of supported processors: $opt_max_cpus])
+
+AS_IF([test x"$enable_mutex_pi" = xyes],
+      [AC_DEFINE_UNQUOTED([X15_MUTEX_PI], [],
+                          [Enable priority inheritance for regular mutexes])])
 
 AH_BOTTOM([#include <kern/config.h>])
 AC_CONFIG_HEADER([config.h])

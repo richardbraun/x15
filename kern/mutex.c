@@ -15,6 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef X15_MUTEX_PI
+
 #include <stddef.h>
 
 #include <kern/mutex.h>
@@ -62,3 +64,5 @@ mutex_unlock_slow(struct mutex *mutex)
 
     sleepq_release(sleepq);
 }
+
+#endif /* X15_MUTEX_PI */

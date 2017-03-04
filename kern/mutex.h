@@ -25,10 +25,52 @@
 #ifndef _KERN_MUTEX_H
 #define _KERN_MUTEX_H
 
+#include <kern/mutex_types.h>
+
+#ifdef X15_MUTEX_PI
+
+#include <kern/rtmutex.h>
+
+struct mutex;
+
+#define mutex_assert_locked(mutex) rtmutex_assert_locked(&(mutex)->rtmutex)
+
+static inline void
+mutex_init(struct mutex *mutex)
+{
+    rtmutex_init(&mutex->rtmutex);
+}
+
+static inline int
+mutex_trylock(struct mutex *mutex)
+{
+    return rtmutex_trylock(&mutex->rtmutex);
+}
+
+static inline void
+mutex_lock(struct mutex *mutex)
+{
+    rtmutex_lock(&mutex->rtmutex);
+}
+
+static inline void
+mutex_unlock(struct mutex *mutex)
+{
+    rtmutex_unlock(&mutex->rtmutex);
+
+    /*
+     * If this mutex was used along with a condition variable, wake up
+     * a potential pending waiter. This must be done after the mutex is
+     * unlocked so that a higher priority thread can directly acquire it.
+     */
+    thread_wakeup_last_cond();
+}
+
+#else /* X15_MUTEX_PI */
+
 #include <kern/assert.h>
 #include <kern/error.h>
 #include <kern/mutex_i.h>
-#include <kern/mutex_types.h>
 #include <kern/thread.h>
 
 struct mutex;
@@ -113,5 +155,7 @@ mutex_unlock(struct mutex *mutex)
      */
     thread_wakeup_last_cond();
 }
+
+#endif /* X15_MUTEX_PI */
 
 #endif /* _KERN_MUTEX_H */

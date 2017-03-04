@@ -18,6 +18,8 @@
 #ifndef _KERN_MUTEX_I_H
 #define _KERN_MUTEX_I_H
 
+#ifndef X15_MUTEX_PI
+
 #include <kern/assert.h>
 #include <kern/mutex_types.h>
 #include <machine/atomic.h>
@@ -46,5 +48,6 @@ void mutex_lock_slow(struct mutex *mutex);
 
 void mutex_unlock_slow(struct mutex *mutex);
 
+#endif /* X15_MUTEX_PI */
 
 #endif /* _KERN_MUTEX_I_H */

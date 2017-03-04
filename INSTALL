@@ -243,6 +243,11 @@ X15 Options
      in a file named `test_pmap_update_mp.c' would be selected with the
      option `--enable-test-module=pmap_update_mp'.
 
+`--enable-mutex-pi'
+     Enable priority inheritance for regular mutexes (note that priority
+     inheritance is always enabled for real-time mutexes).
+     TODO Thoroughly describe the implications of this option
+
 `--with-max-cpus=MAX_CPUS'
      Set the maximum number of supported processors.
 
