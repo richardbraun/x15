@@ -124,7 +124,7 @@ struct kmem_buftag {
 /*
  * Free and uninitialized patterns.
  *
- * These values are unconditionnally 64-bit wide since buffers are at least
+ * These values are unconditionally 64-bit wide since buffers are at least
  * 8-byte aligned.
  */
 #ifdef __BIG_ENDIAN__

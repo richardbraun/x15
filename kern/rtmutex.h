@@ -18,7 +18,7 @@
  * Real-time mutual exclusion locks.
  *
  * A real-time mutex is similar to a regular mutex, except priority
- * inheritance is unconditionnally enabled.
+ * inheritance is unconditionally enabled.
  */
 
 #ifndef _KERN_RTMUTEX_H

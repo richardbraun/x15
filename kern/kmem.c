@@ -84,7 +84,7 @@
 #define KMEM_SLAB_SIZE_THRESHOLD (8 * PAGE_SIZE)
 
 /*
- * Special buffer size under which slab data is unconditionnally allocated
+ * Special buffer size under which slab data is unconditionally allocated
  * from its associated slab.
  */
 #define KMEM_BUF_SIZE_THRESHOLD (PAGE_SIZE / 8)
