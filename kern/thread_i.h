@@ -94,7 +94,7 @@ struct thread {
     /* Flags must be changed atomically */
     unsigned long flags;
 
-    /* Sleep/wakeup synchronization members */
+    /* Sleep/wake-up synchronization members */
     struct thread_runq *runq;
     bool in_runq;
     const void *wchan_addr;

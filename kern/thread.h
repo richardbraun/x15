@@ -198,8 +198,9 @@ void thread_join(struct thread *thread);
  * Make the current thread sleep while waiting for an event.
  *
  * The interlock is used to synchronize the thread state with respect to
- * wakeups, i.e. a wakeup request sent by another thread will not be missed
+ * wake-ups, i.e. a wake-up request sent by another thread cannot be missed
  * if that thread is holding the interlock.
+ *
  * As a special exception, threads that use preemption as a synchronization
  * mechanism can ommit the interlock and pass a NULL pointer instead.
  * In any case, the preemption nesting level must strictly be one when calling
@@ -208,9 +209,6 @@ void thread_join(struct thread *thread);
  * The wait channel describes the reason why the thread is sleeping. The
  * address should refer to a relevant synchronization object, normally
  * containing the interlock, but not necessarily.
- *
- * This is a low level thread control primitive that should only be called by
- * higher thread synchronization functions.
  *
  * Implies a memory barrier.
  */
@@ -221,9 +219,6 @@ void thread_sleep(struct spinlock *interlock, const void *wchan_addr,
  * Schedule a thread for execution on a processor.
  *
  * No action is performed if the target thread is already in the running state.
- *
- * This is a low level thread control primitive that should only be called by
- * higher thread synchronization functions.
  */
 void thread_wakeup(struct thread *thread);
 
