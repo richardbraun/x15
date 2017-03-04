@@ -81,6 +81,7 @@
  * weights in a smoother way than a raw scaling).
  */
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -455,6 +456,7 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
 
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
+    assert(!thread->in_runq);
 
     ops = thread_get_sched_ops(thread);
     ops->add(runq, thread);
@@ -470,6 +472,7 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
     }
 
     thread->runq = runq;
+    thread->in_runq = true;
 }
 
 static void
@@ -479,6 +482,7 @@ thread_runq_remove(struct thread_runq *runq, struct thread *thread)
 
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
+    assert(thread->in_runq);
 
     runq->nr_threads--;
 
@@ -488,6 +492,8 @@ thread_runq_remove(struct thread_runq *runq, struct thread *thread)
 
     ops = thread_get_sched_ops(thread);
     ops->remove(runq, thread);
+
+    thread->in_runq = false;
 }
 
 static void
@@ -1704,6 +1710,7 @@ thread_init(struct thread *thread, void *stack, const struct thread_attr *attr,
     thread->nr_refs = 1;
     thread->flags = 0;
     thread->runq = NULL;
+    thread->in_runq = false;
     thread_set_wchan(thread, thread, "init");
     thread->state = THREAD_SLEEPING;
     thread->priv_sleepq = sleepq_create();
@@ -2379,7 +2386,7 @@ thread_setscheduler(struct thread *thread, unsigned char policy,
 {
     struct thread_runq *runq;
     unsigned long flags;
-    bool current;
+    bool requeue, current;
 
     runq = thread_lock_runq(thread, &flags);
 
@@ -2388,7 +2395,9 @@ thread_setscheduler(struct thread *thread, unsigned char policy,
         goto out;
     }
 
-    if (thread->state != THREAD_RUNNING) {
+    requeue = thread->in_runq;
+
+    if (!requeue) {
         current = false;
     } else {
         if (thread != runq->current) {
@@ -2410,7 +2419,7 @@ thread_setscheduler(struct thread *thread, unsigned char policy,
         thread_init_sched(thread, priority);
     }
 
-    if (thread->state == THREAD_RUNNING) {
+    if (requeue) {
         thread_runq_add(runq, thread);
 
         if (current) {

@@ -18,6 +18,8 @@
 #ifndef _KERN_THREAD_I_H
 #define _KERN_THREAD_I_H
 
+#include <stdbool.h>
+
 #include <kern/condition_types.h>
 #include <kern/cpumap.h>
 #include <kern/list_types.h>
@@ -93,6 +95,7 @@ struct thread {
 
     /* Sleep/wakeup synchronization members */
     struct thread_runq *runq;
+    bool in_runq;
     const void *wchan_addr;
     const char *wchan_desc;
     unsigned short state;
