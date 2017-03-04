@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Richard Braun.
+ * Copyright (c) 2013-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,124 +15,178 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * In order to avoid the infamous thundering herd problem, this implementation
- * doesn't wake all threads when broadcasting a condition. Instead, they are
- * queued on the mutex associated with the condition, and an attempt to wake
- * one by locking and unlocking the mutex is performed. If the mutex is already
- * locked, the current owner does the same when unlocking.
+ * Locking order : mutex -> sleep queue
  */
 
 #include <stddef.h>
 
 #include <kern/assert.h>
 #include <kern/condition.h>
-#include <kern/list.h>
+#include <kern/condition_types.h>
 #include <kern/mutex.h>
-#include <kern/mutex_i.h>
-#include <kern/spinlock.h>
+#include <kern/sleepq.h>
 #include <kern/thread.h>
+
+static void
+condition_inc_nr_sleeping_waiters(struct condition *condition)
+{
+    condition->nr_sleeping_waiters++;
+    assert(condition->nr_sleeping_waiters != 0);
+}
+
+static void
+condition_dec_nr_sleeping_waiters(struct condition *condition)
+{
+    assert(condition->nr_sleeping_waiters != 0);
+    condition->nr_sleeping_waiters--;
+}
+
+static void
+condition_inc_nr_pending_waiters(struct condition *condition)
+{
+    condition->nr_pending_waiters++;
+    assert(condition->nr_pending_waiters != 0);
+}
+
+static void
+condition_dec_nr_pending_waiters(struct condition *condition)
+{
+    assert(condition->nr_pending_waiters != 0);
+    condition->nr_pending_waiters--;
+}
+
+static void
+condition_move_waiters(struct condition *condition)
+{
+    unsigned short old;
+
+    assert(condition->nr_sleeping_waiters != 0);
+    old = condition->nr_pending_waiters;
+    condition->nr_pending_waiters += condition->nr_sleeping_waiters;
+    assert(old < condition->nr_pending_waiters);
+    condition->nr_sleeping_waiters = 0;
+}
 
 void
 condition_wait(struct condition *condition, struct mutex *mutex)
 {
-    struct mutex_waiter waiter;
-    unsigned int state;
+    struct condition *last_cond;
+    struct sleepq *sleepq;
 
-    waiter.thread = thread_self();
+    mutex_assert_locked(mutex);
 
-    spinlock_lock(&condition->lock);
+    /*
+     * Special case :
+     *
+     * mutex_lock(lock);
+     *
+     * for (;;) {
+     *     while (!done) {
+     *         condition_wait(condition, lock);
+     *     }
+     *
+     *     do_something();
+     * }
+     *
+     * Pull the last condition before unlocking the mutex to prevent
+     * mutex_unlock() from reacquiring the condition sleep queue.
+     */
+    last_cond = thread_pull_last_cond();
 
-    assert((condition->mutex == NULL) || (condition->mutex == mutex));
+    sleepq = sleepq_lend(condition, true);
 
-    if (condition->mutex == NULL) {
-        condition->mutex = mutex;
+    mutex_unlock(mutex);
+
+    if (last_cond != NULL) {
+        assert(last_cond == condition);
+
+        if (condition->nr_pending_waiters != 0) {
+            sleepq_signal(sleepq);
+        }
     }
 
-    list_insert_tail(&condition->waiters, &waiter.node);
+    condition_inc_nr_sleeping_waiters(condition);
+    sleepq_wait(sleepq, "cond");
+    condition_dec_nr_pending_waiters(condition);
 
-    spinlock_lock(&mutex->lock);
-
-    state = mutex_release(mutex);
-
-    if (state == MUTEX_CONTENDED) {
-        mutex_signal(mutex);
+    if (condition->nr_pending_waiters != 0) {
+        thread_set_last_cond(condition);
     }
 
-    spinlock_unlock(&condition->lock);
+    sleepq_return(sleepq);
 
-    mutex_wait(mutex, &waiter);
-    mutex_trydowngrade(mutex);
-
-    spinlock_unlock(&mutex->lock);
+    mutex_lock(mutex);
 }
 
 void
 condition_signal(struct condition *condition)
 {
-    struct mutex_waiter *waiter;
-    struct mutex *mutex;
-    unsigned int state;
+    struct sleepq *sleepq;
 
-    spinlock_lock(&condition->lock);
+    sleepq = sleepq_acquire(condition, true);
 
-    if (condition->mutex == NULL) {
-        spinlock_unlock(&condition->lock);
+    if (sleepq == NULL) {
         return;
     }
 
-    mutex = condition->mutex;
-    waiter = list_first_entry(&condition->waiters, struct mutex_waiter, node);
-    list_remove(&waiter->node);
-
-    if (list_empty(&condition->waiters)) {
-        condition->mutex = NULL;
+    if (condition->nr_sleeping_waiters == 0) {
+        goto out;
     }
 
-    spinlock_unlock(&condition->lock);
+    sleepq_signal(sleepq);
 
-    spinlock_lock(&mutex->lock);
+    condition_dec_nr_sleeping_waiters(condition);
+    condition_inc_nr_pending_waiters(condition);
 
-    mutex_queue(mutex, waiter);
-    state = mutex_tryacquire_slow(mutex);
-
-    if (state == MUTEX_UNLOCKED) {
-        mutex_release(mutex);
-        mutex_signal(mutex);
-    }
-
-    spinlock_unlock(&mutex->lock);
+out:
+    sleepq_release(sleepq);
 }
 
 void
 condition_broadcast(struct condition *condition)
 {
-    struct list waiters;
-    struct mutex *mutex;
-    unsigned int state;
+    struct sleepq *sleepq;
 
-    spinlock_lock(&condition->lock);
+    sleepq = sleepq_acquire(condition, true);
 
-    if (condition->mutex == NULL) {
-        spinlock_unlock(&condition->lock);
+    if (sleepq == NULL) {
         return;
     }
 
-    mutex = condition->mutex;
-    condition->mutex = NULL;
-    list_set_head(&waiters, &condition->waiters);
-    list_init(&condition->waiters);
-
-    spinlock_unlock(&condition->lock);
-
-    spinlock_lock(&mutex->lock);
-
-    mutex_queue_list(mutex, &waiters);
-    state = mutex_tryacquire_slow(mutex);
-
-    if (state == MUTEX_UNLOCKED) {
-        mutex_release(mutex);
-        mutex_signal(mutex);
+    if (condition->nr_sleeping_waiters == 0) {
+        goto out;
     }
 
-    spinlock_unlock(&mutex->lock);
+    sleepq_signal(sleepq);
+
+    condition_move_waiters(condition);
+
+out:
+    sleepq_release(sleepq);
+}
+
+void
+condition_wakeup(struct condition *condition)
+{
+    struct sleepq *sleepq;
+
+    sleepq = sleepq_acquire(condition, true);
+
+    if (sleepq == NULL) {
+        return;
+    }
+
+    if (condition->nr_pending_waiters == 0) {
+        goto out;
+    }
+
+    /*
+     * Rely on the FIFO ordering of sleep queues so that signalling multiple
+     * times always wakes up the same thread, as long as that thread didn't
+     * reacquire the sleep queue.
+     */
+    sleepq_signal(sleepq);
+
+out:
+    sleepq_release(sleepq);
 }

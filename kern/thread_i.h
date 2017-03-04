@@ -107,6 +107,15 @@ struct thread {
     /* Turnstile available for lending */
     struct turnstile *priv_turnstile;
 
+    /*
+     * When a thread wakes up after waiting for a condition variable,
+     * it sets this variable so that other waiters are only awaken
+     * after the associated mutex has actually been released.
+     *
+     * This member is thread-local.
+     */
+    struct condition *last_cond;
+
     /* Per-thread turnstile data */
     struct turnstile_td turnstile_td;
 

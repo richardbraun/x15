@@ -21,14 +21,9 @@
 #ifndef _KERN_CONDITION_TYPES_H
 #define _KERN_CONDITION_TYPES_H
 
-#include <kern/list_types.h>
-#include <kern/mutex_types.h>
-#include <kern/spinlock_types.h>
-
 struct condition {
-    struct spinlock lock;
-    struct mutex *mutex;
-    struct list waiters;
+    unsigned short nr_sleeping_waiters;
+    unsigned short nr_pending_waiters;
 };
 
 #endif /* _KERN_CONDITION_TYPES_H */

@@ -37,6 +37,7 @@
 #include <stddef.h>
 
 #include <kern/assert.h>
+#include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/macros.h>
 #include <kern/spinlock_types.h>
@@ -433,6 +434,48 @@ thread_sleepq_return(struct sleepq *sleepq)
     assert(sleepq != NULL);
     assert(thread_self()->priv_sleepq == NULL);
     thread_self()->priv_sleepq = sleepq;
+}
+
+/*
+ * Condition variable related functions.
+ */
+
+static inline void
+thread_set_last_cond(struct condition *last_cond)
+{
+    struct thread *thread;
+
+    thread = thread_self();
+    assert(thread->last_cond == NULL);
+    thread->last_cond = last_cond;
+}
+
+static inline struct condition *
+thread_pull_last_cond(void)
+{
+    struct condition *last_cond;
+    struct thread *thread;
+
+    thread = thread_self();
+    last_cond = thread->last_cond;
+
+    if (last_cond != NULL) {
+        thread->last_cond = NULL;
+    }
+
+    return last_cond;
+}
+
+static inline void
+thread_wakeup_last_cond(void)
+{
+    struct condition *last_cond;
+
+    last_cond = thread_pull_last_cond();
+
+    if (last_cond != NULL) {
+        condition_wakeup(last_cond);
+    }
 }
 
 /*

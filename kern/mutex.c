@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 Richard Braun.
+ * Copyright (c) 2013-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,36 +15,50 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
+
 #include <kern/mutex.h>
 #include <kern/mutex_i.h>
-#include <kern/spinlock.h>
-#include <kern/thread.h>
+#include <kern/sleepq.h>
 
 void
 mutex_lock_slow(struct mutex *mutex)
 {
-    struct mutex_waiter waiter;
+    struct sleepq *sleepq;
     unsigned int state;
 
-    spinlock_lock(&mutex->lock);
+    sleepq = sleepq_lend(mutex, false);
 
-    state = mutex_tryacquire_slow(mutex);
+    for (;;) {
+        state = atomic_swap_uint(&mutex->state, MUTEX_CONTENDED);
 
-    if (state != MUTEX_UNLOCKED) {
-        waiter.thread = thread_self();
-        mutex_queue(mutex, &waiter);
-        mutex_wait(mutex, &waiter);
+        if (state == MUTEX_UNLOCKED) {
+            break;
+        }
+
+        sleepq_wait(sleepq, "mutex");
     }
 
-    mutex_trydowngrade(mutex);
+    if (sleepq_empty(sleepq)) {
+        state = atomic_swap_uint(&mutex->state, MUTEX_LOCKED);
+        assert(state == MUTEX_CONTENDED);
+    }
 
-    spinlock_unlock(&mutex->lock);
+    sleepq_return(sleepq);
 }
 
 void
 mutex_unlock_slow(struct mutex *mutex)
 {
-    spinlock_lock(&mutex->lock);
-    mutex_signal(mutex);
-    spinlock_unlock(&mutex->lock);
+    struct sleepq *sleepq;
+
+    sleepq = sleepq_acquire(mutex, false);
+
+    if (sleepq == NULL) {
+        return;
+    }
+
+    sleepq_signal(sleepq);
+
+    sleepq_release(sleepq);
 }

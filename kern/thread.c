@@ -1803,6 +1803,7 @@ thread_init(struct thread *thread, void *stack,
     }
 
     turnstile_td_init(&thread->turnstile_td);
+    thread->last_cond = NULL;
     thread->propagate_priority = false;
     thread->preempt = THREAD_SUSPEND_PREEMPT_LEVEL;
     thread->pinned = 0;

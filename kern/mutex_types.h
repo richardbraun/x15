@@ -21,13 +21,8 @@
 #ifndef _KERN_MUTEX_TYPES_H
 #define _KERN_MUTEX_TYPES_H
 
-#include <kern/list_types.h>
-#include <kern/spinlock_types.h>
-
 struct mutex {
     unsigned int state;
-    struct spinlock lock;
-    struct list waiters;
 };
 
 #endif /* _KERN_MUTEX_TYPES_H */
