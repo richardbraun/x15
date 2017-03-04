@@ -46,6 +46,7 @@ AC_DEFINE_UNQUOTED([ARCH], [$arch], [arch])
 m4_define([ENABLE_TEST_MODULE],
           [AS_CASE(["$enable_test_module"],
                    [llsync_defer], [test_llsync_defer=yes],
+                   [mutex_pi], [test_mutex_pi=yes],
                    [pmap_update_mp], [test_pmap_update_mp=yes],
                    [sref_dirty_zeroes], [test_sref_dirty_zeroes=yes],
                    [sref_noref], [test_sref_noref=yes],
@@ -61,6 +62,8 @@ m4_define([ENABLE_TEST_MODULE],
 AS_IF([test x"$enable_test_module" != xno], [ENABLE_TEST_MODULE])
 AM_CONDITIONAL([TEST_LLSYNC_DEFER],
                [test x"$test_llsync_defer" = xyes])
+AM_CONDITIONAL([TEST_MUTEX_PI],
+               [test x"$test_mutex_pi" = xyes])
 AM_CONDITIONAL([TEST_PMAP_UPDATE_MP],
                [test x"$test_pmap_update_mp" = xyes])
 AM_CONDITIONAL([TEST_SREF_DIRTY_ZEROES],

@@ -102,6 +102,10 @@ if TEST_LLSYNC_DEFER
 x15_SOURCES += test/test_llsync_defer.c
 endif TEST_LLSYNC_DEFER
 
+if TEST_MUTEX_PI
+x15_SOURCES += test/test_mutex_pi.c
+endif TEST_MUTEX_PI
+
 if TEST_PMAP_UPDATE_MP
 x15_SOURCES += test/test_pmap_update_mp.c
 endif TEST_PMAP_UPDATE_MP
