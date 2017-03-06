@@ -22,7 +22,6 @@
 #include <string.h>
 
 #include <kern/assert.h>
-#include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/evcnt.h>
@@ -76,7 +75,6 @@ static struct pmap_pt_level pmap_pt_levels[] __read_mostly = {
  * Per-CPU page tables.
  */
 struct pmap_cpu_table {
-    struct mutex lock;
     struct list node;
     phys_addr_t root_ptp_pa;
 };
@@ -209,8 +207,7 @@ static struct kmem_cache pmap_update_oplist_cache;
  * Queue holding update requests from remote processors.
  */
 struct pmap_update_queue {
-    struct mutex lock;
-    struct condition cond;
+    struct spinlock lock;
     struct list requests;
 };
 
@@ -248,8 +245,8 @@ static struct pmap_syncer pmap_syncer __percpu;
  */
 struct pmap_update_request {
     struct list node;
-    struct mutex lock;
-    struct condition cond;
+    struct spinlock lock;
+    struct thread *sender;
     const struct pmap_update_oplist *oplist;
     unsigned int nr_mappings;
     int done;
@@ -786,8 +783,7 @@ pmap_update_request_array_init(struct pmap_update_request_array *array)
 
     for (i = 0; i < ARRAY_SIZE(array->requests); i++) {
         request = &array->requests[i];
-        mutex_init(&request->lock);
-        condition_init(&request->cond);
+        spinlock_init(&request->lock);
     }
 
     mutex_init(&array->lock);
@@ -818,8 +814,7 @@ pmap_syncer_init(struct pmap_syncer *syncer, unsigned int cpu)
     struct pmap_update_queue *queue;
 
     queue = &syncer->queue;
-    mutex_init(&queue->lock);
-    condition_init(&queue->cond);
+    spinlock_init(&queue->lock);
     list_init(&queue->requests);
     snprintf(name, sizeof(name), "pmap_update/%u", cpu);
     evcnt_register(&syncer->ev_update, name);
@@ -840,7 +835,6 @@ pmap_bootstrap(void)
     for (i = 0; i < ARRAY_SIZE(kernel_pmap->cpu_tables); i++) {
         cpu_table = &kernel_pmap_cpu_tables[i];
         kernel_pmap->cpu_tables[i] = cpu_table;
-        mutex_init(&cpu_table->lock);
     }
 
     cpu_local_assign(pmap_current_ptr, kernel_pmap);
@@ -1510,31 +1504,32 @@ pmap_update(struct pmap *pmap)
         syncer = percpu_ptr(pmap_syncer, cpu);
         queue = &syncer->queue;
         request = &array->requests[cpu];
+        request->sender = thread_self();
         request->oplist = oplist;
         request->nr_mappings = pmap_update_oplist_count_mappings(oplist, cpu);
         request->done = 0;
         request->error = 0;
 
-        mutex_lock(&queue->lock);
+        spinlock_lock(&queue->lock);
         list_insert_tail(&queue->requests, &request->node);
-        condition_signal(&queue->cond);
-        mutex_unlock(&queue->lock);
+        thread_wakeup(syncer->thread);
+        spinlock_unlock(&queue->lock);
     }
 
     cpumap_for_each(&oplist->cpumap, cpu) {
         request = &array->requests[cpu];
 
-        mutex_lock(&request->lock);
+        spinlock_lock(&request->lock);
 
         while (!request->done) {
-            condition_wait(&request->cond, &request->lock);
+            thread_sleep(&request->lock, request, "pmaprq");
         }
 
         if (!error && request->error) {
             error = request->error;
         }
 
-        mutex_unlock(&request->lock);
+        spinlock_unlock(&request->lock);
     }
 
     pmap_update_request_array_release(array);
@@ -1558,25 +1553,25 @@ pmap_sync(void *arg)
     queue = &self->queue;
 
     for (;;) {
-        mutex_lock(&queue->lock);
+        spinlock_lock(&queue->lock);
 
         while (list_empty(&queue->requests)) {
-            condition_wait(&queue->cond, &queue->lock);
+            thread_sleep(&queue->lock, queue, "pmapq");
         }
 
         request = list_first_entry(&queue->requests,
                                    struct pmap_update_request, node);
         list_remove(&request->node);
 
-        mutex_unlock(&queue->lock);
+        spinlock_unlock(&queue->lock);
 
         error = pmap_update_local(request->oplist, request->nr_mappings);
 
-        mutex_lock(&request->lock);
+        spinlock_lock(&request->lock);
         request->done = 1;
         request->error = error;
-        condition_signal(&request->cond);
-        mutex_unlock(&request->lock);
+        thread_wakeup(request->sender);
+        spinlock_unlock(&request->lock);
     }
 }
 
