@@ -1,5 +1,7 @@
 include arch/x86/Makefrag.am
 
+EXTRA_DIST += tools/qemu.sh
+
 x15_SOURCES +=                                              \
 	include/string.h
 
