@@ -85,7 +85,7 @@ struct thread_sched_data {
  * Real-time priority properties.
  */
 #define THREAD_SCHED_RT_PRIO_MIN        0
-#define THREAD_SCHED_RT_PRIO_MAX        63
+#define THREAD_SCHED_RT_PRIO_MAX        31
 
 /*
  * Fair-scheduling priority properties.

@@ -175,7 +175,7 @@
  * Run queue properties for real-time threads.
  */
 struct thread_rt_runq {
-    unsigned long long bitmap;
+    unsigned int bitmap;
     struct list threads[THREAD_SCHED_RT_PRIO_MAX + 1];
 };
 
@@ -757,7 +757,7 @@ thread_sched_rt_get_next(struct thread_runq *runq)
         return NULL;
     }
 
-    priority = THREAD_SCHED_RT_PRIO_MAX - __builtin_clzll(rt_runq->bitmap);
+    priority = THREAD_SCHED_RT_PRIO_MAX - __builtin_clz(rt_runq->bitmap);
     threads = &rt_runq->threads[priority];
     assert(!list_empty(threads));
     thread = list_first_entry(threads, struct thread, rt_data.node);
