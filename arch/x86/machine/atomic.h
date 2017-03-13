@@ -25,82 +25,82 @@
 
 #include <stdint.h>
 
-#define ATOMIC_ADD(ptr, delta)      \
-    asm volatile("lock add %1, %0"  \
-                 : "+m" (*(ptr))    \
+#define ATOMIC_ADD(ptr, delta)                              \
+    asm volatile("lock add %1, %0"                          \
+                 : "+m" (*(ptr))                            \
                  : "r" (delta))
 
-#define ATOMIC_FETCHADD(ptr, oldval, delta)     \
-    asm volatile("lock xadd %1, %0"             \
-                 : "+m" (*(ptr)), "=r" (oldval) \
-                 : "1" (delta)                  \
+#define ATOMIC_FETCHADD(ptr, oldval, delta)                 \
+    asm volatile("lock xadd %1, %0"                         \
+                 : "+m" (*(ptr)), "=r" (oldval)             \
+                 : "1" (delta)                              \
                  : "memory")
 
-#define ATOMIC_AND(ptr, bits)       \
-    asm volatile("lock and %1, %0"  \
-                 : "+m" (*(ptr))    \
+#define ATOMIC_AND(ptr, bits)                               \
+    asm volatile("lock and %1, %0"                          \
+                 : "+m" (*(ptr))                            \
                  : "r" (bits))
 
-#define ATOMIC_OR(ptr, bits)        \
-    asm volatile("lock or %1, %0"   \
-                 : "+m" (*(ptr))    \
+#define ATOMIC_OR(ptr, bits)                                \
+    asm volatile("lock or %1, %0"                           \
+                 : "+m" (*(ptr))                            \
                  : "r" (bits))
 
-#define ATOMIC_XOR(ptr, bits)        \
-    asm volatile("lock xor %1, %0"   \
-                 : "+m" (*(ptr))    \
+#define ATOMIC_XOR(ptr, bits)                               \
+    asm volatile("lock xor %1, %0"                          \
+                 : "+m" (*(ptr))                            \
                  : "r" (bits))
 
 /* The xchg instruction doesn't need a lock prefix */
-#define ATOMIC_SWAP(ptr, oldval, newval)        \
-    asm volatile("xchg %1, %0"                  \
-                 : "+m" (*(ptr)), "=r" (oldval) \
-                 : "1" (newval)                 \
+#define ATOMIC_SWAP(ptr, oldval, newval)                    \
+    asm volatile("xchg %1, %0"                              \
+                 : "+m" (*(ptr)), "=r" (oldval)             \
+                 : "1" (newval)                             \
                  : "memory")
 
-#define ATOMIC_CAS(ptr, oldval, predicate, newval)  \
-    asm volatile("lock cmpxchg %3, %0"              \
-                 : "+m" (*(ptr)), "=a" (oldval)     \
-                 : "1" (predicate), "r" (newval)    \
+#define ATOMIC_CAS(ptr, oldval, predicate, newval)          \
+    asm volatile("lock cmpxchg %3, %0"                      \
+                 : "+m" (*(ptr)), "=a" (oldval)             \
+                 : "1" (predicate), "r" (newval)            \
                  : "memory")
 
-#define ATOMIC_LOCAL_ADD(ptr, delta)    \
-    asm volatile("add %1, %0"           \
-                 : "+m" (*(ptr))        \
+#define ATOMIC_LOCAL_ADD(ptr, delta)                        \
+    asm volatile("add %1, %0"                               \
+                 : "+m" (*(ptr))                            \
                  : "r" (delta))
 
-#define ATOMIC_LOCAL_FETCHADD(ptr, oldval, delta)   \
-    asm volatile("xadd %1, %0"                      \
-                 : "+m" (*(ptr)), "=r" (oldval)     \
-                 : "1" (delta)                      \
+#define ATOMIC_LOCAL_FETCHADD(ptr, oldval, delta)           \
+    asm volatile("xadd %1, %0"                              \
+                 : "+m" (*(ptr)), "=r" (oldval)             \
+                 : "1" (delta)                              \
                  : "memory")
 
-#define ATOMIC_LOCAL_AND(ptr, bits)       \
-    asm volatile("and %1, %0"  \
-                 : "+m" (*(ptr))    \
+#define ATOMIC_LOCAL_AND(ptr, bits)                         \
+    asm volatile("and %1, %0"                               \
+                 : "+m" (*(ptr))                            \
                  : "r" (bits))
 
-#define ATOMIC_LOCAL_OR(ptr, bits)        \
-    asm volatile("or %1, %0"   \
-                 : "+m" (*(ptr))    \
+#define ATOMIC_LOCAL_OR(ptr, bits)                          \
+    asm volatile("or %1, %0"                                \
+                 : "+m" (*(ptr))                            \
                  : "r" (bits))
 
-#define ATOMIC_LOCAL_XOR(ptr, bits)        \
-    asm volatile("xor %1, %0"   \
-                 : "+m" (*(ptr))    \
+#define ATOMIC_LOCAL_XOR(ptr, bits)                         \
+    asm volatile("xor %1, %0"                               \
+                 : "+m" (*(ptr))                            \
                  : "r" (bits))
 
 /* The xchg instruction implies a lock prefix */
-#define ATOMIC_LOCAL_SWAP(ptr, oldval, newval)        \
-    asm volatile("xchg %1, %0"                  \
-                 : "+m" (*(ptr)), "=r" (oldval) \
-                 : "1" (newval)                 \
+#define ATOMIC_LOCAL_SWAP(ptr, oldval, newval)              \
+    asm volatile("xchg %1, %0"                              \
+                 : "+m" (*(ptr)), "=r" (oldval)             \
+                 : "1" (newval)                             \
                  : "memory")
 
-#define ATOMIC_LOCAL_CAS(ptr, oldval, predicate, newval)  \
-    asm volatile("cmpxchg %3, %0"              \
-                 : "+m" (*(ptr)), "=a" (oldval)     \
-                 : "1" (predicate), "r" (newval)    \
+#define ATOMIC_LOCAL_CAS(ptr, oldval, predicate, newval)    \
+    asm volatile("cmpxchg %3, %0"                           \
+                 : "+m" (*(ptr)), "=a" (oldval)             \
+                 : "1" (predicate), "r" (newval)            \
                  : "memory")
 
 static inline void
