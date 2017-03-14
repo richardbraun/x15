@@ -169,7 +169,7 @@ struct kmem_slab {
  */
 struct kmem_cache {
     /* CPU pool layer */
-    struct kmem_cpu_pool cpu_pools[MAX_CPUS];
+    struct kmem_cpu_pool cpu_pools[X15_MAX_CPUS];
     struct kmem_cpu_pool_type *cpu_pool_type;
 
     /* Slab layer */

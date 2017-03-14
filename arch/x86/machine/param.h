@@ -160,13 +160,13 @@
 #define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, UL)
 #else /* __LP64__ */
 #define VM_PAGE_DIRECTMAP_LIMIT DECL_CONST(0x38000000, ULL)
-#ifdef X86_PAE
+#ifdef X15_X86_PAE
 #define VM_PAGE_MAX_ZONES       3
 #define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0x10000000000000, ULL)
-#else /* X86_PAE */
+#else /* X15_X86_PAE */
 #define VM_PAGE_MAX_ZONES       3
 #define VM_PAGE_HIGHMEM_LIMIT   DECL_CONST(0xfffff000, UL)
-#endif /* X86_PAE */
+#endif /* X15_X86_PAE */
 #endif /* __LP64__ */
 
 /*

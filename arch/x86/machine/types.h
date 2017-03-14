@@ -18,10 +18,10 @@
 #ifndef _X86_TYPES_H
 #define _X86_TYPES_H
 
-#ifdef X86_PAE
+#ifdef X15_X86_PAE
 typedef unsigned long long phys_addr_t;
-#else /* X86_PAE */
+#else /* X15_X86_PAE */
 typedef unsigned long phys_addr_t;
-#endif /* X86_PAE */
+#endif /* X15_X86_PAE */
 
 #endif /* _X86_TYPES_H */

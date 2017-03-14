@@ -84,10 +84,10 @@ extern char _epercpu;
 static inline void *
 percpu_area(unsigned int cpu)
 {
-    extern void *percpu_areas[MAX_CPUS];
+    extern void *percpu_areas[X15_MAX_CPUS];
     void *area;
 
-    assert(cpu < MAX_CPUS);
+    assert(cpu < X15_MAX_CPUS);
     area = percpu_areas[cpu];
     assert(area != NULL);
     return area;

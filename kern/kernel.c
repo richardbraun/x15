@@ -30,9 +30,9 @@
 #include <machine/cpu.h>
 #include <vm/vm_page.h>
 
-#ifdef RUN_TEST_MODULE
+#ifdef X15_RUN_TEST_MODULE
 #include <test/test.h>
-#endif /* RUN_TEST_MODULE */
+#endif /* X15_RUN_TEST_MODULE */
 
 void __init
 kernel_main(void)
@@ -51,9 +51,9 @@ kernel_main(void)
     sref_setup();
     vm_page_info();
 
-#ifdef RUN_TEST_MODULE
+#ifdef X15_RUN_TEST_MODULE
     test_setup();
-#endif /* RUN_TEST_MODULE */
+#endif /* X15_RUN_TEST_MODULE */
 
     /*
      * Enabling application processors is done late in the boot process for

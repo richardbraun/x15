@@ -29,31 +29,31 @@
 #include <kern/bitmap.h>
 
 struct cpumap {
-    BITMAP_DECLARE(cpus, MAX_CPUS);
+    BITMAP_DECLARE(cpus, X15_MAX_CPUS);
 };
 
 static inline void
 cpumap_zero(struct cpumap *cpumap)
 {
-    bitmap_zero(cpumap->cpus, MAX_CPUS);
+    bitmap_zero(cpumap->cpus, X15_MAX_CPUS);
 }
 
 static inline void
 cpumap_fill(struct cpumap *cpumap)
 {
-    bitmap_fill(cpumap->cpus, MAX_CPUS);
+    bitmap_fill(cpumap->cpus, X15_MAX_CPUS);
 }
 
 static inline void
 cpumap_copy(struct cpumap *dest, const struct cpumap *src)
 {
-    bitmap_copy(dest->cpus, src->cpus, MAX_CPUS);
+    bitmap_copy(dest->cpus, src->cpus, X15_MAX_CPUS);
 }
 
 static inline int
 cpumap_cmp(const struct cpumap *a, const struct cpumap *b)
 {
-    return bitmap_cmp(a->cpus, b->cpus, MAX_CPUS);
+    return bitmap_cmp(a->cpus, b->cpus, X15_MAX_CPUS);
 }
 
 static inline void
@@ -89,50 +89,50 @@ cpumap_test(const struct cpumap *cpumap, int index)
 static inline void
 cpumap_and(struct cpumap *a, const struct cpumap *b)
 {
-    bitmap_and(a->cpus, b->cpus, MAX_CPUS);
+    bitmap_and(a->cpus, b->cpus, X15_MAX_CPUS);
 }
 
 static inline void
 cpumap_or(struct cpumap *a, const struct cpumap *b)
 {
-    bitmap_or(a->cpus, b->cpus, MAX_CPUS);
+    bitmap_or(a->cpus, b->cpus, X15_MAX_CPUS);
 }
 
 static inline void
 cpumap_xor(struct cpumap *a, const struct cpumap *b)
 {
-    bitmap_xor(a->cpus, b->cpus, MAX_CPUS);
+    bitmap_xor(a->cpus, b->cpus, X15_MAX_CPUS);
 }
 
 static inline int
 cpumap_find_next(const struct cpumap *cpumap, int index)
 {
-    return bitmap_find_next(cpumap->cpus, MAX_CPUS, index);
+    return bitmap_find_next(cpumap->cpus, X15_MAX_CPUS, index);
 }
 
 static inline int
 cpumap_find_first(const struct cpumap *cpumap)
 {
-    return bitmap_find_first(cpumap->cpus, MAX_CPUS);
+    return bitmap_find_first(cpumap->cpus, X15_MAX_CPUS);
 }
 
 static inline int
 cpumap_find_next_zero(const struct cpumap *cpumap, int index)
 {
-    return bitmap_find_next_zero(cpumap->cpus, MAX_CPUS, index);
+    return bitmap_find_next_zero(cpumap->cpus, X15_MAX_CPUS, index);
 }
 
 static inline int
 cpumap_find_first_zero(const struct cpumap *cpumap)
 {
-    return bitmap_find_first_zero(cpumap->cpus, MAX_CPUS);
+    return bitmap_find_first_zero(cpumap->cpus, X15_MAX_CPUS);
 }
 
 #define cpumap_for_each(cpumap, index) \
-    bitmap_for_each((cpumap)->cpus, MAX_CPUS, index)
+    bitmap_for_each((cpumap)->cpus, X15_MAX_CPUS, index)
 
 #define cpumap_for_each_zero(cpumap, index) \
-    bitmap_for_each_zero((cpumap)->cpus, MAX_CPUS, index)
+    bitmap_for_each_zero((cpumap)->cpus, X15_MAX_CPUS, index)
 
 /*
  * Initialize the cpumap module.

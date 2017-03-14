@@ -288,10 +288,10 @@ boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
 static void __init
 boot_show_version(void)
 {
-    printk(KERNEL_NAME "/" QUOTE(X86_MACHINE) " " KERNEL_VERSION
-#ifdef X86_PAE
+    printk(KERNEL_NAME "/" QUOTE(X15_X86_MACHINE) " " KERNEL_VERSION
+#ifdef X15_X86_PAE
            " PAE"
-#endif /* X86_PAE */
+#endif /* X15_X86_PAE */
            "\n");
 }
 

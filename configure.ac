@@ -41,7 +41,7 @@ AC_ARG_ENABLE([mutex-pi],
                                 enabled for real-time mutexes)])])
 
 AC_DEFINE([__KERNEL__], [1], [kernel code])
-AC_DEFINE_UNQUOTED([ARCH], [$arch], [arch])
+AC_DEFINE_UNQUOTED([X15_ARCH], [$arch], [arch])
 
 m4_define([ENABLE_TEST_MODULE],
           [AS_CASE(["$enable_test_module"],
@@ -55,7 +55,7 @@ m4_define([ENABLE_TEST_MODULE],
                    [x86_double_fault], [test_x86_double_fault=yes],
                    [xcall], [test_xcall=yes],
                    [AC_MSG_ERROR([invalid test module])])
-          AC_DEFINE([RUN_TEST_MODULE], [1],
+          AC_DEFINE([X15_RUN_TEST_MODULE], [1],
                     [run test module instead of booting])
           AC_MSG_NOTICE([test module enabled: $enable_test_module])])
 
@@ -79,7 +79,7 @@ AM_CONDITIONAL([TEST_X86_DOUBLE_FAULT],
 AM_CONDITIONAL([TEST_XCALL],
                [test x"$test_xcall" = xyes])
 
-AC_DEFINE_UNQUOTED([MAX_CPUS], [$opt_max_cpus],
+AC_DEFINE_UNQUOTED([X15_MAX_CPUS], [$opt_max_cpus],
                    [maximum number of supported processors])
 AC_MSG_NOTICE([maximum number of supported processors: $opt_max_cpus])
 

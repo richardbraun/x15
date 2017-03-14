@@ -80,7 +80,7 @@ struct pmap_cpu_table {
 };
 
 struct pmap {
-    struct pmap_cpu_table *cpu_tables[MAX_CPUS];
+    struct pmap_cpu_table *cpu_tables[X15_MAX_CPUS];
 };
 
 /*
@@ -99,11 +99,11 @@ struct pmap *kernel_pmap __read_mostly = &kernel_pmap_store;
  * that using a percpu variable would actually become ugly. This array
  * is rather small anyway.
  */
-static struct pmap_cpu_table kernel_pmap_cpu_tables[MAX_CPUS] __read_mostly;
+static struct pmap_cpu_table kernel_pmap_cpu_tables[X15_MAX_CPUS] __read_mostly;
 
 struct pmap *pmap_current_ptr __percpu;
 
-#ifdef X86_PAE
+#ifdef X15_X86_PAE
 
 /*
  * Alignment required on page directory pointer tables.
@@ -113,10 +113,10 @@ struct pmap *pmap_current_ptr __percpu;
 /*
  * "Hidden" kernel root page tables for PAE mode.
  */
-static pmap_pte_t pmap_cpu_kpdpts[MAX_CPUS][PMAP_L2_PTES_PER_PT] __read_mostly
-    __aligned(PMAP_PDPT_ALIGN);
+static pmap_pte_t pmap_cpu_kpdpts[X15_MAX_CPUS][PMAP_L2_PTES_PER_PT]
+    __read_mostly __aligned(PMAP_PDPT_ALIGN);
 
-#endif /* X86_PAE */
+#endif /* X15_X86_PAE */
 
 /*
  * Flags related to page protection.
@@ -261,7 +261,7 @@ struct pmap_update_request {
  * on remote processors.
  */
 struct pmap_update_request_array {
-    struct pmap_update_request requests[MAX_CPUS];
+    struct pmap_update_request requests[X15_MAX_CPUS];
     struct mutex lock;
 };
 
@@ -271,10 +271,10 @@ static int pmap_do_remote_updates __read_mostly;
 
 static struct kmem_cache pmap_cache;
 
-#ifdef X86_PAE
+#ifdef X15_X86_PAE
 static char pmap_panic_no_pae[] __bootdata
     = "pmap: PAE not supported";
-#endif /* X86_PAE */
+#endif /* X15_X86_PAE */
 static char pmap_panic_inval_msg[] __bootdata
     = "pmap: invalid physical address";
 static char pmap_panic_directmap_msg[] __bootdata
@@ -370,17 +370,17 @@ out:
     eax = 1;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
-#ifdef X86_PAE
+#ifdef X15_X86_PAE
     if (!(edx & CPU_FEATURE2_PAE)) {
         boot_panic(pmap_panic_no_pae);
     }
 
     return (1 << PMAP_L1_SKIP);
-#else /* X86_PAE */
+#else /* X15_X86_PAE */
     if (edx & CPU_FEATURE2_PSE) {
         return (1 << PMAP_L1_SKIP);
     }
-#endif /* X86_PAE */
+#endif /* X15_X86_PAE */
 
 out:
     return PAGE_SIZE;
@@ -402,11 +402,11 @@ pmap_boot_enable_pgext(unsigned long pgsize)
      *
      * See the boot module.
      */
-#ifdef X86_PAE
+#ifdef X15_X86_PAE
     cpu_enable_pae();
-#else /* X86_PAE */
+#else /* X15_X86_PAE */
     cpu_enable_pse();
-#endif /* X86_PAE */
+#endif /* X15_X86_PAE */
 }
 #endif /* __LP64__ */
 
@@ -429,11 +429,11 @@ pmap_setup_paging(void)
      * direct physical mapping of physical memory.
      */
 
-#ifdef X86_PAE
+#ifdef X15_X86_PAE
     root_ptp = (void *)BOOT_VTOP((uintptr_t)pmap_cpu_kpdpts[0]);
-#else /* X86_PAE */
+#else /* X15_X86_PAE */
     root_ptp = biosmem_bootalloc(1);
-#endif /* X86_PAE */
+#endif /* X15_X86_PAE */
 
     va = vm_page_trunc((uintptr_t)&_boot);
     pa = va;
@@ -496,11 +496,11 @@ pmap_ap_setup_paging(void)
     pmap = (void *)BOOT_VTOP((uintptr_t)&kernel_pmap_store);
     cpu_table = (void *)BOOT_VTOP((uintptr_t)pmap->cpu_tables[boot_ap_id]);
 
-#ifdef X86_PAE
+#ifdef X15_X86_PAE
     return (void *)(uint32_t)cpu_table->root_ptp_pa;
-#else /* X86_PAE */
+#else /* X15_X86_PAE */
     return (void *)cpu_table->root_ptp_pa;
-#endif /* X86_PAE */
+#endif /* X15_X86_PAE */
 }
 
 /*
@@ -990,10 +990,10 @@ pmap_copy_cpu_table(unsigned int cpu)
     level = PMAP_NR_LEVELS - 1;
     sptp = pmap_ptp_from_pa(kernel_pmap->cpu_tables[cpu_id()]->root_ptp_pa);
 
-#ifdef X86_PAE
+#ifdef X15_X86_PAE
     cpu_table->root_ptp_pa = BOOT_VTOP((uintptr_t)pmap_cpu_kpdpts[cpu]);
     dptp = pmap_ptp_from_pa(cpu_table->root_ptp_pa);
-#else /* X86_PAE */
+#else /* X15_X86_PAE */
     struct vm_page *page;
 
     page = vm_page_alloc(0, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_PMAP);
@@ -1004,7 +1004,7 @@ pmap_copy_cpu_table(unsigned int cpu)
 
     cpu_table->root_ptp_pa = vm_page_to_pa(page);
     dptp = vm_page_direct_ptr(page);
-#endif /* X86_PAE */
+#endif /* X15_X86_PAE */
 
     pmap_copy_cpu_table_recursive(sptp, level, dptp, VM_MIN_ADDRESS);
 }

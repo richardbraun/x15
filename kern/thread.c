@@ -280,7 +280,7 @@ static struct thread_runq thread_runq __percpu;
  * Statically allocated fake threads that provide thread context to processors
  * during bootstrap.
  */
-static struct thread thread_booters[MAX_CPUS] __initdata;
+static struct thread thread_booters[X15_MAX_CPUS] __initdata;
 
 static struct kmem_cache thread_cache;
 static struct kmem_cache thread_stack_cache;

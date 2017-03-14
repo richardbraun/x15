@@ -107,7 +107,7 @@ struct vm_page_free_list {
  * Zone of contiguous memory.
  */
 struct vm_page_zone {
-    struct vm_page_cpu_pool cpu_pools[MAX_CPUS];
+    struct vm_page_cpu_pool cpu_pools[X15_MAX_CPUS];
 
     phys_addr_t start;
     phys_addr_t end;
