@@ -850,8 +850,7 @@ sref_setup_manager(struct sref_cache *cache, unsigned int cpu)
     snprintf(name, sizeof(name), THREAD_KERNEL_PREFIX "sref_manage/%u", cpu);
     thread_attr_init(&attr, name);
     thread_attr_set_cpumap(&attr, cpumap);
-    thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_FIFO);
-    thread_attr_set_priority(&attr, THREAD_SCHED_RT_PRIO_MIN);
+    thread_attr_set_priority(&attr, THREAD_SCHED_FS_PRIO_MAX);
     error = thread_create(&manager, &attr, sref_manage, cache);
     cpumap_destroy(cpumap);
 
