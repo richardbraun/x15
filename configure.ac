@@ -2,6 +2,7 @@ AC_INIT([X15], [0.1], [rbraun@sceen.net], [x15])
 
 AC_CONFIG_SRCDIR([kern/config.h])
 AC_CONFIG_AUX_DIR([build-aux])
+AC_CONFIG_MACRO_DIR([tools/m4])
 
 AM_INIT_AUTOMAKE([foreign subdir-objects 1.11])
 
@@ -14,6 +15,9 @@ AC_PROG_CPP
 AC_PROG_CC
 AM_PROG_AS
 AM_PROG_CC_C_O
+
+# Disable PIE if enabled by default
+AX_APPEND_COMPILE_FLAGS([-no-pie -fno-pie])
 
 AC_HEADER_ASSERT()
 
