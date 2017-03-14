@@ -1702,6 +1702,8 @@ thread_bootstrap_common(unsigned int cpu)
     thread_reset_real_priority(booter);
     memset(booter->tsd, 0, sizeof(booter->tsd));
     booter->task = kernel_task;
+    snprintf(booter->name, sizeof(booter->name),
+             THREAD_KERNEL_PREFIX "thread_boot/%u", cpu);
     thread_runq_init(percpu_ptr(thread_runq, cpu), cpu, booter);
 }
 
