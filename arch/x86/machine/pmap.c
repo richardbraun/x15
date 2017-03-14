@@ -1039,8 +1039,7 @@ pmap_mp_setup(void)
         cpumap_set(cpumap, cpu);
         thread_attr_init(&attr, name);
         thread_attr_set_cpumap(&attr, cpumap);
-        thread_attr_set_policy(&attr, THREAD_SCHED_POLICY_FIFO);
-        thread_attr_set_priority(&attr, THREAD_SCHED_RT_PRIO_MIN);
+        thread_attr_set_priority(&attr, THREAD_SCHED_FS_PRIO_MAX);
         error = thread_create(&syncer->thread, &attr, pmap_sync, syncer);
 
         if (error) {
