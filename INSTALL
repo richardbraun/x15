@@ -245,8 +245,9 @@ X15 Options
 
 `--enable-mutex-pi'
      Enable priority inheritance for regular mutexes (note that priority
-     inheritance is always enabled for real-time mutexes).
-     TODO Thoroughly describe the implications of this option
+     inheritance is always enabled for real-time mutexes). This option is
+     likely to measurably reduce overall performance. It should only be
+     enabled if you know what you're doing.
 
 `--with-max-cpus=MAX_CPUS'
      Set the maximum number of supported processors.
