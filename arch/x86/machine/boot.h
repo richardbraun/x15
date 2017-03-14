@@ -102,8 +102,6 @@ void __noreturn boot_panic(const char *s);
  * It establishes a direct mapping of the kernel at virtual addresses and
  * returns the physical address of the page directory. It is up to the
  * caller to actually enable paging.
- *
- * TODO Update comment.
  */
 pmap_pte_t * boot_setup_paging(struct multiboot_raw_info *mbi,
                                unsigned long eax);
