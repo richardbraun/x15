@@ -2446,7 +2446,6 @@ thread_tick_intr(void)
     spinlock_unlock(&runq->lock);
 }
 
-/* TODO Move outside */
 char
 thread_state_to_chr(const struct thread *thread)
 {
@@ -2462,7 +2461,6 @@ thread_state_to_chr(const struct thread *thread)
     }
 }
 
-/* TODO Move outside */
 const char *
 thread_sched_class_to_str(unsigned char sched_class)
 {
