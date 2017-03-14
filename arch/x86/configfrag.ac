@@ -39,6 +39,14 @@ m4_define([x86_SELECT],
            AS_IF([test x"$opt_i386" = xyes], [x86_SELECT_I386],
                  [test x"$opt_amd64" = xyes], [x86_SELECT_AMD64])
 
+           # Never generate instructions that are unhandled in kernel mode
+           AX_APPEND_COMPILE_FLAGS([    \
+               -mno-mmx                 \
+               -mno-3dnow               \
+               -mno-sse                 \
+               -mno-sse2                \
+               -mno-avx])
+
            AC_DEFINE_UNQUOTED([X15_X86_MACHINE], [$machine], [machine])
            AC_MSG_NOTICE([machine type: $arch ($machine)])])
 

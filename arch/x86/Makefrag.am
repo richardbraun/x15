@@ -10,9 +10,6 @@ AM_CFLAGS += -fno-asynchronous-unwind-tables
 # For now, use frame pointers for convenient stack tracing.
 AM_CFLAGS += -fno-omit-frame-pointer
 
-# Never generate instructions that are unhandled in kernel mode.
-AM_CFLAGS += -mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-avx
-
 x15_LDFLAGS += -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
 
 if I386
