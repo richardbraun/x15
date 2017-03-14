@@ -107,6 +107,15 @@ trap_install(unsigned int vector, int flags, trap_isr_fn_t isr,
 }
 
 static void
+trap_show_thread(void)
+{
+    struct thread *thread;
+
+    thread = thread_self();
+    printk("trap: interrupted thread: %p (%s)\n", thread, thread->name);
+}
+
+static void
 trap_double_fault(struct trap_frame *frame)
 {
     cpu_halt_broadcast();
@@ -143,6 +152,7 @@ trap_double_fault(struct trap_frame *frame)
 #endif /* __LP64__ */
 
     printk("trap: double fault (cpu%u):\n", cpu_id());
+    trap_show_thread();
     trap_frame_show(frame);
     trap_stack_show(frame);
     cpu_halt();
@@ -159,12 +169,9 @@ trap_install_double_fault(void)
 static void
 trap_default(struct trap_frame *frame)
 {
-    struct thread *thread;
-
     cpu_halt_broadcast();
-    thread = thread_self();
     printk("trap: unhandled interrupt or exception (cpu%u):\n", cpu_id());
-    printk("trap: interrupted thread: %p (%s)\n", thread, thread->name);
+    trap_show_thread();
     trap_frame_show(frame);
     trap_stack_show(frame);
     cpu_halt();
