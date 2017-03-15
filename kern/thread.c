@@ -256,6 +256,7 @@ struct thread_runq {
 
     struct syscnt sc_schedule_intr;
     struct syscnt sc_tick_intr;
+    struct syscnt sc_boosts;
 } __aligned(CPU_L1_SIZE);
 
 /*
@@ -454,6 +455,8 @@ thread_runq_init(struct thread_runq *runq, unsigned int cpu,
     syscnt_register(&runq->sc_schedule_intr, name);
     snprintf(name, sizeof(name), "thread_tick_intr/%u", cpu);
     syscnt_register(&runq->sc_tick_intr, name);
+    snprintf(name, sizeof(name), "thread_boosts/%u", cpu);
+    syscnt_register(&runq->sc_boosts, name);
 }
 
 static inline struct thread_runq *
@@ -2573,6 +2576,8 @@ thread_pi_setscheduler(struct thread *thread, unsigned char policy,
         && (thread_real_priority(thread) == priority)) {
         goto out;
     }
+
+    syscnt_inc(&runq->sc_boosts);
 
     requeue = thread->in_runq;
 
