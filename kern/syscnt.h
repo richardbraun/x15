@@ -84,7 +84,7 @@ syscnt_add(struct syscnt *syscnt, int64_t delta)
 }
 
 static inline uint64_t
-syscnt_read(const struct syscnt *syscnt)
+syscnt_read(struct syscnt *syscnt)
 {
     unsigned long flags;
     uint64_t value;
