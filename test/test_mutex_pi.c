@@ -85,6 +85,7 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/printk.h>
+#include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <kern/turnstile.h>
 #include <test/test.h>
@@ -304,6 +305,7 @@ test_manage_b(void *arg)
         }
 
         printk("b:%u ", i);
+        syscnt_info("thread_boosts");
     }
 }
 
