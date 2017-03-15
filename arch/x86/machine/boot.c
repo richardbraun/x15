@@ -47,7 +47,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <kern/evcnt.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/kernel.h>
@@ -57,6 +56,7 @@
 #include <kern/percpu.h>
 #include <kern/printk.h>
 #include <kern/sref.h>
+#include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
@@ -426,7 +426,7 @@ boot_save_data(void)
 void __init
 boot_main(void)
 {
-    evcnt_setup();
+    syscnt_setup();
     percpu_bootstrap();
     trap_setup();
     cpu_setup();

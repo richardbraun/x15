@@ -38,7 +38,6 @@
 #include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
-#include <kern/evcnt.h>
 #include <kern/init.h>
 #include <kern/list.h>
 #include <kern/llsync.h>
@@ -50,6 +49,7 @@
 #include <kern/printk.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
+#include <kern/syscnt.h>
 #include <kern/work.h>
 #include <machine/cpu.h>
 
@@ -92,11 +92,11 @@ llsync_setup(void)
     spinlock_init(&llsync_data.lock);
     work_queue_init(&llsync_data.queue0);
     work_queue_init(&llsync_data.queue1);
-    evcnt_register(&llsync_data.ev_global_checkpoint,
+    syscnt_register(&llsync_data.sc_global_checkpoint,
                    "llsync_global_checkpoint");
-    evcnt_register(&llsync_data.ev_periodic_checkin,
+    syscnt_register(&llsync_data.sc_periodic_checkin,
                    "llsync_periodic_checkin");
-    evcnt_register(&llsync_data.ev_failed_periodic_checkin,
+    syscnt_register(&llsync_data.sc_failed_periodic_checkin,
                    "llsync_failed_periodic_checkin");
     llsync_data.gcid.value = LLSYNC_INITIAL_GCID;
 
@@ -143,7 +143,7 @@ llsync_process_global_checkpoint(void)
     }
 
     llsync_data.gcid.value++;
-    evcnt_inc(&llsync_data.ev_global_checkpoint);
+    syscnt_inc(&llsync_data.sc_global_checkpoint);
 }
 
 static void
@@ -273,10 +273,10 @@ llsync_report_periodic_event(void)
         llsync_commit_checkpoint(cpu_id());
     } else {
         if (thread_llsync_in_read_cs()) {
-            evcnt_inc(&llsync_data.ev_failed_periodic_checkin);
+            syscnt_inc(&llsync_data.sc_failed_periodic_checkin);
         } else {
             cpu_data->gcid = gcid;
-            evcnt_inc(&llsync_data.ev_periodic_checkin);
+            syscnt_inc(&llsync_data.sc_periodic_checkin);
             llsync_commit_checkpoint(cpu_id());
         }
     }

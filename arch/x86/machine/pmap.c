@@ -24,7 +24,6 @@
 #include <kern/assert.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
-#include <kern/evcnt.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
@@ -35,6 +34,7 @@
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
+#include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
@@ -221,10 +221,10 @@ struct pmap_update_queue {
 struct pmap_syncer {
     struct thread *thread;
     struct pmap_update_queue queue;
-    struct evcnt ev_update;
-    struct evcnt ev_update_enter;
-    struct evcnt ev_update_remove;
-    struct evcnt ev_update_protect;
+    struct syscnt sc_update;
+    struct syscnt sc_update_enter;
+    struct syscnt sc_update_remove;
+    struct syscnt sc_update_protect;
 } __aligned(CPU_L1_SIZE);
 
 static void pmap_sync(void *arg);
@@ -810,20 +810,20 @@ pmap_update_request_array_release(struct pmap_update_request_array *array)
 static void __init
 pmap_syncer_init(struct pmap_syncer *syncer, unsigned int cpu)
 {
-    char name[EVCNT_NAME_SIZE];
+    char name[SYSCNT_NAME_SIZE];
     struct pmap_update_queue *queue;
 
     queue = &syncer->queue;
     spinlock_init(&queue->lock);
     list_init(&queue->requests);
     snprintf(name, sizeof(name), "pmap_update/%u", cpu);
-    evcnt_register(&syncer->ev_update, name);
+    syscnt_register(&syncer->sc_update, name);
     snprintf(name, sizeof(name), "pmap_update_enter/%u", cpu);
-    evcnt_register(&syncer->ev_update_enter, name);
+    syscnt_register(&syncer->sc_update_enter, name);
     snprintf(name, sizeof(name), "pmap_update_remove/%u", cpu);
-    evcnt_register(&syncer->ev_update_remove, name);
+    syscnt_register(&syncer->sc_update_remove, name);
     snprintf(name, sizeof(name), "pmap_update_protect/%u", cpu);
-    evcnt_register(&syncer->ev_update_protect, name);
+    syscnt_register(&syncer->sc_update_protect, name);
 }
 
 void __init
@@ -1425,7 +1425,7 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
     unsigned int i;
 
     syncer = cpu_local_ptr(pmap_syncer);
-    evcnt_inc(&syncer->ev_update);
+    syscnt_inc(&syncer->sc_update);
     global_tlb_flush = (nr_mappings > PMAP_UPDATE_MAX_MAPPINGS);
     error = 0;
 
@@ -1438,17 +1438,17 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
 
         switch (op->operation) {
         case PMAP_UPDATE_OP_ENTER:
-            evcnt_inc(&syncer->ev_update_enter);
+            syscnt_inc(&syncer->sc_update_enter);
             error = pmap_update_enter(oplist->pmap, !global_tlb_flush,
                                       &op->enter_args);
             break;
         case PMAP_UPDATE_OP_REMOVE:
-            evcnt_inc(&syncer->ev_update_remove);
+            syscnt_inc(&syncer->sc_update_remove);
             pmap_update_remove(oplist->pmap, !global_tlb_flush,
                                &op->remove_args);
             break;
         case PMAP_UPDATE_OP_PROTECT:
-            evcnt_inc(&syncer->ev_update_protect);
+            syscnt_inc(&syncer->sc_update_protect);
             pmap_update_protect(oplist->pmap, !global_tlb_flush,
                                 &op->protect_args);
             break;

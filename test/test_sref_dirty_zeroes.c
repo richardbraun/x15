@@ -30,13 +30,13 @@
 
 #include <kern/condition.h>
 #include <kern/error.h>
-#include <kern/evcnt.h>
 #include <kern/kmem.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/sprintf.h>
 #include <kern/sref.h>
+#include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <test/test.h>
 #include <vm/vm_kmem.h>
@@ -68,9 +68,9 @@ test_inc(void *arg)
         }
 
         printk("counter global value: %lu\n", test_counter.value);
-        evcnt_info("sref_epoch");
-        evcnt_info("sref_dirty_zero");
-        evcnt_info("sref_true_zero");
+        syscnt_info("sref_epoch");
+        syscnt_info("sref_dirty_zero");
+        syscnt_info("sref_true_zero");
     }
 }
 

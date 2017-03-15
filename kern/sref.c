@@ -48,7 +48,6 @@
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
-#include <kern/evcnt.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
@@ -59,6 +58,7 @@
 #include <kern/sprintf.h>
 #include <kern/sref.h>
 #include <kern/sref_i.h>
+#include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 
@@ -104,10 +104,10 @@ struct sref_data {
     unsigned int nr_pending_flushes;
     struct sref_queue queue0;
     struct sref_queue queue1;
-    struct evcnt ev_epoch;
-    struct evcnt ev_dirty_zero;
-    struct evcnt ev_revive;
-    struct evcnt ev_true_zero;
+    struct syscnt sc_epoch;
+    struct syscnt sc_dirty_zero;
+    struct syscnt sc_revive;
+    struct syscnt sc_true_zero;
     int no_warning;
 };
 
@@ -159,8 +159,8 @@ struct sref_delta {
 struct sref_cache {
     struct mutex lock;
     struct sref_delta deltas[SREF_MAX_DELTAS];
-    struct evcnt ev_collision;
-    struct evcnt ev_flush;
+    struct syscnt sc_collision;
+    struct syscnt sc_flush;
     struct thread *manager;
     int registered;
     int dirty;
@@ -514,7 +514,7 @@ sref_end_epoch(struct sref_queue *queue)
     sref_queue_transfer(queue, &sref_data.queue1);
     sref_queue_transfer(&sref_data.queue1, &sref_data.queue0);
     sref_queue_init(&sref_data.queue0);
-    evcnt_inc(&sref_data.ev_epoch);
+    syscnt_inc(&sref_data.sc_epoch);
     sref_reset_pending_flushes();
 }
 
@@ -528,7 +528,7 @@ sref_cache_delta(struct sref_cache *cache, unsigned long i)
 static void __init
 sref_cache_init(struct sref_cache *cache, unsigned int cpu)
 {
-    char name[EVCNT_NAME_SIZE];
+    char name[SYSCNT_NAME_SIZE];
     struct sref_delta *delta;
     unsigned long i;
 
@@ -540,9 +540,9 @@ sref_cache_init(struct sref_cache *cache, unsigned int cpu)
     }
 
     snprintf(name, sizeof(name), "sref_collision/%u", cpu);
-    evcnt_register(&cache->ev_collision, name);
+    syscnt_register(&cache->sc_collision, name);
     snprintf(name, sizeof(name), "sref_flush/%u", cpu);
-    evcnt_register(&cache->ev_flush, name);
+    syscnt_register(&cache->sc_flush, name);
     cache->manager = NULL;
     cache->registered = 0;
     cache->dirty = 0;
@@ -621,7 +621,7 @@ sref_cache_get_delta(struct sref_cache *cache, struct sref_counter *counter)
     } else if (sref_delta_counter(delta) != counter) {
         sref_delta_flush(delta);
         sref_delta_set_counter(delta, counter);
-        evcnt_inc(&cache->ev_collision);
+        syscnt_inc(&cache->sc_collision);
     }
 
     return delta;
@@ -667,7 +667,7 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
     spinlock_unlock(&sref_data.lock);
 
     sref_cache_clear_dirty(cache);
-    evcnt_inc(&cache->ev_flush);
+    syscnt_inc(&cache->sc_flush);
 
     mutex_unlock(&cache->lock);
 }
@@ -720,7 +720,7 @@ sref_noref(struct work *work)
 static void
 sref_review(struct sref_queue *queue)
 {
-    unsigned long nr_dirty, nr_revive, nr_true;
+    int64_t nr_dirty, nr_revive, nr_true;
     struct sref_counter *counter;
     struct work_queue works;
     bool requeue;
@@ -782,9 +782,9 @@ sref_review(struct sref_queue *queue)
 
     if ((nr_dirty + nr_revive + nr_true) != 0) {
         spinlock_lock(&sref_data.lock);
-        evcnt_add(&sref_data.ev_dirty_zero, nr_dirty);
-        evcnt_add(&sref_data.ev_revive, nr_revive);
-        evcnt_add(&sref_data.ev_true_zero, nr_true);
+        syscnt_add(&sref_data.sc_dirty_zero, nr_dirty);
+        syscnt_add(&sref_data.sc_revive, nr_revive);
+        syscnt_add(&sref_data.sc_true_zero, nr_true);
         spinlock_unlock(&sref_data.lock);
     }
 }
@@ -822,10 +822,10 @@ sref_bootstrap(void)
     spinlock_init(&sref_data.lock);
     sref_queue_init(&sref_data.queue0);
     sref_queue_init(&sref_data.queue1);
-    evcnt_register(&sref_data.ev_epoch, "sref_epoch");
-    evcnt_register(&sref_data.ev_dirty_zero, "sref_dirty_zero");
-    evcnt_register(&sref_data.ev_revive, "sref_revive");
-    evcnt_register(&sref_data.ev_true_zero, "sref_true_zero");
+    syscnt_register(&sref_data.sc_epoch, "sref_epoch");
+    syscnt_register(&sref_data.sc_dirty_zero, "sref_dirty_zero");
+    syscnt_register(&sref_data.sc_revive, "sref_revive");
+    syscnt_register(&sref_data.sc_true_zero, "sref_true_zero");
 
     sref_cache_init(sref_cache_get(), 0);
 }

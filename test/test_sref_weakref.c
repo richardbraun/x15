@@ -35,9 +35,9 @@
 #include <stddef.h>
 
 #include <kern/error.h>
-#include <kern/evcnt.h>
 #include <kern/macros.h>
 #include <kern/sref.h>
+#include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <test/test.h>
 #include <vm/vm_kmem.h>
@@ -72,10 +72,10 @@ test_run(void *arg)
         for (j = 0; j < 0x20000000; j++);
 
         printk("run: iterations: %lu\n", i);
-        evcnt_info("sref_epoch");
-        evcnt_info("sref_dirty_zero");
-        evcnt_info("sref_revive");
-        evcnt_info("sref_true_zero");
+        syscnt_info("sref_epoch");
+        syscnt_info("sref_dirty_zero");
+        syscnt_info("sref_revive");
+        syscnt_info("sref_true_zero");
     }
 }
 

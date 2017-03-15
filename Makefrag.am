@@ -18,8 +18,6 @@ x15_SOURCES +=                                              \
 	kern/cpumap.h                                       \
 	kern/error.c                                        \
 	kern/error.h                                        \
-	kern/evcnt.c                                        \
-	kern/evcnt.h                                        \
 	kern/init.h                                         \
 	kern/kernel.c                                       \
 	kern/kernel.h                                       \
@@ -70,6 +68,8 @@ x15_SOURCES +=                                              \
 	kern/sref_i.h                                       \
 	kern/string.c                                       \
 	kern/string.h                                       \
+	kern/syscnt.c                                       \
+	kern/syscnt.h                                       \
 	kern/task.c                                         \
 	kern/task.h                                         \
 	kern/thread.c                                       \

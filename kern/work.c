@@ -20,7 +20,6 @@
 #include <kern/assert.h>
 #include <kern/bitmap.h>
 #include <kern/error.h>
-#include <kern/evcnt.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
 #include <kern/macros.h>
@@ -30,6 +29,7 @@
 #include <kern/printk.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
+#include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <kern/work.h>
 #include <machine/cpu.h>
@@ -90,7 +90,7 @@ struct work_pool {
     struct work_queue queue0;
     struct work_queue queue1;
     struct work_thread *manager;
-    struct evcnt ev_transfer;
+    struct syscnt sc_transfer;
     unsigned int cpu;
     unsigned int max_threads;
     unsigned int nr_threads;
@@ -159,7 +159,7 @@ work_pool_compute_max_threads(unsigned int nr_cpus)
 static void
 work_pool_init(struct work_pool *pool, unsigned int cpu, int flags)
 {
-    char name[EVCNT_NAME_SIZE];
+    char name[SYSCNT_NAME_SIZE];
     const char *suffix;
     unsigned int id, nr_cpus, max_threads;
     int error;
@@ -173,7 +173,7 @@ work_pool_init(struct work_pool *pool, unsigned int cpu, int flags)
         nr_cpus = 1;
         suffix = (flags & WORK_PF_HIGHPRIO) ? "h" : "";
         snprintf(name, sizeof(name), "work_transfer/%u%s", cpu, suffix);
-        evcnt_register(&pool->ev_transfer, name);
+        syscnt_register(&pool->sc_transfer, name);
         pool->cpu = cpu;
     }
 
@@ -274,7 +274,7 @@ work_pool_shift_queues(struct work_pool *pool, struct work_queue *old_queue)
     work_queue_init(&pool->queue0);
 
     if (work_queue_nr_works(old_queue) != 0) {
-        evcnt_inc(&pool->ev_transfer);
+        syscnt_inc(&pool->sc_transfer);
     }
 }
 

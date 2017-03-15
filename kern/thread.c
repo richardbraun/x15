@@ -89,7 +89,6 @@
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
-#include <kern/evcnt.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
@@ -103,6 +102,7 @@
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/sref.h>
+#include <kern/syscnt.h>
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <kern/turnstile.h>
@@ -254,8 +254,8 @@ struct thread_runq {
     /* Ticks before the next balancing attempt when a run queue is idle */
     unsigned int idle_balance_ticks;
 
-    struct evcnt ev_schedule_intr;
-    struct evcnt ev_tick_intr;
+    struct syscnt sc_schedule_intr;
+    struct syscnt sc_tick_intr;
 } __aligned(CPU_L1_SIZE);
 
 /*
@@ -439,7 +439,7 @@ static void __init
 thread_runq_init(struct thread_runq *runq, unsigned int cpu,
                  struct thread *booter)
 {
-    char name[EVCNT_NAME_SIZE];
+    char name[SYSCNT_NAME_SIZE];
 
     spinlock_init(&runq->lock);
     runq->cpu = cpu;
@@ -451,9 +451,9 @@ thread_runq_init(struct thread_runq *runq, unsigned int cpu,
     runq->idler = NULL;
     runq->idle_balance_ticks = (unsigned int)-1;
     snprintf(name, sizeof(name), "thread_schedule_intr/%u", cpu);
-    evcnt_register(&runq->ev_schedule_intr, name);
+    syscnt_register(&runq->sc_schedule_intr, name);
     snprintf(name, sizeof(name), "thread_tick_intr/%u", cpu);
-    evcnt_register(&runq->ev_tick_intr, name);
+    syscnt_register(&runq->sc_tick_intr, name);
 }
 
 static inline struct thread_runq *
@@ -2411,7 +2411,7 @@ thread_schedule_intr(void)
     assert(!thread_preempt_enabled());
 
     runq = thread_runq_local();
-    evcnt_inc(&runq->ev_schedule_intr);
+    syscnt_inc(&runq->sc_schedule_intr);
 }
 
 void
@@ -2425,7 +2425,7 @@ thread_tick_intr(void)
     assert(!thread_preempt_enabled());
 
     runq = thread_runq_local();
-    evcnt_inc(&runq->ev_tick_intr);
+    syscnt_inc(&runq->sc_tick_intr);
     llsync_report_periodic_event();
     sref_report_periodic_event();
     work_report_periodic_event();

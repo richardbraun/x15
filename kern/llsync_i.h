@@ -20,10 +20,10 @@
 
 #include <kern/assert.h>
 #include <kern/cpumap.h>
-#include <kern/evcnt.h>
 #include <kern/macros.h>
 #include <kern/param.h>
 #include <kern/spinlock.h>
+#include <kern/syscnt.h>
 #include <kern/work.h>
 #include <machine/cpu.h>
 
@@ -45,9 +45,9 @@ struct llsync_data {
     int no_warning;
     struct work_queue queue0;
     struct work_queue queue1;
-    struct evcnt ev_global_checkpoint;
-    struct evcnt ev_periodic_checkin;
-    struct evcnt ev_failed_periodic_checkin;
+    struct syscnt sc_global_checkpoint;
+    struct syscnt sc_periodic_checkin;
+    struct syscnt sc_failed_periodic_checkin;
 
     /*
      * Global checkpoint ID.
