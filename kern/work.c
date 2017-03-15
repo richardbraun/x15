@@ -20,6 +20,7 @@
 #include <kern/assert.h>
 #include <kern/bitmap.h>
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
 #include <kern/macros.h>
@@ -156,7 +157,7 @@ work_pool_compute_max_threads(unsigned int nr_cpus)
     return max_threads;
 }
 
-static void
+static void __init
 work_pool_init(struct work_pool *pool, unsigned int cpu, int flags)
 {
     char name[SYSCNT_NAME_SIZE];
@@ -472,7 +473,7 @@ work_thread_destroy(struct work_thread *worker)
     kmem_cache_free(&work_thread_cache, worker);
 }
 
-void
+void __init
 work_setup(void)
 {
     unsigned int i;
