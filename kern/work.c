@@ -91,7 +91,7 @@ struct work_pool {
     struct work_queue queue0;
     struct work_queue queue1;
     struct work_thread *manager;
-    struct syscnt sc_transfer;
+    struct syscnt sc_transfers;
     unsigned int cpu;
     unsigned int max_threads;
     unsigned int nr_threads;
@@ -173,8 +173,8 @@ work_pool_init(struct work_pool *pool, unsigned int cpu, int flags)
     } else {
         nr_cpus = 1;
         suffix = (flags & WORK_PF_HIGHPRIO) ? "h" : "";
-        snprintf(name, sizeof(name), "work_transfer/%u%s", cpu, suffix);
-        syscnt_register(&pool->sc_transfer, name);
+        snprintf(name, sizeof(name), "work_transfers/%u%s", cpu, suffix);
+        syscnt_register(&pool->sc_transfers, name);
         pool->cpu = cpu;
     }
 
@@ -275,7 +275,7 @@ work_pool_shift_queues(struct work_pool *pool, struct work_queue *old_queue)
     work_queue_init(&pool->queue0);
 
     if (work_queue_nr_works(old_queue) != 0) {
-        syscnt_inc(&pool->sc_transfer);
+        syscnt_inc(&pool->sc_transfers);
     }
 }
 

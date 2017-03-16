@@ -254,8 +254,8 @@ struct thread_runq {
     /* Ticks before the next balancing attempt when a run queue is idle */
     unsigned int idle_balance_ticks;
 
-    struct syscnt sc_schedule_intr;
-    struct syscnt sc_tick_intr;
+    struct syscnt sc_schedule_intrs;
+    struct syscnt sc_tick_intrs;
     struct syscnt sc_boosts;
 } __aligned(CPU_L1_SIZE);
 
@@ -451,10 +451,10 @@ thread_runq_init(struct thread_runq *runq, unsigned int cpu,
     runq->balancer = NULL;
     runq->idler = NULL;
     runq->idle_balance_ticks = (unsigned int)-1;
-    snprintf(name, sizeof(name), "thread_schedule_intr/%u", cpu);
-    syscnt_register(&runq->sc_schedule_intr, name);
-    snprintf(name, sizeof(name), "thread_tick_intr/%u", cpu);
-    syscnt_register(&runq->sc_tick_intr, name);
+    snprintf(name, sizeof(name), "thread_schedule_intrs/%u", cpu);
+    syscnt_register(&runq->sc_schedule_intrs, name);
+    snprintf(name, sizeof(name), "thread_tick_intrs/%u", cpu);
+    syscnt_register(&runq->sc_tick_intrs, name);
     snprintf(name, sizeof(name), "thread_boosts/%u", cpu);
     syscnt_register(&runq->sc_boosts, name);
 }
@@ -2414,7 +2414,7 @@ thread_schedule_intr(void)
     assert(!thread_preempt_enabled());
 
     runq = thread_runq_local();
-    syscnt_inc(&runq->sc_schedule_intr);
+    syscnt_inc(&runq->sc_schedule_intrs);
 }
 
 void
@@ -2428,7 +2428,7 @@ thread_tick_intr(void)
     assert(!thread_preempt_enabled());
 
     runq = thread_runq_local();
-    syscnt_inc(&runq->sc_tick_intr);
+    syscnt_inc(&runq->sc_tick_intrs);
     llsync_report_periodic_event();
     sref_report_periodic_event();
     work_report_periodic_event();

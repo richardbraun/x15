@@ -221,10 +221,10 @@ struct pmap_update_queue {
 struct pmap_syncer {
     struct thread *thread;
     struct pmap_update_queue queue;
-    struct syscnt sc_update;
-    struct syscnt sc_update_enter;
-    struct syscnt sc_update_remove;
-    struct syscnt sc_update_protect;
+    struct syscnt sc_updates;
+    struct syscnt sc_update_enters;
+    struct syscnt sc_update_removes;
+    struct syscnt sc_update_protects;
 } __aligned(CPU_L1_SIZE);
 
 static void pmap_sync(void *arg);
@@ -816,14 +816,14 @@ pmap_syncer_init(struct pmap_syncer *syncer, unsigned int cpu)
     queue = &syncer->queue;
     spinlock_init(&queue->lock);
     list_init(&queue->requests);
-    snprintf(name, sizeof(name), "pmap_update/%u", cpu);
-    syscnt_register(&syncer->sc_update, name);
-    snprintf(name, sizeof(name), "pmap_update_enter/%u", cpu);
-    syscnt_register(&syncer->sc_update_enter, name);
-    snprintf(name, sizeof(name), "pmap_update_remove/%u", cpu);
-    syscnt_register(&syncer->sc_update_remove, name);
-    snprintf(name, sizeof(name), "pmap_update_protect/%u", cpu);
-    syscnt_register(&syncer->sc_update_protect, name);
+    snprintf(name, sizeof(name), "pmap_updates/%u", cpu);
+    syscnt_register(&syncer->sc_updates, name);
+    snprintf(name, sizeof(name), "pmap_update_enters/%u", cpu);
+    syscnt_register(&syncer->sc_update_enters, name);
+    snprintf(name, sizeof(name), "pmap_update_removes/%u", cpu);
+    syscnt_register(&syncer->sc_update_removes, name);
+    snprintf(name, sizeof(name), "pmap_update_protects/%u", cpu);
+    syscnt_register(&syncer->sc_update_protects, name);
 }
 
 void __init
@@ -1425,7 +1425,7 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
     unsigned int i;
 
     syncer = cpu_local_ptr(pmap_syncer);
-    syscnt_inc(&syncer->sc_update);
+    syscnt_inc(&syncer->sc_updates);
     global_tlb_flush = (nr_mappings > PMAP_UPDATE_MAX_MAPPINGS);
     error = 0;
 
@@ -1438,17 +1438,17 @@ pmap_update_local(const struct pmap_update_oplist *oplist,
 
         switch (op->operation) {
         case PMAP_UPDATE_OP_ENTER:
-            syscnt_inc(&syncer->sc_update_enter);
+            syscnt_inc(&syncer->sc_update_enters);
             error = pmap_update_enter(oplist->pmap, !global_tlb_flush,
                                       &op->enter_args);
             break;
         case PMAP_UPDATE_OP_REMOVE:
-            syscnt_inc(&syncer->sc_update_remove);
+            syscnt_inc(&syncer->sc_update_removes);
             pmap_update_remove(oplist->pmap, !global_tlb_flush,
                                &op->remove_args);
             break;
         case PMAP_UPDATE_OP_PROTECT:
-            syscnt_inc(&syncer->sc_update_protect);
+            syscnt_inc(&syncer->sc_update_protects);
             pmap_update_protect(oplist->pmap, !global_tlb_flush,
                                 &op->protect_args);
             break;

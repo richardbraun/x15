@@ -104,10 +104,10 @@ struct sref_data {
     unsigned int nr_pending_flushes;
     struct sref_queue queue0;
     struct sref_queue queue1;
-    struct syscnt sc_epoch;
-    struct syscnt sc_dirty_zero;
-    struct syscnt sc_revive;
-    struct syscnt sc_true_zero;
+    struct syscnt sc_epochs;
+    struct syscnt sc_dirty_zeroes;
+    struct syscnt sc_revives;
+    struct syscnt sc_true_zeroes;
     int no_warning;
 };
 
@@ -159,8 +159,8 @@ struct sref_delta {
 struct sref_cache {
     struct mutex lock;
     struct sref_delta deltas[SREF_MAX_DELTAS];
-    struct syscnt sc_collision;
-    struct syscnt sc_flush;
+    struct syscnt sc_collisions;
+    struct syscnt sc_flushes;
     struct thread *manager;
     int registered;
     int dirty;
@@ -514,7 +514,7 @@ sref_end_epoch(struct sref_queue *queue)
     sref_queue_transfer(queue, &sref_data.queue1);
     sref_queue_transfer(&sref_data.queue1, &sref_data.queue0);
     sref_queue_init(&sref_data.queue0);
-    syscnt_inc(&sref_data.sc_epoch);
+    syscnt_inc(&sref_data.sc_epochs);
     sref_reset_pending_flushes();
 }
 
@@ -539,10 +539,10 @@ sref_cache_init(struct sref_cache *cache, unsigned int cpu)
         sref_delta_init(delta);
     }
 
-    snprintf(name, sizeof(name), "sref_collision/%u", cpu);
-    syscnt_register(&cache->sc_collision, name);
-    snprintf(name, sizeof(name), "sref_flush/%u", cpu);
-    syscnt_register(&cache->sc_flush, name);
+    snprintf(name, sizeof(name), "sref_collisions/%u", cpu);
+    syscnt_register(&cache->sc_collisions, name);
+    snprintf(name, sizeof(name), "sref_flushes/%u", cpu);
+    syscnt_register(&cache->sc_flushes, name);
     cache->manager = NULL;
     cache->registered = 0;
     cache->dirty = 0;
@@ -621,7 +621,7 @@ sref_cache_get_delta(struct sref_cache *cache, struct sref_counter *counter)
     } else if (sref_delta_counter(delta) != counter) {
         sref_delta_flush(delta);
         sref_delta_set_counter(delta, counter);
-        syscnt_inc(&cache->sc_collision);
+        syscnt_inc(&cache->sc_collisions);
     }
 
     return delta;
@@ -667,7 +667,7 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
     spinlock_unlock(&sref_data.lock);
 
     sref_cache_clear_dirty(cache);
-    syscnt_inc(&cache->sc_flush);
+    syscnt_inc(&cache->sc_flushes);
 
     mutex_unlock(&cache->lock);
 }
@@ -782,9 +782,9 @@ sref_review(struct sref_queue *queue)
 
     if ((nr_dirty + nr_revive + nr_true) != 0) {
         spinlock_lock(&sref_data.lock);
-        syscnt_add(&sref_data.sc_dirty_zero, nr_dirty);
-        syscnt_add(&sref_data.sc_revive, nr_revive);
-        syscnt_add(&sref_data.sc_true_zero, nr_true);
+        syscnt_add(&sref_data.sc_dirty_zeroes, nr_dirty);
+        syscnt_add(&sref_data.sc_revives, nr_revive);
+        syscnt_add(&sref_data.sc_true_zeroes, nr_true);
         spinlock_unlock(&sref_data.lock);
     }
 }
@@ -822,10 +822,10 @@ sref_bootstrap(void)
     spinlock_init(&sref_data.lock);
     sref_queue_init(&sref_data.queue0);
     sref_queue_init(&sref_data.queue1);
-    syscnt_register(&sref_data.sc_epoch, "sref_epoch");
-    syscnt_register(&sref_data.sc_dirty_zero, "sref_dirty_zero");
-    syscnt_register(&sref_data.sc_revive, "sref_revive");
-    syscnt_register(&sref_data.sc_true_zero, "sref_true_zero");
+    syscnt_register(&sref_data.sc_epochs, "sref_epochs");
+    syscnt_register(&sref_data.sc_dirty_zeroes, "sref_dirty_zeroes");
+    syscnt_register(&sref_data.sc_revives, "sref_revives");
+    syscnt_register(&sref_data.sc_true_zeroes, "sref_true_zeroes");
 
     sref_cache_init(sref_cache_get(), 0);
 }

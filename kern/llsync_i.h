@@ -45,9 +45,9 @@ struct llsync_data {
     int no_warning;
     struct work_queue queue0;
     struct work_queue queue1;
-    struct syscnt sc_global_checkpoint;
-    struct syscnt sc_periodic_checkin;
-    struct syscnt sc_failed_periodic_checkin;
+    struct syscnt sc_global_checkpoints;
+    struct syscnt sc_periodic_checkins;
+    struct syscnt sc_failed_periodic_checkins;
 
     /*
      * Global checkpoint ID.

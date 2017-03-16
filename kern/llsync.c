@@ -92,12 +92,12 @@ llsync_setup(void)
     spinlock_init(&llsync_data.lock);
     work_queue_init(&llsync_data.queue0);
     work_queue_init(&llsync_data.queue1);
-    syscnt_register(&llsync_data.sc_global_checkpoint,
-                   "llsync_global_checkpoint");
-    syscnt_register(&llsync_data.sc_periodic_checkin,
-                   "llsync_periodic_checkin");
-    syscnt_register(&llsync_data.sc_failed_periodic_checkin,
-                   "llsync_failed_periodic_checkin");
+    syscnt_register(&llsync_data.sc_global_checkpoints,
+                   "llsync_global_checkpoints");
+    syscnt_register(&llsync_data.sc_periodic_checkins,
+                   "llsync_periodic_checkins");
+    syscnt_register(&llsync_data.sc_failed_periodic_checkins,
+                   "llsync_failed_periodic_checkins");
     llsync_data.gcid.value = LLSYNC_INITIAL_GCID;
 
     for (i = 0; i < cpu_count(); i++) {
@@ -143,7 +143,7 @@ llsync_process_global_checkpoint(void)
     }
 
     llsync_data.gcid.value++;
-    syscnt_inc(&llsync_data.sc_global_checkpoint);
+    syscnt_inc(&llsync_data.sc_global_checkpoints);
 }
 
 static void
@@ -273,10 +273,10 @@ llsync_report_periodic_event(void)
         llsync_commit_checkpoint(cpu_id());
     } else {
         if (thread_llsync_in_read_cs()) {
-            syscnt_inc(&llsync_data.sc_failed_periodic_checkin);
+            syscnt_inc(&llsync_data.sc_failed_periodic_checkins);
         } else {
             cpu_data->gcid = gcid;
-            syscnt_inc(&llsync_data.sc_periodic_checkin);
+            syscnt_inc(&llsync_data.sc_periodic_checkins);
             llsync_commit_checkpoint(cpu_id());
         }
     }

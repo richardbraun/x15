@@ -60,7 +60,7 @@ syscnt_info(const char *prefix)
 
     prefix_length = (prefix == NULL) ? 0 : strlen(prefix);
 
-    printk("syscnt: name                                       count\n");
+    printk("syscnt: name                                       value\n");
 
     mutex_lock(&syscnt_lock);
 
