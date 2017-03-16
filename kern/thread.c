@@ -2322,16 +2322,6 @@ thread_wakeup(struct thread *thread)
         thread_clear_wchan(thread);
         thread->state = THREAD_RUNNING;
     } else {
-        /*
-         * If another wake-up was attempted right before this one, the thread
-         * may currently be pushed on a remote run queue, and the run queue
-         * being locked here is actually the previous one. The run queue
-         * pointer may be modified concurrently, now being protected by the
-         * target run queue. This isn't a problem since the thread state has
-         * already been updated, making this attempt stop early. In addition,
-         * locking semantics guarantee that, if the thread as seen by this
-         * attempt isn't running, its run queue is up to date.
-         */
         runq = thread_lock_runq(thread, &flags);
 
         if (thread->state == THREAD_RUNNING) {

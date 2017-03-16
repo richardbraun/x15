@@ -82,30 +82,38 @@ struct thread_fs_data {
 /*
  * Thread structure.
  *
- * Thread members are normally protected by the lock of the run queue they're
- * associated with. Thread-local members are accessed without synchronization.
+ * Threads don't have their own lock. Instead, the associated run queue
+ * lock is used for synchronization. A number of members are thread-local
+ * and require no synchronization. Others must be accessed with atomic
+ * instructions.
+ *
+ * Locking keys :
+ * (r) run queue
+ * (t) turnstile_td
+ * (T) task
+ * (j) join_lock
+ * (a) atomic
+ * (-) thread-local
+ * ( ) read-only
  */
 struct thread {
-    struct tcb tcb;
+    struct tcb tcb;         /* (r) */
 
-    /* Reference counter, must be changed atomically */
-    unsigned long nr_refs;
-
-    /* Flags must be changed atomically */
-    unsigned long flags;
+    unsigned long nr_refs;  /* (a) */
+    unsigned long flags;    /* (a) */
 
     /* Sleep/wake-up synchronization members */
-    struct thread_runq *runq;
-    bool in_runq;
-    const void *wchan_addr;
-    const char *wchan_desc;
-    unsigned short state;
+    struct thread_runq *runq;   /* (r) */
+    bool in_runq;               /* (r) */
+    const void *wchan_addr;     /* (r) */
+    const char *wchan_desc;     /* (r) */
+    unsigned short state;       /* (r) */
 
     /* Sleep queue available for lending */
-    struct sleepq *priv_sleepq;
+    struct sleepq *priv_sleepq; /* (-) */
 
     /* Turnstile available for lending */
-    struct turnstile *priv_turnstile;
+    struct turnstile *priv_turnstile;   /* (-) */
 
     /*
      * When a thread wakes up after waiting for a condition variable,
@@ -114,32 +122,27 @@ struct thread {
      *
      * This member is thread-local.
      */
-    struct condition *last_cond;
+    struct condition *last_cond;        /* (-) */
 
-    /* Per-thread turnstile data */
-    struct turnstile_td turnstile_td;
+    struct turnstile_td turnstile_td;   /* (t) */
 
-    /*
-     * True if priority must be propagated when preemption is reenabled
-     *
-     * This member is thread-local.
-     */
-    bool propagate_priority;
+    /* True if priority must be propagated when preemption is reenabled */
+    bool propagate_priority;    /* (-) */
 
-    /* Thread-local members */
-    unsigned short preempt;
-    unsigned short pinned;
-    unsigned short llsync_read;
+    /* Preemption counter, preemption is enabled if 0 */
+    unsigned short preempt;     /* (-) */
+
+    /* Pinning counter, migration is allowed if 0 */
+    unsigned short pinned;      /* (-) */
+
+    /* Read-side critical section counter, not in any if 0 */
+    unsigned short llsync_read; /* (-) */
 
     /* Processors on which this thread is allowed to run */
-    struct cpumap cpumap;
+    struct cpumap cpumap;   /* (r) */
 
-    /*
-     * Scheduling data.
-     */
-    struct thread_sched_data user_sched_data; /* User-provided */
-    struct thread_sched_data real_sched_data; /* Computed from
-                                                 priority propagation */
+    struct thread_sched_data user_sched_data;   /* (r,t) */
+    struct thread_sched_data real_sched_data;   /* (r,t) */
 
     /*
      * True if the real scheduling data are not the user scheduling data.
@@ -148,12 +151,11 @@ struct thread {
      * A thread may be part of a priority inheritance chain without its
      * priority being boosted.
      */
-    bool boosted;
+    bool boosted;   /* (r,t) */
 
-    /* Class specific scheduling data */
     union {
-        struct thread_rt_data rt_data;
-        struct thread_fs_data fs_data;
+        struct thread_rt_data rt_data;  /* (r) */
+        struct thread_fs_data fs_data;  /* (r) */
     };
 
     /*
@@ -166,14 +168,15 @@ struct thread {
 
     /* Members related to termination */
     struct mutex join_lock;
-    struct condition join_cond;
-    int exited;
+    struct condition join_cond;     /* (j) */
+    int exited;                     /* (j) */
 
-    /* Read-only members */
-    struct task *task;
-    struct list task_node;
-    void *stack;
-    char name[THREAD_NAME_SIZE];
+    struct task *task;              /* (T) */
+    struct list task_node;          /* (T) */
+    void *stack;                    /* (-) */
+    char name[THREAD_NAME_SIZE];    /* ( ) */
+
+    /* TODO Move out of the structure and make temporary */
     void (*fn)(void *);
     void *arg;
 } __aligned(CPU_L1_SIZE);
