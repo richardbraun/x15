@@ -98,6 +98,8 @@ semaphore_wait(struct semaphore *semaphore)
  *
  * If the semaphore value becomes strictly greater than 0, a thread waiting
  * on the semaphore is awaken.
+ *
+ * A semaphore may be unlocked from interrupt context.
  */
 static inline void
 semaphore_post(struct semaphore *semaphore)
