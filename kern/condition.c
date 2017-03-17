@@ -18,6 +18,7 @@
  * Locking order : mutex -> sleep queue
  */
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #include <kern/assert.h>

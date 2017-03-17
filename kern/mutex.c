@@ -17,6 +17,7 @@
 
 #ifndef X15_MUTEX_PI
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #include <kern/mutex.h>
