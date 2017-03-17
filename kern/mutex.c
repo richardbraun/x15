@@ -28,9 +28,10 @@ void
 mutex_lock_slow(struct mutex *mutex)
 {
     struct sleepq *sleepq;
+    unsigned long flags;
     unsigned int state;
 
-    sleepq = sleepq_lend(mutex, false);
+    sleepq = sleepq_lend(mutex, false, &flags);
 
     for (;;) {
         state = atomic_swap_uint(&mutex->state, MUTEX_CONTENDED);
@@ -47,15 +48,16 @@ mutex_lock_slow(struct mutex *mutex)
         assert(state == MUTEX_CONTENDED);
     }
 
-    sleepq_return(sleepq);
+    sleepq_return(sleepq, flags);
 }
 
 void
 mutex_unlock_slow(struct mutex *mutex)
 {
     struct sleepq *sleepq;
+    unsigned long flags;
 
-    sleepq = sleepq_acquire(mutex, false);
+    sleepq = sleepq_acquire(mutex, false, &flags);
 
     if (sleepq == NULL) {
         return;
@@ -63,7 +65,7 @@ mutex_unlock_slow(struct mutex *mutex)
 
     sleepq_signal(sleepq);
 
-    sleepq_release(sleepq);
+    sleepq_release(sleepq, flags);
 }
 
 #endif /* X15_MUTEX_PI */

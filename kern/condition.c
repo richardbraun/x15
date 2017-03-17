@@ -73,6 +73,7 @@ condition_wait(struct condition *condition, struct mutex *mutex)
 {
     struct condition *last_cond;
     struct sleepq *sleepq;
+    unsigned long flags;
 
     mutex_assert_locked(mutex);
 
@@ -94,7 +95,7 @@ condition_wait(struct condition *condition, struct mutex *mutex)
      */
     last_cond = thread_pull_last_cond();
 
-    sleepq = sleepq_lend(condition, true);
+    sleepq = sleepq_lend(condition, true, &flags);
 
     mutex_unlock(mutex);
 
@@ -114,7 +115,7 @@ condition_wait(struct condition *condition, struct mutex *mutex)
         thread_set_last_cond(condition);
     }
 
-    sleepq_return(sleepq);
+    sleepq_return(sleepq, flags);
 
     mutex_lock(mutex);
 }
@@ -123,8 +124,9 @@ void
 condition_signal(struct condition *condition)
 {
     struct sleepq *sleepq;
+    unsigned long flags;
 
-    sleepq = sleepq_acquire(condition, true);
+    sleepq = sleepq_acquire(condition, true, &flags);
 
     if (sleepq == NULL) {
         return;
@@ -140,15 +142,16 @@ condition_signal(struct condition *condition)
     condition_inc_nr_pending_waiters(condition);
 
 out:
-    sleepq_release(sleepq);
+    sleepq_release(sleepq, flags);
 }
 
 void
 condition_broadcast(struct condition *condition)
 {
     struct sleepq *sleepq;
+    unsigned long flags;
 
-    sleepq = sleepq_acquire(condition, true);
+    sleepq = sleepq_acquire(condition, true, &flags);
 
     if (sleepq == NULL) {
         return;
@@ -163,15 +166,16 @@ condition_broadcast(struct condition *condition)
     condition_move_waiters(condition);
 
 out:
-    sleepq_release(sleepq);
+    sleepq_release(sleepq, flags);
 }
 
 void
 condition_wakeup(struct condition *condition)
 {
     struct sleepq *sleepq;
+    unsigned long flags;
 
-    sleepq = sleepq_acquire(condition, true);
+    sleepq = sleepq_acquire(condition, true, &flags);
 
     if (sleepq == NULL) {
         return;
@@ -189,5 +193,5 @@ condition_wakeup(struct condition *condition)
     sleepq_signal(sleepq);
 
 out:
-    sleepq_release(sleepq);
+    sleepq_release(sleepq, flags);
 }

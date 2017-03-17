@@ -26,9 +26,10 @@ void
 semaphore_wait_slow(struct semaphore *semaphore)
 {
     struct sleepq *sleepq;
+    unsigned long flags;
     unsigned int prev;
 
-    sleepq = sleepq_lend(semaphore, false);
+    sleepq = sleepq_lend(semaphore, false, &flags);
 
     for (;;) {
         prev = semaphore_dec(semaphore);
@@ -40,15 +41,16 @@ semaphore_wait_slow(struct semaphore *semaphore)
         sleepq_wait(sleepq, "sem");
     }
 
-    sleepq_return(sleepq);
+    sleepq_return(sleepq, flags);
 }
 
 void
 semaphore_post_slow(struct semaphore *semaphore)
 {
     struct sleepq *sleepq;
+    unsigned long flags;
 
-    sleepq = sleepq_acquire(semaphore, false);
+    sleepq = sleepq_acquire(semaphore, false, &flags);
 
     if (sleepq == NULL) {
         return;
@@ -56,5 +58,5 @@ semaphore_post_slow(struct semaphore *semaphore)
 
     sleepq_signal(sleepq);
 
-    sleepq_release(sleepq);
+    sleepq_release(sleepq, flags);
 }

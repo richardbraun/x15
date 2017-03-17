@@ -63,13 +63,15 @@ void sleepq_destroy(struct sleepq *sleepq);
 /*
  * Acquire/release a sleep queue.
  *
- * Acquiring a sleep queue serializes all access and disables preemption.
+ * Acquiring a sleep queue serializes all access and disables both
+ * preemption and interrupts.
  *
  * The condition argument must be true if the synchronization object
  * is a condition variable.
  */
-struct sleepq * sleepq_acquire(const void *sync_obj, bool condition);
-void sleepq_release(struct sleepq *sleepq);
+struct sleepq * sleepq_acquire(const void *sync_obj, bool condition,
+                               unsigned long *flags);
+void sleepq_release(struct sleepq *sleepq, unsigned long flags);
 
 /*
  * Lend/return a sleep queue.
@@ -90,8 +92,9 @@ void sleepq_release(struct sleepq *sleepq);
  * The condition argument must be true if the synchronization object
  * is a condition variable.
  */
-struct sleepq * sleepq_lend(const void *sync_obj, bool condition);
-void sleepq_return(struct sleepq *sleepq);
+struct sleepq * sleepq_lend(const void *sync_obj, bool condition,
+                            unsigned long *flags);
+void sleepq_return(struct sleepq *sleepq, unsigned long flags);
 
 /*
  * Return true if the given sleep queue has no waiters.
@@ -120,6 +123,7 @@ void sleepq_wait(struct sleepq *sleepq, const char *wchan);
  * Wake up a thread waiting on the given sleep queue, if any.
  *
  * The sleep queue must be acquired when calling this function.
+ * A sleep queue may be signalled from interrupt context.
  *
  * Since a sleep queue must be lent (and in turn is automatically
  * acquired) when waiting, and acquired in order to signal it,

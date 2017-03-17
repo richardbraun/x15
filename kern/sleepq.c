@@ -236,7 +236,7 @@ sleepq_destroy(struct sleepq *sleepq)
 }
 
 struct sleepq *
-sleepq_acquire(const void *sync_obj, bool condition)
+sleepq_acquire(const void *sync_obj, bool condition, unsigned long *flags)
 {
     struct sleepq_bucket *bucket;
     struct sleepq *sleepq;
@@ -245,12 +245,12 @@ sleepq_acquire(const void *sync_obj, bool condition)
 
     bucket = sleepq_bucket_get(sync_obj, condition);
 
-    spinlock_lock(&bucket->lock);
+    spinlock_lock_intr_save(&bucket->lock, flags);
 
     sleepq = sleepq_bucket_lookup(bucket, sync_obj);
 
     if (sleepq == NULL) {
-        spinlock_unlock(&bucket->lock);
+        spinlock_unlock_intr_restore(&bucket->lock, *flags);
         return NULL;
     }
 
@@ -258,9 +258,9 @@ sleepq_acquire(const void *sync_obj, bool condition)
 }
 
 void
-sleepq_release(struct sleepq *sleepq)
+sleepq_release(struct sleepq *sleepq, unsigned long flags)
 {
-    spinlock_unlock(&sleepq->bucket->lock);
+    spinlock_unlock_intr_restore(&sleepq->bucket->lock, flags);
 }
 
 static void
@@ -288,7 +288,7 @@ sleepq_pop_free(struct sleepq *sleepq)
 }
 
 struct sleepq *
-sleepq_lend(const void *sync_obj, bool condition)
+sleepq_lend(const void *sync_obj, bool condition, unsigned long *flags)
 {
     struct sleepq_bucket *bucket;
     struct sleepq *sleepq, *prev;
@@ -300,7 +300,7 @@ sleepq_lend(const void *sync_obj, bool condition)
 
     bucket = sleepq_bucket_get(sync_obj, condition);
 
-    spinlock_lock(&bucket->lock);
+    spinlock_lock_intr_save(&bucket->lock, flags);
 
     prev = sleepq_bucket_lookup(bucket, sync_obj);
 
@@ -316,7 +316,7 @@ sleepq_lend(const void *sync_obj, bool condition)
 }
 
 void
-sleepq_return(struct sleepq *sleepq)
+sleepq_return(struct sleepq *sleepq, unsigned long flags)
 {
     struct sleepq_bucket *bucket;
     struct sleepq *free_sleepq;
@@ -332,7 +332,7 @@ sleepq_return(struct sleepq *sleepq)
         free_sleepq = sleepq;
     }
 
-    spinlock_unlock(&bucket->lock);
+    spinlock_unlock_intr_restore(&bucket->lock, flags);
 
     sleepq_assert_init_state(free_sleepq);
     thread_sleepq_return(free_sleepq);
