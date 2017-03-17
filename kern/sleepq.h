@@ -41,6 +41,15 @@
 struct sleepq;
 
 /*
+ * Early initialization of the sleepq module.
+ *
+ * This module is initialized by architecture-specific code. It should
+ * be one of the first modules to be initialized since it's used by
+ * synchronization objects that may be accessed very early.
+ */
+void sleepq_bootstrap(void);
+
+/*
  * Initialize the sleepq module.
  */
 void sleepq_setup(void);

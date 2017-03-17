@@ -55,6 +55,7 @@
 #include <kern/param.h>
 #include <kern/percpu.h>
 #include <kern/printk.h>
+#include <kern/sleepq.h>
 #include <kern/sref.h>
 #include <kern/syscnt.h>
 #include <kern/thread.h>
@@ -426,6 +427,7 @@ boot_save_data(void)
 void __init
 boot_main(void)
 {
+    sleepq_bootstrap();
     syscnt_setup();
     percpu_bootstrap();
     trap_setup();

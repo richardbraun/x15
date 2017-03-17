@@ -193,7 +193,7 @@ sleepq_ctor(void *ptr)
 }
 
 void __init
-sleepq_setup(void)
+sleepq_bootstrap(void)
 {
     unsigned int i;
 
@@ -204,7 +204,11 @@ sleepq_setup(void)
     for (i = 0; i < ARRAY_SIZE(sleepq_cond_htable); i++) {
         sleepq_bucket_init(&sleepq_cond_htable[i]);
     }
+}
 
+void __init
+sleepq_setup(void)
+{
     kmem_cache_init(&sleepq_cache, "sleepq", sizeof(struct sleepq),
                     CPU_L1_SIZE, sleepq_ctor, 0);
 }
