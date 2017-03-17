@@ -56,6 +56,9 @@ x15_SOURCES +=                                              \
 	kern/rtmutex.h                                      \
 	kern/rtmutex_i.h                                    \
 	kern/rtmutex_types.h                                \
+	kern/semaphore.c                                    \
+	kern/semaphore.h                                    \
+	kern/semaphore_types.h                              \
 	kern/sleepq.c                                       \
 	kern/sleepq.h                                       \
 	kern/spinlock.h                                     \
