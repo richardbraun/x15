@@ -44,6 +44,14 @@ AC_ARG_ENABLE([mutex-pi],
                                (note that priority inheritance is always
                                 enabled for real-time mutexes)])])
 
+AC_ARG_ENABLE([thread-stack-guard],
+              [AS_HELP_STRING([--enable-thread-stack-guard],
+                              [enable the use of guard pages around a thread
+                               stack to catch potential overflows (note that
+                               this feature wastes expensive virtual memory
+                               and has some overhead during thread creation
+                               and destruction)])])
+
 AC_DEFINE([__KERNEL__], [1], [kernel code])
 AC_DEFINE_UNQUOTED([X15_ARCH], [$arch], [arch])
 
@@ -90,6 +98,10 @@ AC_MSG_NOTICE([maximum number of supported processors: $opt_max_cpus])
 AS_IF([test x"$enable_mutex_pi" = xyes],
       [AC_DEFINE_UNQUOTED([X15_MUTEX_PI], [],
                           [Enable priority inheritance for regular mutexes])])
+
+AS_IF([test x"$enable_thread_stack_guard" = xyes],
+      [AC_DEFINE_UNQUOTED([X15_THREAD_STACK_GUARD], [],
+                          [Enable the use of guard pages for thread stacks])])
 
 AH_BOTTOM([#include <kern/config.h>])
 AC_CONFIG_HEADER([config.h])

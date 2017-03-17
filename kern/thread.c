@@ -284,7 +284,10 @@ static struct thread_runq thread_runq __percpu;
 static struct thread thread_booters[X15_MAX_CPUS] __initdata;
 
 static struct kmem_cache thread_cache;
+
+#ifndef X15_THREAD_STACK_GUARD
 static struct kmem_cache thread_stack_cache;
+#endif /* X15_THREAD_STACK_GUARD */
 
 static const unsigned char thread_policy_table[THREAD_NR_SCHED_POLICIES] = {
     [THREAD_SCHED_POLICY_FIFO] = THREAD_SCHED_CLASS_RT,
@@ -1879,6 +1882,86 @@ thread_unlock_runq(struct thread_runq *runq, unsigned long flags)
     spinlock_unlock_intr_restore(&runq->lock, flags);
 }
 
+#ifdef X15_THREAD_STACK_GUARD
+
+#include <machine/pmap.h>
+#include <vm/vm_kmem.h>
+#include <vm/vm_page.h>
+
+static void *
+thread_alloc_stack(void)
+{
+    void *ret;
+    int error;
+    phys_addr_t pp1, pp3;
+    struct vm_page *page1, *page3;
+
+    ret = vm_kmem_alloc(PAGE_SIZE * 3);
+
+    if (ret == NULL) {
+        return ret;
+    }
+
+    /*
+     * TODO: Until memory protection is implemented, use the pmap system
+     * to remove mappings.
+     */
+    error = pmap_kextract((uintptr_t)ret, &pp1);
+    assert(error == 0);
+
+    error = pmap_kextract((uintptr_t)ret + 2 * PAGE_SIZE, &pp3);
+    assert(error == 0);
+
+    page1 = vm_page_lookup(pp1);
+    assert(page1 != NULL);
+
+    page3 = vm_page_lookup(pp3);
+    assert(page3 != NULL);
+
+    /* First remove the physical mappings, and then free the pages */
+    pmap_remove(kernel_pmap, (uintptr_t)ret, cpumap_all());
+    pmap_remove(kernel_pmap, (uintptr_t)ret + 2 * PAGE_SIZE, cpumap_all());
+
+    vm_page_free(page1, 0);
+    vm_page_free(page3, 0);
+
+    /* Return the middle page */
+    return (char *)ret + PAGE_SIZE;
+}
+
+static void
+thread_free_stack(void *stack)
+{
+    /*
+     * Aside from freeing the middle page that 'stack' points to, we also
+     * need to free the previous and next pages manually, since their
+     * physical mappings are not present.
+     */
+    char *va;
+
+    va = (char *)stack;
+
+    vm_kmem_free_va(va - PAGE_SIZE, PAGE_SIZE);
+    vm_kmem_free(stack, PAGE_SIZE);
+    vm_kmem_free_va(va + PAGE_SIZE, PAGE_SIZE);
+}
+
+#else
+
+static void *
+thread_alloc_stack(void)
+{
+    return kmem_cache_alloc(&thread_stack_cache);
+}
+
+static void
+thread_free_stack(void *stack)
+{
+    kmem_cache_free(&thread_stack_cache, stack);
+}
+
+#endif /* X15_THREAD_STACK_GUARD */
+
 void
 thread_destroy(struct thread *thread)
 {
@@ -1899,7 +1982,7 @@ thread_destroy(struct thread *thread)
     thread_destroy_tsd(thread);
     turnstile_destroy(thread->priv_turnstile);
     sleepq_destroy(thread->priv_sleepq);
-    kmem_cache_free(&thread_stack_cache, thread->stack);
+    thread_free_stack(thread->stack);
     kmem_cache_free(&thread_cache, thread);
 }
 
@@ -2115,7 +2198,7 @@ thread_setup_idler(struct thread_runq *runq)
         panic("thread: unable to allocate idler thread");
     }
 
-    stack = kmem_cache_alloc(&thread_stack_cache);
+    stack = thread_alloc_stack();
 
     if (stack == NULL) {
         panic("thread: unable to allocate idler thread stack");
@@ -2159,8 +2242,10 @@ thread_setup(void)
 
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
                     CPU_L1_SIZE, NULL, 0);
+#ifndef X15_THREAD_STACK_GUARD
     kmem_cache_init(&thread_stack_cache, "thread_stack", STACK_SIZE,
                     DATA_ALIGN, NULL, 0);
+#endif /* X15_THREAD_STACK_GUARD */
 
     thread_setup_reaper();
 
@@ -2193,7 +2278,7 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
         goto error_thread;
     }
 
-    stack = kmem_cache_alloc(&thread_stack_cache);
+    stack = thread_alloc_stack();
 
     if (stack == NULL) {
         error = ERROR_NOMEM;
@@ -2217,7 +2302,7 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
     return 0;
 
 error_init:
-    kmem_cache_free(&thread_stack_cache, stack);
+    thread_free_stack(stack);
 error_stack:
     kmem_cache_free(&thread_cache, thread);
 error_thread:
