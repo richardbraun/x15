@@ -101,6 +101,15 @@ turnstile_td_get_turnstile(const struct turnstile_td *td)
 void turnstile_td_propagate_priority(struct turnstile_td *td);
 
 /*
+ * Early initialization of the turnstile module.
+ *
+ * This module is initialized by architecture-specific code. It should
+ * be one of the first modules to be initialized since it's used by
+ * synchronization objects that may be accessed very early.
+ */
+void turnstile_bootstrap(void);
+
+/*
  * Initialize the turnstile module.
  */
 void turnstile_setup(void);

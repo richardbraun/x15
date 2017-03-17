@@ -500,14 +500,18 @@ turnstile_ctor(void *ptr)
 }
 
 void __init
-turnstile_setup(void)
+turnstile_bootstrap(void)
 {
     unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(turnstile_htable); i++) {
         turnstile_bucket_init(&turnstile_htable[i]);
     }
+}
 
+void __init
+turnstile_setup(void)
+{
     kmem_cache_init(&turnstile_cache, "turnstile", sizeof(struct turnstile),
                     CPU_L1_SIZE, turnstile_ctor, 0);
 }

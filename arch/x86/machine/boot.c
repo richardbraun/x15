@@ -59,6 +59,7 @@
 #include <kern/sref.h>
 #include <kern/syscnt.h>
 #include <kern/thread.h>
+#include <kern/turnstile.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cga.h>
@@ -428,6 +429,7 @@ void __init
 boot_main(void)
 {
     sleepq_bootstrap();
+    turnstile_bootstrap();
     syscnt_setup();
     percpu_bootstrap();
     trap_setup();
