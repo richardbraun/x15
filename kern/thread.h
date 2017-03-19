@@ -600,6 +600,49 @@ thread_preempt_disable(void)
 }
 
 /*
+ * Interrupt level control functions.
+ *
+ * Functions that change the interrupt level are implicit compiler barriers.
+ */
+
+static inline bool
+thread_interrupted(void)
+{
+    return (thread_self()->intr != 0);
+}
+
+static inline void
+thread_intr_enter(void)
+{
+    struct thread *thread;
+
+    thread = thread_self();
+
+    if (thread->intr == 0) {
+        thread_preempt_disable();
+    }
+
+    thread->intr++;
+    assert(thread->intr != 0);
+    barrier();
+}
+
+static inline void
+thread_intr_leave(void)
+{
+    struct thread *thread;
+
+    barrier();
+    thread = thread_self();
+    assert(thread->intr != 0);
+    thread->intr--;
+
+    if (thread->intr == 0) {
+        thread_preempt_enable_no_resched();
+    }
+}
+
+/*
  * Lockless synchronization read-side critical section nesting counter
  * control functions.
  */

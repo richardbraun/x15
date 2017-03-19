@@ -1700,6 +1700,7 @@ thread_bootstrap_common(unsigned int cpu)
     booter = &thread_booters[cpu];
     booter->nr_refs = 0; /* Make sure booters aren't destroyed */
     booter->flags = 0;
+    booter->intr = 0;
     booter->preempt = 1;
     cpumap_fill(&booter->cpumap);
     thread_set_user_sched_policy(booter, THREAD_SCHED_POLICY_IDLE);
@@ -1817,6 +1818,7 @@ thread_init(struct thread *thread, void *stack,
     turnstile_td_init(&thread->turnstile_td);
     thread->last_cond = NULL;
     thread->propagate_priority = false;
+    thread->intr = 0;
     thread->preempt = THREAD_SUSPEND_PREEMPT_LEVEL;
     thread->pinned = 0;
     thread->llsync_read = 0;

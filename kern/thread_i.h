@@ -135,6 +135,9 @@ struct thread {
     /* Pinning counter, migration is allowed if 0 */
     unsigned short pinned;      /* (-) */
 
+    /* Interrupt level counter, in thread context if 0 */
+    unsigned short intr;        /* (-) */
+
     /* Read-side critical section counter, not in any if 0 */
     unsigned short llsync_read; /* (-) */
 
