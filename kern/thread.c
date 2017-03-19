@@ -2487,8 +2487,7 @@ thread_schedule_intr(void)
 {
     struct thread_runq *runq;
 
-    assert(!cpu_intr_enabled());
-    assert(!thread_preempt_enabled());
+    thread_assert_interrupted();
 
     runq = thread_runq_local();
     syscnt_inc(&runq->sc_schedule_intrs);
@@ -2501,8 +2500,7 @@ thread_tick_intr(void)
     struct thread_runq *runq;
     struct thread *thread;
 
-    assert(!cpu_intr_enabled());
-    assert(!thread_preempt_enabled());
+    thread_assert_interrupted();
 
     runq = thread_runq_local();
     syscnt_inc(&runq->sc_tick_intrs);

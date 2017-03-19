@@ -43,6 +43,7 @@
 #include <kern/spinlock_types.h>
 #include <kern/turnstile_types.h>
 #include <machine/atomic.h>
+#include <machine/cpu.h>
 #include <machine/tcb.h>
 
 /*
@@ -640,6 +641,14 @@ thread_intr_leave(void)
     if (thread->intr == 0) {
         thread_preempt_enable_no_resched();
     }
+}
+
+static inline void
+thread_assert_interrupted(void)
+{
+    assert(thread_interrupted());
+    assert(!cpu_intr_enabled());
+    assert(!thread_preempt_enabled());
 }
 
 /*

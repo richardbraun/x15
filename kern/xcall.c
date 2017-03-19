@@ -160,8 +160,7 @@ xcall_intr(void)
     struct xcall_cpu_data *cpu_data;
     struct xcall *call;
 
-    assert(!cpu_intr_enabled());
-    assert(!thread_preempt_enabled());
+    thread_assert_interrupted();
 
     cpu_data = xcall_cpu_data_get();
     call = xcall_cpu_data_get_recv_call(cpu_data);
