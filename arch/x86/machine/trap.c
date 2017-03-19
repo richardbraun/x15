@@ -41,7 +41,7 @@ typedef void (*trap_handler_fn_t)(struct trap_frame *);
 /*
  * Trap handler flags.
  */
-#define TRAP_HF_NOPREEMPT 0x1   /* Disable preemption on execution */
+#define TRAP_HF_INTR 0x1    /* Enter interrupt context */
 
 /*
  * Properties of a trap handler.
@@ -161,8 +161,7 @@ trap_double_fault(struct trap_frame *frame)
 static void __init
 trap_install_double_fault(void)
 {
-    trap_handler_init(&trap_handlers[TRAP_DF], TRAP_HF_NOPREEMPT,
-                      trap_double_fault);
+    trap_handler_init(&trap_handlers[TRAP_DF], TRAP_HF_INTR, trap_double_fault);
     cpu_idt_set_double_fault(trap_isr_double_fault);
 }
 
@@ -183,13 +182,13 @@ trap_setup(void)
     size_t i;
 
     for (i = 0; i < CPU_IDT_SIZE; i++) {
-        trap_install(i, TRAP_HF_NOPREEMPT, trap_isr_default, trap_default);
+        trap_install(i, TRAP_HF_INTR, trap_isr_default, trap_default);
     }
 
     /* Architecture defined traps */
     trap_install(TRAP_DE, 0, trap_isr_divide_error, trap_default);
     trap_install(TRAP_DB, 0, trap_isr_debug, trap_default);
-    trap_install(TRAP_NMI, TRAP_HF_NOPREEMPT, trap_isr_nmi, trap_default);
+    trap_install(TRAP_NMI, TRAP_HF_INTR, trap_isr_nmi, trap_default);
     trap_install(TRAP_BP, 0, trap_isr_breakpoint, trap_default);
     trap_install(TRAP_OF, 0, trap_isr_overflow, trap_default);
     trap_install(TRAP_BR, 0, trap_isr_bound_range, trap_default);
@@ -203,32 +202,30 @@ trap_setup(void)
     trap_install(TRAP_PF, 0, trap_isr_page_fault, trap_default);
     trap_install(TRAP_MF, 0, trap_isr_math_fault, trap_default);
     trap_install(TRAP_AC, 0, trap_isr_alignment_check, trap_default);
-    trap_install(TRAP_MC, TRAP_HF_NOPREEMPT,
-                 trap_isr_machine_check, trap_default);
+    trap_install(TRAP_MC, TRAP_HF_INTR, trap_isr_machine_check, trap_default);
     trap_install(TRAP_XM, 0, trap_isr_simd_fp_exception, trap_default);
 
     /* Basic PIC support */
-    trap_install(TRAP_PIC_BASE + 7, TRAP_HF_NOPREEMPT,
+    trap_install(TRAP_PIC_BASE + 7, TRAP_HF_INTR,
                  trap_isr_pic_int7, pic_spurious_intr);
-    trap_install(TRAP_PIC_BASE + 15, TRAP_HF_NOPREEMPT,
+    trap_install(TRAP_PIC_BASE + 15, TRAP_HF_INTR,
                  trap_isr_pic_int15, pic_spurious_intr);
 
     /* System defined traps */
-    trap_install(TRAP_XCALL, TRAP_HF_NOPREEMPT,
+    trap_install(TRAP_XCALL, TRAP_HF_INTR,
                  trap_isr_xcall, cpu_xcall_intr);
-    trap_install(TRAP_THREAD_SCHEDULE, TRAP_HF_NOPREEMPT,
+    trap_install(TRAP_THREAD_SCHEDULE, TRAP_HF_INTR,
                  trap_isr_thread_schedule, cpu_thread_schedule_intr);
-    trap_install(TRAP_CPU_HALT, TRAP_HF_NOPREEMPT,
+    trap_install(TRAP_CPU_HALT, TRAP_HF_INTR,
                  trap_isr_cpu_halt, cpu_halt_intr);
-    trap_install(TRAP_LAPIC_TIMER, TRAP_HF_NOPREEMPT,
+    trap_install(TRAP_LAPIC_TIMER, TRAP_HF_INTR,
                  trap_isr_lapic_timer, lapic_timer_intr);
-    trap_install(TRAP_LAPIC_ERROR, TRAP_HF_NOPREEMPT,
+    trap_install(TRAP_LAPIC_ERROR, TRAP_HF_INTR,
                  trap_isr_lapic_error, lapic_error_intr);
-    trap_install(TRAP_LAPIC_SPURIOUS, TRAP_HF_NOPREEMPT,
+    trap_install(TRAP_LAPIC_SPURIOUS, TRAP_HF_INTR,
                  trap_isr_lapic_spurious, lapic_spurious_intr);
 
-    trap_handler_init(&trap_handlers[TRAP_DEFAULT], TRAP_HF_NOPREEMPT,
-                      trap_default);
+    trap_handler_init(&trap_handlers[TRAP_DEFAULT], TRAP_HF_INTR, trap_default);
 }
 
 void
@@ -240,19 +237,14 @@ trap_main(struct trap_frame *frame)
 
     handler = &trap_handlers[frame->vector];
 
-    /*
-     * Some traps are related to the current thread, some aren't. For the
-     * latter (usually device interrupts), disable preemption to make sure
-     * there won't be any context switch while handling them.
-     */
-    if (handler->flags & TRAP_HF_NOPREEMPT) {
-        thread_preempt_disable();
+    if (handler->flags & TRAP_HF_INTR) {
+        thread_intr_enter();
     }
 
     handler->fn(frame);
 
-    if (handler->flags & TRAP_HF_NOPREEMPT) {
-        thread_preempt_enable_no_resched();
+    if (handler->flags & TRAP_HF_INTR) {
+        thread_intr_leave();
     }
 
     thread_schedule();
