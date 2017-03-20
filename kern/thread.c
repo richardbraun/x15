@@ -1895,10 +1895,12 @@ thread_alloc_stack(void)
 {
     void *ret;
     int error;
-    phys_addr_t pp1, pp3;
-    struct vm_page *page1, *page3;
+    phys_addr_t first_pp, last_pp;
+    struct vm_page *first_page, *last_page;
+    size_t stack_size;
 
-    ret = vm_kmem_alloc(PAGE_SIZE * 3);
+    stack_size = vm_page_round(STACK_SIZE);
+    ret = vm_kmem_alloc(PAGE_SIZE * 2 + stack_size);
 
     if (ret == NULL) {
         return ret;
@@ -1908,27 +1910,28 @@ thread_alloc_stack(void)
      * TODO: Until memory protection is implemented, use the pmap system
      * to remove mappings.
      */
-    error = pmap_kextract((uintptr_t)ret, &pp1);
+    error = pmap_kextract((uintptr_t)ret, &first_pp);
     assert(error == 0);
 
-    error = pmap_kextract((uintptr_t)ret + 2 * PAGE_SIZE, &pp3);
+    error = pmap_kextract((uintptr_t)ret + PAGE_SIZE + stack_size, &last_pp);
     assert(error == 0);
 
-    page1 = vm_page_lookup(pp1);
-    assert(page1 != NULL);
+    first_page = vm_page_lookup(first_pp);
+    assert(first_page != NULL);
 
-    page3 = vm_page_lookup(pp3);
-    assert(page3 != NULL);
+    last_page = vm_page_lookup(last_pp);
+    assert(last_page != NULL);
 
     /* First remove the physical mappings, and then free the pages */
     pmap_remove(kernel_pmap, (uintptr_t)ret, cpumap_all());
-    pmap_remove(kernel_pmap, (uintptr_t)ret + 2 * PAGE_SIZE, cpumap_all());
+    pmap_remove(kernel_pmap, (uintptr_t)ret + PAGE_SIZE + stack_size,
+                cpumap_all());
     pmap_update(kernel_pmap);
 
-    vm_page_free(page1, 0);
-    vm_page_free(page3, 0);
+    vm_page_free(first_page, 0);
+    vm_page_free(last_page, 0);
 
-    /* Return the middle page */
+    /* Return the middle section */
     return (char *)ret + PAGE_SIZE;
 }
 
@@ -1945,8 +1948,8 @@ thread_free_stack(void *stack)
     va = (char *)stack;
 
     vm_kmem_free_va(va - PAGE_SIZE, PAGE_SIZE);
-    vm_kmem_free(stack, PAGE_SIZE);
-    vm_kmem_free_va(va + PAGE_SIZE, PAGE_SIZE);
+    vm_kmem_free(stack, vm_page_round(STACK_SIZE));
+    vm_kmem_free_va(va + vm_page_round(STACK_SIZE), PAGE_SIZE);
 }
 
 #else
