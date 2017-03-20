@@ -1923,6 +1923,7 @@ thread_alloc_stack(void)
     /* First remove the physical mappings, and then free the pages */
     pmap_remove(kernel_pmap, (uintptr_t)ret, cpumap_all());
     pmap_remove(kernel_pmap, (uintptr_t)ret + 2 * PAGE_SIZE, cpumap_all());
+    pmap_update(kernel_pmap);
 
     vm_page_free(page1, 0);
     vm_page_free(page3, 0);
