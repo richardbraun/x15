@@ -1893,66 +1893,63 @@ thread_unlock_runq(struct thread_runq *runq, unsigned long flags)
 static void *
 thread_alloc_stack(void)
 {
-    void *ret;
-    int error;
-    phys_addr_t first_pp, last_pp;
     struct vm_page *first_page, *last_page;
+    phys_addr_t first_pa, last_pa;
     size_t stack_size;
+    uintptr_t va;
+    void *mem;
+    int error;
 
     stack_size = vm_page_round(STACK_SIZE);
-    ret = vm_kmem_alloc(PAGE_SIZE * 2 + stack_size);
+    mem = vm_kmem_alloc((PAGE_SIZE * 2) + stack_size);
 
-    if (ret == NULL) {
-        return ret;
+    if (mem == NULL) {
+        return NULL;
     }
 
+    va = (uintptr_t)mem;
+
     /*
-     * TODO: Until memory protection is implemented, use the pmap system
+     * TODO Until memory protection is implemented, use the pmap system
      * to remove mappings.
      */
-    error = pmap_kextract((uintptr_t)ret, &first_pp);
-    assert(error == 0);
+    error = pmap_kextract(va, &first_pa);
+    assert(!error);
 
-    error = pmap_kextract((uintptr_t)ret + PAGE_SIZE + stack_size, &last_pp);
-    assert(error == 0);
+    error = pmap_kextract(va + PAGE_SIZE + stack_size, &last_pa);
+    assert(!error);
 
-    first_page = vm_page_lookup(first_pp);
+    first_page = vm_page_lookup(first_pa);
     assert(first_page != NULL);
 
-    last_page = vm_page_lookup(last_pp);
+    last_page = vm_page_lookup(last_pa);
     assert(last_page != NULL);
 
-    /* First remove the physical mappings, and then free the pages */
-    pmap_remove(kernel_pmap, (uintptr_t)ret, cpumap_all());
-    pmap_remove(kernel_pmap, (uintptr_t)ret + PAGE_SIZE + stack_size,
-                cpumap_all());
+    pmap_remove(kernel_pmap, va, cpumap_all());
+    pmap_remove(kernel_pmap, va + PAGE_SIZE + stack_size, cpumap_all());
     pmap_update(kernel_pmap);
 
     vm_page_free(first_page, 0);
     vm_page_free(last_page, 0);
 
-    /* Return the middle section */
-    return (char *)ret + PAGE_SIZE;
+    return (char *)va + PAGE_SIZE;
 }
 
 static void
 thread_free_stack(void *stack)
 {
-    /*
-     * Aside from freeing the middle page that 'stack' points to, we also
-     * need to free the previous and next pages manually, since their
-     * physical mappings are not present.
-     */
+    size_t stack_size;
     char *va;
 
-    va = (char *)stack;
+    stack_size = vm_page_round(STACK_SIZE);
+    va = (char *)stack - PAGE_SIZE;
 
-    vm_kmem_free_va(va - PAGE_SIZE, PAGE_SIZE);
-    vm_kmem_free(stack, vm_page_round(STACK_SIZE));
-    vm_kmem_free_va(va + vm_page_round(STACK_SIZE), PAGE_SIZE);
+    vm_kmem_free_va(va, PAGE_SIZE);
+    vm_kmem_free(va + PAGE_SIZE, stack_size);
+    vm_kmem_free_va(va + PAGE_SIZE + stack_size, PAGE_SIZE);
 }
 
-#else
+#else /* X15_THREAD_STACK_GUARD */
 
 static void *
 thread_alloc_stack(void)
