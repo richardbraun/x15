@@ -249,6 +249,11 @@ X15 Options
      likely to measurably reduce overall performance. It should only be
      enabled if you know what you're doing.
 
+`--enable-thread-stack-guard'
+     Enable the use of guard pages around kernel thread stacks to catch
+     overflows. Note that this feature wastes precious kernel virtual
+     memory and has some overhead during thread creation and destruction.
+
 `--with-max-cpus=MAX_CPUS'
      Set the maximum number of supported processors.
 
