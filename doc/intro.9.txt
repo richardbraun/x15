@@ -1,0 +1,250 @@
+INTRO(9)
+========
+:doctype:       manpage
+:man source:    X15
+:man manual:    X15 Kernel Developer{rsquo}s Manual
+
+NAME
+----
+
+intro - introduction to kernel interfaces
+
+ORGANIZATION
+------------
+
+Modules
+~~~~~~~
+
+The module is the functional unit around which kernel sources are organized.
+A single module is made up of at least one public header file. There is
+usually also an opaque implementation file. An implementation header can
+complement the module for inline functions and private structures allowed
+to be allocated from the stack. Finally, a type-only header can also be
+present in order to avoid circular inclusions.
+
+The files of a module must strictly be named according to the module name.
+Here are the name patterns for each file of a module :
+
+*<module>.c*::
+  Opaque implementation.
+*<module>.h*::
+  Public header.
+*<module>_i.h*::
+  Implementation header.
+*<module>_types.h*::
+  Type-only header.
+
+Components
+~~~~~~~~~~
+
+Modules are grouped into components, with one directory per component.
+The main components are :
+
+*arch*::
+  Architecture-specific modules, located in arch/<arch>.
+*test*::
+  Test modules.
+*vm*::
+  Virtual memory system.
+*kern*::
+  Machine-independent modules that don't belong in another component.
+
+DESCRIPTION
+-----------
+
+X15 is an open source microkernel. Its purpose is to provide the basic
+foundations for an operating system or a hosted application.
+
+Section 9 of the manual describes kernel interfaces, both internal and
+provided to application code hosted in kernel mode.
+
+Among the features provided are :
+
+* Preemptive multithreading
+* Generic development tools
+* Multiprocessor support
+* Virtual memory
+* Real-time
+* Portability
+* POSIX-like interface
+
+Preemptive multithreading
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The X15 kernel provides threads which can be preempted at almost any time,
+in both kernel and user space. They have an associated scheduling policy
+and priority. Currently, the available scheduling policies are :
+
+*Fair scheduling (FS)*::
+  A non real-time, proportionally fair policy.
+*First-in, first-out fixed priority (FIFO)*::
+  A real-time, fixed-priority based FIFO policy.
+*Round-robin (RR)*::
+  A real-time, fixed-priority based policy with round-robin among same
+  priority threads.
+
+In addition, the kernel provides many thread synchronization facilities.
+The relevant modules are :
+
+module:arch/cpu::
+  Architecture-specific processor interface which provides interrupt
+  control functions.
+module:kern/condition::
+  Condition variable.
+module:kern/llsync::
+  Lockless synchronization, similar to Linux Read-Copy Update (RCU).
+module:kern/mutex::
+  Mutual exclusion lock.
+module:kern/semaphore::
+  Semaphore.
+module:kern/sleepq::
+  Low level sleep queue.
+module:kern/thread::
+  Preemptive thread scheduling.
+module:kern/work::
+  Work queue of deferred asynchronous lightweight jobs.
+
+Generic development tools
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Along with the kernel sources are a set of generic data structures and
+other development tools :
+
+module:kern/bitmap::
+  Arbitrary-length bit array.
+module:kern/error::
+  Common errors and error handling functions.
+module:kern/kmem::
+  Object caching and general purpose memory allocator.
+module:kern/list::
+  Linked list.
+module:kern/macros::
+  Useful generic macros.
+module:kern/printk::
+  Formatted output functions.
+module:kern/rbtree::
+  Red-black tree.
+module:kern/rdxtree::
+  Radix tree (with integer keys).
+module:kern/sprintf::
+  Formatted string functions.
+module:kern/syscnt::
+  Generic 64-bits counter.
+
+X15 doesn't provide a generic queue interface, because the requirements
+often vary too much. Similarly, it doesn't provide a hash table interface.
+Instead, users can easily build specialized queues and hash tables on top
+of the provided facilities. Hash functions may be provided in the future.
+
+Multiprocessor support
+~~~~~~~~~~~~~~~~~~~~~~
+
+The X15 kernel is designed to support hardware with multiple processors.
+The scheduler should scale well up to one hundred processors, with one
+run queue per processor. Threads can be bound to a specific set of
+processors, or temporarily pinned for short durations. Non real-time
+threads can be spontaneously migrated between processors in order to
+maximize processor utility.
+
+Here are some modules related to multiprocessor support :
+
+module:arch/atomic::
+  Inter-processor atomic operations.
+module:arch/mb::
+  Inter-processor memory barriers.
+module:kern/cpumap::
+  Specialized bitmaps representing processor sets.
+module:kern/percpu::
+  Per-processor data.
+module:kern/spinlock::
+  Inter-processor spin locks.
+module:kern/sref::
+  Scalable multiprocessor reference counters.
+module:kern/thread::
+  Preemptive thread scheduling.
+module:kern/xcall::
+  Low level inter-processor function calls.
+
+Virtual memory
+~~~~~~~~~~~~~~
+
+TODO Write when the virtual memory system is rewritten.
+
+Real-time
+~~~~~~~~~
+
+X15 complies with several requirements of a true hard real-time multiprocessor
+system. It is a fully preemptible kernel with short, bounded preemption-based
+critical sections. It provides real-time scheduling policies and a complete
+priority inheritance algorithm. Preemption and interrupts are clearly
+decoupled so that interrupts can remain enabled as much as possible. The
+modules related to real-time are :
+
+module:arch/trap::
+  Interrupt and exception handling.
+module:kern/rtmutex::
+  Mutual exclusion with priority inheritance.
+module:kern/thread::
+  Preemptive thread scheduling.
+module:kern/turnstile::
+  Low level priority propagation capable sleep queue.
+
+Priority inheritance can also be enabled for regular mutexes. Please read
+Victor Yodaiken's report {against-priority-inheritance} in order to fully
+understand the implications of relying on priority inheritance.
+
+TODO X15 doesn't yet comply with all the requirements for hard real-time.
+For that, it still needs :
+
+* Time-bounded spin locks.
+* Timer service.
+
+Portability
+~~~~~~~~~~~
+
+Despite the fact that the kernel currently only supports the x86
+architecture, which will remain the reference port, the code is already
+very portable, thanks to a clear separation between architecture-specific
+and machine-independent modules, as well as good programming practice,
+in particular regarding type widths, endianness, and memory models.
+
+Ports are located in the arch directory. Here are the modules that
+must provide interfaces expected by the machine-independent layer :
+
+module:arch/atomic::
+  Atomic instructions.
+module:arch/cpu::
+  Processor interface.
+module:arch/mb::
+  Memory barriers.
+module:arch/param::
+  Miscellaneous parameters.
+module:arch/pmap::
+  Physical mappings, the MMU driver.
+module:arch/strace::
+  Stack tracing.
+module:arch/tcb::
+  Thread control block.
+module:arch/trap::
+  Interrupt and exception handling.
+
+X15 currently requires a memory management unit, but that may change in
+the future. In addition, the machine-independent code assumes an almost
+completely relaxed memory model, but still expects no reordering between
+dependent loads. This model closely matches the ARM family of processors.
+
+POSIX-like interface
+~~~~~~~~~~~~~~~~~~~~
+
+Many of the functions provided by the kernel match well-known POSIX
+interfaces. In particular, this is true for standard integer types,
+memory and string functions, and multithreading. While the thread module
+doesn't comply with POSIX, it was designed so that adding a lightweight
+wrapper could easily be done. Users must keep in mind that the behaviour
+of some interfaces are not meant to comply with POSIX regarding certain
+details; they are only meant to be POSIX-like.
+
+SEE
+---
+
+{x15-operating-system}

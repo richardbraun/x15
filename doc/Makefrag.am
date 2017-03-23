@@ -1,4 +1,7 @@
-x15_DOCS =
+EXTRA_DIST += doc/asciidoc.conf
+
+x15_DOCS =                                                  \
+	doc/intro.9.txt
 
 x15_SOURCES += $(x15_DOCS)
 
