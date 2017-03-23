@@ -46,11 +46,7 @@ AC_ARG_ENABLE([mutex-pi],
 
 AC_ARG_ENABLE([thread-stack-guard],
               [AS_HELP_STRING([--enable-thread-stack-guard],
-                              [enable the use of guard pages around a thread
-                               stack to catch potential overflows (note that
-                               this feature wastes expensive virtual memory
-                               and has some overhead during thread creation
-                               and destruction)])])
+                              [enable kernel thread stack guard pages])])
 
 AC_DEFINE([__KERNEL__], [1], [kernel code])
 AC_DEFINE_UNQUOTED([X15_ARCH], [$arch], [arch])
