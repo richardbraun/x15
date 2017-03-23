@@ -1,0 +1,26 @@
+EXTRA_DIST += doc/asciidoc.conf
+
+x15_DOCS =                                                  \
+	doc/intro.9.txt
+
+x15_SOURCES += $(x15_DOCS)
+
+if HAVE_ASCIIDOC
+
+html_DATA = $(x15_DOCS:%.9.txt=%.9.html)
+MOSTLYCLEANFILES += $(html_DATA)
+
+html: $(html_DATA)
+.PHONY: html
+
+endif HAVE_ASCIIDOC
+
+if HAVE_A2X
+
+man9_MANS = $(x15_DOCS:%.9.txt=%.9)
+MOSTLYCLEANFILES += $(man9_MANS)
+
+man: $(man9_MANS)
+.PHONY: man
+
+endif HAVE_A2X
