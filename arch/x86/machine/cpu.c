@@ -538,6 +538,18 @@ cpu_check(const struct cpu *cpu)
     if (!(cpu->features2 & CPU_FEATURE2_APIC)) {
         cpu_panic_on_missing_feature("apic");
     }
+
+    /*
+     * The compiler is expected to produce cmpxchg8b instructions to
+     * perform 64-bits atomic operations on a 32-bits processor. Clang
+     * currently has trouble doing that so 64-bits atomic support is
+     * just disabled when building with it.
+     */
+#if !defined(__LP64__) && !defined(__clang__)
+    if (!(cpu->features2 & CPU_FEATURE2_CX8)) {
+        cpu_panic_on_missing_feature("cx8");
+    }
+#endif
 }
 
 void
