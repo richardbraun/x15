@@ -4,17 +4,23 @@ AC_CONFIG_SRCDIR([kern/config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([tools/m4])
 
+# Artificially create the doc subdirectory since Automake apparently
+# won't do it itself.
+AC_CONFIG_COMMANDS([doc/.empty])
+
 AM_INIT_AUTOMAKE([foreign subdir-objects 1.11])
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])],
          [AC_SUBST([AM_DEFAULT_VERBOSITY], [1])])
 
-AC_PREFIX_DEFAULT([])
 AC_CANONICAL_HOST
 AC_PROG_CPP
 AC_PROG_CC
 AM_PROG_AS
 AM_PROG_CC_C_O
+
+AX_CHECK_ASCIIDOC([AC_MSG_NOTICE([asciidoc not found, not building html documentation])])
+AX_CHECK_A2X([AC_MSG_NOTICE([a2x not found, not building man pages])])
 
 # Disable PIE if enabled by default
 AX_APPEND_COMPILE_FLAGS([-no-pie -fno-pie])
