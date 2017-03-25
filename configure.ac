@@ -1,3 +1,4 @@
+AC_PREREQ([2.69])
 AC_INIT([X15], [0.1], [rbraun@sceen.net], [x15])
 
 AC_CONFIG_SRCDIR([kern/config.h])
@@ -8,7 +9,7 @@ AC_CONFIG_MACRO_DIR([tools/m4])
 # won't do it itself.
 AC_CONFIG_COMMANDS([doc/.empty])
 
-AM_INIT_AUTOMAKE([foreign subdir-objects 1.11])
+AM_INIT_AUTOMAKE([foreign subdir-objects 1.13])
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])],
          [AC_SUBST([AM_DEFAULT_VERBOSITY], [1])])
