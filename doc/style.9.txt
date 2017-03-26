@@ -1,0 +1,477 @@
+STYLE(9)
+========
+:doctype:       manpage
+:man source:    X15
+:man manual:    X15 Kernel Developer{rsquo}s Manual
+
+NAME
+----
+
+style - kernel coding style and rules
+
+DESCRIPTION
+-----------
+
+This document describes the preferred coding style, a close variant of
+the modern K&R style, for the X15 kernel. It probably does not encompass
+all the rules, which are quite numerous despite efforts to keep them
+simple and compact. As a result, developers should compare their work
+against existing recent modules and infer the rules that may not be
+mentioned here. If you identify multiple rules that seem to conflict,
+assume any of them is valid. If in doubt, make a pragmatic decision
+and move forward.
+
+LANGUAGES
+---------
+
+The kernel is mostly written in the C programming language, conforming
+to ISO/IEC 9899:1999 (C99) and slowly transitioning to ISO/IEC 9899:2011
+(C11), with GNU extensions. While many GNU extensions are used, nested
+functions are forbidden. They are considered too specific to the GCC
+compiler. Note that X15 can currently be built with both GCC and Clang,
+and the latter has no support for nested functions. Also note that the
+kernel only expects the freestanding C environment from the compiler.
+
+Since X15 is low level system software, processor-specific assembly is
+inevitable. Developers should always refrain from writing assembly code
+when possible. Obviously, that code must only be used in
+architecture-specific modules.
+
+LINES
+-----
+
+Lines are normally limited to 80 columns, unless there is a compelling
+reason not to. This makes it easy to identify code with too many levels
+of indentation, and also allows viewing multiple buffers side-by-side
+on small screens, which happens to also be comfortable on larger screens.
+
+When defining a function, always break the line right before its name,
+so that qualifiers and the return type are on their own line. As a
+result, there is enough space for arguments even when the function
+name is long. It also makes functions easier to find with grep.
+
+Use at most one empty line as a separator. Use empty lines around
+functions and blocks, and also when you consider it appropriate
+inside blocks, e.g. to isolate critical sections, and/or locking
+functions.
+
+COMMENTS
+--------
+
+Each source file must start with a copyright statement comment,
+followed by a description of the file, unless the content is simple
+and obvious enough not to need one. The copyright statement and the
+description must be separated by two empty comment lines :
+
+[source,c]
+--------------------------------------------------------------------------------
+/*
+ * Copyright (c) 2017 John Smith.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * etc...
+ *
+ *
+ * Description of the module.
+ */
+--------------------------------------------------------------------------------
+
+Comments are written in C style, not C++. Here are a few examples :
+
+[source,c]
+--------------------------------------------------------------------------------
+/* Most single-line comments look like this */
+
+/*
+ * Multi-line comments look like this. They should also be used for
+ * "reference" descriptions in public headers.
+ */
+struct dummy {
+    int useless;    /* Here is a way to provide short member descriptions */
+    char moot;      /* But don't hesitate to move descriptions above members
+                       when they spawn too many lines on the right side. */
+};
+
+/*
+ * Instead of using C comments to disable code blocks, use the #if 0
+ * preprocessor directive. Remember that C comments do not nest.
+ */
+#if 0
+...
+#endif
+--------------------------------------------------------------------------------
+
+Comments should not be abused. A large number of comments creates noise
+that readers must filter. Instead of writing a comment, ask yourself
+whether you can improve the meaning of the code itself, e.g. by changing
+names or breaking the code into smaller functions with names that are
+good enough to convey the message of the comment. Prefer to describe data
+over code. Comments in the code must point at details that are important
+and not obvious, and quality code should have few of those.
+
+Note that the project does not use an annotation format for documentation
+generation such as Doxygen, because, despite the undeniable improvement over
+other types of tools, the benefit still seems too small considering the
+additional rules that developers must keep in mind, the effort spent on
+checking the annotations and the duplication that they may cause, and the
+actual use of the generated documentation compared to direct source code
+browsing.
+
+INDENTATION
+-----------
+
+An indentation level is 4 spaces. It is strongly recommended, although
+not compulsory, to avoid using more than 3 indentation levels. More
+levels are tolerated for very short blocks. Combining 4 spaces per level
+with 80 columns allows the use of somewhat long, significant names, and
+naturally warns that a function should be simplified when the code becomes
+overly crammed to the right.
+
+Tabulation characters are forbidden in source files, and should only be
+used in Makefiles where absolutely required. This allows everyone to get
+the same view, whatever the editor used.
+
+In a switch statement, the case labels are aligned on the same column as
+the switch statement :
+
+[source,c]
+--------------------------------------------------------------------------------
+switch (var) {
+case VAL1:
+    do_one_thing();
+    break;
+case VAL2:
+case VAL3:
+    do_another();
+    break;
+}
+--------------------------------------------------------------------------------
+
+When conditions don't fit on a single line, break before operators,
+and indent the new line on the same column as the associated condition.
+Use parentheses to make precedence explicit, even when not strictly needed.
+Here is an example :
+
+[source,c]
+--------------------------------------------------------------------------------
+static void
+do_something(void)
+{
+    if (overly_long_stupid_condition_name_that_you_shouldn_t_use
+        && another_overly_long_stupid_condition_name
+        && (yet_another_variable_with_an_overly_long_name
+            || (a_first_long_variable_name != a_second_long_variable_name))) {
+        return;
+    }
+}
+--------------------------------------------------------------------------------
+
+One reason for those rules is to make reviews easier, by pushing code as much
+to the left as possible. The code should allow superficial reviews by just
+taking a quick look at the left side of the code, e.g. control statements,
+most conditions, operators, function names, their first parameter, etc...
+A line which reaches the right side marks a spot that may need more careful
+review.
+
+Don't write multiple statements on a single line.
+
+BRACES
+------
+
+Opening braces are written at the end of lines containing control statements
+or struct/union/enum definitions. Closing braces are written on the same
+column as their associated control statement. Opening braces for functions
+are written on their own line after the arguments. Braces must also be used
+for single-line blocks, as this reduces both efforts when adding debugging
+code in such blocks and risks when merging conflicting code. In cases of
+multi-part statements, closing braces are written before the continuation.
+Here is an example :
+
+[source,c]
+--------------------------------------------------------------------------------
+void
+do_something(void *arg)
+{
+    if (arg == NULL) {
+        return;
+    } else {
+        print_what_it_is(arg);
+    }
+
+    do {
+        play_with(arg);
+    } while (can_play_with(arg));
+}
+--------------------------------------------------------------------------------
+
+The main reason for this style is that it allows line compression with
+almost no loss of readability, since it is easy to identify where blocks
+start.
+
+SPACES
+------
+
+Spaces are used around most keywords. The exceptions are sizeof, typeof,
+alignof, and pass:[__attribute__], because of their similarity with
+functions. These exceptions must be used with parentheses. Spaces are also
+used around operators, except unary operators. For example :
+
+[source,c]
+--------------------------------------------------------------------------------
+if (!skip_copy && (a != b)) {
+    memcpy(&a, &b, sizeof(a));
+}
+--------------------------------------------------------------------------------
+
+When declaring pointer variables, use a space before "`*`", but not after,
+so that the "`*`" character and the variable name are adjacent. The main
+reason is that, while pointers are variables, with a type of their own,
+they are a special kind of variables, that deserve more attention. Another
+is to reduce mistakes when declaring several variables on the same line.
+On the other hand, when writing functions returning pointers, use spaces
+both before and after "`*`". The reason is to always clearly separate
+returned types from the function name. Here is an example :
+
+[source,c]
+--------------------------------------------------------------------------------
+static struct my_type * my_function(struct my_type *var);
+
+/* ... */
+
+static struct my_type *
+my_function(struct my_type *var)
+{
+    struct my_type *a, tmp;
+
+    a = do_something(var, &tmp);
+    return a;
+}
+--------------------------------------------------------------------------------
+
+Don't leave trailing spaces at the end of lines.
+
+NAMES
+-----
+
+First of all, use underscores instead of camel case to separate words in
+compound names. Function and variable names are in lower case. Macro
+names generally are in upper caser, except for macros which behave strictly
+like functions, which could be replaced with inline functions with no
+API change.
+
+There are two ways to name symbols, depending on whether they're global
+or not. Global symbols, either private (declared static) or public
+(part of the publically exposed interface), must always be prefixed with
+the namespace of the module they belong to. This makes it easy to know
+that 1/ a symbol is global and 2/ where to find it in the project. It also
+makes it possible to move definitions between the opaque implementation
+and header files with few diffs. Names for local variables should be
+short, with no prefix, since prefixes are used to add context, whereas
+local variables are confined to the current context.
+
+When a module defines an object type, the type name immediately follows
+the module name. Functions applying to objects (methods) are named by
+adding the method name to the object type name. The name of helper
+functions and methods is simply added at the end of the main function
+that calls them.
+
+Here are some examples :
+
+[source,c]
+--------------------------------------------------------------------------------
+/*
+ * Object type "cpu_pool" of module "kmem".
+ */
+struct kmem_cpu_pool;
+
+/*
+ * Method "init" of object type "cpu_pool" of module "kmem".
+ */
+static void kmem_cpu_pool_init(struct kmem_cpu_pool *cpu_pool,
+                               struct kmem_cache *cache);
+
+/*
+ * Object type "cache" of module "kmem".
+ */
+struct kmem_cache;
+
+/*
+ * Helper function "verify" of method "alloc" of object type "cache" of
+ * module "kmem".
+ */
+static void kmem_cache_alloc_verify(struct kmem_cache *cache, void *buf,
+                                    int construct);
+
+/*
+ * Method "alloc" of object type "cache" of module "kmem".
+ */
+void *
+kmem_cache_alloc(struct kmem_cache *cache)
+{
+    struct kmem_cpu_pool *cpu_pool;
+    int filled, verify;
+    void *buf;
+
+    /* ... */;
+}
+
+/*
+ * Function "info" of module "kmem".
+ */
+void kmem_info(void);
+--------------------------------------------------------------------------------
+
+There is currently one exception to the naming rules, which is the
+module:arch/param module. The only API changes allowed on this module
+are removals, in order to move certain symbols where they should be,
+and renames using the param namespace, for symbols that actually belong
+to the module.
+
+FUNCTIONS
+---------
+
+Functions should do one thing, and do it well. Their name should be
+carefully chosen to best reflect their operation. Ideally, functions
+should be short enough to fit in a "page", i.e. not much more than
+25 lines. The real metric developers should use to decide whether to
+break a function or not is the number of variables, including parameters.
+Assuming most people can remember around 5 things at the same time, you
+should break functions when the number of variables gets higher than
+this value. Variables such as a buffer pointer and its size can be
+considered a single variable.
+
+Do not hesitate to break functions up when things get even slightly
+complicated. If that helps, remember that static functions can easily
+be inlined by the compiler, even without the inline keyword. Link-time
+optimizations (LTO) improve the situation further by considering the
+whole program as a single compilation unit.
+
+Always name arguments in function prototypes.
+
+Common call protocols
+~~~~~~~~~~~~~~~~~~~~~
+
+Functions should match one of the following call protocols :
+
+type get_value(...)::
+  Accessor with no side effect.
+void do_something(...)::
+  Function that cannot fail.
+struct my_struct * my_struct_get(...)::
+  Function that returns an object, or NULL if an error occurred.
+int do_something(...)::
+  Function that returns an error code, unless stated otherwise.
+
+It's easy to know when to return an object, or an error and the
+object through a pointer argument : if there is a single possible
+error code, let a NULL value encode that error, otherwise return
+it explicitely :
+
+struct my_struct * my_struct_create(...)::
+  Return NULL if an error occurs, which may only be ERROR_NOMEM.
+int my_struct_create(struct my_struct **my_structp, ...)::
+  Return an error (ERROR_NOMEM or something else) if creation fails,
+  otherwise pass the new object to the caller through the double pointer
+  argument and return 0.
+
+Methods, which are functions invoked on an object instance, must be
+defined so that their first argument is always the object instance
+on which the method is invoked.
+
+Unconditional branch statements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Developers are encouraged to use unconditional branches in cases where
+they contribute to maintaining complexity low. Such cases include return
+on invalid argument, breaking or continuing simple loops, and centralized
+error handling. Note that this includes the *goto* statement. The rationale,
+beyond making error handling code common, is to keep the indentation level
+low. The main code flow, with the lowest indentation level, should match
+the most likely case. The compiler often uses heuristics based on keywords
+such as *return* or *goto* which are applied to the conditions of the
+containing block. You may also use the *likely* and *unlikely* macros
+to give hints about branches to the compiler in performance critical
+paths.
+
+Here is an example for object creation :
+
+[source,c]
+--------------------------------------------------------------------------------
+static int
+obj_create(struct obj **objp, int var)
+{
+    struct subobj *subobj;
+    struct obj *obj;
+    int error;
+
+    obj = kmem_cache_alloc(&obj_cache);
+
+    if (obj == NULL) {
+        return ERROR_NOMEM;
+    }
+
+    error = subobj_create(&subobj);
+
+    if (error) {
+        goto error_subobj;
+    }
+
+    error = obj_check_var(var);
+
+    if (error) {
+        goto error_var;
+    }
+
+    obj_init(obj, subobj, var);
+    *objp = obj;
+    return 0;
+
+error_var:
+    subobj_destroy(subobj);
+error_subobj:
+    kmem_cache_free(&obj_cache, obj);
+    return error;
+}
+--------------------------------------------------------------------------------
+
+Common functions and methods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The following list can be used to easily find appropriate standard names
+for the most common operations.
+
+*bootstrap*::
+  This function is used for early module initialization. It should only
+  exist if initialization must be broken down into multiple steps. If
+  there is a single initialization step, run it in the *setup* function.
+*setup*::
+  This function is used for module initialization.
+*init*::
+  Object initialization, without memory allocation. Object initialization
+  should normally never fail.
+*create*::
+  Object creation, including both allocation and initialization.
+*destroy*::
+  Object destruction.
+*ref*::
+  Add a reference to an object.
+*unref*::
+  Remove a reference from an object, destroying it if there are no more
+  references.
+*acquire* or *lock*::
+  Acquire exclusive access to an object.
+*release* or *unlock*::
+  Release exclusive access to an object.
+*add*::
+  Add an object to a container.
+*remove*::
+  Remove an object from a container.
+*lookup*::
+  Look up an object in a container.
+
+SEE
+---
+
+manpage:intro
+
+{x15-operating-system}

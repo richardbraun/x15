@@ -247,4 +247,6 @@ details; they are only meant to be POSIX-like.
 SEE
 ---
 
+manpage:style
+
 {x15-operating-system}
