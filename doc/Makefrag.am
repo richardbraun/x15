@@ -11,6 +11,7 @@ if HAVE_HIGHLIGHT
 html_DATA = $(x15_DOCS:%.9.txt=%.9.html)
 MOSTLYCLEANFILES += $(html_DATA)
 
+$(html_DATA): doc/asciidoc.conf
 html: $(html_DATA)
 .PHONY: html
 
@@ -22,6 +23,7 @@ if HAVE_A2X
 man9_MANS = $(x15_DOCS:%.9.txt=%.9)
 MOSTLYCLEANFILES += $(man9_MANS)
 
+$(man9_MANS): doc/asciidoc.conf
 man: $(man9_MANS)
 .PHONY: man
 
