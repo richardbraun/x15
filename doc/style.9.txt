@@ -255,20 +255,20 @@ Don't leave trailing spaces at the end of lines.
 NAMES
 -----
 
-First of all, use underscores instead of camel case to separate words in
-compound names. Function and variable names are in lower case. Macro
-names generally are in upper caser, except for macros which behave strictly
-like functions, which could be replaced with inline functions with no
-API change.
+First of all, use underscores instead of camel case to separate words
+in compound names. Function and variable names are in lower case. Macro
+names generally are in upper caser, except for macros which behave
+strictly like functions and could be replaced with inline functions
+with no API change.
 
 There are two ways to name symbols, depending on whether they're global
 or not. Global symbols, either private (declared static) or public
 (part of the publically exposed interface), must always be prefixed with
 the namespace of the module they belong to. This makes it easy to know
-that 1/ a symbol is global and 2/ where to find it in the project. It also
+that a symbol is global and where to find it in the project. It also
 makes it possible to move definitions between the opaque implementation
 and header files with few diffs. Names for local variables should be
-short, with no prefix, since prefixes are used to add context, whereas
+short, with no prefixes, since prefixes are used to add context, and
 local variables are confined to the current context.
 
 When a module defines an object type, the type name immediately follows
@@ -342,11 +342,9 @@ should break functions when the number of variables gets higher than
 this value. Variables such as a buffer pointer and its size can be
 considered a single variable.
 
-Do not hesitate to break functions up when things get even slightly
+Do not hesitate to break functions down when things get even slightly
 complicated. If that helps, remember that static functions can easily
-be inlined by the compiler, even without the inline keyword. Link-time
-optimizations (LTO) improve the situation further by considering the
-whole program as a single compilation unit.
+be inlined by the compiler. See <<inline_functions,inline functions>>.
 
 Always name arguments in function prototypes.
 
@@ -359,7 +357,7 @@ type get_value(...)::
   Accessor with no side effect.
 void do_something(...)::
   Function that cannot fail.
-struct my_struct * my_struct_get(...)::
+struct my_struct * my_struct_lookup(...)::
   Function that returns an object, or NULL if an error occurred.
 int do_something(...)::
   Function that returns an error code, unless stated otherwise.
@@ -471,6 +469,7 @@ for the most common operations.
 *lookup*::
   Look up an object in a container.
 
+[[inline_functions]]
 Inline functions
 ~~~~~~~~~~~~~~~~
 
@@ -514,7 +513,7 @@ there is no need for a final dot. This also keeps it slightly shorter.
 kern/{llsync,rdxtree}: don't use llsync until it's ready
 --------------------------------------------------------------------------------
 
-This format is based on brace expansion from the bash shell.
+This format is based on brace expansion in the bash shell.
 
 SEE
 ---
