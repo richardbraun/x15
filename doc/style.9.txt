@@ -469,6 +469,51 @@ for the most common operations.
 *lookup*::
   Look up an object in a container.
 
+Inline functions
+~~~~~~~~~~~~~~~~
+
+Do not abuse the inline keyword. First of all, this keyword is only a
+hint for the compiler, with no guarantee that a function will actually
+be inlined in the generated code. In addition, decent compilers can
+already inline functions without the presence of the keyword. Private
+functions (declared static) are easily inlined because the compiler
+knows it doesn't need to produce an externally visible symbol. Besides,
+with link-time optimizations (LTO), public functions can also be inlined
+or even removed if unused. As result, use inline for a few performance
+critical short functions only.
+
+GIT COMMITS
+-----------
+
+Commits should be atomic, which means a single commit should focus on
+one functional modification. The size of the diff doesn't matter.
+
+The log format complies with the standard Git format, i.e. the log
+must start with a single line describing the changes, followed by
+an empty line and more details if necessary. Since any commit may be
+sent as email, try to limit lines to around 70 characters, so that
+there is room for replies before reaching/exceeding 80 characters.
+In addition to the standard Git format, the first line should start
+with the logical path of a module, e.g. *kern/kmem* or *x86/pmap*
+for architecture-specific modules, when changes are local to one
+or a few modules, which should be the case most of the time. For
+example :
+
+--------------------------------------------------------------------------------
+kern/kmem: undefine KMEM_VERIFY
+
+That macro was left over during the slab allocator rework.
+--------------------------------------------------------------------------------
+
+The first line being a short description, usable as an email subject,
+there is no need for a final dot. This also keeps it slightly shorter.
+
+--------------------------------------------------------------------------------
+kern/{llsync,rdxtree}: don't use llsync until it's ready
+--------------------------------------------------------------------------------
+
+This format is based on brace expansion from the bash shell.
+
 SEE
 ---
 
