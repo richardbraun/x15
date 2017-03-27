@@ -9,8 +9,24 @@ NAME
 
 intro - introduction to kernel interfaces
 
-ORGANIZATION
-------------
+DESCRIPTION
+-----------
+
+X15 is an open source microkernel. Its purpose is to provide the basic
+foundations for an operating system or a hosted application.
+
+Section 9 of the manual describes kernel interfaces, both internal and
+provided to application code hosted in kernel mode.
+
+Among the features provided are :
+
+* <<preemptive_multithreading,Preemptive multithreading>>
+* <<generic_development_tools,Generic development tools>>
+* <<multiprocessor_support,Multiprocessor support>>
+* <<virtual_memoru,Virtual memory>>
+* <<real_time,Real-time>>
+* <<portability,Portability>>
+* <<posix_like_interface,POSIX-like interface>>
 
 Modules
 ~~~~~~~
@@ -49,27 +65,9 @@ The main components are :
 *kern*::
   Machine-independent modules that don't belong in another component.
 
-DESCRIPTION
------------
-
-X15 is an open source microkernel. Its purpose is to provide the basic
-foundations for an operating system or a hosted application.
-
-Section 9 of the manual describes kernel interfaces, both internal and
-provided to application code hosted in kernel mode.
-
-Among the features provided are :
-
-* Preemptive multithreading
-* Generic development tools
-* Multiprocessor support
-* Virtual memory
-* Real-time
-* Portability
-* POSIX-like interface
-
-Preemptive multithreading
-~~~~~~~~~~~~~~~~~~~~~~~~~
+[[preemptive_multithreading]]
+PREEMPTIVE MULTITHREADING
+-------------------------
 
 The X15 kernel provides threads which can be preempted at almost any time,
 in both kernel and user space. They have an associated scheduling policy
@@ -104,8 +102,9 @@ module:kern/thread::
 module:kern/work::
   Work queue of deferred asynchronous lightweight jobs.
 
-Generic development tools
-~~~~~~~~~~~~~~~~~~~~~~~~~
+[[generic_development_tools]]
+GENERIC DEVELOPMENT TOOLS
+-------------------------
 
 Along with the kernel sources are a set of generic data structures and
 other development tools :
@@ -136,8 +135,9 @@ often vary too much. Similarly, it doesn't provide a hash table interface.
 Instead, users can easily build specialized queues and hash tables on top
 of the provided facilities. Hash functions may be provided in the future.
 
-Multiprocessor support
-~~~~~~~~~~~~~~~~~~~~~~
+[[multiprocessor_support]]
+MULTIPROCESSOR SUPPORT
+----------------------
 
 The X15 kernel is designed to support hardware with multiple processors.
 The scheduler should scale well up to one hundred processors, with one
@@ -165,13 +165,15 @@ module:kern/thread::
 module:kern/xcall::
   Low level inter-processor function calls.
 
-Virtual memory
-~~~~~~~~~~~~~~
+[[virtual_memoru]]
+VIRTUAL MEMORY
+--------------
 
 TODO Write when the virtual memory system is rewritten.
 
-Real-time
-~~~~~~~~~
+[[real_time]]
+REAL-TIME
+---------
 
 X15 complies with several requirements of a true hard real-time multiprocessor
 system. It is a fully preemptible kernel with short, bounded preemption-based
@@ -199,8 +201,9 @@ For that, it still needs :
 * Time-bounded spin locks.
 * Timer service.
 
-Portability
-~~~~~~~~~~~
+[[portability]]
+PORTABILITY
+-----------
 
 Despite the fact that the kernel currently only supports the x86
 architecture, which will remain the reference port, the code is already
@@ -233,8 +236,9 @@ the future. In addition, the machine-independent code assumes an almost
 completely relaxed memory model, but still expects no reordering between
 dependent loads. This model closely matches the ARM family of processors.
 
-POSIX-like interface
-~~~~~~~~~~~~~~~~~~~~
+[[posix_like_interface]]
+POSIX-LIKE INTERFACE
+--------------------
 
 Many of the functions provided by the kernel match well-known POSIX
 interfaces. In particular, this is true for standard integer types,
