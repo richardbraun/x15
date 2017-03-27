@@ -12,14 +12,14 @@ style - kernel coding style and rules
 DESCRIPTION
 -----------
 
-This document describes the preferred coding style, a close variant of
-the modern K&R style, for the X15 kernel. It probably does not encompass
-all the rules, which are quite numerous despite efforts to keep them
-simple and compact. As a result, developers should compare their work
-against existing recent modules and infer the rules that may not be
-mentioned here. If you identify multiple rules that seem to conflict,
-assume any of them is valid. If in doubt, make a pragmatic decision
-and move forward.
+This document describes the preferred coding style for the X15 kernel,
+which is a close variant of the modern K&R style. It probably does not
+encompass all the rules, which are quite numerous despite efforts to
+keep them simple and compact. As a result, developers should compare
+their work against existing recent modules and infer the rules that
+may not be mentioned here. If you identify multiple rules that seem
+to conflict, assume any of them is valid. If in doubt, make a pragmatic
+decision and move forward.
 
 LANGUAGES
 ---------
@@ -127,9 +127,10 @@ with 80 columns allows the use of somewhat long, significant names, and
 naturally warns that a function should be simplified when the code becomes
 overly crammed to the right.
 
-Tabulation characters are forbidden in source files, and should only be
-used in Makefiles where absolutely required. This allows everyone to get
-the same view, whatever the editor used.
+Tabulation characters are strictly forbidden in source files, and should
+only be used in Makefiles where absolutely required. This allows everyone
+to get the same view, whatever the tools, including editors, comparison
+tools, web browsers, etc...
 
 In a switch statement, the case labels are aligned on the same column as
 the switch statement :
@@ -183,9 +184,9 @@ or struct/union/enum definitions. Closing braces are written on the same
 column as their associated control statement. Opening braces for functions
 are written on their own line after the arguments. Braces must also be used
 for single-line blocks, as this reduces both efforts when adding debugging
-code in such blocks and risks when merging conflicting code. In cases of
-multi-part statements, closing braces are written before the continuation.
-Here is an example :
+code in such blocks and risks when merging conflicting code. In the case of
+multi-part statements, closing braces are written one the same line as the
+continuation. Here is an example :
 
 [source,c]
 --------------------------------------------------------------------------------
@@ -218,7 +219,7 @@ used around operators, except unary operators. For example :
 
 [source,c]
 --------------------------------------------------------------------------------
-if (!skip_copy && (a != b)) {
+if (!skip_copy && (memcmp(&a, &b, sizeof(a)) != 0)) {
     memcpy(&a, &b, sizeof(a));
 }
 --------------------------------------------------------------------------------
@@ -226,11 +227,12 @@ if (!skip_copy && (a != b)) {
 When declaring pointer variables, use a space before "`*`", but not after,
 so that the "`*`" character and the variable name are adjacent. The main
 reason is that, while pointers are variables, with a type of their own,
-they are a special kind of variables, that deserve more attention. Another
-is to reduce mistakes when declaring several variables on the same line.
-On the other hand, when writing functions returning pointers, use spaces
-both before and after "`*`". The reason is to always clearly separate
-returned types from the function name. Here is an example :
+they are a special kind of variables, where the pointer nature is part
+of the variable, rather than just the type. Another is to reduce mistakes
+when declaring several variables on the same line. On the other hand, when
+writing functions returning pointers, use spaces both before and after
+"`*`". The reason is to always clearly separate returned types from the
+function name. Here is an example :
 
 [source,c]
 --------------------------------------------------------------------------------
