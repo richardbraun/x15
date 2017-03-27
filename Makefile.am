@@ -42,7 +42,7 @@ SUFFIXES += .lds .lds.S
 .lds.S.lds:
 	$(AM_V_GEN)$(CPP) -P $(AM_CPPFLAGS) -o $@ $<
 
-ASCIIDOC_FLAGS = -d manpage -a revnumber=@PACKAGE_VERSION@
+ASCIIDOC_FLAGS = -a toc -d manpage -a revnumber=@PACKAGE_VERSION@
 A2X_FLAGS = -d manpage -a revnumber=@PACKAGE_VERSION@
 
 SUFFIXES += .9 .9.html .9.xml .9.txt
