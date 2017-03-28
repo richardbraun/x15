@@ -515,6 +515,44 @@ kern/{llsync,rdxtree}: don't use llsync until it's ready
 
 This format is based on brace expansion in the bash shell.
 
+MISCELLANEOUS
+-------------
+
+Boolean Coercion
+~~~~~~~~~~~~~~~~
+
+Boolean coercion is forbidden by default, especially on pointers. Always
+explicitely compare pointers to NULL and integers to 0. For example :
+
+[source,c]
+--------------------------------------------------------------------------------
+/* Read "if ptr is not invalid and if ptr and ref are equal" */
+if ((ptr != NULL) && (memcmp(ptr, ref, sizeof(*ptr)) == 0)) {
+    do_something();
+}
+--------------------------------------------------------------------------------
+
+The main exception to this rule is error codes, which developers are
+encouraged to use as boolean values. Here is an example :
+
+[source,c]
+--------------------------------------------------------------------------------
+int error;
+
+error = do_something();
+
+if (error) {
+    if (error != ERROR_AGAIN) {
+        printk("unexpected error\n");
+    }
+
+    return error;
+}
+--------------------------------------------------------------------------------
+
+The other exception is the historical use of the *int* type, rather than
+the C99 *bool* type, for boolean values.
+
 SEE
 ---
 
