@@ -85,7 +85,7 @@ But unlike true, dogmatic OOP, the code shouldn't focus too much on
 types but also on methods. In particular, this means that the total
 number of types should remain low, and most of them should be private.
 Object-oriented programming is merely used as a way to guide the
-structure of the code and data, so that developers have somehow easy
+structure of the code and data, so that developers have somewhat easy
 ways to know how to group data together, assemble operations around
 them, and name them, while keeping most module interfaces compact.
 By restricting the selected practices of OOP, we get the banana, and
