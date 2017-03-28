@@ -571,6 +571,17 @@ Developers are allowed to use *typedef* for function pointers because,
 unlike a structure, without *typedef* a function pointer type has no name.
 It is strongly advised to end the name of the type with the suffix _fn_t.
 
+*sizeof* usage
+~~~~~~~~~~~~~~
+
+One of the pillars of robust C code is correct usage of the *sizeof*
+operator. The main rule here is to always use *sizeof* on variables,
+not types. In addition, when iterating on arrays, use the *ARRAY_SIZE*
+macro, which can be thought of as *sizeof* in terms of items rather
+than bytes (technically characters). It is important that sizes are
+directly related to the data being processed, instead of e.g. reusing
+the macro used to declare an array again in the iteration code.
+
 Boolean Coercion
 ~~~~~~~~~~~~~~~~
 
