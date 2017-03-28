@@ -21,6 +21,43 @@ may not be mentioned here. If you identify multiple rules that seem
 to conflict, assume any of them is valid. If in doubt, make a pragmatic
 decision and move forward.
 
+EXPLICIT PROGRAMMING
+--------------------
+
+As a general rule, the coding style for the X15 kernel emphasizes what
+could be called "explicit programming", which means that it encourages
+developers to clearly state their intent in the code itself. There are
+various ways to achieve that, and it can never be completely achieved,
+but it remains a strong guiding principle. For example, it is the main
+reason behind the adoption of the C programming language, despite its
+limitations, and object-oriented programming, despite the lack of support
+in the language.
+
+The price of explicit programming is verbosity. Correlations between
+code quantity and bugs do exist, and they form part of the motivation
+for more modern tools and languages, but such results merely hide the
+confounding variable behind these results : inadequate programming
+skills. Programming is a demanding activity, and kernel programming
+even more so. Reducing the number of bugs by writing less code is
+therefore not a robust strategy. Instead, developers should learn
+a set of good practices, one of them (hopefully) being described in
+this document. Since it is expected from developers that they spend
+most of their time and efforts designing their code, the ratio of the
+time spent writing code compared to the total development time should
+be low, from 5 to 30% most of the time. The increase in verbosity should
+therefore be close to negligible. On the other hand, the code should be
+very easy to understand and follow, which matters a lot more because
+there are a lot more people likely to read a piece of code compared
+to developers who have written that same piece of code. Besides, authors
+often find themselves in situations where they have forgotten the details
+of their own code and must understand it again.
+
+The environment around the X15 kernel closely adheres to the Unix culture.
+As a result, for developers with little or no experience with Unix, it is
+suggested to read {the-art-of-unix-programming} by Eric S. Raymond. Despite
+its age, it is still very relevant. The section "Basics of the Unix Philosophy"
+is of particular interest.
+
 LANGUAGES
 ---------
 
@@ -559,3 +596,5 @@ SEE
 manpage:intro
 
 {x15-operating-system}
+
+{the-art-of-unix-programming}
