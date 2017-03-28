@@ -36,7 +36,7 @@ in the language.
 The price of explicit programming is verbosity. Correlations between
 code quantity and bugs do exist, and they form part of the motivation
 for more modern tools and languages, but such results merely hide the
-confounding variable behind these results : inadequate programming
+confounding variable behind the correlations : inadequate programming
 skills. Programming is a demanding activity, and kernel programming
 even more so. Reducing the number of bugs by writing less code is
 therefore not a robust strategy. Instead, developers should learn
