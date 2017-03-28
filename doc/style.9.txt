@@ -555,6 +555,22 @@ This format is based on brace expansion in the bash shell.
 MISCELLANEOUS
 -------------
 
+*typedef* usage
+~~~~~~~~~~~~~~~
+
+Usage of the *typedef* keyword is generally avoided. It is used in tricky
+situations, such as architecture-specific integer types, function pointers,
+and truely opaque data (none of which exist at the time of this writing).
+This rule is driven by the need to know as much as possible the nature of
+the data being processed. Readers should quickly be able to know whether
+a variable is an integer or a structure (or a union, which can cause bad
+surprises), and of course if it's a pointer. This could be done with a
+naming scheme, but that would only add unnecessary rules.
+
+Developers are allowed to use *typedef* for function pointers because,
+unlike a structure, without *typedef* a function pointer type has no name.
+It is strongly advised to end the name of the type with the suffix _fn_t.
+
 Boolean Coercion
 ~~~~~~~~~~~~~~~~
 
