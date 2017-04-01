@@ -14,3 +14,5 @@ x15.lds
 /configure
 /stamp-h1
 /x15
+/doc/*\.[1-9]
+/doc/*\.[1-9]\.html
