@@ -18,49 +18,76 @@
 #ifndef _KERN_SPINLOCK_I_H
 #define _KERN_SPINLOCK_I_H
 
-#include <kern/assert.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include <kern/error.h>
 #include <kern/spinlock_types.h>
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 
+/*
+ * Non-contended lock values.
+ *
+ * Any other lock value implies a contended lock.
+ */
+#define SPINLOCK_UNLOCKED   0
+#define SPINLOCK_LOCKED     1
+
 static inline int
-spinlock_tryacquire(struct spinlock *lock)
+spinlock_lock_fast(struct spinlock *lock)
 {
-    unsigned int state;
+    unsigned int prev;
 
-    state = atomic_swap_uint(&lock->locked, 1);
+    prev = atomic_cas_uint(&lock->value, SPINLOCK_UNLOCKED, SPINLOCK_LOCKED);
 
-    if (state == 0) {
-        return 0;
+    if (prev != SPINLOCK_UNLOCKED) {
+        return ERROR_BUSY;
     }
 
-    return ERROR_BUSY;
+    return 0;
 }
 
+static inline int
+spinlock_unlock_fast(struct spinlock *lock)
+{
+    unsigned int prev;
+
+    prev = atomic_cas_uint(&lock->value, SPINLOCK_LOCKED, SPINLOCK_UNLOCKED);
+
+    if (prev != SPINLOCK_LOCKED) {
+        return ERROR_BUSY;
+    }
+
+    return 0;
+}
+
+void spinlock_lock_slow(struct spinlock *lock);
+
+void spinlock_unlock_slow(struct spinlock *lock);
+
 static inline void
-spinlock_acquire(struct spinlock *lock)
+spinlock_lock_common(struct spinlock *lock)
 {
     int error;
 
-    for (;;) {
-        error = spinlock_tryacquire(lock);
+    error = spinlock_lock_fast(lock);
 
-        if (!error) {
-            break;
-        }
-
-        cpu_pause();
+    if (error) {
+        spinlock_lock_slow(lock);
     }
 }
 
 static inline void
-spinlock_release(struct spinlock *lock)
+spinlock_unlock_common(struct spinlock *lock)
 {
-    unsigned int locked;
+    int error;
 
-    locked = atomic_swap_uint(&lock->locked, 0);
-    assert(locked);
+    error = spinlock_unlock_fast(lock);
+
+    if (error) {
+        spinlock_unlock_slow(lock);
+    }
 }
 
 #endif /* _KERN_SPINLOCK_I_H */
