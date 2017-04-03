@@ -175,17 +175,20 @@ TODO Write when the virtual memory system is rewritten.
 REAL-TIME
 ---------
 
-X15 complies with several requirements of a true hard real-time multiprocessor
-system. It is a fully preemptible kernel with short, bounded preemption-based
-critical sections. It provides real-time scheduling policies and a complete
-priority inheritance algorithm. Preemption and interrupts are clearly
-decoupled so that interrupts can remain enabled as much as possible. The
-modules related to real-time are :
+X15 complies with almost all the requirements of a true hard real-time
+multiprocessor system. It is a fully preemptible kernel with short,
+bounded preemption-based critical sections. It provides real-time
+scheduling policies and a complete priority inheritance algorithm.
+Preemption and interrupts are clearly decoupled so that interrupts
+can remain enabled as much as possible. Multiprocessor synchronization
+uses rigorously fair spin locks. The modules related to real-time are :
 
 module:arch/trap::
   Interrupt and exception handling.
 module:kern/rtmutex::
   Mutual exclusion with priority inheritance.
+module:kern/spinlock::
+  Inter-processor spin locks.
 module:kern/thread::
   Preemptive thread scheduling.
 module:kern/turnstile::
@@ -196,10 +199,7 @@ Victor Yodaiken's report {against-priority-inheritance} in order to fully
 understand the implications of relying on priority inheritance.
 
 TODO X15 doesn't yet comply with all the requirements for hard real-time.
-For that, it still needs :
-
-* Time-bounded spin locks.
-* Timer service.
+For that, it still needs a high resolution timer system.
 
 [[portability]]
 PORTABILITY
