@@ -3,8 +3,10 @@
 # Amount of physical memory
 RAM=8192
 
-# Number of processors
-NR_CPUS=8
+# Number of processors. Keep this below the number of physical processors
+# because the kernel doesn't replace spinning with sleeping from within
+# a virtual machine, which causes performance to collapse.
+NR_CPUS=4
 
 # QEMU system emulator
 QEMU_EXE=qemu-system-i386
