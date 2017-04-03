@@ -22,7 +22,7 @@
 #define _KERN_SPINLOCK_TYPES_H
 
 struct spinlock {
-    unsigned int locked;
+    unsigned int value;
 };
 
 #endif /* _KERN_SPINLOCK_TYPES_H */
