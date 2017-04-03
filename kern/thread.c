@@ -86,6 +86,7 @@
 #include <string.h>
 
 #include <kern/assert.h>
+#include <kern/atomic.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
@@ -107,7 +108,6 @@
 #include <kern/thread.h>
 #include <kern/turnstile.h>
 #include <kern/work.h>
-#include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/mb.h>
 #include <machine/pmap.h>
@@ -2723,7 +2723,7 @@ thread_key_create(unsigned int *keyp, thread_dtor_fn_t dtor)
 {
     unsigned int key;
 
-    key = atomic_fetchadd_uint(&thread_nr_keys, 1);
+    key = atomic_fetch_add(&thread_nr_keys, 1, ATOMIC_SEQ_CST);
 
     if (key >= THREAD_KEYS_MAX) {
         panic("thread: maximum number of keys exceeded");

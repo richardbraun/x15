@@ -17,9 +17,9 @@
 
 #include <stdarg.h>
 
+#include <kern/atomic.h>
 #include <kern/panic.h>
 #include <kern/printk.h>
-#include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/strace.h>
 
@@ -31,7 +31,7 @@ panic(const char *format, ...)
     va_list list;
     unsigned long already_done;
 
-    already_done = atomic_swap_uint(&panic_done, 1);
+    already_done = atomic_swap_seq_cst(&panic_done, 1);
 
     if (already_done) {
         for (;;) {

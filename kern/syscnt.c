@@ -17,6 +17,7 @@
 
 #include <string.h>
 
+#include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/list.h>
 #include <kern/mutex.h>
@@ -40,9 +41,9 @@ syscnt_setup(void)
 void __init
 syscnt_register(struct syscnt *syscnt, const char *name)
 {
-#ifndef __LP64__
+#ifndef ATOMIC_HAVE_64B_OPS
     spinlock_init(&syscnt->lock);
-#endif /* __LP64__ */
+#endif
     syscnt->value = 0;
     strlcpy(syscnt->name, name, sizeof(syscnt->name));
 

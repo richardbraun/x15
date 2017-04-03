@@ -21,9 +21,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <kern/assert.h>
+#include <kern/atomic.h>
 #include <kern/error.h>
 #include <kern/spinlock_types.h>
-#include <machine/atomic.h>
 #include <machine/cpu.h>
 
 /*
@@ -39,7 +40,7 @@ spinlock_lock_fast(struct spinlock *lock)
 {
     unsigned int prev;
 
-    prev = atomic_cas_uint(&lock->value, SPINLOCK_UNLOCKED, SPINLOCK_LOCKED);
+    prev = atomic_cas_seq_cst(&lock->value, SPINLOCK_UNLOCKED, SPINLOCK_LOCKED);
 
     if (prev != SPINLOCK_UNLOCKED) {
         return ERROR_BUSY;
@@ -53,7 +54,7 @@ spinlock_unlock_fast(struct spinlock *lock)
 {
     unsigned int prev;
 
-    prev = atomic_cas_uint(&lock->value, SPINLOCK_LOCKED, SPINLOCK_UNLOCKED);
+    prev = atomic_cas_seq_cst(&lock->value, SPINLOCK_LOCKED, SPINLOCK_UNLOCKED);
 
     if (prev != SPINLOCK_LOCKED) {
         return ERROR_BUSY;

@@ -34,7 +34,7 @@ mutex_lock_slow(struct mutex *mutex)
     sleepq = sleepq_lend(mutex, false, &flags);
 
     for (;;) {
-        state = atomic_swap_uint(&mutex->state, MUTEX_CONTENDED);
+        state = atomic_swap_seq_cst(&mutex->state, MUTEX_CONTENDED);
 
         if (state == MUTEX_UNLOCKED) {
             break;
@@ -44,7 +44,7 @@ mutex_lock_slow(struct mutex *mutex)
     }
 
     if (sleepq_empty(sleepq)) {
-        state = atomic_swap_uint(&mutex->state, MUTEX_LOCKED);
+        state = atomic_swap_seq_cst(&mutex->state, MUTEX_LOCKED);
         assert(state == MUTEX_CONTENDED);
     }
 
