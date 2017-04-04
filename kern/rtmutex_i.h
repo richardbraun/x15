@@ -22,9 +22,9 @@
 #include <stdint.h>
 
 #include <kern/assert.h>
+#include <kern/atomic.h>
 #include <kern/rtmutex_types.h>
 #include <kern/thread.h>
-#include <machine/atomic.h>
 
 /*
  * Real-time mutex flags.
@@ -57,7 +57,7 @@ rtmutex_tryacquire(struct rtmutex *rtmutex)
 
     owner = (uintptr_t)thread_self();
     rtmutex_assert_owner_aligned(owner);
-    return atomic_cas_uintptr(&rtmutex->owner, 0, owner);
+    return atomic_cas_seq_cst(&rtmutex->owner, 0, owner);
 }
 
 static inline uintptr_t
@@ -67,7 +67,7 @@ rtmutex_tryrelease(struct rtmutex *rtmutex)
 
     owner = (uintptr_t)thread_self();
     rtmutex_assert_owner_aligned(owner);
-    prev_owner = atomic_cas_uintptr(&rtmutex->owner, owner, 0);
+    prev_owner = atomic_cas_seq_cst(&rtmutex->owner, owner, 0);
     assert((prev_owner & RTMUTEX_OWNER_MASK) == owner);
     return prev_owner;
 }

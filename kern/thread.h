@@ -37,12 +37,12 @@
 #include <stddef.h>
 
 #include <kern/assert.h>
+#include <kern/atomic.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/macros.h>
 #include <kern/spinlock_types.h>
 #include <kern/turnstile_types.h>
-#include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/tcb.h>
 
@@ -270,7 +270,7 @@ thread_ref(struct thread *thread)
 {
     unsigned long nr_refs;
 
-    nr_refs = atomic_fetchadd_ulong(&thread->nr_refs, 1);
+    nr_refs = atomic_fetch_add(&thread->nr_refs, 1, ATOMIC_SEQ_CST);
     assert(nr_refs != (unsigned long)-1);
 }
 
@@ -279,7 +279,7 @@ thread_unref(struct thread *thread)
 {
     unsigned long nr_refs;
 
-    nr_refs = atomic_fetchadd_ulong(&thread->nr_refs, -1);
+    nr_refs = atomic_fetch_sub(&thread->nr_refs, 1, ATOMIC_SEQ_CST);
     assert(nr_refs != 0);
 
     if (nr_refs == 1) {

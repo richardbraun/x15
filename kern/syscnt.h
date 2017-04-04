@@ -26,9 +26,9 @@
 
 #include <stdint.h>
 
+#include <kern/atomic.h>
 #include <kern/macros.h>
 #include <kern/spinlock.h>
-#include <machine/atomic.h>
 
 /*
  * Size of the buffer storing a system counter name.
@@ -57,21 +57,21 @@ void syscnt_setup(void);
  */
 void syscnt_register(struct syscnt *syscnt, const char *name);
 
-#ifdef __LP64__
+#ifdef ATOMIC_HAVE_64B_OPS
 
 static inline void
 syscnt_add(struct syscnt *syscnt, int64_t delta)
 {
-    atomic_add_ulong(&syscnt->value, delta);
+    atomic_add(&syscnt->value, delta, ATOMIC_SEQ_CST);
 }
 
 static inline uint64_t
 syscnt_read(const struct syscnt *syscnt)
 {
-    return read_once(syscnt->value);
+    return atomic_load((uint64_t *)&syscnt->value, ATOMIC_RELAXED);
 }
 
-#else /* __LP64__ */
+#else /* ATOMIC_HAVE_64B_OPS */
 
 static inline void
 syscnt_add(struct syscnt *syscnt, int64_t delta)
@@ -96,7 +96,7 @@ syscnt_read(struct syscnt *syscnt)
     return value;
 }
 
-#endif /* __LP64__ */
+#endif /* ATOMIC_HAVE_64B_OPS */
 
 static inline void
 syscnt_inc(struct syscnt *syscnt)

@@ -20,6 +20,7 @@
 
 #include <stdbool.h>
 
+#include <kern/atomic.h>
 #include <kern/condition_types.h>
 #include <kern/cpumap.h>
 #include <kern/list_types.h>
@@ -27,7 +28,6 @@
 #include <kern/mutex_types.h>
 #include <kern/param.h>
 #include <kern/turnstile_types.h>
-#include <machine/atomic.h>
 #include <machine/tcb.h>
 
 /*
@@ -195,20 +195,19 @@ void thread_destroy(struct thread *thread);
 static inline void
 thread_set_flag(struct thread *thread, unsigned long flag)
 {
-    atomic_or_ulong(&thread->flags, flag);
+    atomic_or(&thread->flags, flag, ATOMIC_SEQ_CST);
 }
 
 static inline void
 thread_clear_flag(struct thread *thread, unsigned long flag)
 {
-    atomic_and_ulong(&thread->flags, ~flag);
+    atomic_and(&thread->flags, ~flag, ATOMIC_SEQ_CST);
 }
 
 static inline int
 thread_test_flag(struct thread *thread, unsigned long flag)
 {
-    barrier();
-    return ((thread->flags & flag) != 0);
+    return (atomic_load(&thread->flags, ATOMIC_ACQUIRE) & flag) != 0;
 }
 
 #endif /* _KERN_THREAD_I_H */

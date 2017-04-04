@@ -19,7 +19,7 @@
 #define _KERN_SEMAPHORE_I_H
 
 #include <kern/assert.h>
-#include <machine/atomic.h>
+#include <kern/atomic.h>
 
 struct semaphore {
     unsigned int value;
@@ -37,7 +37,7 @@ semaphore_dec(struct semaphore *semaphore)
             break;
         }
 
-        prev = atomic_cas_uint(&semaphore->value, value, value - 1);
+        prev = atomic_cas_seq_cst(&semaphore->value, value, value - 1);
     } while (prev != value);
 
     return value;
@@ -48,7 +48,7 @@ semaphore_inc(struct semaphore *semaphore)
 {
     unsigned int prev;
 
-    prev = atomic_fetchadd_uint(&semaphore->value, 1);
+    prev = atomic_fetch_add(&semaphore->value, 1, ATOMIC_SEQ_CST);
     assert(prev != SEMAPHORE_VALUE_MAX);
     return prev;
 }

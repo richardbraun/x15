@@ -23,6 +23,7 @@
 
 #include <stdint.h>
 
+#include <kern/atomic.h>
 #include <kern/list_types.h>
 #include <kern/spinlock_types.h>
 
@@ -31,7 +32,7 @@
  * on 32-bits ones.
  */
 struct syscnt {
-#ifndef __LP64__
+#ifndef ATOMIC_HAVE_64B_OPS
     struct spinlock lock;
 #endif /* __LP64__ */
 
