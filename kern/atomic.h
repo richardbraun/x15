@@ -18,6 +18,7 @@
 #ifndef _KERN_ATOMIC_H
 #define _KERN_ATOMIC_H
 
+#include <kern/macros.h>
 #include <machine/atomic.h>
 
 /*
