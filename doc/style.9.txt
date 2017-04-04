@@ -27,7 +27,7 @@ EXPLICIT PROGRAMMING
 As a general rule, the coding style for the X15 kernel emphasizes what
 could be called "explicit programming", which means that it encourages
 developers to clearly state their intent in the code itself. There are
-various ways to achieve that, and it can never be completely achieved,
+various ways to attempt that, and it can never be completely achieved,
 but it remains a strong guiding principle. For example, it is the main
 reason behind the adoption of the C programming language, despite its
 limitations, and object-oriented programming, despite the lack of support
@@ -78,8 +78,8 @@ OBJECT-ORIENTED PROGRAMMING
 ---------------------------
 
 The X15 kernel is a set of functional modules which often implement
-objects. As such, some properties of object-oriented programming are
-reused. Structures can be used to define classes, and functions can
+objects. As such, some practices of object-oriented programming are
+applied. Structures can be used to define classes, and functions can
 be used to implement methods, including constructors and destructors.
 But unlike true, dogmatic OOP, the code shouldn't focus too much on
 types but also on methods. In particular, this means that the total
@@ -89,7 +89,7 @@ structure of the code and data, so that developers have somewhat easy
 ways to know how to group data together, assemble operations around
 them, and name them, while keeping most module interfaces compact.
 By restricting the selected practices of OOP, we get the banana, and
-the gorilla can remain happy in his jungle.
+the gorilla happily remains in the jungle.
 
 In particular, by choice more so than by technical lack, composition
 rather than inheritance is how code reuse is achieved, because
@@ -192,7 +192,8 @@ overly crammed to the right.
 Tabulation characters are strictly forbidden in source files, and should
 only be used in Makefiles where absolutely required. This allows everyone
 to get the same view, whatever the tools, including editors, comparison
-tools, web browsers, etc...
+tools, web browsers, etc... It also removes the question of how to align
+lines in the code, e.g. when a function call spans multiple lines.
 
 In a switch statement, the case labels are aligned on the same column as
 the switch statement :
@@ -542,7 +543,7 @@ already inline functions without the presence of the keyword. Private
 functions (declared static) are easily inlined because the compiler
 knows it doesn't need to produce an externally visible symbol. Besides,
 with link-time optimizations (LTO), public functions can also be inlined
-or even removed if unused. As result, use inline for a few performance
+or even removed if unused. As a result, use inline for a few performance
 critical short functions only.
 
 GIT COMMITS
