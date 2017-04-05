@@ -92,6 +92,7 @@ void boot_mp_trampoline(void);
  *
  * Any memory passed to these must also be accessible without paging.
  */
+void * boot_memcpy(void *dest, const void *src, size_t n);
 void * boot_memmove(void *dest, const void *src, size_t n);
 void * boot_memset(void *s, int c, size_t n);
 size_t boot_strlen(const char *s);

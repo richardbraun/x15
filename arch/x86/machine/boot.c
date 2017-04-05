@@ -99,6 +99,23 @@ static char boot_panic_meminfo_msg[] __bootdata
     = "boot: missing basic memory information";
 
 void * __boot
+boot_memcpy(void *dest, const void *src, size_t n)
+{
+    const char *src_ptr;
+    char *dest_ptr;
+    size_t i;
+
+    dest_ptr = dest;
+    src_ptr = src;
+
+    for (i = 0; i < n; i++) {
+        *dest_ptr++ = *src_ptr++;
+    }
+
+    return dest;
+}
+
+void * __boot
 boot_memmove(void *dest, const void *src, size_t n)
 {
     const char *src_ptr;
