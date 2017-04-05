@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Amount of physical memory
-RAM=8192
+RAM=1024
 
 # Number of processors. Keep this below the number of physical processors
 # because the kernel doesn't replace spinning with sleeping from within
