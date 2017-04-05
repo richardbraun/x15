@@ -85,8 +85,16 @@ MACRO_END
 #endif /* __LP64__ */
 
 /*
+ * XXX Clang seems to have trouble with 64-bits operations on 32-bits
+ * processors.
+ */
+#if defined(__LP64__) || !defined(__clang__)
+
+/*
  * Report that 64-bits operations are supported.
  */
 #define ATOMIC_HAVE_64B_OPS
+
+#endif /* __clang__ */
 
 #endif /* _X86_ATOMIC_H */
