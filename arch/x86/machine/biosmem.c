@@ -318,17 +318,18 @@ biosmem_map_sort(void)
      * Simple insertion sort.
      */
     for (i = 1; i < biosmem_map_size; i++) {
-        tmp = biosmem_map[i];
+        boot_memcpy(&tmp, &biosmem_map[i], sizeof(tmp));
 
         for (j = i - 1; j < i; j--) {
             if (biosmem_map[j].base_addr < tmp.base_addr) {
                 break;
             }
 
-            biosmem_map[j + 1] = biosmem_map[j];
+            boot_memcpy(&biosmem_map[j + 1], &biosmem_map[j],
+                        sizeof(biosmem_map[j + 1]));
         }
 
-        biosmem_map[j + 1] = tmp;
+        boot_memcpy(&biosmem_map[j + 1], &tmp, sizeof(biosmem_map[j + 1]));
     }
 }
 
@@ -389,16 +390,16 @@ biosmem_map_adjust(void)
              */
             if (biosmem_map_entry_is_invalid(a)
                 && biosmem_map_entry_is_invalid(b)) {
-                *a = tmp;
+                boot_memcpy(a, &tmp, sizeof(*a));
                 biosmem_map_size--;
                 memmove(b, b + 1, (biosmem_map_size - j) * sizeof(*b));
                 continue;
             } else if (biosmem_map_entry_is_invalid(a)) {
-                *a = tmp;
+                boot_memcpy(a, &tmp, sizeof(*a));
                 j++;
                 continue;
             } else if (biosmem_map_entry_is_invalid(b)) {
-                *b = tmp;
+                boot_memcpy(b, &tmp, sizeof(*b));
                 j++;
                 continue;
             }
@@ -418,7 +419,8 @@ biosmem_map_adjust(void)
                     boot_panic(biosmem_panic_too_big_msg);
                 }
 
-                biosmem_map[biosmem_map_size] = tmp;
+                boot_memcpy(&biosmem_map[biosmem_map_size], &tmp,
+                            sizeof(biosmem_map[biosmem_map_size]));
                 biosmem_map_size++;
                 j++;
                 continue;
