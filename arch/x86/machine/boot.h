@@ -61,7 +61,7 @@
  * Once paging is enabled, their access relies on the kernel identity mapping.
  */
 #define __boot __section(".boot.text")
-#define __bootdata __section(".boot.data")
+#define __bootdata __section(".boot.data") __attribute__((used))
 
 /*
  * Boundaries of the .boot section.
