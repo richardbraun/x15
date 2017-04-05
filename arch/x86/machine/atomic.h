@@ -16,27 +16,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * Architecture-specific atomic operations and definitions.
- *
+ * Architecture-specific definitions for atomic operations.
  */
 
 #ifndef _X86_ATOMIC_H
 #define _X86_ATOMIC_H
 
-#ifdef __LP64__
+#ifndef _KERN_ATOMIC_H
+#error "don't include <machine/atomic.h> directly, use <kern/atomic.h> instead"
+#endif
 
-#define atomic_load(ptr, mo)         __atomic_load_n((ptr), mo)
-#define atomic_store(ptr, val, mo)   __atomic_store_n((ptr), (val), mo)
+#include <stdbool.h>
 
-#else /* __LP64__ */
+#include <kern/macros.h>
+
+#ifndef __LP64__
 
 /*
- * On x86, the compiler generates either an FP-stack read/write, or an SSE2
+ * On i386, the compiler generates either an FP-stack read/write, or an SSE2
  * store/load to implement these 64-bit atomic operations. Since that's not
- * feasible on kernel-land, we fallback to cmpxchg8b. Note that this means
- * that 'atomic_load' cannot be used on a const pointer. However, if it's
- * being accessed by an atomic operation, then it's very likely that it can
- * also be modified, so it should be OK.
+ * feasible in the kernel, fall back to cmpxchg8b. Note that, in this case,
+ * loading becomes a potentially mutating operation, but it's not expected
+ * to be a problem since atomic operations are normally not used on read-only
+ * memory. Also note that this assumes the processor is at least an i586.
  */
 
 #define atomic_load(ptr, mo)                                              \
@@ -44,11 +46,11 @@ MACRO_BEGIN                                                               \
     typeof(*(ptr)) ___ret;                                                \
                                                                           \
     if (sizeof(___ret) != 8) {                                            \
-        ___ret = __atomic_load_n((ptr), mo);                              \
+        ___ret = __atomic_load_n(ptr, mo);                                \
     } else {                                                              \
         ___ret = 0;                                                       \
-        __atomic_compare_exchange_n((uint64_t *)(ptr), &___ret, ___ret,   \
-                                    0, mo, __ATOMIC_RELAXED);             \
+        __atomic_compare_exchange_n(ptr, &___ret, ___ret,                 \
+                                    false, mo, __ATOMIC_RELAXED);         \
     }                                                                     \
                                                                           \
     ___ret;                                                               \
@@ -57,29 +59,34 @@ MACRO_END
 #define atomic_store(ptr, val, mo)                                        \
 MACRO_BEGIN                                                               \
     if (sizeof(*(ptr) != 8)) {                                            \
-        __atomic_store_n((ptr), (val), mo);                               \
+        __atomic_store_n(ptr, val, mo);                                   \
     } else {                                                              \
-        typeof(ptr) ___ptr;                                               \
-        typeof(val) ___val, ___exp;                                       \
+        typeof(val) ___oval, ___nval;                                     \
+        bool ___done;                                                     \
                                                                           \
-        ___ptr = (uint64_t *)(ptr);                                       \
-        ___val = (val);                                                   \
-        ___exp = *___ptr;                                                 \
+        ___oval = *(ptr);                                                 \
+        ___nval = (val);                                                  \
                                                                           \
-        while (!__atomic_compare_exchange_n(___ptr, &___exp, ___val, 0,   \
-               momo, __ATOMIC_RELAXED)) {                                 \
-        }                                                                 \
+        do {                                                              \
+            ___done = __atomic_compare_exchange_n(ptr, &___oval, ___nval, \
+                                                  false, mo,              \
+                                                  __ATOMIC_RELAXED);      \
+        } while (!___done);                                               \
                                                                           \
     }                                                                     \
 MACRO_END
 
+/*
+ * Report that load and store are architecture-specific.
+ */
+#define ATOMIC_ARCH_SPECIFIC_LOAD
+#define ATOMIC_ARCH_SPECIFIC_STORE
+
 #endif /* __LP64__ */
 
-/* Notify the generic header that we implemented loads and stores */
-#define ATOMIC_LOAD_DEFINED
-#define ATOMIC_STORE_DEFINED
-
-/* Both x86 and x86_64 can use atomic operations on 64-bit values */
+/*
+ * Report that 64-bits operations are supported.
+ */
 #define ATOMIC_HAVE_64B_OPS
 
 #endif /* _X86_ATOMIC_H */
