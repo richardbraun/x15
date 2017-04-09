@@ -84,7 +84,6 @@ SECTIONS
 
     .bss ALIGN(DATA_ALIGN) : AT(BOOT_VTOP(ADDR(.bss))) {
         *(.bss)
-        *(COMMON)
     } : data
 
     . = ALIGN(PAGE_SIZE);
