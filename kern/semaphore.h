@@ -66,7 +66,7 @@ semaphore_trywait(struct semaphore *semaphore)
 
     prev = semaphore_dec(semaphore);
 
-    if (prev == 0) {
+    if (unlikely(prev == 0)) {
         return ERROR_AGAIN;
     }
 
@@ -86,11 +86,9 @@ semaphore_wait(struct semaphore *semaphore)
 
     prev = semaphore_dec(semaphore);
 
-    if (prev != 0) {
-        return;
+    if (unlikely(prev == 0)) {
+        semaphore_wait_slow(semaphore);
     }
-
-    semaphore_wait_slow(semaphore);
 }
 
 /*
@@ -108,11 +106,9 @@ semaphore_post(struct semaphore *semaphore)
 
     prev = semaphore_inc(semaphore);
 
-    if (prev != 0) {
-        return;
+    if (unlikely(prev == 0)) {
+        semaphore_post_slow(semaphore);
     }
-
-    semaphore_post_slow(semaphore);
 }
 
 /*
