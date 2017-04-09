@@ -70,6 +70,7 @@ mutex_unlock(struct mutex *mutex)
 
 #include <kern/assert.h>
 #include <kern/error.h>
+#include <kern/macros.h>
 #include <kern/mutex_i.h>
 #include <kern/thread.h>
 
@@ -100,11 +101,12 @@ mutex_trylock(struct mutex *mutex)
 
     state = mutex_lock_fast(mutex);
 
-    if (state == MUTEX_UNLOCKED) {
-        return 0;
+    if (unlikely(state != MUTEX_UNLOCKED)) {
+        assert((state == MUTEX_LOCKED) || (state == MUTEX_CONTENDED));
+        return ERROR_BUSY;
     }
 
-    return ERROR_BUSY;
+    return 0;
 }
 
 /*
@@ -122,13 +124,10 @@ mutex_lock(struct mutex *mutex)
 
     state = mutex_lock_fast(mutex);
 
-    if (state == MUTEX_UNLOCKED) {
-        return;
+    if (unlikely(state != MUTEX_UNLOCKED)) {
+        assert((state == MUTEX_LOCKED) || (state == MUTEX_CONTENDED));
+        mutex_lock_slow(mutex);
     }
-
-    assert((state == MUTEX_LOCKED) || (state == MUTEX_CONTENDED));
-
-    mutex_lock_slow(mutex);
 }
 
 /*
@@ -144,7 +143,7 @@ mutex_unlock(struct mutex *mutex)
 
     state = mutex_unlock_fast(mutex);
 
-    if (state != MUTEX_LOCKED) {
+    if (unlikely(state != MUTEX_LOCKED)) {
         assert(state == MUTEX_CONTENDED);
         mutex_unlock_slow(mutex);
     }

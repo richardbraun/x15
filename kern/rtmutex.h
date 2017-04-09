@@ -28,6 +28,7 @@
 
 #include <kern/assert.h>
 #include <kern/error.h>
+#include <kern/macros.h>
 #include <kern/rtmutex_i.h>
 #include <kern/rtmutex_types.h>
 
@@ -58,11 +59,11 @@ rtmutex_trylock(struct rtmutex *rtmutex)
 
     prev_owner = rtmutex_lock_fast(rtmutex);
 
-    if (prev_owner == 0) {
-        return 0;
+    if (unlikely(prev_owner != 0)) {
+        return ERROR_BUSY;
     }
 
-    return ERROR_BUSY;
+    return 0;
 }
 
 /*
@@ -81,11 +82,9 @@ rtmutex_lock(struct rtmutex *rtmutex)
 
     prev_owner = rtmutex_lock_fast(rtmutex);
 
-    if (prev_owner == 0) {
-        return;
+    if (unlikely(prev_owner != 0)) {
+        rtmutex_lock_slow(rtmutex);
     }
-
-    rtmutex_lock_slow(rtmutex);
 }
 
 /*
@@ -101,7 +100,7 @@ rtmutex_unlock(struct rtmutex *rtmutex)
 
     prev_owner = rtmutex_unlock_fast(rtmutex);
 
-    if (!(prev_owner & RTMUTEX_CONTENDED)) {
+    if (prev_owner & RTMUTEX_CONTENDED) {
         return;
     }
 

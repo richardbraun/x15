@@ -24,6 +24,7 @@
 #include <kern/assert.h>
 #include <kern/atomic.h>
 #include <kern/error.h>
+#include <kern/macros.h>
 #include <kern/spinlock_types.h>
 #include <machine/cpu.h>
 
@@ -42,7 +43,7 @@ spinlock_lock_fast(struct spinlock *lock)
 
     prev = atomic_cas_seq_cst(&lock->value, SPINLOCK_UNLOCKED, SPINLOCK_LOCKED);
 
-    if (prev != SPINLOCK_UNLOCKED) {
+    if (unlikely(prev != SPINLOCK_UNLOCKED)) {
         return ERROR_BUSY;
     }
 
@@ -56,7 +57,7 @@ spinlock_unlock_fast(struct spinlock *lock)
 
     prev = atomic_cas_seq_cst(&lock->value, SPINLOCK_LOCKED, SPINLOCK_UNLOCKED);
 
-    if (prev != SPINLOCK_LOCKED) {
+    if (unlikely(prev != SPINLOCK_LOCKED)) {
         return ERROR_BUSY;
     }
 
@@ -74,7 +75,7 @@ spinlock_lock_common(struct spinlock *lock)
 
     error = spinlock_lock_fast(lock);
 
-    if (error) {
+    if (unlikely(error)) {
         spinlock_lock_slow(lock);
     }
 }
@@ -86,7 +87,7 @@ spinlock_unlock_common(struct spinlock *lock)
 
     error = spinlock_unlock_fast(lock);
 
-    if (error) {
+    if (unlikely(error)) {
         spinlock_unlock_slow(lock);
     }
 }

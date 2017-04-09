@@ -26,6 +26,7 @@
 #ifndef _KERN_SPINLOCK_H
 #define _KERN_SPINLOCK_H
 
+#include <kern/macros.h>
 #include <kern/spinlock_i.h>
 #include <kern/spinlock_types.h>
 #include <kern/thread.h>
@@ -55,7 +56,7 @@ spinlock_trylock(struct spinlock *lock)
     thread_preempt_disable();
     error = spinlock_lock_fast(lock);
 
-    if (error) {
+    if (unlikely(error)) {
         thread_preempt_enable();
     }
 
@@ -117,7 +118,7 @@ spinlock_trylock_intr_save(struct spinlock *lock, unsigned long *flags)
     cpu_intr_save(flags);
     error = spinlock_lock_fast(lock);
 
-    if (error) {
+    if (unlikely(error)) {
         cpu_intr_restore(*flags);
         thread_preempt_enable();
     }
