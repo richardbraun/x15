@@ -49,7 +49,7 @@ percpu_setup(void)
     struct vm_page *page;
     unsigned int order;
 
-    percpu_area_size = &_epercpu - &_percpu;
+    percpu_area_size = &_percpu_end - &_percpu;
     printk("percpu: max_cpus: %u, section size: %zuk\n", X15_MAX_CPUS,
            percpu_area_size >> 10);
     assert(vm_page_aligned(percpu_area_size));

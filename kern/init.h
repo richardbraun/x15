@@ -36,7 +36,7 @@
  * Boundaries of the .init section.
  */
 extern char _init;
-extern char _einit;
+extern char _init_end;
 
 #endif /* __ASSEMBLER__ */
 

@@ -42,7 +42,7 @@
  *
  * Architecture-specific code must enforce that the percpu section starts
  * at 0, thereby making the addresses of percpu variables offsets into the
- * percpu area. It must also make sure the _percpu and _epercpu symbols
+ * percpu area. It must also make sure the _percpu and _percpu_end symbols
  * have valid virtual addresses, included between _init (but not part of
  * the init section) and _end.
  *
@@ -68,7 +68,7 @@
  * itself has different addresses.
  */
 extern char _percpu;
-extern char _epercpu;
+extern char _percpu_end;
 
 /*
  * Expands to the address of a percpu variable.

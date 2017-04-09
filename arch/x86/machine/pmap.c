@@ -437,7 +437,7 @@ pmap_setup_paging(void)
 
     va = vm_page_trunc((uintptr_t)&_boot);
     pa = va;
-    size = vm_page_round((uintptr_t)&_eboot) - va;
+    size = vm_page_round((uintptr_t)&_boot_end) - va;
 
     for (i = 0; i < size; i += PAGE_SIZE) {
         pmap_boot_enter(root_ptp, va, pa, PAGE_SIZE);

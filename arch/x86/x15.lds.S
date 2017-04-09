@@ -34,7 +34,7 @@ SECTIONS
     } : boot
 
     . = ALIGN(PAGE_SIZE);
-    _eboot = .;
+    _boot_end = .;
 
     . += VM_KERNEL_OFFSET;
     _init = .;
@@ -45,7 +45,7 @@ SECTIONS
     } : init
 
     . = ALIGN(PAGE_SIZE);
-    _einit = .;
+    _init_end = .;
     _percpu = .;
 
     .percpu 0 : AT(BOOT_VTOP(_percpu)) {
@@ -54,7 +54,7 @@ SECTIONS
 
     . = _percpu + SIZEOF(.percpu);
     . = ALIGN(PAGE_SIZE);
-    _epercpu = .;
+    _percpu_end = .;
     _text = .;
 
     .text ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.text))) {

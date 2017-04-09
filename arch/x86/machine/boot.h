@@ -67,7 +67,7 @@
  * Boundaries of the .boot section.
  */
 extern char _boot;
-extern char _eboot;
+extern char _boot_end;
 
 extern char boot_stack[STACK_SIZE];
 extern char boot_ap_stack[STACK_SIZE];
