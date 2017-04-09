@@ -51,7 +51,7 @@
     assert(((owner) & ~RTMUTEX_OWNER_MASK) == 0)
 
 static inline uintptr_t
-rtmutex_tryacquire(struct rtmutex *rtmutex)
+rtmutex_lock_fast(struct rtmutex *rtmutex)
 {
     uintptr_t owner;
 
@@ -61,7 +61,7 @@ rtmutex_tryacquire(struct rtmutex *rtmutex)
 }
 
 static inline uintptr_t
-rtmutex_tryrelease(struct rtmutex *rtmutex)
+rtmutex_unlock_fast(struct rtmutex *rtmutex)
 {
     uintptr_t owner, prev_owner;
 

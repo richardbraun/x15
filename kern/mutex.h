@@ -98,7 +98,7 @@ mutex_trylock(struct mutex *mutex)
 {
     unsigned int state;
 
-    state = mutex_tryacquire(mutex);
+    state = mutex_lock_fast(mutex);
 
     if (state == MUTEX_UNLOCKED) {
         return 0;
@@ -120,7 +120,7 @@ mutex_lock(struct mutex *mutex)
 {
     unsigned int state;
 
-    state = mutex_tryacquire(mutex);
+    state = mutex_lock_fast(mutex);
 
     if (state == MUTEX_UNLOCKED) {
         return;
@@ -142,7 +142,7 @@ mutex_unlock(struct mutex *mutex)
 {
     unsigned int state;
 
-    state = mutex_release(mutex);
+    state = mutex_unlock_fast(mutex);
 
     if (state != MUTEX_LOCKED) {
         assert(state == MUTEX_CONTENDED);

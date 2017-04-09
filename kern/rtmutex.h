@@ -56,7 +56,7 @@ rtmutex_trylock(struct rtmutex *rtmutex)
 {
     uintptr_t prev_owner;
 
-    prev_owner = rtmutex_tryacquire(rtmutex);
+    prev_owner = rtmutex_lock_fast(rtmutex);
 
     if (prev_owner == 0) {
         return 0;
@@ -79,7 +79,7 @@ rtmutex_lock(struct rtmutex *rtmutex)
 {
     uintptr_t prev_owner;
 
-    prev_owner = rtmutex_tryacquire(rtmutex);
+    prev_owner = rtmutex_lock_fast(rtmutex);
 
     if (prev_owner == 0) {
         return;
@@ -99,7 +99,7 @@ rtmutex_unlock(struct rtmutex *rtmutex)
 {
     uintptr_t prev_owner;
 
-    prev_owner = rtmutex_tryrelease(rtmutex);
+    prev_owner = rtmutex_unlock_fast(rtmutex);
 
     if (!(prev_owner & RTMUTEX_CONTENDED)) {
         return;

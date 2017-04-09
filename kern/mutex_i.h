@@ -29,13 +29,13 @@
 #define MUTEX_CONTENDED 2
 
 static inline unsigned int
-mutex_tryacquire(struct mutex *mutex)
+mutex_lock_fast(struct mutex *mutex)
 {
     return atomic_cas_seq_cst(&mutex->state, MUTEX_UNLOCKED, MUTEX_LOCKED);
 }
 
 static inline unsigned int
-mutex_release(struct mutex *mutex)
+mutex_unlock_fast(struct mutex *mutex)
 {
     unsigned int state;
 
