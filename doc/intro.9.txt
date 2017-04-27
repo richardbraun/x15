@@ -148,10 +148,10 @@ maximize processor utility.
 
 Here are some modules related to multiprocessor support :
 
-module:arch/atomic::
-  Inter-processor atomic operations.
 module:arch/mb::
   Inter-processor memory barriers.
+module:kern/atomic::
+  Inter-processor atomic operations.
 module:kern/cpumap::
   Specialized bitmaps representing processor sets.
 module:kern/percpu::
@@ -215,7 +215,7 @@ Ports are located in the arch directory. Here are the modules that
 must provide interfaces expected by the machine-independent layer :
 
 module:arch/atomic::
-  Atomic instructions.
+  Architecture-specific support for atomic instructions.
 module:arch/cpu::
   Processor interface.
 module:arch/mb::
