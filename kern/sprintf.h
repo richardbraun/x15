@@ -28,6 +28,9 @@
 #ifndef _KERN_SPRINTF_H
 #define _KERN_SPRINTF_H
 
+#ifndef _STDIO_H
+#error "do not use <kern/sprintf.h> directly; include <stdio.h> instead"
+#endif /* _STDIO_H */
 #include <stdarg.h>
 
 #include <kern/macros.h>

@@ -27,6 +27,10 @@
 #ifndef _KERN_PRINTK_H
 #define _KERN_PRINTK_H
 
+#ifndef _STDIO_H
+#error "do not use <kern/printf.h> directly; include <stdio.h> instead"
+#endif /* _STDIO_H */
+
 #include <stdarg.h>
 
 #include <kern/macros.h>
