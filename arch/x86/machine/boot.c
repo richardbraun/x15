@@ -45,6 +45,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <kern/init.h>
@@ -54,7 +55,6 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
-#include <kern/printf.h>
 #include <kern/sleepq.h>
 #include <kern/sref.h>
 #include <kern/syscnt.h>

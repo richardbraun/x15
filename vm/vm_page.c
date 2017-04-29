@@ -32,6 +32,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <kern/assert.h>
@@ -41,8 +42,6 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
-#include <kern/printf.h>
-#include <kern/sprintf.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>

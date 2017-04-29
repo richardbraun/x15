@@ -33,6 +33,7 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 
 #include <kern/error.h>
 #include <kern/macros.h>

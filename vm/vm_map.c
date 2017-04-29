@@ -21,6 +21,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include <kern/assert.h>
 #include <kern/error.h>
@@ -31,7 +32,6 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
-#include <kern/printf.h>
 #include <kern/rbtree.h>
 #include <machine/pmap.h>
 #include <vm/vm_adv.h>

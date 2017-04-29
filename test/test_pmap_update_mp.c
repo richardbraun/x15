@@ -25,6 +25,7 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <kern/condition.h>
@@ -33,7 +34,6 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
-#include <kern/printf.h>
 #include <kern/thread.h>
 #include <test/test.h>
 #include <vm/vm_kmem.h>

@@ -34,6 +34,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include <kern/assert.h>
 #include <kern/condition.h>
@@ -46,9 +47,7 @@
 #include <kern/mutex.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
-#include <kern/printf.h>
 #include <kern/spinlock.h>
-#include <kern/sprintf.h>
 #include <kern/syscnt.h>
 #include <kern/work.h>
 #include <machine/cpu.h>

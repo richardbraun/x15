@@ -68,9 +68,9 @@
 #ifndef __ASSEMBLER__
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include <kern/macros.h>
-#include <kern/printf.h>
 
 #ifdef __LP64__
 

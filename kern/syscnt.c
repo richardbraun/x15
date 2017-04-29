@@ -15,13 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
 #include <string.h>
 
 #include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/list.h>
 #include <kern/mutex.h>
-#include <kern/printf.h>
 #include <kern/spinlock.h>
 #include <kern/syscnt.h>
 

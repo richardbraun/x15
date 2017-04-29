@@ -83,6 +83,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <kern/assert.h>
@@ -101,7 +102,6 @@
 #include <kern/percpu.h>
 #include <kern/sleepq.h>
 #include <kern/spinlock.h>
-#include <kern/sprintf.h>
 #include <kern/sref.h>
 #include <kern/syscnt.h>
 #include <kern/task.h>

@@ -4,6 +4,7 @@ include doc/Makefrag.am
 EXTRA_DIST += tools/qemu.sh
 
 x15_SOURCES +=                                              \
+	include/stdio.h                                     \
 	include/string.h
 
 x15_SOURCES +=                                              \

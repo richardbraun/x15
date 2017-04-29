@@ -15,9 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <kern/printf.h>
+#include <stdio.h>
+
 #include <kern/spinlock.h>
-#include <kern/sprintf.h>
 #include <machine/cpu.h>
 
 /*

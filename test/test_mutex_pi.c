@@ -78,13 +78,13 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
-#include <kern/printf.h>
 #include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <kern/turnstile.h>
