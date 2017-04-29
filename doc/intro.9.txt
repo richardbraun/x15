@@ -12,8 +12,8 @@ intro - introduction to kernel interfaces
 DESCRIPTION
 -----------
 
-X15 is an open source microkernel. Its purpose is to provide the basic
-foundations for an operating system or a hosted application.
+X15 is an open source microkernel. Its purpose is to provide a foundation
+for a Hurd-like operating system or an embedded kernel application.
 
 Section 9 of the manual describes kernel interfaces, both internal and
 provided to application code hosted in kernel mode.
