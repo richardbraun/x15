@@ -1162,7 +1162,7 @@ pmap_enter_local(struct pmap *pmap, uintptr_t va, phys_addr_t pa,
             page = vm_page_alloc(0, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_PMAP);
 
             if (page == NULL) {
-                printk("pmap: warning: page table page allocation failure\n");
+                printf("pmap: warning: page table page allocation failure\n");
                 return ERROR_NOMEM;
             }
 

@@ -17,7 +17,7 @@
  *
  * Formatted output functions.
  *
- * The printk() and vprintk() functions internally use a statically
+ * The printf() and vprintf() functions internally use a statically
  * allocated buffer. They won't produce output larger than 1 KiB. They can
  * be used safely in any context.
  *
@@ -31,8 +31,8 @@
 
 #include <kern/macros.h>
 
-int printk(const char *format, ...) __format_printf(1, 2);
-int vprintk(const char *format, va_list ap) __format_printf(1, 0);
-void printk_setup(void);
+int printf(const char *format, ...) __format_printf(1, 2);
+int vprintf(const char *format, va_list ap) __format_printf(1, 0);
+void printf_setup(void);
 
 #endif /* _KERN_PRINTK_H */

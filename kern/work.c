@@ -27,7 +27,7 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/syscnt.h>
@@ -375,7 +375,7 @@ work_process(void *arg)
 
                 if (error) {
                     work_pool_free_id(pool, id);
-                    printk("work: warning: unable to create worker thread\n");
+                    printf("work: warning: unable to create worker thread\n");
                 }
             }
         }
@@ -491,7 +491,7 @@ work_setup(void)
     work_pool_init(&work_pool_highprio, WORK_INVALID_CPU,
                    WORK_PF_GLOBAL | WORK_PF_HIGHPRIO);
 
-    printk("work: threads per pool (per-cpu/global): %u/%u, spare: %u\n",
+    printf("work: threads per pool (per-cpu/global): %u/%u, spare: %u\n",
            percpu_var(work_pool_cpu_main.max_threads, 0),
            work_pool_main.max_threads, WORK_THREADS_SPARE);
 }

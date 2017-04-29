@@ -76,7 +76,7 @@ test_ref(void *arg)
 
     mutex_lock(&test_lock);
 
-    printk("waiting for page\n");
+    printf("waiting for page\n");
 
     while (test_obj == NULL) {
         condition_wait(&test_condition, &test_lock);
@@ -86,13 +86,13 @@ test_ref(void *arg)
 
     mutex_unlock(&test_lock);
 
-    printk("page received, manipulate reference counter\n");
+    printf("page received, manipulate reference counter\n");
 
     while (!test_stop) {
         test_manipulate_counter(obj);
     }
 
-    printk("thread exiting\n");
+    printf("thread exiting\n");
 }
 
 static void
@@ -102,7 +102,7 @@ test_obj_noref(struct sref_counter *counter)
 
     obj = structof(counter, struct test_obj, ref_counter);
     vm_kmem_free(obj, sizeof(*obj));
-    printk("0 references, page released\n");
+    printf("0 references, page released\n");
     syscnt_info("sref_epoch");
     syscnt_info("sref_dirty_zero");
     syscnt_info("sref_true_zero");
@@ -135,7 +135,7 @@ test_run(void *arg)
         error_check(error, "thread_create");
     }
 
-    printk("allocating page\n");
+    printf("allocating page\n");
     obj = vm_kmem_alloc(sizeof(*obj));
 
     if (obj == NULL) {
@@ -144,7 +144,7 @@ test_run(void *arg)
 
     sref_counter_init(&obj->ref_counter, NULL, test_obj_noref);
 
-    printk("page allocated, 1 reference, publishing\n");
+    printf("page allocated, 1 reference, publishing\n");
 
     mutex_lock(&test_lock);
     test_obj = obj;
@@ -155,14 +155,14 @@ test_run(void *arg)
         test_manipulate_counter(obj);
     }
 
-    printk("stopping test, wait for threads\n");
+    printf("stopping test, wait for threads\n");
     test_stop = 1;
 
     for (i = 0; i < nr_threads; i++) {
         thread_join(threads[i]);
     }
 
-    printk("releasing initial reference\n");
+    printf("releasing initial reference\n");
     sref_counter_dec(&obj->ref_counter);
 
     kmem_free(threads, sizeof(*threads) * nr_threads);

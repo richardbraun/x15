@@ -25,7 +25,7 @@
 #include <kern/error.h>
 #include <kern/cpumap.h>
 #include <kern/panic.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/thread.h>
 #include <kern/xcall.h>
 #include <test/test.h>
@@ -37,7 +37,7 @@ test_fn(void *arg)
 {
     (void)arg;
 
-    printk("function called, running on cpu%u\n", cpu_id());
+    printf("function called, running on cpu%u\n", cpu_id());
     test_done = 1;
 }
 
@@ -46,7 +46,7 @@ test_once(unsigned int cpu)
 {
     test_done = 0;
 
-    printk("cross-call on cpu%u:\n", cpu);
+    printf("cross-call on cpu%u:\n", cpu);
     xcall_call(test_fn, NULL, cpu);
 
     if (!test_done) {
@@ -61,7 +61,7 @@ test_run(void *arg)
 
     test_once(0);
     test_once(1);
-    printk("done\n");
+    printf("done\n");
 }
 
 void

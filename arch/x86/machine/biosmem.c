@@ -25,7 +25,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
@@ -224,7 +224,7 @@ biosmem_unregister_boot_data(phys_addr_t start, phys_addr_t end)
     }
 
 #if DEBUG
-    printk("biosmem: unregister boot data: %llx:%llx\n",
+    printf("biosmem: unregister boot data: %llx:%llx\n",
            (unsigned long long)biosmem_boot_data_array[i].start,
            (unsigned long long)biosmem_boot_data_array[i].end);
 #endif /* DEBUG */
@@ -776,16 +776,16 @@ biosmem_map_show(void)
 {
     const struct biosmem_map_entry *entry, *end;
 
-    printk("biosmem: physical memory map:\n");
+    printf("biosmem: physical memory map:\n");
 
     for (entry = biosmem_map, end = entry + biosmem_map_size;
          entry < end;
          entry++)
-        printk("biosmem: %018llx:%018llx, %s\n", entry->base_addr,
+        printf("biosmem: %018llx:%018llx, %s\n", entry->base_addr,
                entry->base_addr + entry->length,
                biosmem_type_desc(entry->type));
 
-    printk("biosmem: heap: %llx:%llx\n",
+    printf("biosmem: heap: %llx:%llx\n",
            (unsigned long long)biosmem_heap_start,
            (unsigned long long)biosmem_heap_end);
 }
@@ -806,12 +806,12 @@ biosmem_load_zone(struct biosmem_zone *zone, uint64_t max_phys_end)
 
     if (phys_end > max_phys_end) {
         if (max_phys_end <= phys_start) {
-            printk("biosmem: warning: zone %s physically unreachable, "
+            printf("biosmem: warning: zone %s physically unreachable, "
                    "not loaded\n", vm_page_zone_name(zone_index));
             return;
         }
 
-        printk("biosmem: warning: zone %s truncated to %#llx\n",
+        printf("biosmem: warning: zone %s truncated to %#llx\n",
                vm_page_zone_name(zone_index), (unsigned long long)max_phys_end);
         phys_end = max_phys_end;
     }
@@ -889,7 +889,7 @@ biosmem_free_usable_range(phys_addr_t start, phys_addr_t end)
     struct vm_page *page;
 
 #if DEBUG
-    printk("biosmem: release to vm_page: %llx:%llx (%lluk)\n",
+    printf("biosmem: release to vm_page: %llx:%llx (%lluk)\n",
            (unsigned long long)start, (unsigned long long)end,
            (unsigned long long)((end - start) >> 10));
 #endif

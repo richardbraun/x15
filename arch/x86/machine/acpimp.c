@@ -24,7 +24,7 @@
 #include <kern/kmem.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <machine/acpimp.h>
 #include <machine/biosmem.h>
 #include <machine/cpu.h>
@@ -159,7 +159,7 @@ acpimp_register_table(struct acpimp_sdth *table)
     for (i = 0; i < ARRAY_SIZE(acpimp_table_addrs); i++)
         if (strcmp(sig, acpimp_table_addrs[i].sig) == 0) {
             if (acpimp_table_addrs[i].table != NULL) {
-                printk("acpimp: warning: table %s ignored:"
+                printf("acpimp: warning: table %s ignored:"
                        " already registered\n", sig);
                 return;
             }
@@ -168,7 +168,7 @@ acpimp_register_table(struct acpimp_sdth *table)
             return;
         }
 
-    printk("acpimp: warning: table '%s' ignored: unknown table\n", sig);
+    printf("acpimp: warning: table '%s' ignored: unknown table\n", sig);
 }
 
 static struct acpimp_sdth * __init
@@ -191,7 +191,7 @@ acpimp_check_tables(void)
 
     for (i = 0; i < ARRAY_SIZE(acpimp_table_addrs); i++)
         if (acpimp_table_addrs[i].table == NULL) {
-            printk("acpimp: error: table %s missing\n",
+            printf("acpimp: error: table %s missing\n",
                    acpimp_table_addrs[i].sig);
             return -1;
         }
@@ -325,7 +325,7 @@ acpimp_find_rsdp(struct acpimp_rsdp *rsdp)
         return 0;
     }
 
-    printk("acpimp: unable to find root system description pointer\n");
+    printf("acpimp: unable to find root system description pointer\n");
     return -1;
 }
 
@@ -336,7 +336,7 @@ acpimp_info(void)
 
     rsdt = acpimp_lookup_table("RSDT");
     assert(rsdt != NULL);
-    printk("acpimp: revision: %u, oem: %.*s\n", rsdt->revision,
+    printf("acpimp: revision: %u, oem: %.*s\n", rsdt->revision,
            (int)sizeof(rsdt->oem_id), rsdt->oem_id);
 }
 
@@ -375,7 +375,7 @@ acpimp_copy_table(uint32_t addr)
         char sig[ACPIMP_SIG_SIZE];
 
         acpimp_table_sig(table, sig);
-        printk("acpimp: table %s: invalid checksum\n", sig);
+        printf("acpimp: table %s: invalid checksum\n", sig);
         copy = NULL;
         goto out;
     }

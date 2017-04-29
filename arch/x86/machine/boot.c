@@ -54,7 +54,7 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/sleepq.h>
 #include <kern/sref.h>
 #include <kern/syscnt.h>
@@ -307,7 +307,7 @@ boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
 static void __init
 boot_show_version(void)
 {
-    printk(KERNEL_NAME "/" QUOTE(X15_X86_MACHINE) " " KERNEL_VERSION
+    printf(KERNEL_NAME "/" QUOTE(X15_X86_MACHINE) " " KERNEL_VERSION
 #ifdef X15_X86_PAE
            " PAE"
 #endif /* X15_X86_PAE */
@@ -453,7 +453,7 @@ boot_main(void)
     cpu_setup();
     thread_bootstrap();
     cga_setup();
-    printk_setup();
+    printf_setup();
     boot_show_version();
     pmap_bootstrap();
     sref_bootstrap();

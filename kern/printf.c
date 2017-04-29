@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <machine/cpu.h>
@@ -30,44 +30,44 @@
  */
 extern void console_write_byte(char c);
 
-static char printk_buffer[PRINTK_BUFSIZE];
-static struct spinlock printk_lock;
+static char printf_buffer[PRINTK_BUFSIZE];
+static struct spinlock printf_lock;
 
 int
-printk(const char *format, ...)
+printf(const char *format, ...)
 {
     va_list ap;
     int length;
 
     va_start(ap, format);
-    length = vprintk(format, ap);
+    length = vprintf(format, ap);
     va_end(ap);
 
     return length;
 }
 
 int
-vprintk(const char *format, va_list ap)
+vprintf(const char *format, va_list ap)
 {
     unsigned long flags;
     int length;
     char *ptr;
 
-    spinlock_lock_intr_save(&printk_lock, &flags);
+    spinlock_lock_intr_save(&printf_lock, &flags);
 
-    length = vsnprintf(printk_buffer, sizeof(printk_buffer), format, ap);
+    length = vsnprintf(printf_buffer, sizeof(printf_buffer), format, ap);
 
-    for (ptr = printk_buffer; *ptr != '\0'; ptr++) {
+    for (ptr = printf_buffer; *ptr != '\0'; ptr++) {
         console_write_byte(*ptr);
     }
 
-    spinlock_unlock_intr_restore(&printk_lock, flags);
+    spinlock_unlock_intr_restore(&printf_lock, flags);
 
     return length;
 }
 
 void
-printk_setup(void)
+printf_setup(void)
 {
-    spinlock_init(&printk_lock);
+    spinlock_init(&printf_lock);
 }

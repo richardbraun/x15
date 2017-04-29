@@ -119,7 +119,7 @@ module:kern/list::
   Linked list.
 module:kern/macros::
   Useful generic macros.
-module:kern/printk::
+module:kern/printf::
   Formatted output functions.
 module:kern/rbtree::
   Red-black tree.
