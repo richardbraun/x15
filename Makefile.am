@@ -13,24 +13,24 @@ AM_CPPFLAGS += -nostdinc
 AM_CPPFLAGS += -isystem $(shell $(CC) -print-file-name=include)
 
 AM_CPPFLAGS += \
-	-I$(top_srcdir) \
-	-I$(top_srcdir)/include \
-	-I$(top_srcdir)/arch/$(arch)
+        -I$(top_srcdir) \
+        -I$(top_srcdir)/include \
+        -I$(top_srcdir)/arch/$(arch)
 
 AM_CFLAGS += -ffreestanding
 
 AM_CFLAGS += -std=gnu11
 
 AM_CFLAGS += \
-	-Wall \
-	-Wextra \
-	-Wshadow \
-	-Wmissing-prototypes \
-	-Wstrict-prototypes
+        -Wall \
+        -Wextra \
+        -Wshadow \
+        -Wmissing-prototypes \
+        -Wstrict-prototypes
 
 AM_CFLAGS += \
-	-fsigned-char \
-	-fno-common
+        -fsigned-char \
+        -fno-common
 
 # TODO Add stack protector support
 AM_CFLAGS += -fno-stack-protector

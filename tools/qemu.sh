@@ -30,7 +30,7 @@ cat > $CDROOT/boot/grub/grub.cfg << EOF
 set timeout=1
 
 menuentry "X15" --class os {
-	multiboot	(hd96)/boot/x15 root=device:hd1s8
+        multiboot (hd96)/boot/x15 root=device:hd1s8
 }
 EOF
 grub-mkrescue -o $TMPDIR/grub.iso $CDROOT
