@@ -112,7 +112,7 @@ struct turnstile_waiter {
 #define TURNSTILE_HTABLE_SIZE 128
 
 #if !ISP2(TURNSTILE_HTABLE_SIZE)
-#error hash table size must be a power of two
+#error "hash table size must be a power of two"
 #endif /* !ISP2(TURNSTILE_HTABLE_SIZE) */
 
 #define TURNSTILE_HTABLE_MASK (TURNSTILE_HTABLE_SIZE - 1)

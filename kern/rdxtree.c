@@ -49,7 +49,7 @@ typedef unsigned long rdxtree_bm_t;
 typedef unsigned long long rdxtree_bm_t;
 #define rdxtree_ffs(x) __builtin_ffsll(x)
 #else /* RDXTREE_RADIX < 6 */
-#error radix too high
+#error "radix too high"
 #endif /* RDXTREE_RADIX < 6 */
 
 /*

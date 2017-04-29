@@ -19,7 +19,7 @@
 #define _X86_ASM_H
 
 #ifndef __ASSEMBLER__
-#error asm.h included from a C file
+#warning "asm.h included from a C file"
 #endif /* __ASSEMBLER__ */
 
 #include <machine/param.h>

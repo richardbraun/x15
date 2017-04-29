@@ -54,7 +54,7 @@ struct sleepq_waiter {
 #define SLEEPQ_COND_HTABLE_SIZE 64
 
 #if !ISP2(SLEEPQ_HTABLE_SIZE) || !ISP2(SLEEPQ_COND_HTABLE_SIZE)
-#error hash table size must be a power of two
+#error "hash table size must be a power of two"
 #endif /* !ISP2(SLEEPQ_HTABLE_SIZE) */
 
 #define SLEEPQ_HTABLE_MASK      (SLEEPQ_HTABLE_SIZE - 1)
