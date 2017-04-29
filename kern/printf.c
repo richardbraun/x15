@@ -23,14 +23,14 @@
 /*
  * Size of the static buffer.
  */
-#define PRINTK_BUFSIZE 1024
+#define PRINTF_BUFSIZE 1024
 
 /*
  * XXX Must be provided by a console driver.
  */
 extern void console_write_byte(char c);
 
-static char printf_buffer[PRINTK_BUFSIZE];
+static char printf_buffer[PRINTF_BUFSIZE];
 static struct spinlock printf_lock;
 
 int
