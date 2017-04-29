@@ -39,7 +39,7 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/thread.h>
 #include <kern/work.h>
 #include <test/test.h>
@@ -91,7 +91,7 @@ test_alloc(void *arg)
         condition_signal(&test_condition);
 
         if ((i % TEST_LOOPS_PER_PRINT) == 0) {
-            printk("alloc ");
+            printf("alloc ");
         }
 
         i++;
@@ -140,7 +140,7 @@ test_free(void *arg)
         condition_signal(&test_condition);
 
         if ((i % TEST_LOOPS_PER_PRINT) == 0) {
-            printk("free ");
+            printf("free ");
         }
 
         i++;
@@ -173,7 +173,7 @@ test_read(void *arg)
                     }
 
                 if ((i % TEST_LOOPS_PER_PRINT) == 0) {
-                    printk("read ");
+                    printf("read ");
                 }
 
                 i++;

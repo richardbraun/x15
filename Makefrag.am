@@ -46,8 +46,8 @@ x15_SOURCES +=                                              \
 	kern/plist.c                                        \
 	kern/plist.h                                        \
 	kern/plist_types.h                                  \
-	kern/printk.c                                       \
-	kern/printk.h                                       \
+	kern/printf.c                                       \
+	kern/printf.h                                       \
 	kern/rbtree.c                                       \
 	kern/rbtree.h                                       \
 	kern/rbtree_i.h                                     \

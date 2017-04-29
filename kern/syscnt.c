@@ -21,7 +21,7 @@
 #include <kern/init.h>
 #include <kern/list.h>
 #include <kern/mutex.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/spinlock.h>
 #include <kern/syscnt.h>
 
@@ -61,7 +61,7 @@ syscnt_info(const char *prefix)
 
     prefix_length = (prefix == NULL) ? 0 : strlen(prefix);
 
-    printk("syscnt: name                                       value\n");
+    printf("syscnt: name                                       value\n");
 
     mutex_lock(&syscnt_lock);
 
@@ -77,7 +77,7 @@ syscnt_info(const char *prefix)
 
         value = syscnt_read(syscnt);
 
-        printk("syscnt: %-30s %17llu\n", syscnt->name,
+        printf("syscnt: %-30s %17llu\n", syscnt->name,
                (unsigned long long)value);
     }
 

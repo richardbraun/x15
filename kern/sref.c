@@ -503,7 +503,7 @@ sref_end_epoch(struct sref_queue *queue)
     if (!sref_data.no_warning
         && (sref_review_queue_size() >= SREF_NR_COUNTERS_WARN)) {
         sref_data.no_warning = 1;
-        printk("sref: warning: large number of counters in review queue\n");
+        printf("sref: warning: large number of counters in review queue\n");
     }
 
     if (sref_data.nr_registered_cpus == 1) {

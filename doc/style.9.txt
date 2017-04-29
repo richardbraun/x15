@@ -634,7 +634,7 @@ error = do_something();
 
 if (error) {
     if (error != ERROR_AGAIN) {
-        printk("unexpected error\n");
+        printf("unexpected error\n");
     }
 
     return error;

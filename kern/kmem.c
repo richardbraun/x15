@@ -57,7 +57,7 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/sprintf.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
@@ -441,7 +441,7 @@ kmem_cache_error(struct kmem_cache *cache, void *buf, int error, void *arg)
 {
     struct kmem_buftag *buftag;
 
-    printk("kmem: error: cache: %s, buffer: %p\n", cache->name, buf);
+    printf("kmem: error: cache: %s, buffer: %p\n", cache->name, buf);
 
     switch(error) {
     case KMEM_ERR_INVALID:
@@ -1111,7 +1111,7 @@ kmem_cache_info(struct kmem_cache *cache)
 
     mutex_lock(&cache->lock);
 
-    printk("kmem: name: %s\n"
+    printf("kmem: name: %s\n"
            "kmem: flags: 0x%x%s\n"
            "kmem: obj_size: %zu\n"
            "kmem: align: %zu\n"
@@ -1286,7 +1286,7 @@ kmem_info(void)
     struct kmem_cache *cache;
     size_t mem_usage, mem_reclaimable;
 
-    printk("kmem: cache                  obj slab  bufs   objs   bufs "
+    printf("kmem: cache                  obj slab  bufs   objs   bufs "
            "   total reclaimable\n"
            "kmem: name                  size size /slab  usage  count "
            "  memory      memory\n");
@@ -1299,7 +1299,7 @@ kmem_info(void)
         mem_usage = (cache->nr_slabs * cache->slab_size) >> 10;
         mem_reclaimable = (cache->nr_free_slabs * cache->slab_size) >> 10;
 
-        printk("kmem: %-19s %6zu %3zuk  %4lu %6lu %6lu %7zuk %10zuk\n",
+        printf("kmem: %-19s %6zu %3zuk  %4lu %6lu %6lu %7zuk %10zuk\n",
                cache->name, cache->obj_size, cache->slab_size >> 10,
                cache->bufs_per_slab, cache->nr_objs, cache->nr_bufs,
                mem_usage, mem_reclaimable);

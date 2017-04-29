@@ -19,7 +19,7 @@
 
 #include <kern/atomic.h>
 #include <kern/panic.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <machine/cpu.h>
 #include <machine/strace.h>
 
@@ -42,10 +42,10 @@ panic(const char *format, ...)
     cpu_intr_disable();
     cpu_halt_broadcast();
 
-    printk("\npanic: ");
+    printf("\npanic: ");
     va_start(list, format);
-    vprintk(format, list);
-    printk("\n");
+    vprintf(format, list);
+    printf("\n");
     strace_dump();
 
     cpu_halt();

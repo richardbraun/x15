@@ -115,7 +115,7 @@ test_run(void *arg)
     (void)arg;
 
     for (i = 0; /* no condition */; i++) {
-        printk("test: pass:%u pattern:%hhx\n", i, test_pattern);
+        printf("test: pass:%u pattern:%hhx\n", i, test_pattern);
         test_write_pages();
         test_reset_pages();
         test_pattern++;

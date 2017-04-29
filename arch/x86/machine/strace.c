@@ -21,7 +21,7 @@
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/param.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <machine/elf.h>
 #include <machine/multiboot.h>
 #include <machine/pmap.h>
@@ -74,9 +74,9 @@ strace_show_one(unsigned int index, unsigned long ip)
     name = strace_lookup(ip, &offset, &size);
 
     if (name == NULL) {
-        printk("strace: #%u [" STRACE_ADDR_FORMAT "]\n", index, ip);
+        printf("strace: #%u [" STRACE_ADDR_FORMAT "]\n", index, ip);
     } else {
-        printk("strace: #%u [" STRACE_ADDR_FORMAT "] %s+%#lx/%#lx\n",
+        printf("strace: #%u [" STRACE_ADDR_FORMAT "] %s+%#lx/%#lx\n",
                index, ip, name, (unsigned long)offset, (unsigned long)size);
     }
 }
@@ -89,7 +89,7 @@ strace_show(unsigned long ip, unsigned long bp)
     unsigned int i;
     int error;
 
-    printk("strace: stack trace:\n");
+    printf("strace: stack trace:\n");
     strace_show_one(0, ip);
 
     i = 1;
@@ -103,7 +103,7 @@ strace_show(unsigned long ip, unsigned long bp)
         error = pmap_kextract((uintptr_t)&frame[1], &pa);
 
         if (error) {
-            printk("strace: unmapped return address at %p\n", &frame[1]);
+            printf("strace: unmapped return address at %p\n", &frame[1]);
             break;
         }
 
@@ -111,7 +111,7 @@ strace_show(unsigned long ip, unsigned long bp)
         error = pmap_kextract((uintptr_t)frame, &pa);
 
         if (error) {
-            printk("strace: unmapped frame address at %p\n", frame);
+            printf("strace: unmapped frame address at %p\n", frame);
             break;
         }
 
@@ -119,7 +119,7 @@ strace_show(unsigned long ip, unsigned long bp)
         frame = frame[0];
     }
 
-    printk("strace: end of trace\n");
+    printf("strace: end of trace\n");
 }
 
 static void * __init
@@ -133,14 +133,14 @@ strace_copy_section(const struct elf_shdr *shdr)
     src = vm_kmem_map_pa(shdr->addr, shdr->size, &map_addr, &map_size);
 
     if (src == NULL) {
-        printk("strace: unable to map section\n");
+        printf("strace: unable to map section\n");
         goto error_map;
     }
 
     copy = kmem_alloc(shdr->size);
 
     if (copy == NULL) {
-        printk("strace: unable to allocate section copy\n");
+        printf("strace: unable to allocate section copy\n");
         goto error_copy;
     }
 
@@ -191,12 +191,12 @@ strace_setup(const struct multiboot_raw_info *mbi)
     table = vm_kmem_map_pa(mbi->shdr_addr, size, &map_addr, &map_size);
 
     if (table == NULL) {
-        printk("strace: unable to map section headers table\n");
+        printf("strace: unable to map section headers table\n");
         goto no_syms;
     }
 
     if (mbi->shdr_strndx >= mbi->shdr_num) {
-        printk("strace: invalid section names index\n");
+        printf("strace: invalid section names index\n");
         goto error_shstrndx;
     }
 
@@ -205,21 +205,21 @@ strace_setup(const struct multiboot_raw_info *mbi)
                               &shstrtab_map_addr, &shstrtab_map_size);
 
     if (shstrtab == NULL) {
-        printk("strace: unable to map section names\n");
+        printf("strace: unable to map section names\n");
         goto error_shstrtab;
     }
 
     symtab_hdr = strace_lookup_section(mbi, table, shstrtab, ".symtab");
 
     if (symtab_hdr == NULL) {
-        printk("strace: unable to find symbol table\n");
+        printf("strace: unable to find symbol table\n");
         goto error_symtab_lookup;
     }
 
     strtab_hdr = strace_lookup_section(mbi, table, shstrtab, ".strtab");
 
     if (strtab_hdr == NULL) {
-        printk("strace: unable to find symbol string table\n");
+        printf("strace: unable to find symbol string table\n");
         goto error_strtab_lookup;
     }
 

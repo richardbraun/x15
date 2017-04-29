@@ -31,7 +31,7 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/rbtree.h>
 #include <machine/pmap.h>
 #include <vm/vm_adv.h>
@@ -751,7 +751,7 @@ vm_map_info(struct vm_map *map)
 
     mutex_lock(&map->lock);
 
-    printk("vm_map: %s: %016lx-%016lx\n"
+    printf("vm_map: %s: %016lx-%016lx\n"
            "vm_map:      start             end          "
            "size     offset   flags    type\n", name,
            (unsigned long)map->start, (unsigned long)map->end);
@@ -763,13 +763,13 @@ vm_map_info(struct vm_map *map)
             type = "object";
         }
 
-        printk("vm_map: %016lx %016lx %8luk %08llx %08x %s\n",
+        printf("vm_map: %016lx %016lx %8luk %08llx %08x %s\n",
                (unsigned long)entry->start, (unsigned long)entry->end,
                (unsigned long)(entry->end - entry->start) >> 10,
                (unsigned long long)entry->offset, entry->flags, type);
     }
 
-    printk("vm_map: total: %zuk\n", map->size >> 10);
+    printf("vm_map: total: %zuk\n", map->size >> 10);
 
     mutex_unlock(&map->lock);
 }

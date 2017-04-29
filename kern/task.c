@@ -131,7 +131,7 @@ task_info(struct task *task)
         spinlock_lock(&task_list_lock);
 
         list_for_each_entry(&task_list, task, node) {
-            printk("task: %s\n", task->name);
+            printf("task: %s\n", task->name);
         }
 
         spinlock_unlock(&task_list_lock);
@@ -141,7 +141,7 @@ task_info(struct task *task)
 
     spinlock_lock(&task->lock);
 
-    printk("task: name: %s, threads:\n", task->name);
+    printf("task: name: %s, threads:\n", task->name);
 
     /*
      * Don't grab any lock when accessing threads, so that the function
@@ -150,7 +150,7 @@ task_info(struct task *task)
      * so holding the task lock is enough to guarantee existence.
      */
     list_for_each_entry(&task->threads, thread, task_node) {
-        printk(TASK_INFO_ADDR_FMT " %c %8s:" TASK_INFO_ADDR_FMT
+        printf(TASK_INFO_ADDR_FMT " %c %8s:" TASK_INFO_ADDR_FMT
                " %.2s:%02hu %02u %s\n",
                (unsigned long)thread,
                thread_state_to_chr(thread),

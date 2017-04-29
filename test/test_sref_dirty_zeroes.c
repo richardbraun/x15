@@ -67,7 +67,7 @@ test_inc(void *arg)
             mutex_unlock(&test_lock);
         }
 
-        printk("counter global value: %lu\n", test_counter.value);
+        printf("counter global value: %lu\n", test_counter.value);
         syscnt_info("sref_epoch");
         syscnt_info("sref_dirty_zero");
         syscnt_info("sref_true_zero");

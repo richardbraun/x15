@@ -84,7 +84,7 @@
 #include <kern/error.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <kern/turnstile.h>
@@ -181,7 +181,7 @@ test_for_priority_boosted(unsigned short *highest_priority)
         }
 
         if (real_priority > *highest_priority) {
-            printk("%c: real priority boosted to %s\n",
+            printf("%c: real priority boosted to %s\n",
                    test_get_name(), test_thread_from_priority(real_priority));
             *highest_priority = real_priority;
         }
@@ -215,7 +215,7 @@ test_for_priority_deboosted(void)
 static void
 test_report_progress(unsigned int i)
 {
-    printk("%c:%u ", test_get_name(), i);
+    printf("%c:%u ", test_get_name(), i);
 }
 
 static void
@@ -304,7 +304,7 @@ test_manage_b(void *arg)
             test_consume_cpu();
         }
 
-        printk("b:%u ", i);
+        printf("b:%u ", i);
         syscnt_info("thread_boosts");
     }
 }

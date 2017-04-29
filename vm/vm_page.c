@@ -41,7 +41,7 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/sprintf.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
@@ -512,7 +512,7 @@ vm_page_load(unsigned int zone_index, phys_addr_t start, phys_addr_t end)
     zone->heap_present = false;
 
 #if DEBUG
-    printk("vm_page: load: %s: %llx:%llx\n",
+    printf("vm_page: load: %s: %llx:%llx\n",
            vm_page_zone_name(zone_index),
            (unsigned long long)start, (unsigned long long)end);
 #endif
@@ -539,7 +539,7 @@ vm_page_load_heap(unsigned int zone_index, phys_addr_t start, phys_addr_t end)
     zone->heap_present = true;
 
 #if DEBUG
-    printk("vm_page: heap: %s: %llx:%llx\n",
+    printf("vm_page: heap: %s: %llx:%llx\n",
            vm_page_zone_name(zone_index),
            (unsigned long long)start, (unsigned long long)end);
 #endif
@@ -664,7 +664,7 @@ vm_page_setup(void)
     }
 
     table_size = vm_page_round(nr_pages * sizeof(struct vm_page));
-    printk("vm_page: page table size: %zu entries (%zuk)\n", nr_pages,
+    printf("vm_page: page table size: %zu entries (%zuk)\n", nr_pages,
            table_size >> 10);
     table = vm_page_bootalloc(table_size);
     va = (uintptr_t)table;
@@ -782,7 +782,7 @@ vm_page_info(void)
     for (i = 0; i < vm_page_zones_size; i++) {
         zone = &vm_page_zones[i];
         pages = (unsigned long)(zone->pages_end - zone->pages);
-        printk("vm_page: %s: pages: %lu (%luM), free: %lu (%luM)\n",
+        printf("vm_page: %s: pages: %lu (%luM), free: %lu (%luM)\n",
                vm_page_zone_name(i), pages, pages >> (20 - PAGE_SHIFT),
                zone->nr_free_pages, zone->nr_free_pages >> (20 - PAGE_SHIFT));
     }

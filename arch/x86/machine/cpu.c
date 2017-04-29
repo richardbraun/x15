@@ -25,7 +25,7 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/thread.h>
 #include <kern/xcall.h>
 #include <machine/acpimp.h>
@@ -543,16 +543,16 @@ cpu_check(const struct cpu *cpu)
 void
 cpu_info(const struct cpu *cpu)
 {
-    printk("cpu%u: %s, type %u, family %u, model %u, stepping %u\n",
+    printf("cpu%u: %s, type %u, family %u, model %u, stepping %u\n",
            cpu->id, cpu->vendor_id, cpu->type, cpu->family, cpu->model,
            cpu->stepping);
 
     if (strlen(cpu->model_name) > 0) {
-        printk("cpu%u: %s\n", cpu->id, cpu->model_name);
+        printf("cpu%u: %s\n", cpu->id, cpu->model_name);
     }
 
     if ((cpu->phys_addr_width != 0) && (cpu->virt_addr_width != 0)) {
-        printk("cpu%u: address widths: physical: %hu, virtual: %hu\n",
+        printf("cpu%u: address widths: physical: %hu, virtual: %hu\n",
                cpu->id, cpu->phys_addr_width, cpu->virt_addr_width);
     }
 }
@@ -597,7 +597,7 @@ cpu_mp_probe(void)
         panic("cpu: ACPI required to initialize local APIC");
     }
 
-    printk("cpu: %u processor(s) configured\n", cpu_count());
+    printf("cpu: %u processor(s) configured\n", cpu_count());
 }
 
 void __init

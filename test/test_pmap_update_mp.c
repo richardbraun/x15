@@ -33,7 +33,7 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/thread.h>
 #include <test/test.h>
 #include <vm/vm_kmem.h>
@@ -49,12 +49,12 @@ test_run1(void *arg)
 
     (void)arg;
 
-    printk("allocating page\n");
+    printf("allocating page\n");
     ptr = vm_kmem_alloc(PAGE_SIZE);
-    printk("writing page\n");
+    printf("writing page\n");
     memset(ptr, 'a', PAGE_SIZE);
 
-    printk("passing page to second thread (%p)\n", ptr);
+    printf("passing page to second thread (%p)\n", ptr);
 
     mutex_lock(&test_lock);
     test_va = ptr;
@@ -70,7 +70,7 @@ test_run2(void *arg)
 
     (void)arg;
 
-    printk("waiting for page\n");
+    printf("waiting for page\n");
 
     mutex_lock(&test_lock);
 
@@ -82,7 +82,7 @@ test_run2(void *arg)
 
     mutex_unlock(&test_lock);
 
-    printk("page received (%p), checking page\n", ptr);
+    printf("page received (%p), checking page\n", ptr);
 
     for (i = 0; i < PAGE_SIZE; i++) {
         if (ptr[i] != 'a') {
@@ -91,7 +91,7 @@ test_run2(void *arg)
     }
 
     vm_kmem_free(ptr, PAGE_SIZE);
-    printk("done\n");
+    printf("done\n");
 }
 
 void

@@ -70,7 +70,7 @@
 #include <stdint.h>
 
 #include <kern/macros.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 
 #ifdef __LP64__
 
@@ -127,7 +127,7 @@ struct trap_frame {
 static inline void
 trap_test_double_fault(void)
 {
-    printk("trap: double fault test\n");
+    printf("trap: double fault test\n");
     asm volatile("movl $0xdead, %esp; push $0");
 }
 

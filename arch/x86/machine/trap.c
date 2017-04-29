@@ -23,7 +23,7 @@
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/param.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>
@@ -112,7 +112,7 @@ trap_show_thread(void)
     struct thread *thread;
 
     thread = thread_self();
-    printk("trap: interrupted thread: %p (%s)\n", thread, thread->name);
+    printf("trap: interrupted thread: %p (%s)\n", thread, thread->name);
 }
 
 static void
@@ -151,7 +151,7 @@ trap_double_fault(struct trap_frame *frame)
     frame->ss = cpu->tss.ss;
 #endif /* __LP64__ */
 
-    printk("trap: double fault (cpu%u):\n", cpu_id());
+    printf("trap: double fault (cpu%u):\n", cpu_id());
     trap_show_thread();
     trap_frame_show(frame);
     trap_stack_show(frame);
@@ -169,7 +169,7 @@ static void
 trap_default(struct trap_frame *frame)
 {
     cpu_halt_broadcast();
-    printk("trap: unhandled interrupt or exception (cpu%u):\n", cpu_id());
+    printf("trap: unhandled interrupt or exception (cpu%u):\n", cpu_id());
     trap_show_thread();
     trap_frame_show(frame);
     trap_stack_show(frame);
@@ -255,7 +255,7 @@ trap_main(struct trap_frame *frame)
 void
 trap_frame_show(struct trap_frame *frame)
 {
-    printk("trap: rax: %016lx rbx: %016lx rcx: %016lx\n"
+    printf("trap: rax: %016lx rbx: %016lx rcx: %016lx\n"
            "trap: rdx: %016lx rbp: %016lx rsi: %016lx\n"
            "trap: rdi: %016lx  r8: %016lx  r9: %016lx\n"
            "trap: r10: %016lx r11: %016lx r12: %016lx\n"
@@ -277,7 +277,7 @@ trap_frame_show(struct trap_frame *frame)
 
     /* XXX Until the page fault handler is written */
     if (frame->vector == 14) {
-        printk("trap: cr2: %016lx\n", (unsigned long)cpu_get_cr2());
+        printf("trap: cr2: %016lx\n", (unsigned long)cpu_get_cr2());
     }
 }
 
@@ -296,7 +296,7 @@ trap_frame_show(struct trap_frame *frame)
         ss = 0;
     }
 
-    printk("trap: eax: %08lx ebx: %08lx ecx: %08lx edx: %08lx\n"
+    printf("trap: eax: %08lx ebx: %08lx ecx: %08lx edx: %08lx\n"
            "trap: ebp: %08lx esi: %08lx edi: %08lx\n"
            "trap: ds: %hu es: %hu fs: %hu gs: %hu\n"
            "trap: vector: %lu error: %08lx\n"
@@ -315,7 +315,7 @@ trap_frame_show(struct trap_frame *frame)
 
     /* XXX Until the page fault handler is written */
     if (frame->vector == 14) {
-        printk("trap: cr2: %08lx\n", (unsigned long)cpu_get_cr2());
+        printf("trap: cr2: %08lx\n", (unsigned long)cpu_get_cr2());
     }
 }
 

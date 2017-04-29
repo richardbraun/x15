@@ -46,7 +46,7 @@
 #include <kern/mutex.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
-#include <kern/printk.h>
+#include <kern/printf.h>
 #include <kern/spinlock.h>
 #include <kern/sprintf.h>
 #include <kern/syscnt.h>
@@ -123,7 +123,7 @@ llsync_process_global_checkpoint(void)
     /* TODO Handle hysteresis */
     if (!llsync_data.no_warning && (nr_works >= LLSYNC_NR_PENDING_WORKS_WARN)) {
         llsync_data.no_warning = 1;
-        printk("llsync: warning: large number of pending works\n");
+        printf("llsync: warning: large number of pending works\n");
     }
 
     if (llsync_data.nr_registered_cpus == 0) {
