@@ -33,6 +33,7 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 
 #include <kern/condition.h>
 #include <kern/error.h>
@@ -40,7 +41,6 @@
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
-#include <kern/sprintf.h>
 #include <kern/sref.h>
 #include <kern/syscnt.h>
 #include <kern/thread.h>

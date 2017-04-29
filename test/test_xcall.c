@@ -21,11 +21,11 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 
 #include <kern/error.h>
 #include <kern/cpumap.h>
 #include <kern/panic.h>
-#include <kern/printf.h>
 #include <kern/thread.h>
 #include <kern/xcall.h>
 #include <test/test.h>

@@ -18,9 +18,9 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include <kern/limits.h>
-#include <kern/sprintf.h>
 #include <kern/types.h>
 
 /*

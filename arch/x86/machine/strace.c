@@ -16,12 +16,12 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/param.h>
-#include <kern/printf.h>
 #include <machine/elf.h>
 #include <machine/multiboot.h>
 #include <machine/pmap.h>

@@ -19,6 +19,7 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <kern/assert.h>
@@ -33,7 +34,6 @@
 #include <kern/param.h>
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
-#include <kern/sprintf.h>
 #include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <machine/biosmem.h>

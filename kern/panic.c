@@ -16,10 +16,10 @@
  */
 
 #include <stdarg.h>
+#include <stdio.h>
 
 #include <kern/atomic.h>
 #include <kern/panic.h>
-#include <kern/printf.h>
 #include <machine/cpu.h>
 #include <machine/strace.h>
 

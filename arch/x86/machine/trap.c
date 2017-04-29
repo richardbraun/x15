@@ -19,11 +19,12 @@
  * additional configuration and resources to be properly handled.
  */
 
+#include <stdio.h>
+
 #include <kern/assert.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/param.h>
-#include <kern/printf.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>

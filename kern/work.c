@@ -16,6 +16,7 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 
 #include <kern/assert.h>
 #include <kern/bitmap.h>
@@ -27,9 +28,7 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
-#include <kern/printf.h>
 #include <kern/spinlock.h>
-#include <kern/sprintf.h>
 #include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <kern/work.h>

@@ -43,6 +43,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include <kern/assert.h>
 #include <kern/condition.h>
@@ -55,7 +56,6 @@
 #include <kern/param.h>
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
-#include <kern/sprintf.h>
 #include <kern/sref.h>
 #include <kern/sref_i.h>
 #include <kern/syscnt.h>

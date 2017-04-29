@@ -17,6 +17,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <kern/assert.h>
@@ -26,7 +27,6 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
-#include <kern/printf.h>
 #include <machine/cpu.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
