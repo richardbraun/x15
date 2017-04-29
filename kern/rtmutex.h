@@ -100,11 +100,9 @@ rtmutex_unlock(struct rtmutex *rtmutex)
 
     prev_owner = rtmutex_unlock_fast(rtmutex);
 
-    if (prev_owner & RTMUTEX_CONTENDED) {
-        return;
+    if (unlikely(prev_owner & RTMUTEX_CONTENDED)) {
+        rtmutex_unlock_slow(rtmutex);
     }
-
-    rtmutex_unlock_slow(rtmutex);
 }
 
 #endif /* _KERN_RTMUTEX_H */
