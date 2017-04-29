@@ -104,8 +104,9 @@ LINES
 
 Lines are normally limited to 80 columns, unless there is a compelling
 reason not to. This makes it easy to identify code with too many levels
-of indentation, and also allows viewing multiple buffers side-by-side
-on small screens, which happens to also be comfortable on larger screens.
+of indentation, and also allows comfortable viewing on small screens,
+including smartphones and tablets, as well as using multiple buffers
+side-by-side, which happens to also be convenient on larger screens.
 
 When defining a function, always break the line right before its name,
 so that qualifiers and the return type are on their own line. As a
