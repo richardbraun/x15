@@ -92,11 +92,11 @@
 #define SPINLOCK_QID_LOCKED         SPINLOCK_LOCKED
 
 #if SPINLOCK_QID_BITS > SPINLOCK_QID_MAX_BITS
-#error spinlock qid too large
+#error "spinlock qid too large"
 #endif
 
 #if X15_MAX_CPUS > (1 << SPINLOCK_QID_CPU_BITS)
-#error maximum number of supported processors too large
+#error "maximum number of supported processors too large"
 #endif
 
 struct spinlock_qnode {
@@ -111,11 +111,11 @@ struct spinlock_qnode {
 #define SPINLOCK_NR_CTXS        4
 
 #if SPINLOCK_CTX_INVALID != 0
-#error the invalid context value must be 0
+#error "the invalid context value must be 0"
 #endif
 
 #if SPINLOCK_NR_CTXS > SPINLOCK_QID_CTX_MAX
-#error maximum number of contexts too large
+#error "maximum number of contexts too large"
 #endif
 
 struct spinlock_cpu_data {

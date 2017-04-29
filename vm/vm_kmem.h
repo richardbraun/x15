@@ -27,7 +27,7 @@
  * report allocation errors.
  */
 #if VM_MIN_KMEM_ADDRESS == 0
-#error kernel space must not start at address 0
+#error "kernel space must not start at address 0"
 #endif /* VM_MIN_KMEM_ADDRESS == 0 */
 
 /*
