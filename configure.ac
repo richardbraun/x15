@@ -20,10 +20,10 @@ AC_PROG_CC
 AM_PROG_AS
 AM_PROG_CC_C_O
 
-AX_CHECK_ASCIIDOC([AC_MSG_NOTICE([asciidoc not found, not building html documentation])])
-AX_CHECK_HIGHLIGHT([AS_IF([test x"$ASCIIDOC" != x],
-                          [AC_MSG_NOTICE([highlight not found, not building html documentation])])])
-AX_CHECK_A2X([AC_MSG_NOTICE([a2x not found, not building man pages])])
+AX_PROG_ASCIIDOC([AC_MSG_NOTICE([asciidoc not found, not building html documentation])])
+AX_PROG_HIGHLIGHT([AS_IF([test x"$ASCIIDOC" != x],
+                         [AC_MSG_NOTICE([highlight not found, not building html documentation])])])
+AX_PROG_A2X([AC_MSG_NOTICE([a2x not found, not building man pages])])
 
 # Disable PIE if enabled by default
 AX_APPEND_COMPILE_FLAGS([-no-pie -fno-pie])
