@@ -78,26 +78,26 @@ OBJECT-ORIENTED PROGRAMMING
 ---------------------------
 
 The X15 kernel is a set of functional modules which often implement
-objects. As such, some practices of object-oriented programming are
-applied. Structures can be used to define classes, and functions can
-be used to implement methods, including constructors and destructors.
-But unlike true, dogmatic OOP, the code shouldn't focus too much on
-types but also on methods. In particular, this means that the total
-number of types should remain low, and most of them should be private.
-Object-oriented programming is merely used as a way to guide the
-structure of the code and data, so that developers have somewhat easy
-ways to know how to group data together, assemble operations around
-them, and name them, while keeping most module interfaces compact.
-By restricting the selected practices of OOP, we get the banana, and
-the gorilla happily remains in the jungle.
+objects. As a result, it naturally borrows some properties of
+object-oriented programming. Structures are used to define classes,
+and functions are used to implement methods, including constructors
+and destructors.
 
-In particular, by choice more so than by technical lack, composition
-rather than inheritance is how code reuse is achieved, because
-inheritance is intrinsically implicit, which is against the general
-idea of explicit programming. In addition, polymorphic behaviour can
-also be achieved through an abstract interface implemented with a
-structure of function pointers, an alternative which retains the
-property of being explicit to readers.
+Note however that only a subset of the object-oriented programming
+paradigm is applied. In particular, by choice more so than by technical
+lack, composition rather than inheritance is how code reuse is achieved,
+because inheritance is intrinsically implicit, which is against the
+general idea of explicit programming. In addition, polymorphic behaviour
+can also be achieved through abstract interfaces implemented with
+function pointer structures, an alternative which retains the property
+of being explicit to readers.
+
+The main purpose of OOP in X15 is to guide the structure of the code
+and data, so that developers have somewhat easy ways to determine how
+to group data together, assemble operations around them, and name them.
+Encapsulation naturally emerges as a side-effect of keeping interfaces
+as compact as possible. By restricting the selected practices of OOP,
+we get the banana, and the gorilla happily remains in the jungle.
 
 LINES
 -----
