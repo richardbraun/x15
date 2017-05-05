@@ -31,7 +31,7 @@
 static inline unsigned int
 mutex_lock_fast(struct mutex *mutex)
 {
-    return atomic_cas_seq_cst(&mutex->state, MUTEX_UNLOCKED, MUTEX_LOCKED);
+    return atomic_cas_acquire(&mutex->state, MUTEX_UNLOCKED, MUTEX_LOCKED);
 }
 
 static inline unsigned int
@@ -39,7 +39,7 @@ mutex_unlock_fast(struct mutex *mutex)
 {
     unsigned int state;
 
-    state = atomic_swap_seq_cst(&mutex->state, MUTEX_UNLOCKED);
+    state = atomic_swap_release(&mutex->state, MUTEX_UNLOCKED);
     assert((state == MUTEX_LOCKED) || (state == MUTEX_CONTENDED));
     return state;
 }

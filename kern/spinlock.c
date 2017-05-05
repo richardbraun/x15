@@ -196,7 +196,7 @@ spinlock_store_first_qid(struct spinlock *lock, unsigned int newqid)
     do {
         oldval = read_once(lock->value);
         newval = newqid | (oldval & SPINLOCK_QID_MASK);
-        prev = atomic_cas_seq_cst(&lock->value, oldval, newval);
+        prev = atomic_cas_acquire(&lock->value, oldval, newval);
     } while (prev != oldval);
 }
 
@@ -220,7 +220,7 @@ spinlock_swap_last_qid(struct spinlock *lock, unsigned int newqid)
         oldval = read_once(lock->value);
         newval = (oldval & (SPINLOCK_QID_MASK << SPINLOCK_QID_MAX_BITS))
                  | newqid;
-        prev = atomic_cas_seq_cst(&lock->value, oldval, newval);
+        prev = atomic_cas_acquire(&lock->value, oldval, newval);
     } while (prev != oldval);
 
     return prev & SPINLOCK_QID_MASK;
@@ -231,7 +231,7 @@ spinlock_try_downgrade(struct spinlock *lock, unsigned int oldqid)
 {
     unsigned int prev;
 
-    prev = atomic_cas_seq_cst(&lock->value, oldqid, SPINLOCK_QID_LOCKED);
+    prev = atomic_cas_acquire(&lock->value, oldqid, SPINLOCK_QID_LOCKED);
 
     assert((prev >> SPINLOCK_QID_MAX_BITS) == 0);
     assert(prev != SPINLOCK_QID_NULL);
