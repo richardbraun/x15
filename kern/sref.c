@@ -259,13 +259,13 @@ sref_weakref_init(struct sref_weakref *weakref, struct sref_counter *counter)
 static void
 sref_weakref_mark_dying(struct sref_weakref *weakref)
 {
-    atomic_or(&weakref->addr, SREF_WEAKREF_DYING, ATOMIC_SEQ_CST);
+    atomic_or_acq_rel(&weakref->addr, SREF_WEAKREF_DYING);
 }
 
 static void
 sref_weakref_clear_dying(struct sref_weakref *weakref)
 {
-    atomic_and(&weakref->addr, SREF_WEAKREF_MASK, ATOMIC_SEQ_CST);
+    atomic_and_acq_rel(&weakref->addr, SREF_WEAKREF_MASK);
 }
 
 static int
@@ -274,7 +274,7 @@ sref_weakref_kill(struct sref_weakref *weakref)
     uintptr_t addr, oldval;
 
     addr = weakref->addr | SREF_WEAKREF_DYING;
-    oldval = atomic_cas_seq_cst(&weakref->addr, addr, (uintptr_t)NULL);
+    oldval = atomic_cas_release(&weakref->addr, addr, (uintptr_t)NULL);
 
     if (oldval != addr) {
         assert((oldval & SREF_WEAKREF_MASK) == (addr & SREF_WEAKREF_MASK));
@@ -292,7 +292,7 @@ sref_weakref_tryget(struct sref_weakref *weakref)
     do {
         addr = weakref->addr;
         newval = addr & SREF_WEAKREF_MASK;
-        oldval = atomic_cas_seq_cst(&weakref->addr, addr, newval);
+        oldval = atomic_cas_acquire(&weakref->addr, addr, newval);
     } while (oldval != addr);
 
     return (struct sref_counter *)newval;

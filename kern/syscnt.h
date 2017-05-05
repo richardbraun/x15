@@ -62,7 +62,7 @@ void syscnt_register(struct syscnt *syscnt, const char *name);
 static inline void
 syscnt_add(struct syscnt *syscnt, int64_t delta)
 {
-    atomic_add(&syscnt->value, delta, ATOMIC_SEQ_CST);
+    atomic_add(&syscnt->value, delta, ATOMIC_RELAXED);
 }
 
 static inline uint64_t

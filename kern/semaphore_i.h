@@ -37,7 +37,7 @@ semaphore_dec(struct semaphore *semaphore)
             break;
         }
 
-        prev = atomic_cas_seq_cst(&semaphore->value, value, value - 1);
+        prev = atomic_cas_acquire(&semaphore->value, value, value - 1);
     } while (prev != value);
 
     return value;
@@ -48,7 +48,7 @@ semaphore_inc(struct semaphore *semaphore)
 {
     unsigned int prev;
 
-    prev = atomic_fetch_add(&semaphore->value, 1, ATOMIC_SEQ_CST);
+    prev = atomic_fetch_add(&semaphore->value, 1, ATOMIC_RELEASE);
     assert(prev != SEMAPHORE_VALUE_MAX);
     return prev;
 }
