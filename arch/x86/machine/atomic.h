@@ -65,7 +65,7 @@ MACRO_BEGIN                                                               \
     if (sizeof(*(ptr)) != 8) {                                            \
         __atomic_store_n(ptr, val, mo);                                   \
     } else {                                                              \
-        typeof(val) ___oval, ___nval;                                     \
+        typeof(*(ptr)) ___oval, ___nval;                                  \
         bool ___done;                                                     \
                                                                           \
         ___oval = *(ptr);                                                 \
