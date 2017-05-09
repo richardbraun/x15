@@ -27,6 +27,7 @@
 #endif
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include <kern/macros.h>
 
@@ -41,20 +42,23 @@
  * memory. Also note that this assumes the processor is at least an i586.
  */
 
-#define atomic_load(ptr, mo)                                              \
+/*
+ * Temporarily discard qualifiers when loading 64-bits values with a
+ * compare-and-swap operation.
+ */
+#define atomic_load_64(ptr, mo)                                           \
 MACRO_BEGIN                                                               \
-    typeof(*(ptr)) ___ret;                                                \
+    uint64_t ___ret;                                                      \
                                                                           \
-    if (sizeof(___ret) != 8) {                                            \
-        ___ret = __atomic_load_n(ptr, mo);                                \
-    } else {                                                              \
-        ___ret = 0;                                                       \
-        __atomic_compare_exchange_n(ptr, &___ret, ___ret,                 \
-                                    false, mo, __ATOMIC_RELAXED);         \
-    }                                                                     \
-                                                                          \
+    __atomic_compare_exchange_n((uint64_t *)(ptr), &___ret, 0,            \
+                                false, mo, __ATOMIC_RELAXED);             \
     ___ret;                                                               \
 MACRO_END
+
+#define atomic_load(ptr, mo)                                              \
+    (typeof(*(ptr)))__builtin_choose_expr(sizeof(*(ptr)) == 8,            \
+                                          atomic_load_64(ptr, mo),        \
+                                          __atomic_load_n(ptr, mo))
 
 #define atomic_store(ptr, val, mo)                                        \
 MACRO_BEGIN                                                               \
