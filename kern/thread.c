@@ -110,7 +110,6 @@
 #include <kern/turnstile.h>
 #include <kern/work.h>
 #include <machine/cpu.h>
-#include <machine/mb.h>
 #include <machine/pmap.h>
 #include <machine/tcb.h>
 #include <vm/vm_map.h>
@@ -586,12 +585,6 @@ thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 
     if ((runq != thread_runq_local())
         && thread_test_flag(runq->current, THREAD_YIELD)) {
-        /*
-         * Make the new flags globally visible before sending the scheduling
-         * request. This barrier pairs with the one implied by the received IPI.
-         */
-        mb_store();
-
         cpu_send_thread_schedule(thread_runq_cpu(runq));
     }
 }
