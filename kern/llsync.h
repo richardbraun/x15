@@ -72,6 +72,7 @@
 
 #include <stdbool.h>
 
+#include <kern/atomic.h>
 #include <kern/macros.h>
 #include <kern/llsync_i.h>
 #include <kern/thread.h>
@@ -81,18 +82,12 @@
 /*
  * Safely assign a pointer.
  */
-#define llsync_assign_ptr(ptr, value)   \
-MACRO_BEGIN                             \
-    mb_store();                         \
-    (ptr) = (value);                    \
-MACRO_END
+#define llsync_assign_ptr(ptr, value) atomic_store(&(ptr), value, ATOMIC_RELEASE)
 
 /*
  * Safely access a pointer.
- *
- * No memory barrier, rely on data dependency to enforce ordering.
  */
-#define llsync_read_ptr(ptr) (ptr)
+#define llsync_read_ptr(ptr) atomic_load(&(ptr), ATOMIC_CONSUME)
 
 /*
  * Read-side critical section enter/exit functions.
