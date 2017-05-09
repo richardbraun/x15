@@ -57,8 +57,7 @@ SUFFIXES += .9 .9.html .9.xml .9.txt
 .9.xml.9:
 	$(AM_V_GEN)$(A2X) $(A2X_FLAGS) -f manpage --xsltproc-opts="-o $(abs_top_builddir)/$@" $<
 
-exec_bootdir = /boot
-exec_boot_PROGRAMS = x15
+bin_PROGRAMS = x15
 x15_DEPENDENCIES = arch/$(arch)/x15.lds
 MOSTLYCLEANFILES += arch/$(arch)/x15.lds
 x15_SOURCES =
