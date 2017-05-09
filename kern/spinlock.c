@@ -65,7 +65,6 @@
 #include <kern/spinlock_types.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
-#include <machine/mb.h>
 
 #define SPINLOCK_QID_LOCK_BIT       1
 
@@ -268,8 +267,7 @@ spinlock_lock_slow(struct spinlock *lock)
         }
 
         for (;;) {
-            locked = read_once(qnode->locked);
-            mb_load();
+            locked = atomic_load(&qnode->locked, ATOMIC_ACQUIRE);
 
             if (!locked) {
                 break;
@@ -316,7 +314,6 @@ spinlock_unlock_slow(struct spinlock *lock)
         cpu_pause();
     }
 
-    mb_store();
     next_qnode = spinlock_get_remote_qnode(next_qid);
-    write_once(next_qnode->locked, false);
+    atomic_store(&next_qnode->locked, false, ATOMIC_RELEASE);
 }
