@@ -34,7 +34,6 @@
 #include <machine/cpu.h>
 #include <machine/io.h>
 #include <machine/lapic.h>
-#include <machine/mb.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
 #include <vm/vm_page.h>

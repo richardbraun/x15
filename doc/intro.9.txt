@@ -152,8 +152,6 @@ module:kern/atomic::
   Inter-processor atomic operations.
 module:kern/cpumap::
   Specialized bitmaps representing processor sets.
-module:arch/mb::
-  Inter-processor memory barriers.
 module:kern/percpu::
   Per-processor data.
 module:kern/spinlock::
