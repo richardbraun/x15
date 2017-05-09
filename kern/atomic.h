@@ -28,8 +28,20 @@
 
 /*
  * Supported memory orders.
+ *
+ * Note that the consume order is aliased to relaxed. This assumes that
+ * all supported processors respect data dependencies. The rationale is
+ * that the definition for the consume order is confusing enough that
+ * most compilers alias it to acquire, which forces the generation of
+ * memory barrier instructions even when they're not really needed.
+ * Since there is currently no processor where using consume or relaxed
+ * would produce different code, it is safe to establish that alias.
+ * It serves as explicit documentation for code review, and will easily
+ * be replaced with the true consume order once compiler support becomes
+ * efficient and reliable.
  */
 #define ATOMIC_RELAXED   __ATOMIC_RELAXED
+#define ATOMIC_CONSUME   __ATOMIC_RELAXED
 #define ATOMIC_ACQUIRE   __ATOMIC_ACQUIRE
 #define ATOMIC_RELEASE   __ATOMIC_RELEASE
 #define ATOMIC_ACQ_REL   __ATOMIC_ACQ_REL
