@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Richard Braun.
+ * Copyright (c) 2014-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,13 +18,13 @@
 #include <stddef.h>
 
 #include <kern/assert.h>
+#include <kern/atomic.h>
 #include <kern/macros.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
 #include <kern/xcall.h>
-#include <machine/mb.h>
 #include <machine/cpu.h>
 
 struct xcall {
@@ -86,15 +86,21 @@ xcall_cpu_data_get_send_call(struct xcall_cpu_data *cpu_data, unsigned int cpu)
 }
 
 static struct xcall *
-xcall_cpu_data_get_recv_call(struct xcall_cpu_data *cpu_data)
+xcall_cpu_data_get_recv_call(const struct xcall_cpu_data *cpu_data)
 {
-    return cpu_data->recv_call;
+    return atomic_load(&cpu_data->recv_call, ATOMIC_ACQUIRE);
+}
+
+static void
+xcall_cpu_data_set_recv_call(struct xcall_cpu_data *cpu_data, struct xcall *call)
+{
+    atomic_store(&cpu_data->recv_call, call, ATOMIC_RELEASE);
 }
 
 static void
 xcall_cpu_data_clear_recv_call(struct xcall_cpu_data *cpu_data)
 {
-    cpu_data->recv_call = NULL;
+    xcall_cpu_data_set_recv_call(cpu_data, NULL);
 }
 
 void
@@ -134,21 +140,15 @@ xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu)
 
     spinlock_lock(&remote_data->lock);
 
-    remote_data->recv_call = call;
-
-    /* This barrier pairs with the one implied by the received IPI */
-    mb_store();
+    xcall_cpu_data_set_recv_call(remote_data, call);
 
     cpu_send_xcall(cpu);
 
-    while (remote_data->recv_call != NULL) {
+    while (xcall_cpu_data_get_recv_call(remote_data) != NULL) {
         cpu_pause();
     }
 
     spinlock_unlock(&remote_data->lock);
-
-    /* This barrier pairs with the one in the interrupt handler */
-    mb_load();
 
 out:
     thread_preempt_enable();
@@ -165,6 +165,5 @@ xcall_intr(void)
     cpu_data = xcall_cpu_data_get();
     call = xcall_cpu_data_get_recv_call(cpu_data);
     call->fn(call->arg);
-    mb_store();
     xcall_cpu_data_clear_recv_call(cpu_data);
 }
