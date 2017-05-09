@@ -58,7 +58,7 @@ MACRO_END
 
 #define atomic_store(ptr, val, mo)                                        \
 MACRO_BEGIN                                                               \
-    if (sizeof(*(ptr) != 8)) {                                            \
+    if (sizeof(*(ptr)) != 8) {                                            \
         __atomic_store_n(ptr, val, mo);                                   \
     } else {                                                              \
         typeof(val) ___oval, ___nval;                                     \
