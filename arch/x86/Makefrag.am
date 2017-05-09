@@ -43,7 +43,6 @@ x15_SOURCES +=                          \
         arch/x86/machine/io.h           \
         arch/x86/machine/lapic.c        \
         arch/x86/machine/lapic.h        \
-        arch/x86/machine/mb.h           \
         arch/x86/machine/multiboot.h    \
         arch/x86/machine/param.h        \
         arch/x86/machine/pic.c          \

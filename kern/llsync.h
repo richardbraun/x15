@@ -77,7 +77,6 @@
 #include <kern/llsync_i.h>
 #include <kern/thread.h>
 #include <kern/work.h>
-#include <machine/mb.h>
 
 /*
  * Safely assign a pointer.
