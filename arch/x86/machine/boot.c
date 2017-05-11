@@ -48,6 +48,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <kern/arg.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/kernel.h>
@@ -92,11 +93,15 @@ char boot_panic_long_mode_msg[] __bootdata
 static struct multiboot_raw_info boot_raw_mbi __bootdata;
 static struct multiboot_info boot_mbi __initdata;
 
+static char boot_tmp_cmdline[ARG_CMDLINE_MAX_SIZE] __bootdata;
+
 static char boot_panic_intro_msg[] __bootdata = "panic: ";
 static char boot_panic_loader_msg[] __bootdata
     = "boot: not started by a multiboot compliant boot loader";
 static char boot_panic_meminfo_msg[] __bootdata
     = "boot: missing basic memory information";
+static char boot_panic_cmdline_msg[] __bootdata
+    = "boot: command line too long";
 
 void * __boot
 boot_memcpy(void *dest, const void *src, size_t n)
@@ -201,14 +206,10 @@ boot_panic(const char *msg)
 }
 
 static void __boot
-boot_save_cmdline_sizes(struct multiboot_raw_info *mbi)
+boot_save_mod_cmdline_sizes(struct multiboot_raw_info *mbi)
 {
     struct multiboot_raw_module *mod;
     uint32_t i;
-
-    if (mbi->flags & MULTIBOOT_LOADER_CMDLINE) {
-        mbi->unused0 = boot_strlen((char *)(uintptr_t)mbi->cmdline) + 1;
-    }
 
     if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
         uintptr_t addr;
@@ -232,10 +233,6 @@ boot_register_data(const struct multiboot_raw_info *mbi)
 
     biosmem_register_boot_data((uintptr_t)&_boot,
                                BOOT_VTOP((uintptr_t)&_end), false);
-
-    if ((mbi->flags & MULTIBOOT_LOADER_CMDLINE) && (mbi->cmdline != 0)) {
-        biosmem_register_boot_data(mbi->cmdline, mbi->cmdline + mbi->unused0, true);
-    }
 
     if (mbi->flags & MULTIBOOT_LOADER_MODULES) {
         i = mbi->mods_count * sizeof(struct multiboot_raw_module);
@@ -290,15 +287,36 @@ boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
      */
     boot_memmove(&boot_raw_mbi, mbi, sizeof(boot_raw_mbi));
 
+    /*
+     * The kernel command line must be passed as early as possible to the
+     * arg module so that other modules can look up options. Instead of
+     * mapping it later, make a temporary copy.
+     */
+    if (!(mbi->flags & MULTIBOOT_LOADER_CMDLINE)) {
+        boot_tmp_cmdline[0] = '\0';
+    } else {
+        uintptr_t addr;
+        size_t length;
+
+        addr = mbi->cmdline;
+        length = boot_strlen((const char *)addr) + 1;
+
+        if (length > ARRAY_SIZE(boot_tmp_cmdline)) {
+            boot_panic(boot_panic_cmdline_msg);
+        }
+
+        boot_memcpy(boot_tmp_cmdline, (const char *)addr, length);
+    }
+
     if ((mbi->flags & MULTIBOOT_LOADER_MODULES) && (mbi->mods_count == 0)) {
         boot_raw_mbi.flags &= ~MULTIBOOT_LOADER_MODULES;
     }
 
     /*
-     * The kernel and modules command lines will be memory mapped later
-     * during initialization. Their respective sizes must be saved.
+     * The module command lines will be memory mapped later during
+     * initialization. Their respective sizes must be saved.
      */
-    boot_save_cmdline_sizes(&boot_raw_mbi);
+    boot_save_mod_cmdline_sizes(&boot_raw_mbi);
     boot_register_data(&boot_raw_mbi);
     biosmem_bootstrap(&boot_raw_mbi);
     return pmap_setup_paging();
@@ -430,14 +448,6 @@ static void __init
 boot_save_data(void)
 {
     boot_mbi.flags = boot_raw_mbi.flags;
-
-    if (boot_mbi.flags & MULTIBOOT_LOADER_CMDLINE) {
-        boot_mbi.cmdline = boot_save_memory(boot_raw_mbi.cmdline,
-                                            boot_raw_mbi.unused0);
-    } else {
-        boot_mbi.cmdline = NULL;
-    }
-
     boot_save_mods();
     strace_setup(&boot_raw_mbi);
 }
@@ -445,6 +455,7 @@ boot_save_data(void)
 void __init
 boot_main(void)
 {
+    arg_setup(boot_tmp_cmdline);
     sleepq_bootstrap();
     turnstile_bootstrap();
     syscnt_setup();
@@ -455,6 +466,7 @@ boot_main(void)
     cga_setup();
     printf_setup();
     boot_show_version();
+    arg_info();
     pmap_bootstrap();
     sref_bootstrap();
     cpu_check(cpu_current());
