@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,5 +28,6 @@ size_t strlen(const char *s);
 char * strcpy(char *dest, const char *src);
 size_t strlcpy(char *dest, const char *src, size_t n);
 int strcmp(const char *s1, const char *s2);
+char * strchr(const char *s, int c);
 
 #endif /* _KERN_STRING_H */

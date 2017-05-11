@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Richard Braun.
+ * Copyright (c) 2012-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -176,3 +176,19 @@ strcmp(const char *s1, const char *s2)
     return (int)c1 - (int)c2;
 }
 #endif /* ARCH_STRING_STRCMP */
+
+#ifndef ARCH_STRING_STRCHR
+char *
+strchr(const char *s, int c)
+{
+    for (;;) {
+        if (*s == c) {
+            return (char *)s;
+        } else if (*s == '\0') {
+            return NULL;
+        }
+
+        s++;
+    }
+}
+#endif /* ARCH_STRING_STRCHR */
