@@ -8,6 +8,8 @@ x15_SOURCES +=                                              \
         include/string.h
 
 x15_SOURCES +=                                              \
+        kern/arg.c                                          \
+        kern/arg.h                                          \
         kern/assert.h                                       \
         kern/atomic.h                                       \
         kern/bitmap.c                                       \
