@@ -102,7 +102,6 @@ struct multiboot_module {
 
 struct multiboot_info {
     uint32_t flags;
-    char *cmdline;
     struct multiboot_module *mods_addr;
     uint32_t mods_count;
 };
