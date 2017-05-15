@@ -34,9 +34,15 @@
 #include <machine/cpu.h>
 #include <machine/io.h>
 #include <machine/lapic.h>
+#include <machine/pit.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
 #include <vm/vm_page.h>
+
+/*
+ * Delay used for frequency measurement, in microseconds.
+ */
+#define CPU_FREQ_CAL_DELAY  1000000
 
 #define CPU_TYPE_MASK       0x00003000
 #define CPU_TYPE_SHIFT      12
@@ -141,6 +147,11 @@ struct cpu cpu_desc __percpu;
 unsigned int cpu_nr_active __read_mostly;
 
 /*
+ * Processor frequency, assumed fixed and equal on all processors.
+ */
+static uint64_t cpu_freq __read_mostly;
+
+/*
  * Interrupt descriptor table.
  */
 static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8) __read_mostly;
@@ -153,6 +164,24 @@ static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8) __read_mostly;
  */
 static unsigned long cpu_double_fault_handler;
 static char cpu_double_fault_stack[STACK_SIZE] __aligned(DATA_ALIGN);
+
+void
+cpu_delay(unsigned long usecs)
+{
+    int64_t total, prev, count, diff;
+
+    assert(usecs != 0);
+
+    total = DIV_CEIL((int64_t)usecs * cpu_freq, 1000000);
+    prev = cpu_get_tsc();
+
+    do {
+        count = cpu_get_tsc();
+        diff = count - prev;
+        prev = count;
+        total -= diff;
+    } while (total > 0);
+}
 
 void * __init
 cpu_get_boot_stack(void)
@@ -508,6 +537,18 @@ cpu_init(struct cpu *cpu)
     cpu->state = CPU_STATE_ON;
 }
 
+static void __init
+cpu_measure_freq(void)
+{
+    uint64_t start, end;
+
+    start = cpu_get_tsc();
+    pit_delay(CPU_FREQ_CAL_DELAY);
+    end = cpu_get_tsc();
+
+    cpu_freq = (end - start) / (1000000 / CPU_FREQ_CAL_DELAY);
+}
+
 void __init
 cpu_setup(void)
 {
@@ -518,6 +559,8 @@ cpu_setup(void)
     cpu->double_fault_stack = cpu_double_fault_stack; /* XXX */
     cpu_init(cpu);
     cpu_nr_active = 1;
+
+    cpu_measure_freq();
 }
 
 static void __init
@@ -566,6 +609,10 @@ cpu_info(const struct cpu *cpu)
         printf("cpu%u: address widths: physical: %hu, virtual: %hu\n",
                cpu->id, cpu->phys_addr_width, cpu->virt_addr_width);
     }
+
+    printf("cpu%u: frequency: %llu.%02llu MHz\n", cpu->id,
+           (unsigned long long)cpu_freq / 1000000,
+           (unsigned long long)cpu_freq % 1000000);
 }
 
 void __init

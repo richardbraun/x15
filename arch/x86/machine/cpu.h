@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 Richard Braun.
+ * Copyright (c) 2010-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -479,6 +479,15 @@ cpu_set_msr(uint32_t msr, uint32_t high, uint32_t low)
     asm volatile("wrmsr" : : "c" (msr), "a" (low), "d" (high));
 }
 
+static __always_inline uint64_t
+cpu_get_tsc(void)
+{
+    uint32_t high, low;
+
+    asm volatile("rdtsc" : "=a" (low), "=d" (high));
+    return ((uint64_t)high << 32) | low;
+}
+
 /*
  * Flush non-global TLB entries.
  *
@@ -528,13 +537,9 @@ cpu_tlb_flush_va(unsigned long va)
 }
 
 /*
- * XXX For now, directly use the PIT.
+ * Busy-wait for a given amount of time, in microseconds.
  */
-static inline void
-cpu_delay(unsigned long usecs)
-{
-    pit_delay(usecs);
-}
+void cpu_delay(unsigned long usecs);
 
 /*
  * Return the address of the boot stack allocated for the current processor.

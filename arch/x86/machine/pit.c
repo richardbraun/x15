@@ -45,12 +45,18 @@
 #define PIT_MAX_COUNT 0xffff
 
 void __init
-pit_setup(void)
+pit_setup_free_running(void)
 {
     io_write_byte(PIT_PORT_MODE, PIT_MODE_RATE_GEN | PIT_MODE_RW_LSB
                                  | PIT_MODE_RW_MSB);
     io_write_byte(PIT_PORT_COUNTER0, PIT_MAX_COUNT & 0xff);
     io_write_byte(PIT_PORT_COUNTER0, PIT_MAX_COUNT >> 8);
+}
+
+void __init
+pit_setup(void)
+{
+    /* TODO Implement */
 }
 
 static unsigned int

@@ -461,6 +461,7 @@ boot_main(void)
     syscnt_setup();
     percpu_bootstrap();
     trap_setup();
+    pit_setup_free_running();
     cpu_setup();
     thread_bootstrap();
     cga_setup();
@@ -476,7 +477,6 @@ boot_main(void)
     boot_save_data();
     biosmem_free_usable();
     pic_setup();
-    pit_setup();
     cpu_mp_probe();
     kernel_main();
 
