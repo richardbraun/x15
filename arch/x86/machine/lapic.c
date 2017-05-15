@@ -55,13 +55,9 @@
 #define LAPIC_TIMER_COUNT_MAX   0xffffffff
 
 /*
- * The value of this duration (in microseconds) must be carefully set.
- * It must divide a second (1000000) without loss of precision. It is
- * recommended to use either 1s or 100ms. The former gives the best
- * results, as it renders the time used for accounting operations
- * negligible, but is slightly longer.
+ * Delay used to calibrate the local APIC timer, in microseconds.
  */
-#define LAPIC_TIMER_CAL_DELAY   1000000
+#define LAPIC_TIMER_CAL_DELAY   100000
 
 /*
  * Spurious-interrupt vector register bits.
