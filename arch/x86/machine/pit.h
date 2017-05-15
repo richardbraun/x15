@@ -19,7 +19,16 @@
 #define _X86_PIT_H
 
 /*
- * Set up the i8253 Programmable Interval Timer.
+ * Initialize the PIT as a free running counter.
+ *
+ * This is used during early initialization to measure the frequency of
+ * other clocks. The PIT is used despite its lack of precision because
+ * it's the only architectural timer with a known frequency.
+ */
+void pit_setup_free_running(void);
+
+/*
+ * Initialize the pit module.
  */
 void pit_setup(void);
 
