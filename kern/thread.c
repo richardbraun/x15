@@ -2478,6 +2478,16 @@ thread_yield(void)
 }
 
 void
+thread_schedule(void)
+{
+    if (likely(!thread_test_flag(thread_self(), THREAD_YIELD))) {
+        return;
+    }
+
+    thread_yield();
+}
+
+void
 thread_schedule_intr(void)
 {
     struct thread_runq *runq;

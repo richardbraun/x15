@@ -151,6 +151,11 @@ void trap_frame_show(struct trap_frame *frame);
  */
 void trap_stack_show(struct trap_frame *frame);
 
+/*
+ * Return the interrupt stack for the current thread.
+ */
+void * trap_get_interrupt_stack(const struct trap_frame *frame);
+
 #endif /* __ASSEMBLER__ */
 
 #endif /* _X86_TRAP_H */
