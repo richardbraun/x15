@@ -394,20 +394,8 @@ thread_self(void)
  * Main scheduler invocation call.
  *
  * Called on return from interrupt or when reenabling preemption.
- *
- * Implies a compiler barrier.
  */
-static inline void
-thread_schedule(void)
-{
-    barrier();
-
-    if (likely(!thread_test_flag(thread_self(), THREAD_YIELD))) {
-        return;
-    }
-
-    thread_yield();
-}
+void thread_schedule(void);
 
 /*
  * Sleep queue lending functions.

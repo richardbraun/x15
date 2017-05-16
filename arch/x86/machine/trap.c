@@ -33,6 +33,12 @@
 #include <machine/strace.h>
 #include <machine/trap.h>
 
+struct trap_cpu_data {
+    unsigned char intr_stack[STACK_SIZE] __aligned(DATA_ALIGN);
+};
+
+static struct trap_cpu_data trap_cpu_data __percpu;
+
 /*
  * Type for interrupt service routines and trap handler functions.
  */
@@ -257,7 +263,7 @@ trap_main(struct trap_frame *frame)
         thread_intr_leave();
     }
 
-    thread_schedule();
+    assert(!cpu_intr_enabled());
 }
 
 #ifdef __LP64__
@@ -339,4 +345,20 @@ trap_stack_show(struct trap_frame *frame)
 #else /* __LP64__ */
     strace_show(frame->eip, frame->ebp);
 #endif /* __LP64__ */
+}
+
+void *
+trap_get_interrupt_stack(const struct trap_frame *frame)
+{
+    struct trap_cpu_data *cpu_data;
+    struct trap_handler *handler;
+
+    handler = trap_handler_get(frame->vector);
+
+    if ((handler->flags & TRAP_HF_INTR) && !thread_interrupted()) {
+        cpu_data = cpu_local_ptr(trap_cpu_data);
+        return cpu_data->intr_stack + sizeof(cpu_data->intr_stack);
+    } else {
+        return NULL;
+    }
 }
