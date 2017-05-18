@@ -74,8 +74,18 @@ ASM_END(name)
 
 ASM_ENTRY(trap_common)
  TRAP_STORE_REGISTERS
- movq %rsp, %rdi
+ movq %rsp, %rbx        /* save frame */
+ movq %rbx, %rdi
+ call trap_get_interrupt_stack
+ testq %rax, %rax       /* must we switch stacks? */
+ jz 1f
+ movq %rax, %rsp        /* switch to interrupt stack TODO conditional move ? */
+1:
+ xorq %rbp, %rbp        /* block stack tracing */
+ movq %rbx, %rdi
  call trap_main
+ movq %rbx, %rsp        /* restore stack */
+ call thread_schedule   /* schedule threads */
  TRAP_LOAD_REGISTERS
  iretq
 ASM_END(trap_common)
@@ -123,9 +133,19 @@ ASM_END(name)
 
 ASM_ENTRY(trap_common)
  TRAP_STORE_REGISTERS
- pushl %esp
- call trap_main
+ movl %esp, %ebx        /* save frame */
+ pushl %ebx
+ call trap_get_interrupt_stack
  addl $4, %esp
+ testl %eax, %eax       /* must we switch stacks? */
+ jz 1f
+ movl %eax, %esp        /* switch to interrupt stack */
+1:
+ xorl %ebp, %ebp        /* block stack tracing */
+ pushl %ebx             /* push frame */
+ call trap_main
+ movl %ebx, %esp        /* restore stack */
+ call thread_schedule   /* schedule threads */
  TRAP_LOAD_REGISTERS
  iret
 ASM_END(trap_common)
