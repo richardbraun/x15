@@ -33,6 +33,12 @@
 #include <machine/strace.h>
 #include <machine/trap.h>
 
+struct trap_cpu_data {
+    unsigned char intr_stack[STACK_SIZE] __aligned(DATA_ALIGN);
+};
+
+static struct trap_cpu_data trap_cpu_data __percpu;
+
 /*
  * Type for interrupt service routines and trap handler functions.
  */
@@ -90,6 +96,13 @@ void trap_isr_lapic_spurious(void);
  */
 static struct trap_handler trap_handlers[CPU_IDT_SIZE + 1] __read_mostly;
 
+static struct trap_handler *
+trap_handler_get(unsigned int vector)
+{
+    assert(vector < ARRAY_SIZE(trap_handlers));
+    return &trap_handlers[vector];
+}
+
 static void __init
 trap_handler_init(struct trap_handler *handler, int flags, trap_handler_fn_t fn)
 {
@@ -103,7 +116,7 @@ trap_install(unsigned int vector, int flags, trap_isr_fn_t isr,
 {
     assert(vector < CPU_IDT_SIZE);
 
-    trap_handler_init(&trap_handlers[vector], flags, fn);
+    trap_handler_init(trap_handler_get(vector), flags, fn);
     cpu_idt_set_gate(vector, isr);
 }
 
@@ -162,7 +175,8 @@ trap_double_fault(struct trap_frame *frame)
 static void __init
 trap_install_double_fault(void)
 {
-    trap_handler_init(&trap_handlers[TRAP_DF], TRAP_HF_INTR, trap_double_fault);
+    trap_handler_init(trap_handler_get(TRAP_DF),
+                      TRAP_HF_INTR, trap_double_fault);
     cpu_idt_set_double_fault(trap_isr_double_fault);
 }
 
@@ -226,7 +240,8 @@ trap_setup(void)
     trap_install(TRAP_LAPIC_SPURIOUS, TRAP_HF_INTR,
                  trap_isr_lapic_spurious, lapic_spurious_intr);
 
-    trap_handler_init(&trap_handlers[TRAP_DEFAULT], TRAP_HF_INTR, trap_default);
+    trap_handler_init(trap_handler_get(TRAP_DEFAULT),
+                      TRAP_HF_INTR, trap_default);
 }
 
 void
@@ -234,9 +249,9 @@ trap_main(struct trap_frame *frame)
 {
     struct trap_handler *handler;
 
-    assert(frame->vector < ARRAY_SIZE(trap_handlers));
+    assert(!cpu_intr_enabled());
 
-    handler = &trap_handlers[frame->vector];
+    handler = trap_handler_get(frame->vector);
 
     if (handler->flags & TRAP_HF_INTR) {
         thread_intr_enter();
@@ -248,7 +263,7 @@ trap_main(struct trap_frame *frame)
         thread_intr_leave();
     }
 
-    thread_schedule();
+    assert(!cpu_intr_enabled());
 }
 
 #ifdef __LP64__
@@ -330,4 +345,20 @@ trap_stack_show(struct trap_frame *frame)
 #else /* __LP64__ */
     strace_show(frame->eip, frame->ebp);
 #endif /* __LP64__ */
+}
+
+void *
+trap_get_interrupt_stack(const struct trap_frame *frame)
+{
+    struct trap_cpu_data *cpu_data;
+    struct trap_handler *handler;
+
+    handler = trap_handler_get(frame->vector);
+
+    if ((handler->flags & TRAP_HF_INTR) && !thread_interrupted()) {
+        cpu_data = cpu_local_ptr(trap_cpu_data);
+        return cpu_data->intr_stack + sizeof(cpu_data->intr_stack);
+    } else {
+        return NULL;
+    }
 }
