@@ -77,7 +77,7 @@ ASM_ENTRY(trap_common)
  movq %rsp, %rbx        /* save frame */
  movq %rbx, %rdi
  call trap_get_interrupt_stack
- testq %rax, %rax       /* must we switch stacks? */
+ testq %rax, %rax       /* switch stack ? */
  jz 1f
  movq %rax, %rsp        /* switch to interrupt stack TODO conditional move ? */
 1:
@@ -137,12 +137,12 @@ ASM_ENTRY(trap_common)
  pushl %ebx
  call trap_get_interrupt_stack
  addl $4, %esp
- testl %eax, %eax       /* must we switch stacks? */
+ testl %eax, %eax       /* switch stack ? */
  jz 1f
  movl %eax, %esp        /* switch to interrupt stack */
 1:
  xorl %ebp, %ebp        /* block stack tracing */
- pushl %ebx             /* push frame */
+ pushl %ebx
  call trap_main
  movl %ebx, %esp        /* restore stack */
  call thread_schedule   /* schedule threads */
