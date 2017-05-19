@@ -60,6 +60,8 @@ x15_SOURCES +=                          \
         arch/x86/machine/trap_asm.S     \
         arch/x86/machine/trap.c         \
         arch/x86/machine/trap.h         \
-        arch/x86/machine/types.h
+        arch/x86/machine/types.h        \
+        arch/x86/machine/uart.c         \
+        arch/x86/machine/uart.h
 
 endif X86

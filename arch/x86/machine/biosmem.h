@@ -24,6 +24,12 @@
 #include <machine/types.h>
 
 /*
+ * BIOS Data Area.
+ */
+#define BIOSMEM_BDA_ADDR    0x400
+#define BIOSMEM_BDA_SIZE    0x100
+
+/*
  * Address where the address of the Extended BIOS Data Area segment can be
  * found.
  */
@@ -81,6 +87,14 @@ void biosmem_bootstrap(const struct multiboot_raw_info *mbi);
  * This function is called before paging is enabled.
  */
 void * biosmem_bootalloc(unsigned int nr_pages);
+
+/*
+ * Return a pointer to a copy of the BIOS Data Area.
+ *
+ * The region denoted by the returned address is of size BIOSMEM_BDA_SIZE,
+ * and is only valid during initialization.
+ */
+const void * biosmem_get_bda(void);
 
 /*
  * Return the limit of physical memory that can be directly mapped.
