@@ -73,6 +73,7 @@
 #include <machine/pmap.h>
 #include <machine/strace.h>
 #include <machine/trap.h>
+#include <machine/uart.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_setup.h>
 
@@ -467,9 +468,11 @@ boot_main(void)
     thread_bootstrap();
     console_setup();
     cga_setup();
+    uart_setup();
     printf_setup();
     boot_show_version();
     arg_info();
+    uart_info();
     pmap_bootstrap();
     sref_bootstrap();
     cpu_check(cpu_current());

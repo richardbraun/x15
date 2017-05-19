@@ -95,6 +95,11 @@ static struct biosmem_map_entry biosmem_map[BIOSMEM_MAX_MAP_SIZE * 2]
 static unsigned int biosmem_map_size __bootdata;
 
 /*
+ * Temporary copy of the BIOS Data Area.
+ */
+static char biosmem_bda[BIOSMEM_BDA_SIZE] __bootdata;
+
+/*
  * Contiguous block of physical memory.
  */
 struct biosmem_zone {
@@ -649,6 +654,8 @@ biosmem_bootstrap(const struct multiboot_raw_info *mbi)
     phys_addr_t phys_start, phys_end;
     int error;
 
+    boot_memcpy(biosmem_bda, (const void *)BIOSMEM_BDA_ADDR, BIOSMEM_BDA_SIZE);
+
     if (mbi->flags & MULTIBOOT_LOADER_MMAP) {
         biosmem_map_build(mbi);
     } else {
@@ -736,6 +743,12 @@ biosmem_bootalloc(unsigned int nr_pages)
     }
 
     return boot_memset((void *)addr, 0, size);
+}
+
+const void *
+biosmem_get_bda(void)
+{
+    return biosmem_bda;
 }
 
 phys_addr_t __boot
