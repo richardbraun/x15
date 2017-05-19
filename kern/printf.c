@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 
+#include <kern/console.h>
 #include <kern/spinlock.h>
 #include <machine/cpu.h>
 
@@ -24,11 +25,6 @@
  * Size of the static buffer.
  */
 #define PRINTF_BUFSIZE 1024
-
-/*
- * XXX Must be provided by a console driver.
- */
-extern void console_write_byte(char c);
 
 static char printf_buffer[PRINTF_BUFSIZE];
 static struct spinlock printf_lock;
@@ -58,7 +54,7 @@ vprintf(const char *format, va_list ap)
     length = vsnprintf(printf_buffer, sizeof(printf_buffer), format, ap);
 
     for (ptr = printf_buffer; *ptr != '\0'; ptr++) {
-        console_write_byte(*ptr);
+        console_write_char(*ptr);
     }
 
     spinlock_unlock_intr_restore(&printf_lock, flags);

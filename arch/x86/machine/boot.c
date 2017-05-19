@@ -49,6 +49,7 @@
 #include <string.h>
 
 #include <kern/arg.h>
+#include <kern/console.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/kernel.h>
@@ -464,6 +465,7 @@ boot_main(void)
     pit_setup_free_running();
     cpu_setup();
     thread_bootstrap();
+    console_setup();
     cga_setup();
     printf_setup();
     boot_show_version();

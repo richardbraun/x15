@@ -18,6 +18,8 @@ x15_SOURCES +=                                              \
         kern/condition.c                                    \
         kern/condition.h                                    \
         kern/condition_types.h                              \
+        kern/console.c                                      \
+        kern/console.h                                      \
         kern/config.h                                       \
         kern/cpumap.c                                       \
         kern/cpumap.h                                       \
