@@ -18,6 +18,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <kern/console.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/param.h>
@@ -69,6 +70,8 @@
 static uint8_t *cga_memory __read_mostly;
 static uint16_t cga_cursor;
 
+static struct console cga_console;
+
 static uint16_t
 cga_get_cursor_position(void)
 {
@@ -101,6 +104,67 @@ cga_get_cursor_column(void)
     return cga_cursor % CGA_COLUMNS;
 }
 
+static void
+cga_scroll_lines(void)
+{
+    uint16_t *last_line;
+    int i;
+
+    memmove(cga_memory, (uint16_t *)cga_memory + CGA_COLUMNS,
+            CGA_MEMORY_SIZE - (CGA_COLUMNS * 2));
+    last_line = (uint16_t *)cga_memory + (CGA_COLUMNS * (CGA_LINES - 1));
+
+    for(i = 0; i < CGA_COLUMNS; i++) {
+        last_line[i] = CGA_BLANK;
+    }
+}
+
+static void
+cga_write_char(char c)
+{
+    if (c == '\r') {
+        return;
+    } else if (c == '\n') {
+        cga_cursor += CGA_COLUMNS - cga_get_cursor_column();
+
+        if (cga_cursor >= (CGA_LINES * CGA_COLUMNS)) {
+            cga_scroll_lines();
+            cga_cursor -= CGA_COLUMNS;
+        }
+
+        cga_set_cursor_position(cga_cursor);
+    } else if (c == '\b') {
+        if (cga_cursor > 0) {
+            cga_cursor--;
+            ((uint16_t *)cga_memory)[cga_cursor] = CGA_BLANK;
+            cga_set_cursor_position(cga_cursor);
+        }
+    } else if (c == '\t') {
+        int i;
+
+        for(i = 0; i < CGA_TABULATION_SPACES; i++) {
+            cga_write_char(' ');
+        }
+    } else {
+        if ((cga_cursor + 1) >= CGA_COLUMNS * CGA_LINES) {
+            cga_scroll_lines();
+            cga_cursor -= CGA_COLUMNS;
+        }
+
+        ((uint16_t *)cga_memory)[cga_cursor] = ((CGA_FOREGROUND_COLOR << 8)
+                                                | c);
+        cga_cursor++;
+        cga_set_cursor_position(cga_cursor);
+    }
+}
+
+static void
+cga_console_putc(struct console *console, char c)
+{
+    (void)console;
+    cga_write_char(c);
+}
+
 void __init
 cga_setup(void)
 {
@@ -126,60 +190,7 @@ cga_setup(void)
     }
 
     cga_cursor = cga_get_cursor_position();
+
+    console_init(&cga_console, cga_console_putc);
+    console_register(&cga_console);
 }
-
-static void
-cga_scroll_lines(void)
-{
-    uint16_t *last_line;
-    int i;
-
-    memmove(cga_memory, (uint16_t *)cga_memory + CGA_COLUMNS,
-            CGA_MEMORY_SIZE - (CGA_COLUMNS * 2));
-    last_line = (uint16_t *)cga_memory + (CGA_COLUMNS * (CGA_LINES - 1));
-
-    for(i = 0; i < CGA_COLUMNS; i++) {
-        last_line[i] = CGA_BLANK;
-    }
-}
-
-void
-cga_write_byte(uint8_t byte)
-{
-    if (byte == '\r') {
-        return;
-    } else if (byte == '\n') {
-        cga_cursor += CGA_COLUMNS - cga_get_cursor_column();
-
-        if (cga_cursor >= (CGA_LINES * CGA_COLUMNS)) {
-            cga_scroll_lines();
-            cga_cursor -= CGA_COLUMNS;
-        }
-
-        cga_set_cursor_position(cga_cursor);
-    } else if (byte == '\b') {
-        if (cga_cursor > 0) {
-            cga_cursor--;
-            ((uint16_t *)cga_memory)[cga_cursor] = CGA_BLANK;
-            cga_set_cursor_position(cga_cursor);
-        }
-    } else if (byte == '\t') {
-        int i;
-
-        for(i = 0; i < CGA_TABULATION_SPACES; i++) {
-            cga_write_byte(' ');
-        }
-    } else {
-        if ((cga_cursor + 1) >= CGA_COLUMNS * CGA_LINES) {
-            cga_scroll_lines();
-            cga_cursor -= CGA_COLUMNS;
-        }
-
-        ((uint16_t *)cga_memory)[cga_cursor] = ((CGA_FOREGROUND_COLOR << 8)
-                                                | byte);
-        cga_cursor++;
-        cga_set_cursor_position(cga_cursor);
-    }
-}
-
-void console_write_byte(char c) __alias("cga_write_byte");

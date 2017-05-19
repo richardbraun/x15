@@ -21,16 +21,9 @@
 #ifndef _X86_CGA_H
 #define _X86_CGA_H
 
-#include <stdint.h>
-
 /*
  * Initialize the cga module.
  */
 void cga_setup(void);
-
-/*
- * Write a byte on the screen at current cursor position.
- */
-void cga_write_byte(uint8_t byte);
 
 #endif /* _X86_CGA_H */
