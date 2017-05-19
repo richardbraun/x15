@@ -152,7 +152,11 @@ void trap_frame_show(struct trap_frame *frame);
 void trap_stack_show(struct trap_frame *frame);
 
 /*
- * Return the interrupt stack for the current thread.
+ * Return a pointer to the local interrupt stack.
+ *
+ * This function is called by the low level trap handling code.
+ *
+ * Return NULL if no stack switching is required.
  */
 void * trap_get_interrupt_stack(const struct trap_frame *frame);
 
