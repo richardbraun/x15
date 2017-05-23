@@ -33,7 +33,7 @@
 
 #define UART_BDA_COM1_OFFSET 0
 
-#define UART_REG_THR    0
+#define UART_REG_DAT    0
 #define UART_REG_DLL    0
 #define UART_REG_IER    1
 #define UART_REG_DLH    1
@@ -140,7 +140,7 @@ static void
 uart_write_char_common(struct uart *uart, char c)
 {
     uart_tx_wait(uart);
-    uart_write(uart, UART_REG_THR, (uint8_t)c);
+    uart_write(uart, UART_REG_DAT, (uint8_t)c);
 }
 
 static void
