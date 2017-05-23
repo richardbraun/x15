@@ -24,29 +24,30 @@
 /*
  * Architecture defined traps.
  */
-#define TRAP_DE             0   /* Divide Error */
-#define TRAP_DB             1   /* Debug */
-#define TRAP_NMI            2   /* NMI Interrupt */
-#define TRAP_BP             3   /* Breakpoint */
-#define TRAP_OF             4   /* Overflow */
-#define TRAP_BR             5   /* BOUND Range Exceeded */
-#define TRAP_UD             6   /* Invalid Opcode (Undefined Opcode) */
-#define TRAP_NM             7   /* Device Not Available (No Math Coprocessor) */
-#define TRAP_DF             8   /* Double Fault */
-#define TRAP_TS             10  /* Invalid TSS */
-#define TRAP_NP             11  /* Segment Not Present */
-#define TRAP_SS             12  /* Stack-Segment Fault */
-#define TRAP_GP             13  /* General Protection */
-#define TRAP_PF             14  /* Page Fault */
-#define TRAP_MF             16  /* x87 FPU Floating-Point Error (Math Fault) */
-#define TRAP_AC             17  /* Alignment Check */
-#define TRAP_MC             18  /* Machine Check */
-#define TRAP_XM             19  /* SIMD Floating-Point Exception */
+#define TRAP_DE                 0   /* Divide Error */
+#define TRAP_DB                 1   /* Debug */
+#define TRAP_NMI                2   /* NMI Interrupt */
+#define TRAP_BP                 3   /* Breakpoint */
+#define TRAP_OF                 4   /* Overflow */
+#define TRAP_BR                 5   /* BOUND Range Exceeded */
+#define TRAP_UD                 6   /* Invalid Opcode (Undefined Opcode) */
+#define TRAP_NM                 7   /* Device Not Available (No Math Coprocessor) */
+#define TRAP_DF                 8   /* Double Fault */
+#define TRAP_TS                 10  /* Invalid TSS */
+#define TRAP_NP                 11  /* Segment Not Present */
+#define TRAP_SS                 12  /* Stack-Segment Fault */
+#define TRAP_GP                 13  /* General Protection */
+#define TRAP_PF                 14  /* Page Fault */
+#define TRAP_MF                 16  /* x87 FPU Floating-Point Error (Math Fault) */
+#define TRAP_AC                 17  /* Alignment Check */
+#define TRAP_MC                 18  /* Machine Check */
+#define TRAP_XM                 19  /* SIMD Floating-Point Exception */
 
 /*
- * Interrupts reserved for the legacy PIC.
+ * Traps used for handling external interrupts.
  */
-#define TRAP_PIC_BASE       32
+#define TRAP_INTR_FIRST         32
+#define TRAP_INTR_LAST          223
 
 /*
  * System defined traps.
@@ -124,6 +125,11 @@ struct trap_frame {
 
 #endif /* __LP64__ */
 
+/*
+ * Type for trap handler functions.
+ */
+typedef void (*trap_handler_fn_t)(struct trap_frame *);
+
 static inline void
 trap_test_double_fault(void)
 {
@@ -140,6 +146,11 @@ void trap_setup(void);
  * Unified trap entry point.
  */
 void trap_main(struct trap_frame *frame);
+
+/*
+ * Register a trap handler.
+ */
+void trap_register(unsigned int vector, trap_handler_fn_t handler_fn);
 
 /*
  * Display the content of a trap frame.

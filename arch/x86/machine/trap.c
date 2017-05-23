@@ -19,12 +19,15 @@
  * additional configuration and resources to be properly handled.
  */
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include <kern/assert.h>
+#include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/param.h>
+#include <kern/spinlock.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>
@@ -43,7 +46,6 @@ static struct trap_cpu_data trap_cpu_data __percpu;
  * Type for interrupt service routines and trap handler functions.
  */
 typedef void (*trap_isr_fn_t)(void);
-typedef void (*trap_handler_fn_t)(struct trap_frame *);
 
 /*
  * Trap handler flags.
@@ -59,42 +61,24 @@ struct trap_handler {
 };
 
 /*
- * Low level interrupt service routines.
+ * Table of ISR addresses.
  */
-void trap_isr_default(void);
-void trap_isr_divide_error(void);
-void trap_isr_debug(void);
-void trap_isr_nmi(void);
-void trap_isr_breakpoint(void);
-void trap_isr_overflow(void);
-void trap_isr_bound_range(void);
-void trap_isr_invalid_opcode(void);
-void trap_isr_device_not_available(void);
-void trap_isr_double_fault(void);
-void trap_isr_invalid_tss(void);
-void trap_isr_segment_not_present(void);
-void trap_isr_stack_segment_fault(void);
-void trap_isr_general_protection(void);
-void trap_isr_page_fault(void);
-void trap_isr_math_fault(void);
-void trap_isr_alignment_check(void);
-void trap_isr_machine_check(void);
-void trap_isr_simd_fp_exception(void);
-void trap_isr_pic_int7(void);
-void trap_isr_pic_int15(void);
-void trap_isr_xcall(void);
-void trap_isr_thread_schedule(void);
-void trap_isr_cpu_halt(void);
-void trap_isr_lapic_timer(void);
-void trap_isr_lapic_error(void);
-void trap_isr_lapic_spurious(void);
+extern trap_isr_fn_t trap_isr_table[CPU_IDT_SIZE];
 
 /*
  * Array of trap handlers.
- *
- * The additional entry is the default entry used for unhandled traps.
  */
-static struct trap_handler trap_handlers[CPU_IDT_SIZE + 1] __read_mostly;
+static struct trap_handler trap_handlers[CPU_IDT_SIZE] __read_mostly;
+
+/*
+ * Global trap lock.
+ *
+ * This lock is currently only used to serialize concurrent trap handler
+ * updates.
+ *
+ * Interrupts must be disabled when holding this lock.
+ */
+static struct spinlock trap_lock;
 
 static struct trap_handler *
 trap_handler_get(unsigned int vector)
@@ -107,17 +91,14 @@ static void __init
 trap_handler_init(struct trap_handler *handler, int flags, trap_handler_fn_t fn)
 {
     handler->flags = flags;
-    handler->fn = fn;
+    atomic_store(&handler->fn, fn, ATOMIC_RELAXED);
 }
 
 static void __init
-trap_install(unsigned int vector, int flags, trap_isr_fn_t isr,
-             trap_handler_fn_t fn)
+trap_install(unsigned int vector, int flags, trap_handler_fn_t fn)
 {
-    assert(vector < CPU_IDT_SIZE);
-
+    assert(vector < ARRAY_SIZE(trap_handlers));
     trap_handler_init(trap_handler_get(vector), flags, fn);
-    cpu_idt_set_gate(vector, isr);
 }
 
 static void
@@ -175,9 +156,8 @@ trap_double_fault(struct trap_frame *frame)
 static void __init
 trap_install_double_fault(void)
 {
-    trap_handler_init(trap_handler_get(TRAP_DF),
-                      TRAP_HF_INTR, trap_double_fault);
-    cpu_idt_set_double_fault(trap_isr_double_fault);
+    trap_install(TRAP_DF, TRAP_HF_INTR, trap_double_fault);
+    cpu_idt_set_double_fault(trap_isr_table[TRAP_DF]);
 }
 
 static void
@@ -196,58 +176,50 @@ trap_setup(void)
 {
     size_t i;
 
-    for (i = 0; i < CPU_IDT_SIZE; i++) {
-        trap_install(i, TRAP_HF_INTR, trap_isr_default, trap_default);
+    spinlock_init(&trap_lock);
+
+    for (i = 0; i < ARRAY_SIZE(trap_isr_table); i++) {
+        cpu_idt_set_gate(i, trap_isr_table[i]);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(trap_handlers); i++) {
+        trap_install(i, TRAP_HF_INTR, trap_default);
     }
 
     /* Architecture defined traps */
-    trap_install(TRAP_DE, 0, trap_isr_divide_error, trap_default);
-    trap_install(TRAP_DB, 0, trap_isr_debug, trap_default);
-    trap_install(TRAP_NMI, TRAP_HF_INTR, trap_isr_nmi, trap_default);
-    trap_install(TRAP_BP, 0, trap_isr_breakpoint, trap_default);
-    trap_install(TRAP_OF, 0, trap_isr_overflow, trap_default);
-    trap_install(TRAP_BR, 0, trap_isr_bound_range, trap_default);
-    trap_install(TRAP_UD, 0, trap_isr_invalid_opcode, trap_default);
-    trap_install(TRAP_NM, 0, trap_isr_device_not_available, trap_default);
+    trap_install(TRAP_DE, 0, trap_default);
+    trap_install(TRAP_DB, 0, trap_default);
+    trap_install(TRAP_NMI, TRAP_HF_INTR, trap_default);
+    trap_install(TRAP_BP, 0, trap_default);
+    trap_install(TRAP_OF, 0, trap_default);
+    trap_install(TRAP_BR, 0, trap_default);
+    trap_install(TRAP_UD, 0, trap_default);
+    trap_install(TRAP_NM, 0, trap_default);
     trap_install_double_fault();
-    trap_install(TRAP_TS, 0, trap_isr_invalid_tss, trap_default);
-    trap_install(TRAP_NP, 0, trap_isr_segment_not_present, trap_default);
-    trap_install(TRAP_SS, 0, trap_isr_stack_segment_fault, trap_default);
-    trap_install(TRAP_GP, 0, trap_isr_general_protection, trap_default);
-    trap_install(TRAP_PF, 0, trap_isr_page_fault, trap_default);
-    trap_install(TRAP_MF, 0, trap_isr_math_fault, trap_default);
-    trap_install(TRAP_AC, 0, trap_isr_alignment_check, trap_default);
-    trap_install(TRAP_MC, TRAP_HF_INTR, trap_isr_machine_check, trap_default);
-    trap_install(TRAP_XM, 0, trap_isr_simd_fp_exception, trap_default);
-
-    /* Basic PIC support */
-    trap_install(TRAP_PIC_BASE + 7, TRAP_HF_INTR,
-                 trap_isr_pic_int7, pic_spurious_intr);
-    trap_install(TRAP_PIC_BASE + 15, TRAP_HF_INTR,
-                 trap_isr_pic_int15, pic_spurious_intr);
+    trap_install(TRAP_TS, 0, trap_default);
+    trap_install(TRAP_NP, 0, trap_default);
+    trap_install(TRAP_SS, 0, trap_default);
+    trap_install(TRAP_GP, 0, trap_default);
+    trap_install(TRAP_PF, 0, trap_default);
+    trap_install(TRAP_MF, 0, trap_default);
+    trap_install(TRAP_AC, 0, trap_default);
+    trap_install(TRAP_MC, TRAP_HF_INTR, trap_default);
+    trap_install(TRAP_XM, 0, trap_default);
 
     /* System defined traps */
-    trap_install(TRAP_XCALL, TRAP_HF_INTR,
-                 trap_isr_xcall, cpu_xcall_intr);
-    trap_install(TRAP_THREAD_SCHEDULE, TRAP_HF_INTR,
-                 trap_isr_thread_schedule, cpu_thread_schedule_intr);
-    trap_install(TRAP_CPU_HALT, TRAP_HF_INTR,
-                 trap_isr_cpu_halt, cpu_halt_intr);
-    trap_install(TRAP_LAPIC_TIMER, TRAP_HF_INTR,
-                 trap_isr_lapic_timer, lapic_timer_intr);
-    trap_install(TRAP_LAPIC_ERROR, TRAP_HF_INTR,
-                 trap_isr_lapic_error, lapic_error_intr);
-    trap_install(TRAP_LAPIC_SPURIOUS, TRAP_HF_INTR,
-                 trap_isr_lapic_spurious, lapic_spurious_intr);
-
-    trap_handler_init(trap_handler_get(TRAP_DEFAULT),
-                      TRAP_HF_INTR, trap_default);
+    trap_install(TRAP_XCALL, TRAP_HF_INTR, cpu_xcall_intr);
+    trap_install(TRAP_THREAD_SCHEDULE, TRAP_HF_INTR, cpu_thread_schedule_intr);
+    trap_install(TRAP_CPU_HALT, TRAP_HF_INTR, cpu_halt_intr);
+    trap_install(TRAP_LAPIC_TIMER, TRAP_HF_INTR, lapic_timer_intr);
+    trap_install(TRAP_LAPIC_ERROR, TRAP_HF_INTR, lapic_error_intr);
+    trap_install(TRAP_LAPIC_SPURIOUS, TRAP_HF_INTR, lapic_spurious_intr);
 }
 
 void
 trap_main(struct trap_frame *frame)
 {
     struct trap_handler *handler;
+    trap_handler_fn_t fn;
 
     assert(!cpu_intr_enabled());
 
@@ -257,13 +229,24 @@ trap_main(struct trap_frame *frame)
         thread_intr_enter();
     }
 
-    handler->fn(frame);
+    fn = atomic_load(&handler->fn, ATOMIC_RELAXED);
+    fn(frame);
 
     if (handler->flags & TRAP_HF_INTR) {
         thread_intr_leave();
     }
 
     assert(!cpu_intr_enabled());
+}
+
+void
+trap_register(unsigned int vector, trap_handler_fn_t handler_fn)
+{
+    unsigned long flags;
+
+    spinlock_lock_intr_save(&trap_lock, &flags);
+    trap_install(vector, TRAP_HF_INTR, handler_fn);
+    spinlock_unlock_intr_restore(&trap_lock, flags);
 }
 
 #ifdef __LP64__
