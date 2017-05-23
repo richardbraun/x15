@@ -29,6 +29,7 @@
 #include <machine/biosmem.h>
 #include <machine/cpu.h>
 #include <machine/io.h>
+#include <machine/ioapic.h>
 #include <machine/lapic.h>
 #include <machine/types.h>
 #include <vm/vm_kmem.h>
@@ -76,7 +77,8 @@ struct acpimp_rsdt {
 /*
  * MADT entry type codes.
  */
-#define ACPIMP_MADT_ENTRY_LAPIC 0
+#define ACPIMP_MADT_ENTRY_LAPIC     0
+#define ACPIMP_MADT_ENTRY_IOAPIC    1
 
 struct acpimp_madt_entry_hdr {
     uint8_t type;
@@ -92,10 +94,19 @@ struct acpimp_madt_entry_lapic {
     uint32_t flags;
 } __packed;
 
+struct acpimp_madt_entry_ioapic {
+    struct acpimp_madt_entry_hdr header;
+    uint8_t id;
+    uint8_t _reserved;
+    uint32_t addr;
+    uint32_t base;
+} __packed;
+
 union acpimp_madt_entry {
     uint8_t type;
     struct acpimp_madt_entry_hdr header;
     struct acpimp_madt_entry_lapic lapic;
+    struct acpimp_madt_entry_ioapic ioapic;
 } __packed;
 
 struct acpimp_madt {
@@ -467,6 +478,12 @@ acpimp_load_lapic(const struct acpimp_madt_entry_lapic *lapic, int *is_bsp)
 }
 
 static void __init
+acpimp_load_ioapic(const struct acpimp_madt_entry_ioapic *ioapic)
+{
+    ioapic_register(ioapic->id, ioapic->addr, ioapic->base);
+}
+
+static void __init
 acpimp_load_madt(void)
 {
     const struct acpimp_sdth *table;
@@ -478,13 +495,21 @@ acpimp_load_madt(void)
     assert(table != NULL);
     madt = structof(table, struct acpimp_madt, header);
     lapic_setup(madt->lapic_addr);
+    ioapic_setup();
     is_bsp = 1;
+
+    /*
+     * TODO Handle PCAT_COMPAT flag
+     * TODO Handle interrupt overrides
+     */
 
     acpimp_madt_foreach(madt, &iter) {
         switch (iter.entry->type) {
         case ACPIMP_MADT_ENTRY_LAPIC:
             acpimp_load_lapic(&iter.entry->lapic, &is_bsp);
             break;
+        case ACPIMP_MADT_ENTRY_IOAPIC:
+            acpimp_load_ioapic(&iter.entry->ioapic);
         }
     }
 }
