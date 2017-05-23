@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Richard Braun.
+ * Copyright (c) 2014-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,6 +34,8 @@ error_str(int error)
         return "device or resource busy";
     case ERROR_FAULT:
         return "Bad address";
+    case ERROR_NODEV:
+        return "No such device";
     default:
         return "unknown error";
     }
