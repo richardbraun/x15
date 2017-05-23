@@ -596,13 +596,19 @@ void cpu_mp_setup(void);
  */
 void cpu_ap_setup(void);
 
+static inline unsigned int
+cpu_apic_id(unsigned int cpu)
+{
+    return cpu_from_id(cpu)->apic_id;
+}
+
 /*
  * Send a cross-call interrupt to a remote processor.
  */
 static inline void
 cpu_send_xcall(unsigned int cpu)
 {
-    lapic_ipi_send(cpu_from_id(cpu)->apic_id, TRAP_XCALL);
+    lapic_ipi_send(cpu_apic_id(cpu), TRAP_XCALL);
 }
 
 /*
@@ -616,7 +622,7 @@ void cpu_xcall_intr(struct trap_frame *frame);
 static inline void
 cpu_send_thread_schedule(unsigned int cpu)
 {
-    lapic_ipi_send(cpu_from_id(cpu)->apic_id, TRAP_THREAD_SCHEDULE);
+    lapic_ipi_send(cpu_apic_id(cpu), TRAP_THREAD_SCHEDULE);
 }
 
 /*
