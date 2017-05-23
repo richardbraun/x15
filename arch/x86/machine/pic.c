@@ -57,8 +57,8 @@ pic_setup(void)
     io_write_byte(PIC_SLAVE_CMD, PIC_ICW1_INIT | PIC_ICW1_IC4);
 
     /* ICW 2 */
-    io_write_byte(PIC_MASTER_IMR, TRAP_PIC_BASE);
-    io_write_byte(PIC_SLAVE_IMR, TRAP_PIC_BASE + PIC_NR_INTRS);
+    io_write_byte(PIC_MASTER_IMR, TRAP_INTR_FIRST);
+    io_write_byte(PIC_SLAVE_IMR, TRAP_INTR_FIRST + PIC_NR_INTRS);
 
     /* ICW 3 - Set up cascading */
     io_write_byte(PIC_MASTER_IMR, 1 << PIC_SLAVE_INTR);
@@ -96,7 +96,7 @@ pic_spurious_intr(struct trap_frame *frame)
     unsigned long intr;
     uint8_t isr;
 
-    intr = frame->vector - TRAP_PIC_BASE;
+    intr = frame->vector - TRAP_INTR_FIRST;
     assert((intr == PIC_SPURIOUS_INTR)
            || (intr == (PIC_NR_INTRS + PIC_SPURIOUS_INTR)));
 
