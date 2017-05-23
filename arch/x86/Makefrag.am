@@ -41,6 +41,8 @@ x15_SOURCES +=                          \
         arch/x86/machine/cpu.h          \
         arch/x86/machine/elf.h          \
         arch/x86/machine/io.h           \
+        arch/x86/machine/ioapic.c       \
+        arch/x86/machine/ioapic.h       \
         arch/x86/machine/lapic.c        \
         arch/x86/machine/lapic.h        \
         arch/x86/machine/multiboot.h    \
