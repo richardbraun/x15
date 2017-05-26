@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012 Richard Braun.
+ * Copyright (c) 2011-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #ifndef _X86_LAPIC_H
 #define _X86_LAPIC_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include <machine/trap.h>
@@ -26,6 +27,17 @@
  * Send an end-of-interrupt message to the local APIC.
  */
 void lapic_eoi(void);
+
+/*
+ * Report whether the local APIC is actually used or not.
+ */
+bool lapic_unused(void);
+
+/*
+ * Initialize the lapic module for the sole purpose of reporting that
+ * it's actually not used.
+ */
+void lapic_setup_unused(void);
 
 /*
  * Set up the lapic module.

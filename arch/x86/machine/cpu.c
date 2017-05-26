@@ -650,9 +650,14 @@ cpu_mp_probe(void)
 
     error = acpimp_setup();
 
-    /* TODO Support UP with legacy PIC */
     if (error) {
-        panic("cpu: ACPI required to initialize local APIC");
+        /*
+         * For the sake of simplicity, it has been decided to ignore legacy
+         * specifications such as the multiprocessor specification, and use
+         * ACPI only. If ACPI is unavailable, consider the APIC system to
+         * be missing and fall back to using the legaxy XT-PIC.
+         */
+        lapic_setup_unused();
     }
 
     printf("cpu: %u processor(s) configured\n", cpu_count());

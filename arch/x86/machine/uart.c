@@ -26,6 +26,7 @@
 #include <kern/assert.h>
 #include <kern/console.h>
 #include <kern/init.h>
+#include <kern/intr.h>
 #include <kern/macros.h>
 #include <machine/biosmem.h>
 #include <machine/io.h>
@@ -183,7 +184,7 @@ uart_init(struct uart *uart, uint16_t port, uint16_t intr)
 }
 
 void __init
-uart_setup(void)
+uart_bootstrap(void)
 {
     const uint16_t *ptr;
     size_t i;
@@ -196,6 +197,42 @@ uart_setup(void)
         }
 
         uart_init(uart_get_dev(i), ptr[i], uart_intrs[i]);
+    }
+}
+
+static int
+uart_intr(void *arg)
+{
+    struct uart *uart;
+    uint8_t byte;
+
+    uart = arg;
+    byte = uart_read(uart, UART_REG_DAT);
+    printf("uart: intr:%u byte:%hhu (%c)\n", uart->intr, byte, byte);
+    return 0;
+}
+
+void __init
+uart_setup(void)
+{
+    struct uart *uart;
+    int error;
+    size_t i;
+
+    for (i = 0; i < ARRAY_SIZE(uart_devs); i++) {
+        uart = uart_get_dev(i);
+
+        if (uart->port == 0) {
+            continue;
+        }
+
+        error = intr_register(uart->intr, uart_intr, uart);
+
+        if (error) {
+            printf("uart%zu: unable to register interrupt %u\n", i, uart->intr);
+        }
+
+        uart_write(uart, UART_REG_IER, 1);
     }
 }
 

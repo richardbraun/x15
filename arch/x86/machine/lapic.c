@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 Richard Braun.
+ * Copyright (c) 2011-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
+#include <kern/assert.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
@@ -182,6 +184,9 @@ static volatile struct lapic_map *lapic_map __read_mostly;
  */
 static uint32_t lapic_bus_freq __read_mostly;
 
+static bool lapic_initialized __initdata;
+static bool lapic_is_unused __initdata;
+
 static uint32_t
 lapic_read(const volatile struct lapic_register *r)
 {
@@ -237,6 +242,20 @@ lapic_setup_registers(void)
     lapic_write(&lapic_map->timer_icr, lapic_bus_freq / HZ);
 }
 
+bool __init
+lapic_unused(void)
+{
+    assert(lapic_initialized);
+    return lapic_is_unused;
+}
+
+void __init
+lapic_setup_unused(void)
+{
+    lapic_initialized = true;
+    lapic_is_unused = true;
+}
+
 void __init
 lapic_setup(uint32_t map_addr)
 {
@@ -256,6 +275,8 @@ lapic_setup(uint32_t map_addr)
 
     lapic_setup_registers();
     lapic_setup_timer();
+
+    lapic_initialized = true;
 }
 
 void __init

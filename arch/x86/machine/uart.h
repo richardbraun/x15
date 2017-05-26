@@ -22,7 +22,17 @@
 #define _X86_UART_H
 
 /*
+ * Early initialization of the uart module.
+ *
+ * Devices may only be used to report diagnostics until initialization
+ * is completed.
+ */
+void uart_bootstrap(void);
+
+/*
  * Initialize the uart module.
+ *
+ * On return, devices may be used for both input and output, using interrupts.
  */
 void uart_setup(void);
 

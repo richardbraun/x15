@@ -51,6 +51,7 @@
 #include <kern/arg.h>
 #include <kern/console.h>
 #include <kern/init.h>
+#include <kern/intr.h>
 #include <kern/kmem.h>
 #include <kern/kernel.h>
 #include <kern/macros.h>
@@ -468,7 +469,7 @@ boot_main(void)
     thread_bootstrap();
     console_setup();
     cga_setup();
-    uart_setup();
+    uart_bootstrap();
     printf_setup();
     boot_show_version();
     arg_info();
@@ -481,8 +482,10 @@ boot_main(void)
     vm_setup();
     boot_save_data();
     biosmem_free_usable();
-    pic_setup();
+    intr_setup();
     cpu_mp_probe();
+    pic_setup();
+    uart_setup();
     kernel_main();
 
     /* Never reached */
