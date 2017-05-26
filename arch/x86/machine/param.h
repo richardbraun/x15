@@ -83,6 +83,11 @@
 #define STACK_SIZE PAGE_SIZE
 
 /*
+ * Maximum number of available interrupts.
+ */
+#define INTR_TABLE_SIZE 256
+
+/*
  * Virtual memory properties.
  */
 

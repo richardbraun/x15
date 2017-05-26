@@ -22,6 +22,7 @@
 #include <kern/assert.h>
 #include <kern/error.h>
 #include <kern/init.h>
+#include <kern/intr.h>
 #include <kern/kmem.h>
 #include <kern/panic.h>
 #include <kern/spinlock.h>
@@ -55,29 +56,13 @@ struct ioapic_map {
 };
 
 struct ioapic {
+    struct spinlock lock;
     unsigned int id;
     unsigned int version;
     volatile struct ioapic_map *map;
     unsigned int first_intr;
     unsigned int last_intr;
 };
-
-static struct ioapic *ioapic_devs;
-static unsigned int ioapic_nr_devs;
-
-/*
- * Global lock.
- *
- * Interrupts must be disabled when holding this lock.
- */
-static struct spinlock ioapic_lock;
-
-static struct ioapic *
-ioapic_get(unsigned int id)
-{
-    assert(id < ioapic_nr_devs);
-    return &ioapic_devs[id];
-}
 
 static uint32_t
 ioapic_read(struct ioapic *ioapic, uint8_t reg)
@@ -107,61 +92,26 @@ ioapic_write_entry_high(struct ioapic *ioapic, unsigned int id, uint32_t value)
     ioapic_write(ioapic, IOAPIC_REG_IOREDTBL + (id * 2) + 1, value);
 }
 
-static bool
-ioapic_has_intr(const struct ioapic *ioapic, unsigned int intr)
-{
-    return ((intr >= ioapic->first_intr) && (intr <= ioapic->last_intr));
-}
-
-static unsigned int
-ioapic_compute_id(const struct ioapic *ioapic, unsigned int intr)
-{
-    assert(ioapic_has_intr(ioapic, intr));
-    return intr - ioapic->first_intr;
-}
-
-static void
-ioapic_enable_intr(struct ioapic *ioapic, unsigned int intr,
-                   unsigned int cpu, unsigned int vector)
-{
-    unsigned int id;
-
-    id = ioapic_compute_id(ioapic, intr);
-    ioapic_write_entry_high(ioapic, id, cpu_apic_id(cpu) << 24);
-    ioapic_write_entry_low(ioapic, id, vector);
-}
-
-static void
-ioapic_disable_intr(struct ioapic *ioapic, unsigned int intr)
-{
-    unsigned int id;
-
-    id = ioapic_compute_id(ioapic, intr);
-    ioapic_write_entry_low(ioapic, id, IOAPIC_ENTLOW_INTRMASK);
-}
-
 static void
 ioapic_intr(struct trap_frame *frame)
 {
-    lapic_eoi();
-    printf("ioapic: cpu:%u vector:%lu\n", cpu_id(), frame->vector);
+    intr_handle(frame->vector - TRAP_INTR_FIRST);
 }
 
-void __init
-ioapic_setup(void)
+static struct ioapic * __init
+ioapic_create(unsigned int id, uintptr_t addr, unsigned int intr_base)
 {
-    ioapic_devs = NULL;
-    ioapic_nr_devs = 0;
-    spinlock_init(&ioapic_lock);
-}
-
-static void __init
-ioapic_init(struct ioapic *ioapic, unsigned int id,
-            uintptr_t addr, unsigned int intr_base)
-{
+    struct ioapic *ioapic;
     unsigned int i, nr_intrs;
     uint32_t value;
 
+    ioapic = kmem_alloc(sizeof(*ioapic));
+
+    if (ioapic == NULL) {
+        panic("ioapic: unable to allocate memory for controller");
+    }
+
+    spinlock_init(&ioapic->lock);
     ioapic->id = id;
     ioapic->first_intr = intr_base;
 
@@ -182,84 +132,82 @@ ioapic_init(struct ioapic *ioapic, unsigned int id,
         panic("ioapic: invalid interrupt range");
     }
 
-    printf("ioapic%u: version:%#x intrs:%u-%u\n", ioapic->id,
-           ioapic->version, ioapic->first_intr, ioapic->last_intr);
-
     for (i = ioapic->first_intr; i < ioapic->last_intr; i++) {
         trap_register(TRAP_INTR_FIRST + i, ioapic_intr);
     }
+
+    printf("ioapic%u: version:%#x intrs:%u-%u\n", ioapic->id,
+           ioapic->version, ioapic->first_intr, ioapic->last_intr);
+
+    return ioapic;
 }
+
+static bool
+ioapic_has_intr(const struct ioapic *ioapic, unsigned int intr)
+{
+    return ((intr >= ioapic->first_intr) && (intr <= ioapic->last_intr));
+}
+
+static unsigned int
+ioapic_compute_id(const struct ioapic *ioapic, unsigned int intr)
+{
+    assert(ioapic_has_intr(ioapic, intr));
+    return intr - ioapic->first_intr;
+}
+
+static void
+ioapic_enable(void *priv, unsigned int intr, unsigned int cpu)
+{
+    struct ioapic *ioapic;
+    unsigned long flags;
+    unsigned int id;
+
+    ioapic = priv;
+    id = ioapic_compute_id(ioapic, intr);
+
+    spinlock_lock_intr_save(&ioapic->lock, &flags);
+    ioapic_write_entry_high(ioapic, id, cpu_apic_id(cpu) << 24);
+    ioapic_write_entry_low(ioapic, id, TRAP_INTR_FIRST + intr);
+    spinlock_unlock_intr_restore(&ioapic->lock, flags);
+}
+
+static void
+ioapic_disable(void *priv, unsigned int intr)
+{
+    struct ioapic *ioapic;
+    unsigned long flags;
+    unsigned int id;
+
+    ioapic = priv;
+    id = ioapic_compute_id(ioapic, intr);
+
+    spinlock_lock_intr_save(&ioapic->lock, &flags);
+    ioapic_write_entry_low(ioapic, id, IOAPIC_ENTLOW_INTRMASK);
+    spinlock_unlock_intr_restore(&ioapic->lock, flags);
+}
+
+static void
+ioapic_eoi(void *priv, unsigned int intr)
+{
+    (void)priv;
+    (void)intr;
+
+    lapic_eoi();
+}
+
+static const struct intr_ops ioapic_ops = {
+    .enable = ioapic_enable,
+    .disable = ioapic_disable,
+    .eoi = ioapic_eoi,
+};
 
 void __init
 ioapic_register(unsigned int id, uintptr_t addr, unsigned int intr_base)
 {
-    struct ioapic *tmp;
-
-    spinlock_lock(&ioapic_lock);
-
-    tmp = kmem_alloc((ioapic_nr_devs + 1) * sizeof(*ioapic_devs));
-
-    if (tmp == NULL) {
-        panic("ioapic: unable to allocate memory for device");
-    }
-
-    memcpy(tmp, ioapic_devs, ioapic_nr_devs);
-    kmem_free(ioapic_devs, ioapic_nr_devs * sizeof(*ioapic_devs));
-    ioapic_devs = tmp;
-    ioapic_nr_devs++;
-
-    ioapic_init(ioapic_get(ioapic_nr_devs - 1), id, addr, intr_base);
-
-    spinlock_unlock(&ioapic_lock);
-}
-
-static struct ioapic *
-ioapic_lookup(unsigned int intr)
-{
     struct ioapic *ioapic;
-    unsigned int i;
 
-    for (i = 0; i < ioapic_nr_devs; i++) {
-        ioapic = &ioapic_devs[i];
-
-        if ((intr >= ioapic->first_intr) && (intr <= ioapic->last_intr)) {
-            return ioapic;
-        }
-    }
-
-    return NULL;
+    ioapic = ioapic_create(id, addr, intr_base);
+    intr_register_ctl(&ioapic_ops, ioapic,
+                      ioapic->first_intr, ioapic->last_intr);
 }
 
-int
-ioapic_enable(unsigned int intr, unsigned int cpu, unsigned int vector)
-{
-    struct ioapic *ioapic;
-    unsigned long flags;
-    int error;
-
-    spinlock_lock_intr_save(&ioapic_lock, &flags);
-
-    ioapic = ioapic_lookup(intr);
-
-    if (ioapic == NULL) {
-        error = ERROR_NODEV;
-        goto out;
-    }
-
-    ioapic_enable_intr(ioapic, intr, cpu, vector);
-    error = 0;
-
-out:
-    spinlock_unlock_intr_restore(&ioapic_lock, flags);
-    return error;
-}
-
-void
-ioapic_disable(unsigned int intr)
-{
-    unsigned long flags;
-
-    spinlock_lock_intr_save(&ioapic_lock, &flags);
-    ioapic_disable_intr(ioapic_lookup(intr), intr);
-    spinlock_unlock_intr_restore(&ioapic_lock, flags);
-}

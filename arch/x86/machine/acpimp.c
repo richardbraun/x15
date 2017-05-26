@@ -495,7 +495,6 @@ acpimp_load_madt(void)
     assert(table != NULL);
     madt = structof(table, struct acpimp_madt, header);
     lapic_setup(madt->lapic_addr);
-    ioapic_setup();
     is_bsp = 1;
 
     /*
