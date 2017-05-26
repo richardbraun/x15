@@ -26,6 +26,8 @@ x15_SOURCES +=                                              \
         kern/error.c                                        \
         kern/error.h                                        \
         kern/init.h                                         \
+        kern/intr.c                                         \
+        kern/intr.h                                         \
         kern/kernel.c                                       \
         kern/kernel.h                                       \
         kern/kmem.c                                         \
