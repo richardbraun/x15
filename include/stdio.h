@@ -25,4 +25,10 @@
 #define EOF (-1)
 #endif
 
+void console_putchar(char c);
+char console_getchar(void);
+
+#define getchar console_getchar
+#define putchar console_putchar
+
 #endif /* _STDIO_H */
