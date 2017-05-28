@@ -23,6 +23,7 @@
 /*
  * Register an I/O APIC controller.
  */
-void ioapic_register(unsigned int id, uintptr_t addr, unsigned int gsi_base);
+void ioapic_register(unsigned int apic_id, uintptr_t addr,
+                     unsigned int gsi_base);
 
 #endif /* _KERN_IOAPIC_H */

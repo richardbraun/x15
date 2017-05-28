@@ -58,11 +58,14 @@ struct ioapic_map {
 struct ioapic {
     struct spinlock lock;
     unsigned int id;
+    unsigned int apic_id;
     unsigned int version;
     volatile struct ioapic_map *map;
     unsigned int first_intr;
     unsigned int last_intr;
 };
+
+static unsigned int ioapic_nr_devs;
 
 static uint32_t
 ioapic_read(struct ioapic *ioapic, uint8_t reg)
@@ -99,7 +102,7 @@ ioapic_intr(struct trap_frame *frame)
 }
 
 static struct ioapic * __init
-ioapic_create(unsigned int id, uintptr_t addr, unsigned int intr_base)
+ioapic_create(unsigned int apic_id, uintptr_t addr, unsigned int intr_base)
 {
     struct ioapic *ioapic;
     unsigned int i, nr_intrs;
@@ -112,7 +115,8 @@ ioapic_create(unsigned int id, uintptr_t addr, unsigned int intr_base)
     }
 
     spinlock_init(&ioapic->lock);
-    ioapic->id = id;
+    ioapic->id = ioapic_nr_devs;
+    ioapic->apic_id = apic_id;
     ioapic->first_intr = intr_base;
 
     ioapic->map = vm_kmem_map_pa(addr, sizeof(*ioapic->map), NULL, NULL);
@@ -139,6 +143,7 @@ ioapic_create(unsigned int id, uintptr_t addr, unsigned int intr_base)
     printf("ioapic%u: version:%#x intrs:%u-%u\n", ioapic->id,
            ioapic->version, ioapic->first_intr, ioapic->last_intr);
 
+    ioapic_nr_devs++;
     return ioapic;
 }
 
@@ -202,11 +207,11 @@ static const struct intr_ops ioapic_ops = {
 };
 
 void __init
-ioapic_register(unsigned int id, uintptr_t addr, unsigned int intr_base)
+ioapic_register(unsigned int apic_id, uintptr_t addr, unsigned int intr_base)
 {
     struct ioapic *ioapic;
 
-    ioapic = ioapic_create(id, addr, intr_base);
+    ioapic = ioapic_create(apic_id, addr, intr_base);
     intr_register_ctl(&ioapic_ops, ioapic,
                       ioapic->first_intr, ioapic->last_intr);
 }
