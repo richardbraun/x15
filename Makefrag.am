@@ -71,6 +71,8 @@ x15_SOURCES +=                                              \
         kern/semaphore.c                                    \
         kern/semaphore.h                                    \
         kern/semaphore_i.h                                  \
+        kern/shell.c                                        \
+        kern/shell.h                                        \
         kern/sleepq.c                                       \
         kern/sleepq.h                                       \
         kern/spinlock.c                                     \
