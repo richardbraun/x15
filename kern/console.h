@@ -31,25 +31,27 @@ struct console;
  */
 typedef void (*console_putc_fn)(struct console *console, char c);
 
+#define CONSOLE_NAME_SIZE   16
+
 /*
  * Console device.
  *
  * This structure should be embedded in the hardware-specific console
  * objects. Calls to console operations are all serialized by this module
- * for each device.
+ * for each device. Interrupts are disabled when calling operations.
  */
 struct console {
     struct spinlock lock;
     struct list node;
     console_putc_fn putc;
+    char name[CONSOLE_NAME_SIZE];
 };
 
-static inline void
-console_init(struct console *console, console_putc_fn putc)
-{
-    spinlock_init(&console->lock);
-    console->putc = putc;
-}
+/*
+ * Console initialization.
+ */
+void console_init(struct console *console, const char *name,
+                  console_putc_fn putc);
 
 /*
  * Initialize the console module.
@@ -60,6 +62,9 @@ void console_setup(void);
  * Register a console device.
  *
  * The given console must be initialized before calling this function.
+ *
+ * This function isn't thread-safe and can only be called during system
+ * initialization.
  */
 void console_register(struct console *console);
 

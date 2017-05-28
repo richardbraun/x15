@@ -191,6 +191,6 @@ cga_setup(void)
 
     cga_cursor = cga_get_cursor_position();
 
-    console_init(&cga_console, cga_console_putc);
+    console_init(&cga_console, "cga", cga_console_putc);
     console_register(&cga_console);
 }

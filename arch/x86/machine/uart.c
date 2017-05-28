@@ -67,6 +67,16 @@ static struct uart uart_devs[UART_MAX_DEVS];
 
 static uint16_t uart_intrs[UART_MAX_DEVS] = { 4, 3, 4, 3 };
 
+static size_t
+uart_get_id(const struct uart *uart)
+{
+    size_t id;
+
+    id = uart - uart_devs;
+    assert(id < ARRAY_SIZE(uart_devs));
+    return id;
+}
+
 static uint16_t
 uart_get_addr(const struct uart *uart, uint16_t reg)
 {
@@ -163,6 +173,7 @@ uart_console_putc(struct console *console, char c)
 static void __init
 uart_init(struct uart *uart, uint16_t port, uint16_t intr)
 {
+    char name[CONSOLE_NAME_SIZE];
     uint8_t byte;
 
     uart->port = port;
@@ -179,7 +190,8 @@ uart_init(struct uart *uart, uint16_t port, uint16_t intr)
     byte = UART_LCR_8BITS | UART_LCR_NP | UART_LCR_1S | UART_LCR_BEN;
     uart_write(uart, UART_REG_LCR, byte);
 
-    console_init(&uart->console, uart_console_putc);
+    snprintf(name, sizeof(name), "uart%zu", uart_get_id(uart));
+    console_init(&uart->console, name, uart_console_putc);
     console_register(&uart->console);
 }
 

@@ -15,16 +15,48 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <string.h>
 
+#include <kern/arg.h>
 #include <kern/assert.h>
 #include <kern/init.h>
 #include <kern/console.h>
 #include <kern/list.h>
 #include <kern/spinlock.h>
 
+/*
+ * Registered consoles.
+ */
 static struct list console_devs;
-static struct spinlock console_lock;
+
+/*
+ * Active console device.
+ */
+static struct console *console_dev;
+
+static const char *console_name __initdata;
+
+static bool __init
+console_name_match(const char *name)
+{
+    if (console_name == NULL) {
+        return true;
+    }
+
+    return (strcmp(console_name, name) == 0);
+}
+
+void __init
+console_init(struct console *console, const char *name,
+             console_putc_fn putc)
+{
+    spinlock_init(&console->lock);
+    console->putc = putc;
+    strlcpy(console->name, name, sizeof(console->name));
+}
 
 static void
 console_putc(struct console *console, char c)
@@ -40,30 +72,31 @@ void __init
 console_setup(void)
 {
     list_init(&console_devs);
-    spinlock_init(&console_lock);
+    console_name = arg_value("console");
 }
 
 void __init
 console_register(struct console *console)
 {
-    assert(console->putc != NULL);
-
-    spinlock_lock(&console_lock);
     list_insert_tail(&console_devs, &console->node);
-    spinlock_unlock(&console_lock);
+
+    if ((console_dev == NULL) && console_name_match(console->name)) {
+        console_dev = console;
+    }
+
+    printf("console: %s registered\n", console->name);
+
+    if (console == console_dev) {
+        printf("console: %s selected as active console\n", console->name);
+    }
 }
 
 void
 console_write_char(char c)
 {
-    struct console *console;
-    unsigned long flags;
-
-    spinlock_lock_intr_save(&console_lock, &flags);
-
-    list_for_each_entry(&console_devs, console, node) {
-        console_putc(console, c);
+    if (console_dev == NULL) {
+        return;
     }
 
-    spinlock_unlock_intr_restore(&console_lock, flags);
+    console_putc(console_dev, c);
 }
