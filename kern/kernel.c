@@ -20,6 +20,7 @@
 #include <kern/kernel.h>
 #include <kern/llsync.h>
 #include <kern/percpu.h>
+#include <kern/shell.h>
 #include <kern/sleepq.h>
 #include <kern/sref.h>
 #include <kern/task.h>
@@ -49,6 +50,7 @@ kernel_main(void)
     work_setup();
     llsync_setup();
     sref_setup();
+    shell_setup();
     vm_page_info();
 
 #ifdef X15_RUN_TEST_MODULE
