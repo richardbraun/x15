@@ -85,17 +85,15 @@ static struct list intr_ctls;
 
 static struct kmem_cache intr_handler_cache;
 
-/*
- * Next processor to route interrupts to.
- *
- * TODO Replace the simple current round-robin policy with a better one.
- */
-static unsigned int intr_next_cpu;
-
 static unsigned int
 intr_select_cpu(void)
 {
-    return atomic_fetch_add(&intr_next_cpu, 1, ATOMIC_RELAXED) % cpu_count();
+    /*
+     * TODO Interrupt routing.
+     * Although the interface supports it, there are currently problems
+     * with the I/O APIC that need to be solved first.
+     */
+    return 0;
 }
 
 static int
