@@ -22,10 +22,14 @@
 
 #include <kern/arg.h>
 #include <kern/assert.h>
+#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/console.h>
 #include <kern/list.h>
+#include <kern/mutex.h>
 #include <kern/spinlock.h>
+#include <kern/thread.h>
+#include <machine/cpu.h>
 
 /*
  * Registered consoles.
@@ -51,10 +55,14 @@ console_name_match(const char *name)
 
 void __init
 console_init(struct console *console, const char *name,
-             console_putc_fn putc)
+             const struct console_ops *ops)
 {
+    assert(ops != NULL);
+
     spinlock_init(&console->lock);
-    console->putc = putc;
+    console->ops = ops;
+    cbuf_init(&console->recvbuf, console->buffer, sizeof(console->buffer));
+    console->waiter = NULL;
     strlcpy(console->name, name, sizeof(console->name));
 }
 
@@ -64,8 +72,42 @@ console_putc(struct console *console, char c)
     unsigned long flags;
 
     spinlock_lock_intr_save(&console->lock, &flags);
-    console->putc(console, c);
+    console->ops->putc(console_dev, c);
     spinlock_unlock_intr_restore(&console->lock, flags);
+}
+
+static char
+console_getc(struct console *console)
+{
+    unsigned long flags;
+    int error;
+    char c;
+
+    spinlock_lock_intr_save(&console->lock, &flags);
+
+    if (console->waiter != NULL) {
+        c = EOF;
+        goto out;
+    }
+
+    console->waiter = thread_self();
+
+    for (;;) {
+        error = cbuf_pop(&console->recvbuf, &c);
+
+        if (!error) {
+            break;
+        }
+
+        thread_sleep(&console->lock, console, "consgetc");
+    }
+
+    console->waiter = NULL;
+
+out:
+    spinlock_unlock_intr_restore(&console->lock, flags);
+
+    return c;
 }
 
 void __init
@@ -78,6 +120,8 @@ console_setup(void)
 void __init
 console_register(struct console *console)
 {
+    assert(console->ops != NULL);
+
     list_insert_tail(&console_devs, &console->node);
 
     if ((console_dev == NULL) && console_name_match(console->name)) {
@@ -92,11 +136,48 @@ console_register(struct console *console)
 }
 
 void
-console_write_char(char c)
+console_intr(struct console *console, char c)
+{
+    assert(!cpu_intr_enabled());
+
+    spinlock_lock(&console->lock);
+
+    if (cbuf_size(&console->recvbuf) == cbuf_capacity(&console->recvbuf)) {
+        goto out;
+    }
+
+    cbuf_push(&console->recvbuf, c);
+
+    if ((console->waiter != NULL) && (console->waiter != thread_self())) {
+        thread_wakeup(console->waiter);
+    }
+
+out:
+    spinlock_unlock(&console->lock);
+}
+
+void
+console_putchar(char c)
 {
     if (console_dev == NULL) {
         return;
     }
 
     console_putc(console_dev, c);
+}
+
+char
+console_getchar(void)
+{
+    char c;
+
+    if (console_dev == NULL) {
+        c = EOF;
+        goto out;
+    }
+
+    c = console_getc(console_dev);
+
+out:
+    return c;
 }

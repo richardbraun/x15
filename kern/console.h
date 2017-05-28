@@ -21,16 +21,18 @@
 #ifndef _KERN_CONSOLE_H
 #define _KERN_CONSOLE_H
 
+#include <kern/cbuf.h>
 #include <kern/list.h>
 #include <kern/spinlock.h>
+#include <kern/thread.h>
 
 struct console;
 
-/*
- * Type for character writing functions.
- */
-typedef void (*console_putc_fn)(struct console *console, char c);
+struct console_ops {
+    void (*putc)(struct console *console, char c);
+};
 
+#define CONSOLE_BUF_SIZE    64
 #define CONSOLE_NAME_SIZE   16
 
 /*
@@ -42,8 +44,11 @@ typedef void (*console_putc_fn)(struct console *console, char c);
  */
 struct console {
     struct spinlock lock;
+    const struct console_ops *ops;
+    char buffer[CONSOLE_BUF_SIZE];
+    struct cbuf recvbuf;
+    struct thread *waiter;
     struct list node;
-    console_putc_fn putc;
     char name[CONSOLE_NAME_SIZE];
 };
 
@@ -51,7 +56,7 @@ struct console {
  * Console initialization.
  */
 void console_init(struct console *console, const char *name,
-                  console_putc_fn putc);
+                  const struct console_ops *ops);
 
 /*
  * Initialize the console module.
@@ -69,8 +74,22 @@ void console_setup(void);
 void console_register(struct console *console);
 
 /*
- * Write a single character to all registered console devices.
+ * Console interrupt handler.
+ *
+ * This function is meant to be used by low-level drivers to fill the
+ * receive buffer.
+ *
+ * Interrupts must be disabled when calling this function.
  */
-void console_write_char(char c);
+void console_intr(struct console *console, char c);
+
+/*
+ * Write/read a single character to all registered console devices.
+ *
+ * Writing may not block in order to allow printf functions to be used in any
+ * context. Reading may block waiting for input.
+ */
+void console_putchar(char c);
+char console_getchar(void);
 
 #endif /* _KERN_CONSOLE_H */

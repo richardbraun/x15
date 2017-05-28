@@ -170,6 +170,10 @@ uart_console_putc(struct console *console, char c)
     uart_write_char(uart_get_from_console(console), c);
 }
 
+static struct console_ops uart_console_ops = {
+    .putc = uart_console_putc,
+};
+
 static void __init
 uart_init(struct uart *uart, uint16_t port, uint16_t intr)
 {
@@ -191,7 +195,7 @@ uart_init(struct uart *uart, uint16_t port, uint16_t intr)
     uart_write(uart, UART_REG_LCR, byte);
 
     snprintf(name, sizeof(name), "uart%zu", uart_get_id(uart));
-    console_init(&uart->console, name, uart_console_putc);
+    console_init(&uart->console, name, &uart_console_ops);
     console_register(&uart->console);
 }
 
