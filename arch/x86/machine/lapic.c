@@ -200,10 +200,11 @@ lapic_write(volatile struct lapic_register *r, uint32_t value)
 }
 
 static void __init
-lapic_setup_timer(void)
+lapic_compute_freq(void)
 {
     uint32_t c1, c2;
 
+    lapic_write(&lapic_map->svr, LAPIC_SVR_SOFT_EN | TRAP_LAPIC_SPURIOUS);
     lapic_write(&lapic_map->timer_dcr, LAPIC_TIMER_DCR_DIV1);
 
     /* The APIC timer counter should never wrap around here */
@@ -215,6 +216,7 @@ lapic_setup_timer(void)
     printf("lapic: bus frequency: %u.%02u MHz\n", lapic_bus_freq / 1000000,
            lapic_bus_freq % 1000000);
     lapic_write(&lapic_map->timer_icr, lapic_bus_freq / HZ);
+    lapic_write(&lapic_map->svr, 0);
 }
 
 void
@@ -228,6 +230,7 @@ lapic_setup_registers(void)
 {
     /*
      * LVT mask bits can only be cleared when the local APIC is enabled.
+     * They are kept disabled while the local APIC is disabled.
      */
     lapic_write(&lapic_map->svr, LAPIC_SVR_SOFT_EN | TRAP_LAPIC_SPURIOUS);
     lapic_write(&lapic_map->tpr, 0);
@@ -273,8 +276,8 @@ lapic_setup(uint32_t map_addr)
         panic("lapic: external local APIC not supported");
     }
 
+    lapic_compute_freq();
     lapic_setup_registers();
-    lapic_setup_timer();
 
     lapic_initialized = true;
 }
