@@ -36,6 +36,10 @@ error_str(int error)
         return "Bad address";
     case ERROR_NODEV:
         return "No such device";
+    case ERROR_EXIST:
+        return "Entry exists";
+    case ERROR_IO:
+        return "Input/output error";
     default:
         return "unknown error";
     }
