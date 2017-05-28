@@ -411,6 +411,11 @@ intr_handle(unsigned int intr)
 
     spinlock_lock(&entry->lock);
 
+    if (intr_entry_empty(entry)) {
+        printf("intr: spurious interrupt %u\n", intr);
+        goto out;
+    }
+
     intr_entry_eoi(entry, intr);
 
     list_for_each_entry(&entry->handlers, handler, node) {
@@ -421,5 +426,6 @@ intr_handle(unsigned int intr)
         }
     }
 
+out:
     spinlock_unlock(&entry->lock);
 }
