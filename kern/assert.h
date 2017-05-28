@@ -18,6 +18,8 @@
 #ifndef _KERN_ASSERT_H
 #define _KERN_ASSERT_H
 
+#define static_assert _Static_assert
+
 #ifdef NDEBUG
 #define assert(expression) ((void)(expression))
 #else /* NDEBUG */
