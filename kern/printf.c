@@ -54,7 +54,7 @@ vprintf(const char *format, va_list ap)
     length = vsnprintf(printf_buffer, sizeof(printf_buffer), format, ap);
 
     for (ptr = printf_buffer; *ptr != '\0'; ptr++) {
-        console_write_char(*ptr);
+        console_putchar(*ptr);
     }
 
     spinlock_unlock_intr_restore(&printf_lock, flags);

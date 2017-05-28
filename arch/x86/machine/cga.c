@@ -165,6 +165,10 @@ cga_console_putc(struct console *console, char c)
     cga_write_char(c);
 }
 
+static const struct console_ops cga_console_ops = {
+    .putc = cga_console_putc,
+};
+
 void __init
 cga_setup(void)
 {
@@ -191,6 +195,6 @@ cga_setup(void)
 
     cga_cursor = cga_get_cursor_position();
 
-    console_init(&cga_console, "cga", cga_console_putc);
+    console_init(&cga_console, "cga", &cga_console_ops);
     console_register(&cga_console);
 }

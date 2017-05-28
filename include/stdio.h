@@ -21,4 +21,8 @@
 #include <kern/printf.h>
 #include <kern/sprintf.h>
 
+#ifndef EOF
+#define EOF (-1)
+#endif
+
 #endif /* _STDIO_H */
