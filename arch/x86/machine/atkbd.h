@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,20 +15,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * Tiny CGA driver.
+ * Tiny AT keyboard driver.
  */
 
-#ifndef _X86_CGA_H
-#define _X86_CGA_H
+#ifndef _X86_ATKBD_H
+#define _X86_ATKBD_H
 
 /*
- * Initialize the cga module.
+ * Initialize the atkbd module.
  */
-void cga_setup(void);
+void atkbd_setup(void);
 
-/*
- * Append a character to the CGA screen.
- */
-void cga_putc(char c);
-
-#endif /* _X86_CGA_H */
+#endif /* _X86_ATKBD_H */

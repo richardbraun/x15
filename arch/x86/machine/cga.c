@@ -18,7 +18,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <kern/console.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/param.h>
@@ -70,8 +69,6 @@
 static uint8_t *cga_memory __read_mostly;
 static uint16_t cga_cursor;
 
-static struct console cga_console;
-
 static uint16_t
 cga_get_cursor_position(void)
 {
@@ -119,8 +116,8 @@ cga_scroll_lines(void)
     }
 }
 
-static void
-cga_write_char(char c)
+void
+cga_putc(char c)
 {
     if (c == '\r') {
         return;
@@ -143,7 +140,7 @@ cga_write_char(char c)
         int i;
 
         for(i = 0; i < CGA_TABULATION_SPACES; i++) {
-            cga_write_char(' ');
+            cga_putc(' ');
         }
     } else {
         if ((cga_cursor + 1) >= CGA_COLUMNS * CGA_LINES) {
@@ -157,17 +154,6 @@ cga_write_char(char c)
         cga_set_cursor_position(cga_cursor);
     }
 }
-
-static void
-cga_console_putc(struct console *console, char c)
-{
-    (void)console;
-    cga_write_char(c);
-}
-
-static const struct console_ops cga_console_ops = {
-    .putc = cga_console_putc,
-};
 
 void __init
 cga_setup(void)
@@ -194,7 +180,4 @@ cga_setup(void)
     }
 
     cga_cursor = cga_get_cursor_position();
-
-    console_init(&cga_console, "cga", &cga_console_ops);
-    console_register(&cga_console);
 }
