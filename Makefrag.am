@@ -27,6 +27,7 @@ x15_SOURCES +=                                              \
         kern/cpumap.h                                       \
         kern/error.c                                        \
         kern/error.h                                        \
+        kern/hash.h                                         \
         kern/init.h                                         \
         kern/intr.c                                         \
         kern/intr.h                                         \
