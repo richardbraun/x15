@@ -576,11 +576,6 @@ cpu_check(const struct cpu *cpu)
         cpu_panic_on_missing_feature("fpu");
     }
 
-    /* TODO: support UP with legacy PIC machines */
-    if (!(cpu->features2 & CPU_FEATURE2_APIC)) {
-        cpu_panic_on_missing_feature("apic");
-    }
-
     /*
      * The compiler is expected to produce cmpxchg8b instructions to
      * perform 64-bits atomic operations on a 32-bits processor. Clang
