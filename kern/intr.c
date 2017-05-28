@@ -416,8 +416,6 @@ intr_handle(unsigned int intr)
         goto out;
     }
 
-    intr_entry_eoi(entry, intr);
-
     list_for_each_entry(&entry->handlers, handler, node) {
         error = intr_handler_run(handler);
 
@@ -425,6 +423,8 @@ intr_handle(unsigned int intr)
             break;
         }
     }
+
+    intr_entry_eoi(entry, intr);
 
 out:
     spinlock_unlock(&entry->lock);
