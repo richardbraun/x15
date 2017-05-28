@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Richard Braun.
+ * Copyright (c) 2012-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include <stdint.h>
 
 #include <kern/assert.h>
+#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/intr.h>
 #include <kern/panic.h>
@@ -56,6 +57,9 @@ static unsigned int pic_nr_slave_intrs;
 
 static uint8_t pic_master_mask;
 static uint8_t pic_slave_mask;
+
+static uint8_t pic_master_spurious_intr;
+static uint8_t pic_slave_spurious_intr;
 
 static bool
 pic_is_slave_intr(unsigned int intr)
@@ -168,9 +172,37 @@ pic_register(void)
     }
 }
 
+static int
+pic_spurious_intr(void *arg)
+{
+    uint8_t intr, isr;
+
+    intr = *(const uint8_t *)arg;
+
+    if (arg == &pic_master_spurious_intr) {
+        isr = pic_read_isr(PIC_MASTER_CMD);
+
+        if (isr & (1 << PIC_SPURIOUS_INTR)) {
+            panic("pic: real interrupt %hhu", intr);
+        }
+    } else {
+        isr = pic_read_isr(PIC_SLAVE_CMD);
+
+        if (isr & (1 << PIC_SPURIOUS_INTR)) {
+            panic("pic: real interrupt %hhu", intr);
+        }
+
+        pic_eoi(PIC_SLAVE_INTR);
+    }
+
+    return 0;
+}
+
 void __init
 pic_setup(void)
 {
+    int error;
+
     pic_nr_slave_intrs = 0;
     pic_master_mask = 0xff;
     pic_slave_mask = 0xff;
@@ -198,31 +230,14 @@ pic_setup(void)
     if (lapic_unused()) {
         pic_register();
     }
-}
 
-void
-pic_spurious_intr(struct trap_frame *frame)
-{
-    unsigned long intr;
-    uint8_t isr;
+    pic_master_spurious_intr = PIC_SPURIOUS_INTR;
+    error = intr_register(pic_master_spurious_intr, pic_spurious_intr,
+                          &pic_master_spurious_intr);
+    error_check(error, __func__);
 
-    intr = frame->vector - TRAP_INTR_FIRST;
-    assert((intr == PIC_SPURIOUS_INTR)
-           || (intr == (PIC_NR_INTRS + PIC_SPURIOUS_INTR)));
-
-    if (intr == PIC_SPURIOUS_INTR) {
-        isr = pic_read_isr(PIC_MASTER_CMD);
-
-        if (isr & (1 << PIC_SPURIOUS_INTR)) {
-            panic("pic: real interrupt %lu", intr);
-        }
-    } else {
-        isr = pic_read_isr(PIC_SLAVE_CMD);
-
-        if (isr & (1 << PIC_SPURIOUS_INTR)) {
-            panic("pic: real interrupt %lu", intr);
-        }
-
-        pic_eoi(PIC_SLAVE_INTR);
-    }
+    pic_slave_spurious_intr = PIC_NR_INTRS + PIC_SPURIOUS_INTR;
+    error = intr_register(pic_slave_spurious_intr, pic_spurious_intr,
+                          &pic_slave_spurious_intr);
+    error_check(error, __func__);
 }
