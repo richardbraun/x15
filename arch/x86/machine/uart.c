@@ -16,8 +16,6 @@
  *
  *
  * TODO Make serial line parameters configurable.
- * TODO 16550A support.
- * TODO Interrupt probing and handling.
  */
 
 #include <stdint.h>
@@ -25,6 +23,7 @@
 
 #include <kern/assert.h>
 #include <kern/console.h>
+#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/intr.h>
 #include <kern/macros.h>
@@ -34,28 +33,37 @@
 
 #define UART_BDA_COM1_OFFSET 0
 
-#define UART_REG_DAT    0
-#define UART_REG_DLL    0
-#define UART_REG_IER    1
-#define UART_REG_DLH    1
-#define UART_REG_LCR    3
-#define UART_REG_MCR    4
-#define UART_REG_LSR    5
-#define UART_NR_REGS    6
+#define UART_REG_DAT            0
+#define UART_REG_DLL            0
+#define UART_REG_IER            1
+#define UART_REG_DLH            1
+#define UART_REG_IIR            2
+#define UART_REG_LCR            3
+#define UART_REG_MCR            4
+#define UART_REG_LSR            5
+#define UART_REG_MSR            6
+#define UART_NR_REGS            7
 
-#define UART_THR_EMPTY  0x20
+#define UART_IER_RX             0x1
 
-#define UART_LCR_8BITS  0x03
-#define UART_LCR_1S     0x00
-#define UART_LCR_NP     0x00
-#define UART_LCR_BEN    0x40
-#define UART_LCR_DLAB   0x80
+#define UART_IIR_NOT_PENDING    0x1
+#define UART_IIR_SRC_RX         0x4
+#define UART_IIR_SRC_MASK       0xe
 
-#define UART_MCR_DTR    0x01
-#define UART_MCR_RTS    0x02
-#define UART_MCR_AUX2   0x04
+#define UART_LCR_8BITS          0x03
+#define UART_LCR_1S             0x00
+#define UART_LCR_NP             0x00
+#define UART_LCR_BEN            0x40
+#define UART_LCR_DLAB           0x80
 
-#define UART_MAX_DEVS   4
+#define UART_MCR_DTR            0x01
+#define UART_MCR_RTS            0x02
+#define UART_MCR_AUX2           0x04
+
+#define UART_LSR_DATA_READY     0x01
+#define UART_LSR_TX_EMPTY       0x20
+
+#define UART_MAX_DEVS           4
 
 struct uart {
     struct console console;
@@ -121,6 +129,62 @@ uart_clear(struct uart *uart, uint16_t reg, uint8_t mask)
 }
 
 static void
+uart_recv_intr(struct uart *uart)
+{
+    uint8_t byte;
+
+    for (;;) {
+        byte = uart_read(uart, UART_REG_LSR);
+
+        if (!(byte & UART_LSR_DATA_READY)) {
+            break;
+        }
+
+        byte = uart_read(uart, UART_REG_DAT);
+        console_intr(&uart->console, (char)byte);
+    }
+}
+
+static int
+uart_intr(void *arg)
+{
+    struct uart *uart;
+    uint8_t byte;
+
+    uart = arg;
+
+    byte = uart_read(uart, UART_REG_IIR);
+
+    if (byte & UART_IIR_NOT_PENDING) {
+        return ERROR_AGAIN;
+    }
+
+    byte &= UART_IIR_SRC_MASK;
+
+    if (byte == UART_IIR_SRC_RX) {
+        uart_recv_intr(uart);
+    }
+
+    return 0;
+}
+
+static void __init
+uart_enable_intr(struct uart *uart)
+{
+    int error;
+
+    error = intr_register(uart->intr, uart_intr, uart);
+
+    if (error) {
+        printf("uart%zu: error: unable to register interrupt %u\n",
+               uart_get_id(uart), uart->intr);
+        return;
+    }
+
+    uart_write(uart, UART_REG_IER, UART_IER_RX);
+}
+
+static void
 uart_tx_wait(struct uart *uart)
 {
     uint8_t byte;
@@ -128,23 +192,10 @@ uart_tx_wait(struct uart *uart)
     for (;;) {
         byte = uart_read(uart, UART_REG_LSR);
 
-        if (byte & UART_THR_EMPTY) {
+        if (byte & UART_LSR_TX_EMPTY) {
             break;
         }
     }
-}
-
-static struct uart *
-uart_get_dev(size_t i)
-{
-    assert(i < ARRAY_SIZE(uart_devs));
-    return &uart_devs[i];
-}
-
-static struct uart *
-uart_get_from_console(struct console *console)
-{
-    return structof(console, struct uart, console);
 }
 
 static void
@@ -164,13 +215,26 @@ uart_write_char(struct uart *uart, char c)
     uart_write_char_common(uart, c);
 }
 
+static struct uart *
+uart_get_dev(size_t i)
+{
+    assert(i < ARRAY_SIZE(uart_devs));
+    return &uart_devs[i];
+}
+
+static struct uart *
+uart_get_from_console(struct console *console)
+{
+    return structof(console, struct uart, console);
+}
+
 static void
 uart_console_putc(struct console *console, char c)
 {
     uart_write_char(uart_get_from_console(console), c);
 }
 
-static struct console_ops uart_console_ops = {
+static const struct console_ops uart_console_ops = {
     .putc = uart_console_putc,
 };
 
@@ -184,14 +248,15 @@ uart_init(struct uart *uart, uint16_t port, uint16_t intr)
     uart->intr = intr;
 
     uart_write(uart, UART_REG_IER, 0);
-    uart_write(uart, UART_REG_MCR, UART_MCR_AUX2 | UART_MCR_RTS | UART_MCR_DTR);
 
     uart_set(uart, UART_REG_LCR, UART_LCR_DLAB);
     uart_write(uart, UART_REG_DLH, 0);
     uart_write(uart, UART_REG_DLL, 1);
     uart_clear(uart, UART_REG_LCR, UART_LCR_DLAB);
 
-    byte = UART_LCR_8BITS | UART_LCR_NP | UART_LCR_1S | UART_LCR_BEN;
+    uart_write(uart, UART_REG_MCR, UART_MCR_AUX2 | UART_MCR_RTS | UART_MCR_DTR);
+
+    byte = UART_LCR_8BITS | UART_LCR_NP | UART_LCR_1S;
     uart_write(uart, UART_REG_LCR, byte);
 
     snprintf(name, sizeof(name), "uart%zu", uart_get_id(uart));
@@ -216,23 +281,10 @@ uart_bootstrap(void)
     }
 }
 
-static int
-uart_intr(void *arg)
-{
-    struct uart *uart;
-    uint8_t byte;
-
-    uart = arg;
-    byte = uart_read(uart, UART_REG_DAT);
-    printf("uart: intr:%u byte:%hhu (%c)\n", uart->intr, byte, byte);
-    return 0;
-}
-
 void __init
 uart_setup(void)
 {
     struct uart *uart;
-    int error;
     size_t i;
 
     for (i = 0; i < ARRAY_SIZE(uart_devs); i++) {
@@ -242,13 +294,7 @@ uart_setup(void)
             continue;
         }
 
-        error = intr_register(uart->intr, uart_intr, uart);
-
-        if (error) {
-            printf("uart%zu: unable to register interrupt %u\n", i, uart->intr);
-        }
-
-        uart_write(uart, UART_REG_IER, 1);
+        uart_enable_intr(uart);
     }
 }
 
