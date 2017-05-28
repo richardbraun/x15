@@ -26,6 +26,10 @@ endif AMD64
 x15_SOURCES +=                          \
         arch/x86/machine/acpimp.c       \
         arch/x86/machine/acpimp.h       \
+        arch/x86/machine/atcons.c       \
+        arch/x86/machine/atcons.h       \
+        arch/x86/machine/atkbd.c        \
+        arch/x86/machine/atkbd.h        \
         arch/x86/machine/asm.h          \
         arch/x86/machine/atomic.h       \
         arch/x86/machine/biosmem.c      \

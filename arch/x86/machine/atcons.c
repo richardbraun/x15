@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,22 +13,44 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- *
- * Tiny CGA driver.
  */
 
-#ifndef _X86_CGA_H
-#define _X86_CGA_H
+#include <kern/console.h>
+#include <kern/init.h>
+#include <machine/atcons.h>
+#include <machine/atkbd.h>
+#include <machine/cga.h>
 
-/*
- * Initialize the cga module.
- */
-void cga_setup(void);
+static struct console atcons_console;
 
-/*
- * Append a character to the CGA screen.
- */
-void cga_putc(char c);
+static void
+atcons_putc(struct console *console, char c)
+{
+    (void)console;
+    cga_putc(c);
+}
 
-#endif /* _X86_CGA_H */
+static const struct console_ops atcons_ops = {
+    .putc = atcons_putc,
+};
+
+void __init
+atcons_bootstrap(void)
+{
+    cga_setup();
+
+    console_init(&atcons_console, "atcons", &atcons_ops);
+    console_register(&atcons_console);
+}
+
+void __init
+atcons_setup(void)
+{
+    atkbd_setup();
+}
+
+void
+atcons_intr(char c)
+{
+    console_intr(&atcons_console, c);
+}

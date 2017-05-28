@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,20 +15,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * Tiny CGA driver.
+ * AT console driver.
  */
 
-#ifndef _X86_CGA_H
-#define _X86_CGA_H
+#ifndef _X86_ATCONS_H
+#define _X86_ATCONS_H
 
 /*
- * Initialize the cga module.
+ * Early initialization of the atcons module.
  */
-void cga_setup(void);
+void atcons_bootstrap(void);
 
 /*
- * Append a character to the CGA screen.
+ * Initialize the atcons module.
+ *
+ * This function enables keyboard interrupt handling.
  */
-void cga_putc(char c);
+void atcons_setup(void);
 
-#endif /* _X86_CGA_H */
+/*
+ * Console interrupt handler.
+ *
+ * This function is called by the AT keyboard interrupt handler
+ * to handle machine-independent console management.
+ */
+void atcons_intr(char c);
+
+#endif /* _X86_ATCONS_H */

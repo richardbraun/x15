@@ -63,6 +63,7 @@
 #include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <kern/turnstile.h>
+#include <machine/atcons.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cga.h>
@@ -468,7 +469,7 @@ boot_main(void)
     cpu_setup();
     thread_bootstrap();
     console_setup();
-    cga_setup();
+    atcons_bootstrap();
     uart_bootstrap();
     printf_setup();
     boot_show_version();
@@ -485,6 +486,7 @@ boot_main(void)
     intr_setup();
     cpu_mp_probe();
     pic_setup();
+    atcons_setup();
     uart_setup();
     kernel_main();
 
