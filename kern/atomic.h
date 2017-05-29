@@ -122,12 +122,12 @@ MACRO_END
 #define atomic_cas_release(ptr, oval, nval) \
     atomic_cas(ptr, oval, nval, ATOMIC_RELEASE)
 
-#define atomic_cas_seq_cst(ptr, oval, nval) \
-    atomic_cas(ptr, oval, nval, ATOMIC_SEQ_CST)
+#define atomic_cas_acq_rel(ptr, oval, nval) \
+    atomic_cas(ptr, oval, nval, ATOMIC_ACQ_REL)
 
 #define atomic_swap_acquire(ptr, val)   atomic_swap(ptr, val, ATOMIC_ACQUIRE)
 #define atomic_swap_release(ptr, val)   atomic_swap(ptr, val, ATOMIC_RELEASE)
-#define atomic_swap_seq_cst(ptr, val)   atomic_swap(ptr, val, ATOMIC_SEQ_CST)
+#define atomic_swap_acq_rel(ptr, val)   atomic_swap(ptr, val, ATOMIC_ACQ_REL)
 
 #define atomic_fetch_add_acq_rel(ptr, val) \
     atomic_fetch_add(ptr, val, ATOMIC_ACQ_REL)
