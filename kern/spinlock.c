@@ -193,9 +193,9 @@ spinlock_store_first_qid(struct spinlock *lock, unsigned int newqid)
     newqid <<= SPINLOCK_QID_MAX_BITS;
 
     do {
-        oldval = read_once(lock->value);
+        oldval = atomic_load(&lock->value, ATOMIC_RELAXED);
         newval = newqid | (oldval & SPINLOCK_QID_MASK);
-        prev = atomic_cas_acquire(&lock->value, oldval, newval);
+        prev = atomic_cas_release(&lock->value, oldval, newval);
     } while (prev != oldval);
 }
 
@@ -204,7 +204,7 @@ spinlock_load_first_qid(const struct spinlock *lock)
 {
     unsigned int value;
 
-    value = read_once(lock->value);
+    value = atomic_load(&lock->value, ATOMIC_ACQUIRE);
     return (value >> SPINLOCK_QID_MAX_BITS) & SPINLOCK_QID_MASK;
 }
 
@@ -216,10 +216,10 @@ spinlock_swap_last_qid(struct spinlock *lock, unsigned int newqid)
     assert(newqid < SPINLOCK_QID_MAX);
 
     do {
-        oldval = read_once(lock->value);
+        oldval = atomic_load(&lock->value, ATOMIC_RELAXED);
         newval = (oldval & (SPINLOCK_QID_MASK << SPINLOCK_QID_MAX_BITS))
                  | newqid;
-        prev = atomic_cas_acquire(&lock->value, oldval, newval);
+        prev = atomic_cas_acq_rel(&lock->value, oldval, newval);
     } while (prev != oldval);
 
     return prev & SPINLOCK_QID_MASK;
@@ -230,7 +230,8 @@ spinlock_try_downgrade(struct spinlock *lock, unsigned int oldqid)
 {
     unsigned int prev;
 
-    prev = atomic_cas_acquire(&lock->value, oldqid, SPINLOCK_QID_LOCKED);
+    prev = atomic_cas(&lock->value, oldqid,
+                      SPINLOCK_QID_LOCKED, ATOMIC_RELAXED);
 
     assert((prev >> SPINLOCK_QID_MAX_BITS) == 0);
     assert(prev != SPINLOCK_QID_NULL);
@@ -263,7 +264,7 @@ spinlock_lock_slow(struct spinlock *lock)
             spinlock_store_first_qid(lock, qid);
         } else {
             prev_qnode = spinlock_get_remote_qnode(prev_qid);
-            write_once(prev_qnode->next_qid, qid);
+            atomic_store(&prev_qnode->next_qid, qid, ATOMIC_RELAXED);
         }
 
         for (;;) {
@@ -286,7 +287,7 @@ spinlock_lock_slow(struct spinlock *lock)
     }
 
     for (;;) {
-        next_qid = read_once(qnode->next_qid);
+        next_qid = atomic_load(&qnode->next_qid, ATOMIC_RELAXED);
 
         if (next_qid != SPINLOCK_QID_NULL) {
             break;
