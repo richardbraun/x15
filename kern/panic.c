@@ -31,7 +31,7 @@ panic(const char *format, ...)
     va_list list;
     unsigned long already_done;
 
-    already_done = atomic_swap_seq_cst(&panic_done, 1);
+    already_done = atomic_swap(&panic_done, 1, ATOMIC_SEQ_CST);
 
     if (already_done) {
         for (;;) {
