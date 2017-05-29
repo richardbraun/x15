@@ -13,6 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Note that this driver is only intended to provide enough functionality
+ * for the diagnostics shell. As a result, some features, especially those
+ * that may not correctly be emulated for USB keyboards, will not be
+ * supported. This includes any communication with the keyboard itself.
  */
 
 #include <stdbool.h>
@@ -31,17 +37,6 @@
 #define ATKBD_PORT_DATA             0x60
 #define ATKBD_PORT_STATUS           0x64
 #define ATKBD_PORT_CMD              0x64
-
-#define ATKBD_REQ_LEDS              0xed
-#define ATKBD_REQ_RESET             0xff
-
-#define ATKBD_REP_PASS              0xaa
-#define ATKBD_REP_ACK               0xfa
-#define ATKBD_REP_RESEND            0xfe
-
-#define ATKBD_LEDS_SCROLLLOCK       0x01
-#define ATKBD_LEDS_NUMLOCK          0x02
-#define ATKBD_LEDS_CAPSLOCK         0x04
 
 #define ATKBD_STATUS_OUT_FULL       0x01
 #define ATKBD_STATUS_IN_FULL        0x02
@@ -511,31 +506,11 @@ static void
 atkbd_flush(void)
 {
     uint8_t status;
-
-    atkbd_read(&status, false);
-}
-
-static void __init
-atkbd_reset_kbd(void)
-{
-    uint8_t reply;
     int error;
 
-resend:
-    atkbd_write(ATKBD_REQ_RESET);
-    error = atkbd_read(&reply, true);
-
-    if (error) {
-        return;
-    }
-
-    if (reply == ATKBD_REP_RESEND) {
-        goto resend;
-    }
-
-    if ((reply != ATKBD_REP_PASS) && (reply != ATKBD_REP_ACK)) {
-        printf("atkbd: warning: unable to reset keyboard\n");
-    }
+    do {
+        error = atkbd_read(&status, false);
+    } while (!error);
 }
 
 static int __init
@@ -589,45 +564,15 @@ atkbd_enable(void)
 }
 
 static void
-atkbd_set_leds(void)
-{
-    uint8_t leds, reply;
-    int error;
-
-    leds = ((atkbd_flags & ATKBD_KF_NUMLOCK) ? ATKBD_LEDS_NUMLOCK : 0)
-           | ((atkbd_flags & ATKBD_KF_CAPSLOCK) ? ATKBD_LEDS_CAPSLOCK : 0)
-           | ((atkbd_flags & ATKBD_KF_SCROLLLOCK) ? ATKBD_LEDS_SCROLLLOCK : 0);
-
-resend:
-    atkbd_write(ATKBD_REQ_LEDS);
-    atkbd_write(leds);
-    error = atkbd_read(&reply, true);
-
-    if (error) {
-        return;
-    }
-
-    if (reply == ATKBD_REP_RESEND) {
-        goto resend;
-    }
-
-    if (reply != ATKBD_REP_ACK) {
-        printf("atkbd: warning: invalid reply from keyboard\n");
-    }
-}
-
-static void
 atkbd_toggle_numlock(void)
 {
     atkbd_flags ^= ATKBD_KF_NUMLOCK;
-    atkbd_set_leds();
 }
 
 static void
 atkbd_toggle_capslock(void)
 {
     atkbd_flags ^= ATKBD_KF_CAPSLOCK;
-    atkbd_set_leds();
 }
 
 static void
@@ -806,6 +751,4 @@ atkbd_setup(void)
     if (error) {
         return;
     }
-
-    atkbd_reset_kbd();
 }
