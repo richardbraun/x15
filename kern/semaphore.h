@@ -33,6 +33,7 @@
 #define _KERN_SEMAPHORE_H
 
 #include <kern/assert.h>
+#include <kern/atomic.h>
 #include <kern/error.h>
 #include <kern/macros.h>
 
@@ -117,7 +118,7 @@ semaphore_post(struct semaphore *semaphore)
 static inline unsigned int
 semaphore_getvalue(const struct semaphore *semaphore)
 {
-    return read_once(semaphore->value);
+    return atomic_load(&semaphore->value, ATOMIC_RELAXED);
 }
 
 #endif /* _KERN_SEMAPHORE_H */
