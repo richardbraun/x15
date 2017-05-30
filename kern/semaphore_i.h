@@ -18,7 +18,8 @@
 #ifndef _KERN_SEMAPHORE_I_H
 #define _KERN_SEMAPHORE_I_H
 
-#include <kern/assert.h>
+#include <assert.h>
+
 #include <kern/atomic.h>
 
 struct semaphore {

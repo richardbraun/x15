@@ -39,10 +39,9 @@
 #ifndef _KERN_HASH_H
 #define _KERN_HASH_H
 
+#include <assert.h>
 #include <stdint.h>
 #include <string.h>
-
-#include <kern/assert.h>
 
 #ifdef __LP64__
 #define HASH_ALLBITS 64

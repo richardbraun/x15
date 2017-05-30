@@ -18,10 +18,10 @@
 #ifndef _KERN_SPINLOCK_I_H
 #define _KERN_SPINLOCK_I_H
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#include <kern/assert.h>
 #include <kern/atomic.h>
 #include <kern/error.h>
 #include <kern/macros.h>

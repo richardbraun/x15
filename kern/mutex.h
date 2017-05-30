@@ -68,7 +68,8 @@ mutex_unlock(struct mutex *mutex)
 
 #else /* X15_MUTEX_PI */
 
-#include <kern/assert.h>
+#include <assert.h>
+
 #include <kern/error.h>
 #include <kern/macros.h>
 #include <kern/mutex_i.h>

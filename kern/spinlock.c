@@ -53,9 +53,9 @@
  * more contention, an operation called downgrading.
  */
 
+#include <assert.h>
 #include <stddef.h>
 
-#include <kern/assert.h>
 #include <kern/atomic.h>
 #include <kern/error.h>
 #include <kern/macros.h>

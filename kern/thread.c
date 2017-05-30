@@ -81,13 +81,13 @@
  * weights in a smoother way than a raw scaling).
  */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <kern/assert.h>
 #include <kern/atomic.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>

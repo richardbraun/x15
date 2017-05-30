@@ -43,11 +43,11 @@
  * TODO Analyse hash parameters.
  */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#include <kern/assert.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>

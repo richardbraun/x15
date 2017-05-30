@@ -32,7 +32,8 @@
 #ifndef _KERN_SEMAPHORE_H
 #define _KERN_SEMAPHORE_H
 
-#include <kern/assert.h>
+#include <assert.h>
+
 #include <kern/atomic.h>
 #include <kern/error.h>
 #include <kern/macros.h>

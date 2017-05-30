@@ -18,11 +18,11 @@
  * TODO Review locking.
  */
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <kern/assert.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/init.h>

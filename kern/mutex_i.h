@@ -20,7 +20,8 @@
 
 #ifndef X15_MUTEX_PI
 
-#include <kern/assert.h>
+#include <assert.h>
+
 #include <kern/atomic.h>
 #include <kern/mutex_types.h>
 

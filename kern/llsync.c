@@ -32,11 +32,11 @@
  * TODO Gracefully handle large amounts of deferred works.
  */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 
-#include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/init.h>

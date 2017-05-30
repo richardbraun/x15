@@ -15,10 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#include <kern/assert.h>
 #include <kern/macros.h>
 #include <kern/rbtree.h>
 #include <kern/rbtree_i.h>

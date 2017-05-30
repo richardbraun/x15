@@ -18,10 +18,10 @@
  * TODO Rework so that pmap update errors can be handled.
  */
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#include <kern/assert.h>
 #include <kern/cpumap.h>
 #include <kern/init.h>
 #include <kern/panic.h>

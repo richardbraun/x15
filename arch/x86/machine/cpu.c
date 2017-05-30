@@ -15,12 +15,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <kern/assert.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/panic.h>

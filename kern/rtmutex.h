@@ -24,9 +24,9 @@
 #ifndef _KERN_RTMUTEX_H
 #define _KERN_RTMUTEX_H
 
+#include <assert.h>
 #include <stdint.h>
 
-#include <kern/assert.h>
 #include <kern/error.h>
 #include <kern/macros.h>
 #include <kern/rtmutex_i.h>

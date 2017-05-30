@@ -41,11 +41,11 @@
  * TODO Reconsider whether it's possible to bring back local review queues.
  */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 
-#include <kern/assert.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>

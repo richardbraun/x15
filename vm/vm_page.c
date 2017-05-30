@@ -29,13 +29,13 @@
  * The symmetric case is handled likewise.
  */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <kern/assert.h>
 #include <kern/init.h>
 #include <kern/list.h>
 #include <kern/macros.h>
