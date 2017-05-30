@@ -21,10 +21,10 @@
 #ifndef _VM_VM_PAGE_H
 #define _VM_VM_PAGE_H
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#include <kern/assert.h>
 #include <kern/list.h>
 #include <kern/log2.h>
 #include <kern/macros.h>

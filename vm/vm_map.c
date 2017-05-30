@@ -19,11 +19,11 @@
  * needed for kernel allocation.
  */
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
-#include <kern/assert.h>
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>

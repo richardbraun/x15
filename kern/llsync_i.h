@@ -18,7 +18,8 @@
 #ifndef _KERN_LLSYNC_I_H
 #define _KERN_LLSYNC_I_H
 
-#include <kern/assert.h>
+#include <assert.h>
+
 #include <kern/cpumap.h>
 #include <kern/macros.h>
 #include <kern/param.h>

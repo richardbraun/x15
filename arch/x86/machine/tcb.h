@@ -21,7 +21,8 @@
 #ifndef _X86_TCB_H
 #define _X86_TCB_H
 
-#include <kern/assert.h>
+#include <assert.h>
+
 #include <kern/macros.h>
 #include <machine/cpu.h>
 

@@ -41,13 +41,13 @@
  * TODO Rework the CPU pool layer to use the SLQB algorithm by Nick Piggin.
  */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <kern/assert.h>
 #include <kern/init.h>
 #include <kern/limits.h>
 #include <kern/list.h>

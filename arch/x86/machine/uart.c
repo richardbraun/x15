@@ -18,10 +18,10 @@
  * TODO Make serial line parameters configurable.
  */
 
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 
-#include <kern/assert.h>
 #include <kern/console.h>
 #include <kern/error.h>
 #include <kern/init.h>

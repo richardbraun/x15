@@ -21,7 +21,8 @@
 #ifndef _KERN_LOG2_H
 #define _KERN_LOG2_H
 
-#include <kern/assert.h>
+#include <assert.h>
+
 #include <kern/limits.h>
 
 static inline unsigned int

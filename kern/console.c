@@ -15,13 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <kern/arg.h>
-#include <kern/assert.h>
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/console.h>

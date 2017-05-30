@@ -19,10 +19,10 @@
  * additional configuration and resources to be properly handled.
  */
 
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 
-#include <kern/assert.h>
 #include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/macros.h>

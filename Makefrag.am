@@ -4,13 +4,13 @@ include doc/Makefrag.am
 EXTRA_DIST += tools/qemu.sh
 
 x15_SOURCES +=                                              \
+        include/assert.h                                    \
         include/stdio.h                                     \
         include/string.h
 
 x15_SOURCES +=                                              \
         kern/arg.c                                          \
         kern/arg.h                                          \
-        kern/assert.h                                       \
         kern/atomic.h                                       \
         kern/bitmap.c                                       \
         kern/bitmap.h                                       \

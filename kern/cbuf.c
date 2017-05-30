@@ -15,7 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <kern/assert.h>
+#include <assert.h>
+
 #include <kern/cbuf.h>
 #include <kern/error.h>
 #include <kern/macros.h>

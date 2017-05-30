@@ -15,9 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <stddef.h>
 
-#include <kern/assert.h>
 #include <kern/atomic.h>
 #include <kern/macros.h>
 #include <kern/param.h>

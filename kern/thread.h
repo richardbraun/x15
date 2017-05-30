@@ -33,10 +33,10 @@
 #ifndef _KERN_THREAD_H
 #define _KERN_THREAD_H
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <kern/assert.h>
 #include <kern/atomic.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>

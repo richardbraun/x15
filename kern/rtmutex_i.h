@@ -18,10 +18,10 @@
 #ifndef _KERN_RTMUTEX_I_H
 #define _KERN_RTMUTEX_I_H
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <kern/assert.h>
 #include <kern/atomic.h>
 #include <kern/rtmutex_types.h>
 #include <kern/thread.h>
