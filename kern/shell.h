@@ -56,6 +56,11 @@ void shell_cmd_init(struct shell_cmd *cmd, const char *name,
 void shell_setup(void);
 
 /*
+ * Start the shell thread.
+ */
+void shell_start(void);
+
+/*
  * Register a shell command.
  *
  * The command name must be unique. It must not include characters outside
