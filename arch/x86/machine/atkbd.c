@@ -248,10 +248,10 @@ static const struct atkbd_key atkbd_e0_keys[] = {
     [0x7d] = { 0, ATKBD_KEY_PGUP },
     [0x7a] = { 0, ATKBD_KEY_PGDOWN },
 
-    [0x6b] = { 0, ATKBD_KEY_LEFT },
-    [0x72] = { 0, ATKBD_KEY_BOTTOM },
-    [0x74] = { 0, ATKBD_KEY_RIGHT },
-    [0x75] = { 0, ATKBD_KEY_UP },
+    [0x6b] = { ATKBD_KM_CTL, ATKBD_KEY_LEFT },
+    [0x72] = { ATKBD_KM_CTL, ATKBD_KEY_BOTTOM },
+    [0x74] = { ATKBD_KM_CTL, ATKBD_KEY_RIGHT },
+    [0x75] = { ATKBD_KM_CTL, ATKBD_KEY_UP },
 
     [0x4a] = { 0, ATKBD_KEY_KP_SLASH },
     [0x5a] = { 0, ATKBD_KEY_KP_ENTER },
@@ -314,11 +314,6 @@ static const char *atkbd_chars[] = {
     [ATKBD_KEY_SPACE] = " ",
 
     [ATKBD_KEY_DELETE] = "\e[3~",
-
-    [ATKBD_KEY_LEFT] = "\e[D",
-    [ATKBD_KEY_BOTTOM] = "\e[B",
-    [ATKBD_KEY_RIGHT] = "\e[C",
-    [ATKBD_KEY_UP] = "\e[A",
 
     [ATKBD_KEY_KP_SLASH] = "/",
     [ATKBD_KEY_KP_STAR] = "*",
@@ -655,6 +650,30 @@ atkbd_key_process_ctl(const struct atkbd_key *key)
             atkbd_toggle_capslock();
         }
         break;
+    case ATKBD_KEY_LEFT:
+        if (!(atkbd_flags & ATKBD_KF_F0)) {
+            atcons_left();
+        }
+
+        break;
+    case ATKBD_KEY_BOTTOM:
+        if (!(atkbd_flags & ATKBD_KF_F0)) {
+            atcons_bottom();
+        }
+
+        break;
+    case ATKBD_KEY_RIGHT:
+        if (!(atkbd_flags & ATKBD_KF_F0)) {
+            atcons_right();
+        }
+
+        break;
+    case ATKBD_KEY_UP:
+        if (!(atkbd_flags & ATKBD_KF_F0)) {
+            atcons_up();
+        }
+
+        break;
     default:
         break;
     }
@@ -689,7 +708,7 @@ atkbd_process_e0_code(uint8_t code)
         return;
     }
 
-    if (code >= ARRAY_SIZE(atkbd_keys)) {
+    if (code >= ARRAY_SIZE(atkbd_e0_keys)) {
         return;
     }
 
@@ -708,7 +727,7 @@ atkbd_process_code(uint8_t code)
         return;
     }
 
-    if (code >= ARRAY_SIZE(atkbd_e0_keys)) {
+    if (code >= ARRAY_SIZE(atkbd_keys)) {
         return;
     }
 
