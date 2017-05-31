@@ -136,17 +136,24 @@ console_register(struct console *console)
 }
 
 void
-console_intr(struct console *console, char c)
+console_intr(struct console *console, const char *s)
 {
     assert(!cpu_intr_enabled());
 
-    spinlock_lock(&console->lock);
-
-    if (cbuf_size(&console->recvbuf) == cbuf_capacity(&console->recvbuf)) {
-        goto out;
+    if (*s == '\0') {
+        return;
     }
 
-    cbuf_push(&console->recvbuf, c);
+    spinlock_lock(&console->lock);
+
+    while (*s != '\0') {
+        if (cbuf_size(&console->recvbuf) == cbuf_capacity(&console->recvbuf)) {
+            goto out;
+        }
+
+        cbuf_push(&console->recvbuf, *s);
+        s++;
+    }
 
     if ((console->waiter != NULL) && (console->waiter != thread_self())) {
         thread_wakeup(console->waiter);

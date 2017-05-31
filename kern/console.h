@@ -81,7 +81,7 @@ void console_register(struct console *console);
  *
  * Interrupts must be disabled when calling this function.
  */
-void console_intr(struct console *console, char c);
+void console_intr(struct console *console, const char *s);
 
 /*
  * Write/read a single character to all registered console devices.
