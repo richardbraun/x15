@@ -26,6 +26,7 @@
 #define ERROR_NODEV 6
 #define ERROR_EXIST 7
 #define ERROR_IO    8
+#define ERROR_SRCH  9
 
 /*
  * Return a string describing the given error.
