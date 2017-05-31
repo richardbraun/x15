@@ -502,15 +502,32 @@ atkbd_write(uint8_t data)
     atkbd_write_data(data);
 }
 
-static void
+static void __init
 atkbd_flush(void)
+{
+    uint8_t status;
+
+    atkbd_read(&status, false);
+}
+
+static int __init
+atkbd_check(void)
 {
     uint8_t status;
     int error;
 
-    do {
-        error = atkbd_read(&status, false);
-    } while (!error);
+    /* Make sure the buffer is empty */
+    atkbd_flush();
+
+    /* Reading should return an error */
+    error = atkbd_read(&status, false);
+
+    if (!error) {
+        printf("atkbd: no keyboard controller\n");
+        return ERROR_NODEV;
+    }
+
+    return 0;
 }
 
 static int __init
@@ -521,9 +538,6 @@ atkbd_disable(void)
 
     atkbd_write_cmd(ATKBD_CMD_DIS1);
     atkbd_write_cmd(ATKBD_CMD_DIS2);
-
-    atkbd_flush();
-
     atkbd_write_cmd(ATKBD_CMD_RDCONF);
     error = atkbd_read(&byte, true);
 
@@ -732,6 +746,12 @@ void __init
 atkbd_setup(void)
 {
     int error;
+
+    error = atkbd_check();
+
+    if (error) {
+        return;
+    }
 
     error = atkbd_disable();
 
