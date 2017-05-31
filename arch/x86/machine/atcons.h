@@ -41,4 +41,12 @@ void atcons_setup(void);
  */
 void atcons_intr(const char *s);
 
+/*
+ * Direction control processing functions.
+ */
+void atcons_left(void);
+void atcons_bottom(void);
+void atcons_right(void);
+void atcons_up(void);
+
 #endif /* _X86_ATCONS_H */

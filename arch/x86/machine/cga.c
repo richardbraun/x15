@@ -133,7 +133,6 @@ cga_putc(char c)
     } else if (c == '\b') {
         if (cga_cursor > 0) {
             cga_cursor--;
-            ((uint16_t *)cga_memory)[cga_cursor] = CGA_BLANK;
             cga_set_cursor_position(cga_cursor);
         }
     } else if (c == '\t') {
@@ -180,4 +179,18 @@ cga_setup(void)
     }
 
     cga_cursor = cga_get_cursor_position();
+}
+
+void
+cga_cursor_left(void)
+{
+    cga_cursor--;
+    cga_set_cursor_position(cga_cursor);
+}
+
+void
+cga_cursor_right(void)
+{
+    cga_cursor++;
+    cga_set_cursor_position(cga_cursor);
 }

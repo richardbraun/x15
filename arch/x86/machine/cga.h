@@ -31,4 +31,10 @@ void cga_setup(void);
  */
 void cga_putc(char c);
 
+/*
+ * Cursor control functions.
+ */
+void cga_cursor_left(void);
+void cga_cursor_right(void);
+
 #endif /* _X86_CGA_H */
