@@ -42,6 +42,8 @@ error_str(int error)
         return "Input/output error";
     case ERROR_SRCH:
         return "no such process";
+    case ERROR_TIMEDOUT:
+        return "timeout error";
     default:
         return "unknown error";
     }
