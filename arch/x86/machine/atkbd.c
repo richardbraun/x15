@@ -657,6 +657,7 @@ atkbd_key_process_ctl(const struct atkbd_key *key)
         if (!(atkbd_flags & ATKBD_KF_F0)) {
             atkbd_toggle_capslock();
         }
+        break;
     default:
         break;
     }
