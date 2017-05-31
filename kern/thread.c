@@ -101,6 +101,7 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
+#include <kern/shell.h>
 #include <kern/sleepq.h>
 #include <kern/spinlock.h>
 #include <kern/sref.h>
@@ -2228,10 +2229,61 @@ thread_setup_runq(struct thread_runq *runq)
     thread_setup_idler(runq);
 }
 
+/*
+ * This function is meant for debugging only. As a result, it uses a weak
+ * locking policy which allows tracing threads which state may mutate during
+ * tracing.
+ */
+static void
+thread_shell_trace(int argc, char *argv[])
+{
+    const char *task_name, *thread_name;
+    struct thread *thread;
+    struct task *task;
+    int error;
+
+    if (argc != 3) {
+        error = ERROR_INVAL;
+        goto error;
+    }
+
+    task_name = argv[1];
+    thread_name = argv[2];
+
+    task = task_lookup(task_name);
+
+    if (task == NULL) {
+        error = ERROR_SRCH;
+        goto error;
+    }
+
+    thread = task_lookup_thread(task, thread_name);
+    task_unref(task);
+
+    if (thread == NULL) {
+        error = ERROR_SRCH;
+        goto error;
+    }
+
+    tcb_trace(&thread->tcb);
+    thread_unref(thread);
+    return;
+
+error:
+    printf("thread: trace: %s\n", error_str(error));
+}
+
+static struct shell_cmd thread_shell_cmds[] = {
+    SHELL_CMD_INITIALIZER("thread_trace", thread_shell_trace,
+                          "thread_trace <task_name> <thread_name>",
+                          "print the stack trace of a given thread"),
+};
+
 void __init
 thread_setup(void)
 {
-    int cpu;
+    unsigned int i;
+    int cpu, error;
 
     for (cpu = 1; (unsigned int)cpu < cpu_count(); cpu++) {
         thread_bootstrap_common(cpu);
@@ -2248,6 +2300,11 @@ thread_setup(void)
 
     cpumap_for_each(&thread_active_runqs, cpu) {
         thread_setup_runq(percpu_ptr(thread_runq, cpu));
+    }
+
+    for (i = 0; i < ARRAY_SIZE(thread_shell_cmds); i++) {
+        error = shell_cmd_register(&thread_shell_cmds[i]);
+        error_check(error, __func__);
     }
 }
 
