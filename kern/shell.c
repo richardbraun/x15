@@ -1158,8 +1158,6 @@ shell_run(void *arg)
 void __init
 shell_setup(void)
 {
-    struct thread_attr attr;
-    struct thread *thread;
     unsigned long i;
     int error;
 
@@ -1169,6 +1167,14 @@ shell_setup(void)
         error = shell_cmd_register(&shell_default_cmds[i]);
         error_check(error, "shell_cmd_register");
     }
+}
+
+void __init
+shell_start(void)
+{
+    struct thread_attr attr;
+    struct thread *thread;
+    int error;
 
     thread_attr_init(&attr, THREAD_KERNEL_PREFIX "shell");
     thread_attr_set_detached(&attr);

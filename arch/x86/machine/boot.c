@@ -58,6 +58,7 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
+#include <kern/shell.h>
 #include <kern/sleepq.h>
 #include <kern/sref.h>
 #include <kern/syscnt.h>
@@ -473,6 +474,7 @@ boot_main(void)
     uart_bootstrap();
     printf_setup();
     boot_show_version();
+    shell_setup();
     arg_info();
     uart_info();
     pmap_bootstrap();
