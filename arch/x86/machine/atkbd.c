@@ -40,7 +40,10 @@
 
 #define ATKBD_STATUS_OUT_FULL       0x01
 #define ATKBD_STATUS_IN_FULL        0x02
+#define ATKBD_STATUS_TIMEOUT_ERROR  0x40
 #define ATKBD_STATUS_PARITY_ERROR   0x80
+#define ATKBD_STATUS_ERROR          (ATKBD_STATUS_PARITY_ERROR \
+                                     | ATKBD_STATUS_TIMEOUT_ERROR)
 
 #define ATKBD_CMD_RDCONF            0x20
 #define ATKBD_CMD_WRCONF            0x60
@@ -419,10 +422,33 @@ atkbd_write_data(uint8_t data)
     io_write_byte(ATKBD_PORT_DATA, data);
 }
 
-static uint8_t
-atkbd_read_status(void)
+static int
+atkbd_read_status(bool check_out)
 {
-    return io_read_byte(ATKBD_PORT_STATUS);
+    uint8_t status;
+
+    status = io_read_byte(ATKBD_PORT_STATUS);
+
+    /*
+     * XXX This case is rare enough that it can be used to identify the lack
+     * of hardware.
+     */
+    if (status == 0xff) {
+        printf("atkbd: no keyboard controller\n");
+        return ERROR_NODEV;
+    } else if (status & ATKBD_STATUS_PARITY_ERROR) {
+        printf("atkbd: parity error\n");
+        return ERROR_IO;
+    } else if (status & ATKBD_STATUS_TIMEOUT_ERROR) {
+        printf("atkbd: timeout error\n");
+        return ERROR_TIMEDOUT;
+    }
+
+    if (check_out) {
+        return (status & ATKBD_STATUS_OUT_FULL) ? 0 : ERROR_AGAIN;
+    } else {
+        return (status & ATKBD_STATUS_IN_FULL) ? ERROR_AGAIN : 0;
+    }
 }
 
 static void
@@ -434,95 +460,84 @@ atkbd_write_cmd(uint8_t cmd)
 static int
 atkbd_out_wait(void)
 {
-    uint8_t status;
+    int error;
 
     for (;;) {
-        status = atkbd_read_status();
+        error = atkbd_read_status(true);
 
-        if (status & ATKBD_STATUS_OUT_FULL) {
+        if (error != ERROR_AGAIN) {
             break;
         }
     }
 
-    if (status & ATKBD_STATUS_PARITY_ERROR) {
-        printf("atkbd: parity error\n");
-        return ERROR_IO;
-    }
-
-    return 0;
+    return error;
 }
 
-static void
+static int
 atkbd_in_wait(void)
 {
-    uint8_t status;
+    int error;
 
     for (;;) {
-        status = atkbd_read_status();
+        error = atkbd_read_status(false);
 
-        if (!(status & ATKBD_STATUS_IN_FULL)) {
+        if (error != ERROR_AGAIN) {
             break;
         }
     }
+
+    return error;
 }
 
 static int
 atkbd_read(uint8_t *datap, bool wait)
 {
-    uint8_t status;
     int error;
 
     if (wait) {
         error = atkbd_out_wait();
-
-        if (error) {
-            return error;
-        }
     } else {
-        status = atkbd_read_status();
+        error = atkbd_read_status(true);
+    }
 
-        if (!(status & ATKBD_STATUS_OUT_FULL)) {
-            return ERROR_AGAIN;
-        }
+    if (error) {
+        return error;
     }
 
     *datap = atkbd_read_data();
     return 0;
 }
 
-static void
+static int
 atkbd_write(uint8_t data)
 {
-    atkbd_in_wait();
+    int error;
+
+    error = atkbd_in_wait();
+
+    if (error) {
+        return error;
+    }
+
     atkbd_write_data(data);
-}
-
-static void __init
-atkbd_flush(void)
-{
-    uint8_t status;
-
-    atkbd_read(&status, false);
+    return 0;
 }
 
 static int __init
-atkbd_check(void)
+atkbd_flush(void)
 {
-    uint8_t status;
+    uint8_t byte;
     int error;
 
-    /* Make sure the buffer is empty */
-    atkbd_flush();
+    do {
+        error = atkbd_read(&byte, false);
+    } while (!error);
 
-    /* Reading should return an error */
-    error = atkbd_read(&status, false);
-
-    if (!error) {
-        printf("atkbd: no keyboard controller\n");
-        return ERROR_NODEV;
+    if (error == ERROR_AGAIN) {
+        error = 0;
     }
 
-    return 0;
+    return error;
 }
 
 static int __init
@@ -542,9 +557,7 @@ atkbd_disable(void)
 
     byte &= ~(ATKBD_CONF_ENTRANS | ATKBD_CONF_ENINT2 | ATKBD_CONF_ENINT1);
     atkbd_write_cmd(ATKBD_CMD_WRCONF);
-    atkbd_write(byte);
-
-    return 0;
+    return atkbd_write(byte);
 }
 
 static int __init
@@ -565,11 +578,13 @@ atkbd_enable(void)
     byte &= ~(ATKBD_CONF_ENTRANS | ATKBD_CONF_ENINT2);
     byte |= ATKBD_CONF_ENINT1;
     atkbd_write_cmd(ATKBD_CMD_WRCONF);
-    atkbd_write(byte);
+    error = atkbd_write(byte);
 
-    atkbd_flush();
+    if (error) {
+        return error;
+    }
 
-    return 0;
+    return atkbd_flush();
 }
 
 static void
@@ -764,7 +779,7 @@ atkbd_setup(void)
 {
     int error;
 
-    error = atkbd_check();
+    error = atkbd_flush();
 
     if (error) {
         return;
