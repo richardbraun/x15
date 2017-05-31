@@ -16,6 +16,7 @@
  */
 
 #include <assert.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -23,7 +24,6 @@
 
 #include <kern/error.h>
 #include <kern/kmem.h>
-#include <kern/limits.h>
 #include <kern/llsync.h>
 #include <kern/macros.h>
 #include <kern/rdxtree.h>

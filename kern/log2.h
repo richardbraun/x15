@@ -22,8 +22,7 @@
 #define _KERN_LOG2_H
 
 #include <assert.h>
-
-#include <kern/limits.h>
+#include <limits.h>
 
 static inline unsigned int
 ilog2(unsigned long x)

@@ -15,11 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <limits.h>
 #include <string.h>
 
 #include <kern/bitmap.h>
 #include <kern/bitmap_i.h>
-#include <kern/limits.h>
 
 int
 bitmap_cmp(const unsigned long *a, const unsigned long *b, int nr_bits)
