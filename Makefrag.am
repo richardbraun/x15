@@ -5,6 +5,7 @@ EXTRA_DIST += tools/qemu.sh
 
 x15_SOURCES +=                                              \
         include/assert.h                                    \
+        include/limits.h                                    \
         include/stdio.h                                     \
         include/string.h
 
@@ -36,7 +37,6 @@ x15_SOURCES +=                                              \
         kern/kmem.c                                         \
         kern/kmem.h                                         \
         kern/kmem_i.h                                       \
-        kern/limits.h                                       \
         kern/list.h                                         \
         kern/list_types.h                                   \
         kern/llsync.c                                       \

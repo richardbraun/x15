@@ -18,7 +18,8 @@
 #ifndef _KERN_BITMAP_I_H
 #define _KERN_BITMAP_I_H
 
-#include <kern/limits.h>
+#include <limits.h>
+
 #include <kern/macros.h>
 
 #define BITMAP_LONGS(nr_bits) DIV_CEIL(nr_bits, LONG_BIT)

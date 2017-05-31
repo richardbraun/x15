@@ -42,6 +42,7 @@
  */
 
 #include <assert.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -49,7 +50,6 @@
 #include <string.h>
 
 #include <kern/init.h>
-#include <kern/limits.h>
 #include <kern/list.h>
 #include <kern/log2.h>
 #include <kern/kmem.h>
