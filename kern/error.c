@@ -40,6 +40,8 @@ error_str(int error)
         return "Entry exists";
     case ERROR_IO:
         return "Input/output error";
+    case ERROR_SRCH:
+        return "no such process";
     default:
         return "unknown error";
     }
