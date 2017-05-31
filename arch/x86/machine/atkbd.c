@@ -606,10 +606,7 @@ atkbd_key_process_chars(const struct atkbd_key *key,
     s = chars[key->id];
 
     if (s != NULL) {
-        while (*s != '\0') {
-            atcons_intr(*s);
-            s++;
-        }
+        atcons_intr(s);
     }
 }
 

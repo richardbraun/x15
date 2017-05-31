@@ -39,6 +39,6 @@ void atcons_setup(void);
  * This function is called by the AT keyboard interrupt handler
  * to handle machine-independent console management.
  */
-void atcons_intr(char c);
+void atcons_intr(const char *s);
 
 #endif /* _X86_ATCONS_H */

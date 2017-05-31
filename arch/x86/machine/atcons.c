@@ -50,7 +50,7 @@ atcons_setup(void)
 }
 
 void
-atcons_intr(char c)
+atcons_intr(const char *s)
 {
-    console_intr(&atcons_console, c);
+    console_intr(&atcons_console, s);
 }
