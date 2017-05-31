@@ -132,6 +132,9 @@ static void
 uart_recv_intr(struct uart *uart)
 {
     uint8_t byte;
+    char tmp[2];
+
+    tmp[1] = '\0';
 
     for (;;) {
         byte = uart_read(uart, UART_REG_LSR);
@@ -141,7 +144,8 @@ uart_recv_intr(struct uart *uart)
         }
 
         byte = uart_read(uart, UART_REG_DAT);
-        console_intr(&uart->console, (char)byte);
+        tmp[0] = (char)byte;
+        console_intr(&uart->console, tmp);
     }
 }
 
