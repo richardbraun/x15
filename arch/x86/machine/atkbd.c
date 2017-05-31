@@ -708,7 +708,7 @@ atkbd_process_code(uint8_t code)
         return;
     }
 
-    if (code >= ARRAY_SIZE(atkbd_keys)) {
+    if (code >= ARRAY_SIZE(atkbd_e0_keys)) {
         return;
     }
 
