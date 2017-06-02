@@ -204,7 +204,7 @@ spinlock_load_first_qid(const struct spinlock *lock)
 {
     unsigned int value;
 
-    value = atomic_load(&lock->value, ATOMIC_ACQUIRE);
+    value = atomic_load_acquire(&lock->value);
     return (value >> SPINLOCK_QID_MAX_BITS) & SPINLOCK_QID_MASK;
 }
 
@@ -268,7 +268,7 @@ spinlock_lock_slow(struct spinlock *lock)
         }
 
         for (;;) {
-            locked = atomic_load(&qnode->locked, ATOMIC_ACQUIRE);
+            locked = atomic_load_acquire(&qnode->locked);
 
             if (!locked) {
                 break;
@@ -316,5 +316,5 @@ spinlock_unlock_slow(struct spinlock *lock)
     }
 
     next_qnode = spinlock_get_remote_qnode(next_qid);
-    atomic_store(&next_qnode->locked, false, ATOMIC_RELEASE);
+    atomic_store_release(&next_qnode->locked, false);
 }
