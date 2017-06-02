@@ -51,6 +51,16 @@
  * and fast paths operations fail. The lock operation must make sure
  * that the lock value is restored to SPINLOCK_LOCKED if there is no
  * more contention, an operation called downgrading.
+ *
+ * In order to enforce correct visibility of the critical section,
+ * acquire and release atomic operations are used when accessing a
+ * qnode lock. Similarly, acquire and release semantics are also used
+ * when accessing the lock word which stores the first and last QIDs,
+ * so that the memory operations on the qnodes referenced by those QIDs
+ * are correctly enforced. Accessing the next QID in a qnode however
+ * is performed with no memory order constraint, because the qnodes
+ * referenced by those QID are never accessed unless they are the first
+ * or the last, cases which do enforce ordering.
  */
 
 #include <assert.h>
