@@ -81,7 +81,7 @@ ASM_ENTRY(trap_common)
  call trap_get_interrupt_stack
  testq %rax, %rax       /* switch stack ? */
  jz 1f
- movq %rax, %rsp        /* switch to interrupt stack TODO conditional move ? */
+ movq %rax, %rsp        /* switch to interrupt stack ? */
 1:
  xorq %rbp, %rbp        /* block stack tracing */
  movq %rbx, %rdi
