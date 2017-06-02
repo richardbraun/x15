@@ -34,10 +34,16 @@
 #include <machine/atcons.h>
 #include <machine/io.h>
 
+/*
+ * Intel 8042 I/O ports.
+ */
 #define ATKBD_PORT_DATA             0x60
 #define ATKBD_PORT_STATUS           0x64
 #define ATKBD_PORT_CMD              0x64
 
+/*
+ * Status register bits.
+ */
 #define ATKBD_STATUS_OUT_FULL       0x01
 #define ATKBD_STATUS_IN_FULL        0x02
 #define ATKBD_STATUS_TIMEOUT_ERROR  0x40
@@ -45,6 +51,9 @@
 #define ATKBD_STATUS_ERROR          (ATKBD_STATUS_PARITY_ERROR \
                                      | ATKBD_STATUS_TIMEOUT_ERROR)
 
+/*
+ * Controller commands.
+ */
 #define ATKBD_CMD_RDCONF            0x20
 #define ATKBD_CMD_WRCONF            0x60
 #define ATKBD_CMD_DIS2              0xa7
@@ -52,12 +61,26 @@
 #define ATKBD_CMD_DIS1              0xad
 #define ATKBD_CMD_EN1               0xae
 
+/*
+ * Controller configuration register bits.
+ */
 #define ATKBD_CONF_ENINT1           0x01
 #define ATKBD_CONF_ENINT2           0x02
 #define ATKBD_CONF_ENTRANS          0x40
 
+/*
+ * Controller interrupt.
+ *
+ * This driver only supports keyboard input and doesn't use interrupt 12.
+ */
 #define ATKBD_INTR1                 1
 
+/*
+ * Key identifiers.
+ *
+ * Keys are obtained from static sparse tables, where undefined entries are
+ * initialized to 0. As a result, make that value an invalid key.
+ */
 enum atkbd_key_id {
     ATKBD_KEY_INVALID = 0,
     ATKBD_KEY_1 = 1,
@@ -153,6 +176,9 @@ enum atkbd_key_id {
     ATKBD_KEY_KP_DEL,
 };
 
+/*
+ * Key modifiers.
+ */
 #define ATKBD_KM_SHIFT      0x01 /* Shift / caps lock modifier applies */
 #define ATKBD_KM_KP         0x02 /* Num lock modifier applies */
 #define ATKBD_KM_CTL        0x04 /* Unmodified key is a control character */
@@ -162,6 +188,14 @@ struct atkbd_key {
     enum atkbd_key_id id;
 };
 
+/*
+ * Regular key table.
+ *
+ * Keys are indexed by their "scan code set 2" code. Undefined entries are
+ * initialized to 0, which is a known invalid identifier. Modifiers are used
+ * to select a different key->characters table, or key-specific processing
+ * in the case of control keys.
+ */
 static const struct atkbd_key atkbd_keys[] = {
     [0x16] = { ATKBD_KM_SHIFT, ATKBD_KEY_1 },
     [0x1e] = { ATKBD_KM_SHIFT, ATKBD_KEY_2 },
@@ -240,6 +274,12 @@ static const struct atkbd_key atkbd_keys[] = {
     [0x71] = { ATKBD_KM_KP, ATKBD_KEY_KP_DEL },
 };
 
+/*
+ * Key table for e0 codes.
+ *
+ * This table is similar to the regular key table, except it is used if an
+ * e0 code was read in the input byte sequence.
+ */
 static const struct atkbd_key atkbd_e0_keys[] = {
     [0x11] = { ATKBD_KM_CTL, ATKBD_KEY_ALTGR },
     [0x14] = { ATKBD_KM_CTL, ATKBD_KEY_RCTRL },
@@ -260,6 +300,12 @@ static const struct atkbd_key atkbd_e0_keys[] = {
     [0x5a] = { 0, ATKBD_KEY_KP_ENTER },
 };
 
+/*
+ * Key to characters table.
+ *
+ * This table is used for keys with no modifiers or if none of the modifiers
+ * apply at input time.
+ */
 static const char *atkbd_chars[] = {
     [ATKBD_KEY_1] = "1",
     [ATKBD_KEY_2] = "2",
@@ -327,6 +373,9 @@ static const char *atkbd_chars[] = {
     [ATKBD_KEY_KP_DEL] = "\e[3~",
 };
 
+/*
+ * Key to characters table when the shift modifier applies.
+ */
 static const char *atkbd_shift_chars[] = {
     [ATKBD_KEY_1] = "!",
     [ATKBD_KEY_2] = "@",
@@ -379,6 +428,9 @@ static const char *atkbd_shift_chars[] = {
     [ATKBD_KEY_SLASH] = "?",
 };
 
+/*
+ * Key to keypad characters table when the numlock modifier applies.
+ */
 static const char *atkbd_kp_chars[] = {
     [ATKBD_KEY_KP_HOME] = "7",
     [ATKBD_KEY_KP_UP] = "8",
@@ -392,13 +444,16 @@ static const char *atkbd_kp_chars[] = {
     [ATKBD_KEY_KP_DEL] = ".",
 };
 
-#define ATKBD_KF_E0         0x01
-#define ATKBD_KF_F0         0x02
-#define ATKBD_KF_LSHIFT     0x04
-#define ATKBD_KF_RSHIFT     0x08
-#define ATKBD_KF_NUMLOCK    0x10
-#define ATKBD_KF_CAPSLOCK   0x20
-#define ATKBD_KF_SCROLLLOCK 0x40
+/*
+ * Global flags.
+ */
+#define ATKBD_KF_E0         0x01    /* Current sequence includes an 0xe0 byte */
+#define ATKBD_KF_F0         0x02    /* Current sequence includes an 0xf0 byte,
+                                       which usually indicates a key release */
+#define ATKBD_KF_LSHIFT     0x04    /* Left shift key is being pressed */
+#define ATKBD_KF_RSHIFT     0x08    /* Right shift key is being pressed */
+#define ATKBD_KF_NUMLOCK    0x10    /* Numlock key has been toggled on */
+#define ATKBD_KF_CAPSLOCK   0x20    /* Caps lock key has been toggled on */
 
 #define ATKBD_KF_SHIFT      (ATKBD_KF_CAPSLOCK  \
                              | ATKBD_KF_RSHIFT  \
