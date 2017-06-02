@@ -33,13 +33,13 @@ error_str(int error)
     case ERROR_BUSY:
         return "device or resource busy";
     case ERROR_FAULT:
-        return "Bad address";
+        return "bad address";
     case ERROR_NODEV:
-        return "No such device";
+        return "no such device";
     case ERROR_EXIST:
-        return "Entry exists";
+        return "entry exists";
     case ERROR_IO:
-        return "Input/output error";
+        return "input/output error";
     case ERROR_SRCH:
         return "no such process";
     case ERROR_TIMEDOUT:
