@@ -24,24 +24,24 @@
 #ifdef __LP64__
 
 ASM_ENTRY(tcb_context_load)
- movq (%rdi), %rbp
- movq 8(%rdi), %rsp
- movq 16(%rdi), %rax
- pushq $CPU_EFL_ONE
- popfq
- jmp *%rax
+ movq (%rdi), %rbp      /* load frame pointer from TCB */
+ movq 8(%rdi), %rsp     /* load stack pointer from TCB */
+ movq 16(%rdi), %rax    /* load instruction pointer from TCB */
+ pushq $CPU_EFL_ONE     /* prepare new RFLAGS register value */
+ popfq                  /* load value into RFLAGS register */
+ jmp *%rax              /* branch to loaded instruction pointer */
 ASM_END(tcb_context_load)
 
 #else /* __LP64__ */
 
 ASM_ENTRY(tcb_context_load)
- movl 4(%esp), %eax
- movl (%eax), %ebp
- movl 4(%eax), %esp
- movl 8(%eax), %ecx
- pushl $CPU_EFL_ONE
- popfl
- jmp *%ecx
+ movl 4(%esp), %eax     /* load TCB address */
+ movl (%eax), %ebp      /* load frame pointer from TCB */
+ movl 4(%eax), %esp     /* load stack pointer from TCB */
+ movl 8(%eax), %ecx     /* load instruction pointer from TCB */
+ pushl $CPU_EFL_ONE     /* prepare new EFLAGS register value */
+ popfl                  /* load value into EFLAGS register */
+ jmp *%ecx              /* branch to loaded instruction pointer */
 ASM_END(tcb_context_load)
 
 #endif /* __LP64__ */
@@ -51,28 +51,36 @@ ASM_END(tcb_context_load)
 #ifdef __LP64__
 
 ASM_ENTRY(tcb_start)
- popq %rax
- call *%rax
+ popq %rax              /* load function passed at TCB initialization (this
+                           makes the stack pointer reach the stack top) */
+ call *%rax             /* branch to loaded function, pushing the return
+                           address to start a clean stack trace */
 
  /* Never reached */
- nop
+ nop                    /* Make the return address point to an instruction
+                           inside the function to build a clean stack trace */
 ASM_END(tcb_start)
 
 ASM_ENTRY(tcb_context_switch)
- pushfq
+ pushfq                 /* store registers as required by ABI */
  pushq %rbx
  pushq %r12
  pushq %r13
  pushq %r14
  pushq %r15
- movq %rbp, (%rdi)
- movq %rsp, 8(%rdi)
- movq $1f, 16(%rdi)
- movq (%rsi), %rbp
- movq 8(%rsi), %rsp
- movq 16(%rsi), %rax
- jmp *%rax
+ movq %rbp, (%rdi)      /* store frame pointer into prev TCB */
+ movq %rsp, 8(%rdi)     /* store stack pointer into prev TCB */
+ movq $1f, 16(%rdi)     /* store next instruction address into prev TCB */
+ movq (%rsi), %rbp      /* load frame pointer from next TCB */
+ movq 8(%rsi), %rsp     /* load stack pointer from next TCB */
+ movq 16(%rsi), %rax    /* load instruction pointer from next TCB */
+ jmp *%rax              /* branch to loaded instruction pointer */
 
+/*
+ * This code is run on context restoration. The frame and stack pointers
+ * have already been loaded to their correct values. Load registers which
+ * were stored on the stack when the context was saved and return.
+ */
 1:
  popq %r15
  popq %r14
@@ -86,28 +94,36 @@ ASM_END(tcb_context_switch)
 #else /* __LP64__ */
 
 ASM_ENTRY(tcb_start)
- popl %eax
- call *%eax
+ popl %eax              /* load function passed at TCB initialization (this
+                           makes the stack pointer reach the stack top) */
+ call *%eax             /* branch to loaded function, pushing the return
+                           address to start a clean stack trace */
 
  /* Never reached */
- nop
+ nop                    /* Make the return address point to an instruction
+                           inside the function to build a clean stack trace */
 ASM_END(tcb_start)
 
 ASM_ENTRY(tcb_context_switch)
- movl 4(%esp), %eax
- movl 8(%esp), %ecx
- pushfl
+ movl 4(%esp), %eax     /* load prev TCB address */
+ movl 8(%esp), %ecx     /* load next TCB address */
+ pushfl                 /* store registers as required by ABI */
  pushl %ebx
  pushl %edi
  pushl %esi
- movl %ebp, (%eax)
- movl %esp, 4(%eax)
- movl $1f, 8(%eax)
- movl (%ecx), %ebp
- movl 4(%ecx), %esp
- movl 8(%ecx), %edx
- jmp *%edx
+ movl %ebp, (%eax)      /* store frame pointer into prev TCB */
+ movl %esp, 4(%eax)     /* store stack pointer into prev TCB */
+ movl $1f, 8(%eax)      /* store next instruction address into prev TCB */
+ movl (%ecx), %ebp      /* load frame pointer from next TCB */
+ movl 4(%ecx), %esp     /* load stack pointer from next TCB */
+ movl 8(%ecx), %edx     /* load instruction pointer from next TCB */
+ jmp *%edx              /* branch to loaded instruction pointer */
 
+/*
+ * This code is run on context restoration. The frame and stack pointers
+ * have already been loaded to their correct values. Load registers which
+ * were stored on the stack when the context was saved and return.
+ */
 1:
  popl %esi
  popl %edi

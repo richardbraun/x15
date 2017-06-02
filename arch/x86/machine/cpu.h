@@ -46,7 +46,7 @@
 /*
  * EFLAGS register flags.
  */
-#define CPU_EFL_ONE 0x00000002
+#define CPU_EFL_ONE 0x00000002  /* Reserved, must be one */
 #define CPU_EFL_IF  0x00000200
 
 /*
