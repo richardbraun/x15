@@ -24,8 +24,8 @@ x15_LDFLAGS += -m64
 endif AMD64
 
 x15_SOURCES +=                          \
-        arch/x86/machine/acpimp.c       \
-        arch/x86/machine/acpimp.h       \
+        arch/x86/machine/acpi.c         \
+        arch/x86/machine/acpi.h         \
         arch/x86/machine/atcons.c       \
         arch/x86/machine/atcons.h       \
         arch/x86/machine/atkbd.c        \

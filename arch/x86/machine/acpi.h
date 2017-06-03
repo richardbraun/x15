@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,15 +19,15 @@
  * specification v1.0.
  */
 
-#ifndef _X86_ACPIMP_H
-#define _X86_ACPIMP_H
+#ifndef _X86_ACPI_H
+#define _X86_ACPI_H
 
 /*
- * Load multiprocessor information.
+ * Load ACPI information.
  *
  * Return 0 if successful (an error usually means hardware doesn't support
  * ACPI).
  */
-int acpimp_setup(void);
+int acpi_setup(void);
 
-#endif /* _X86_ACPIMP_H */
+#endif /* _X86_ACPI_H */
