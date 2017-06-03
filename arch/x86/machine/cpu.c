@@ -28,7 +28,7 @@
 #include <kern/percpu.h>
 #include <kern/thread.h>
 #include <kern/xcall.h>
-#include <machine/acpimp.h>
+#include <machine/acpi.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
@@ -643,7 +643,7 @@ cpu_mp_probe(void)
 {
     int error;
 
-    error = acpimp_setup();
+    error = acpi_setup();
 
     if (error) {
         /*
