@@ -259,9 +259,7 @@ work_pool_wakeup_manager(struct work_pool *pool)
         return;
     }
 
-    if ((pool->manager != NULL) && (pool->manager->thread != thread_self())) {
-        thread_wakeup(pool->manager->thread);
-    }
+    thread_wakeup(pool->manager->thread);
 }
 
 static void
