@@ -71,7 +71,6 @@
 #include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/multiboot.h>
-#include <machine/pic.h>
 #include <machine/pit.h>
 #include <machine/pmap.h>
 #include <machine/strace.h>
@@ -487,7 +486,6 @@ boot_main(void)
     biosmem_free_usable();
     intr_setup();
     cpu_mp_probe();
-    pic_setup();
     atcons_setup();
     uart_setup();
     kernel_main();

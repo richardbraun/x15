@@ -34,6 +34,7 @@
 #include <machine/cpu.h>
 #include <machine/io.h>
 #include <machine/lapic.h>
+#include <machine/pic.h>
 #include <machine/pit.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
@@ -652,7 +653,7 @@ cpu_mp_probe(void)
          * ACPI only. If ACPI is unavailable, consider the APIC system to
          * be missing and fall back to using the legaxy XT-PIC.
          */
-        lapic_setup_unused();
+        pic_setup();
     }
 
     printf("cpu: %u processor(s) configured\n", cpu_count());
