@@ -23,6 +23,14 @@
 #include <machine/pmap.h>
 
 /*
+ * Boot GDT segment selectors.
+ */
+#define BOOT_GDT_SEL_NULL   0
+#define BOOT_GDT_SEL_CODE   8
+#define BOOT_GDT_SEL_DATA   16
+#define BOOT_GDT_SEL_CODE64 24
+
+/*
  * Convert a physical address in the .boot section to its real address in
  * the MP trampoline code.
  */
@@ -48,14 +56,14 @@ ASM_ENTRY(_start)
  lgdt boot_gdtr
 
  /* Keep %eax and %ebx */
- movl $0x10, %ecx
+ movl $BOOT_GDT_SEL_DATA, %ecx
  movl %ecx, %ds
  movl %ecx, %es
  movl %ecx, %ss
  xorl %ecx, %ecx
  movl %ecx, %fs
  movl %ecx, %gs
- ljmp $8, $1f
+ ljmp $BOOT_GDT_SEL_CODE, $1f
 
 1:
  movl $(boot_stack + STACK_SIZE), %esp
@@ -68,7 +76,7 @@ ASM_ENTRY(_start)
   * At this point, the processor runs in long mode, but still uses the
   * compatibility mode code segment. Switch to 64-bit mode with a far return.
   */
- pushl $0x18
+ pushl $BOOT_GDT_SEL_CODE64
  pushl $1f
  lret
 
@@ -91,7 +99,7 @@ ASM_ENTRY(_start)
  movl %cr0, %eax
  orl $CPU_CR0_PG, %eax
  movl %eax, %cr0
- ljmp $8, $1f
+ ljmp $BOOT_GDT_SEL_CODE, $1f
 
 1:
  movl $(boot_stack + STACK_SIZE), %esp
@@ -205,7 +213,7 @@ ASM_ENTRY(boot_setup_long_mode)
  movl %cr0, %eax
  orl $CPU_CR0_PG, %eax
  movl %eax, %cr0
- ljmp $8, $1f
+ ljmp $BOOT_GDT_SEL_CODE, $1f
 
 1:
  movl %edi, %eax
@@ -223,21 +231,21 @@ ASM_ENTRY(boot_ap_start32)
   * is enabled.
   */
  lgdt boot_gdtr
- movl $0x10, %eax
+ movl $BOOT_GDT_SEL_DATA, %eax
  movl %eax, %ds
  movl %eax, %es
  movl %eax, %ss
  xorl %eax, %eax
  movl %eax, %fs
  movl %eax, %gs
- ljmp $8, $1f
+ ljmp $BOOT_GDT_SEL_CODE, $1f
 
 1:
  movl $(boot_ap_stack + STACK_SIZE), %esp
 
 #ifdef __LP64__
  call boot_setup_long_mode
- pushl $0x18
+ pushl $BOOT_GDT_SEL_CODE64
  pushl $1f
  lret
 
@@ -254,7 +262,7 @@ ASM_ENTRY(boot_ap_start32)
  movl %cr0, %eax
  orl $CPU_CR0_PG, %eax
  movl %eax, %cr0
- ljmp $8, $1f
+ ljmp $BOOT_GDT_SEL_CODE, $1f
 
 1:
 #endif /* __LP64__ */
@@ -296,19 +304,19 @@ ASM_ENTRY(boot_mp_trampoline)
  movl %cr0, %eax
  orl $CPU_CR0_PE, %eax
  movl %eax, %cr0
- ljmp $8, $BOOT_MP_ADDR_PTOT(1f)
+ ljmp $BOOT_GDT_SEL_CODE, $BOOT_MP_ADDR_PTOT(1f)
 
 .align 4
 1:
  .code32
- movl $0x10, %eax
+ movl $BOOT_GDT_SEL_DATA, %eax
  movl %eax, %ds
  movl %eax, %es
  movl %eax, %ss
  xorl %eax, %eax
  movl %eax, %fs
  movl %eax, %gs
- ljmp $8, $boot_ap_start32
+ ljmp $BOOT_GDT_SEL_CODE, $boot_ap_start32
 ASM_END(boot_mp_trampoline)
 
 ASM_DATA(boot_ap_gdtr)
@@ -317,9 +325,9 @@ ASM_DATA(boot_ap_gdtr)
 ASM_END(boot_ap_gdtr)
 
 ASM_DATA(boot_gdt)
- .quad 0x0000000000000000   /* Null selector */
- .quad 0x00cf9a000000ffff   /* Code segment selector */
- .quad 0x00cf92000000ffff   /* Data segment selector */
+ .quad 0x0000000000000000   /* Null descriptor */
+ .quad 0x00cf9a000000ffff   /* Code segment descriptor */
+ .quad 0x00cf92000000ffff   /* Data segment descriptor */
 
 #ifdef __LP64__
  .quad 0x00209a0000000000   /* 64-bit code segment selector */
