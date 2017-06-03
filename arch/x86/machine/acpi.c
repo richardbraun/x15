@@ -31,6 +31,7 @@
 #include <machine/io.h>
 #include <machine/ioapic.h>
 #include <machine/lapic.h>
+#include <machine/pic.h>
 #include <machine/types.h>
 #include <vm/vm_kmem.h>
 
@@ -108,6 +109,8 @@ union acpi_madt_entry {
     struct acpi_madt_entry_lapic lapic;
     struct acpi_madt_entry_ioapic ioapic;
 } __packed;
+
+#define ACPI_MADT_PC_COMPAT 0x1
 
 struct acpi_madt {
     struct acpi_sdth header;
@@ -494,11 +497,11 @@ acpi_load_madt(void)
     table = acpi_lookup_table("APIC");
     assert(table != NULL);
     madt = structof(table, struct acpi_madt, header);
+
     lapic_setup(madt->lapic_addr);
     is_bsp = 1;
 
     /*
-     * TODO Handle PCAT_COMPAT flag
      * TODO Handle interrupt overrides
      */
 
@@ -510,6 +513,10 @@ acpi_load_madt(void)
         case ACPI_MADT_ENTRY_IOAPIC:
             acpi_load_ioapic(&iter.entry->ioapic);
         }
+    }
+
+    if (madt->flags & ACPI_MADT_PC_COMPAT) {
+        pic_setup_disabled();
     }
 }
 
