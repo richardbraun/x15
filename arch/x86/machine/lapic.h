@@ -29,17 +29,6 @@
 void lapic_eoi(void);
 
 /*
- * Report whether the local APIC is actually used or not.
- */
-bool lapic_unused(void);
-
-/*
- * Initialize the lapic module for the sole purpose of reporting that
- * it's actually not used.
- */
-void lapic_setup_unused(void);
-
-/*
  * Set up the lapic module.
  */
 void lapic_setup(uint32_t map_addr);
