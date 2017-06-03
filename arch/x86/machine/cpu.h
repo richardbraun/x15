@@ -54,6 +54,7 @@
  */
 #define CPU_MSR_EFER    0xc0000080
 #define CPU_MSR_FSBASE  0xc0000100
+#define CPU_MSR_GSBASE  0xc0000101
 
 /*
  * EFER MSR flags.
@@ -89,7 +90,8 @@
 #else /* __LP64__ */
 #define CPU_GDT_SEL_DF_TSS  32
 #define CPU_GDT_SEL_PERCPU  40
-#define CPU_GDT_SIZE        48
+#define CPU_GDT_SEL_TLS     48
+#define CPU_GDT_SIZE        56
 #endif /* __LP64__ */
 
 #define CPU_IDT_SIZE 256
@@ -102,6 +104,38 @@
 #include <kern/percpu.h>
 #include <machine/lapic.h>
 #include <machine/pit.h>
+#include <machine/ssp.h>
+
+/*
+ * Gate/segment descriptor bits and masks.
+ */
+#define CPU_DESC_TYPE_DATA              0x00000200
+#define CPU_DESC_TYPE_CODE              0x00000a00
+#define CPU_DESC_TYPE_TSS               0x00000900
+#define CPU_DESC_TYPE_GATE_INTR         0x00000e00
+#define CPU_DESC_TYPE_GATE_TASK         0x00000500
+#define CPU_DESC_S                      0x00001000
+#define CPU_DESC_PRESENT                0x00008000
+#define CPU_DESC_LONG                   0x00200000
+#define CPU_DESC_DB                     0x00400000
+#define CPU_DESC_GRAN_4KB               0x00800000
+
+#define CPU_DESC_GATE_OFFSET_LOW_MASK   0x0000ffff
+#define CPU_DESC_GATE_OFFSET_HIGH_MASK  0xffff0000
+#define CPU_DESC_SEG_IST_MASK           0x00000007
+#define CPU_DESC_SEG_BASE_LOW_MASK      0x0000ffff
+#define CPU_DESC_SEG_BASE_MID_MASK      0x00ff0000
+#define CPU_DESC_SEG_BASE_HIGH_MASK     0xff000000
+#define CPU_DESC_SEG_LIMIT_LOW_MASK     0x0000ffff
+#define CPU_DESC_SEG_LIMIT_HIGH_MASK    0x000f0000
+
+/*
+ * Code or data segment descriptor.
+ */
+struct cpu_seg_desc {
+    uint32_t low;
+    uint32_t high;
+};
 
 /*
  * Forward declaration.
@@ -187,6 +221,11 @@ struct cpu {
     volatile int state;
     void *boot_stack;
     void *double_fault_stack;
+};
+
+struct cpu_tls_seg {
+    uintptr_t unused[SSP_WORD_TLS_OFFSET];
+    uintptr_t ssp_guard_word;
 };
 
 /*

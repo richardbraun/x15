@@ -29,6 +29,7 @@
 #define BOOT_GDT_SEL_CODE   8
 #define BOOT_GDT_SEL_DATA   16
 #define BOOT_GDT_SEL_CODE64 24
+#define BOOT_GDT_SEL_TLS    24
 
 /*
  * Convert a physical address in the .boot section to its real address in
@@ -70,6 +71,7 @@ ASM_ENTRY(_start)
 
 #ifdef __LP64__
  call boot_check_long_mode
+ call boot_setup_tls
  call boot_setup_long_mode
 
  /*
@@ -85,6 +87,10 @@ ASM_ENTRY(_start)
  movl %ebx, %edi
  movl %eax, %esi
 #else /* __LP64__ */
+ call boot_build_tls_seg_desc
+ movl $BOOT_GDT_SEL_TLS, %ecx
+ movl %ecx, %gs
+
  pushl %eax
  pushl %ebx
 #endif /* __LP64__ */
@@ -219,6 +225,62 @@ ASM_ENTRY(boot_setup_long_mode)
  movl %edi, %eax
  ret
 ASM_END(boot_setup_long_mode)
+
+ASM_ENTRY(boot_setup_tls)
+ pushl %eax
+ movl $boot_tls_seg, %eax
+ movl $0, %edx
+ movl $CPU_MSR_GSBASE, %ecx
+ wrmsr
+ popl %eax
+ ret
+ASM_END(boot_setup_tls)
+
+#else /* __LP64__ */
+
+/*
+ * Complete the temporary boot TLS segment descriptor and copy it into
+ * the boot GDT.
+ *
+ * The %eax and %ebx registers must be preserved.
+ */
+ASM_ENTRY(boot_build_tls_seg_desc)
+ pushl %eax
+
+ /* Load boot_tls_seg_desc address */
+ movl $boot_tls_seg_desc, %ecx
+
+ /* Add the base 15:0 bits to boot_tls_seg_desc.low */
+ movl $boot_tls_seg, %eax
+ shll $16, %eax
+ orl %eax, (%ecx)
+
+ /* Add the base 23:16 bits to boot_tls_seg_desc.high */
+ movl $boot_tls_seg, %eax
+ shrl $16, %eax
+ andl $0xff, %eax
+ orl %eax, 4(%ecx)
+
+ /* Add the base 31:24 bits to boot_tls_seg_desc.high */
+ movl $boot_tls_seg, %eax
+ andl $0xff000000, %eax
+ orl %eax, 4(%ecx)
+
+ /* Load boot_gdt[BOOT_GDT_SEL_TLS] address */
+ movl $boot_gdt + BOOT_GDT_SEL_TLS, %edx
+
+ /* Set boot_gdt[BOOT_GDT_SEL_TLS].low */
+ movl (%ecx), %eax
+ movl %eax, (%edx)
+
+ /* Set boot_gdt[BOOT_GDT_SEL_TLS].high */
+ movl 4(%ecx), %eax
+ movl %eax, 4(%edx)
+
+ popl %eax
+ ret
+ASM_END(boot_build_tls_seg_desc)
+
 #endif /* __LP64__ */
 
 /*
@@ -237,6 +299,7 @@ ASM_ENTRY(boot_ap_start32)
  movl %eax, %ss
  xorl %eax, %eax
  movl %eax, %fs
+ movl $BOOT_GDT_SEL_TLS, %eax
  movl %eax, %gs
  ljmp $BOOT_GDT_SEL_CODE, $1f
 
@@ -244,6 +307,7 @@ ASM_ENTRY(boot_ap_start32)
  movl $(boot_ap_stack + STACK_SIZE), %esp
 
 #ifdef __LP64__
+ call boot_setup_tls
  call boot_setup_long_mode
  pushl $BOOT_GDT_SEL_CODE64
  pushl $1f
@@ -328,9 +392,10 @@ ASM_DATA(boot_gdt)
  .quad 0x0000000000000000   /* Null descriptor */
  .quad 0x00cf9a000000ffff   /* Code segment descriptor */
  .quad 0x00cf92000000ffff   /* Data segment descriptor */
-
 #ifdef __LP64__
  .quad 0x00209a0000000000   /* 64-bit code segment selector */
+#else /* __LP64__ */
+ .quad 0x0                  /* TLS segment descriptor, filled at boot time */
 #endif /* __LP64__ */
 ASM_END(boot_gdt)
 boot_gdt_end:
