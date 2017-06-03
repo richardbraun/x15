@@ -2452,6 +2452,10 @@ thread_wakeup(struct thread *thread)
     struct thread_runq *runq;
     unsigned long flags;
 
+    if ((thread == NULL) || (thread == thread_self())) {
+        return;
+    }
+
     /*
      * There is at most one reference on threads that were never dispatched,
      * in which case there is no need to lock anything.

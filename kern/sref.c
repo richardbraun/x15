@@ -976,8 +976,7 @@ sref_report_periodic_event(void)
 
     cache = sref_cache_get();
 
-    if (!sref_cache_is_registered(cache)
-        || (cache->manager == thread_self())) {
+    if (!sref_cache_is_registered(cache)) {
         return;
     }
 

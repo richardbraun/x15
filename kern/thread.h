@@ -219,7 +219,8 @@ void thread_sleep(struct spinlock *interlock, const void *wchan_addr,
 /*
  * Schedule a thread for execution on a processor.
  *
- * No action is performed if the target thread is already in the running state.
+ * No action is performed if the target thread is NULL, the calling thread,
+ * or already in the running state.
  */
 void thread_wakeup(struct thread *thread);
 

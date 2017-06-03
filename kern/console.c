@@ -155,9 +155,7 @@ console_intr(struct console *console, const char *s)
         s++;
     }
 
-    if ((console->waiter != NULL) && (console->waiter != thread_self())) {
-        thread_wakeup(console->waiter);
-    }
+    thread_wakeup(console->waiter);
 
 out:
     spinlock_unlock(&console->lock);
