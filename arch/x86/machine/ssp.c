@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,35 +15,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <kern/init.h>
-#include <machine/asm.h>
-#include <machine/cpu.h>
+#include <kern/macros.h>
+#include <kern/panic.h>
+#include <machine/ssp.h>
 
-.section INIT_SECTION
+void ssp_panic(void);
 
-ASM_ENTRY(cpu_load_gdt)
-#ifdef __LP64__
- lgdt (%rdi)
-#else /* __LP64__ */
- movl 4(%esp), %eax
- lgdt (%eax)
-#endif /* __LP64__ */
+void
+ssp_panic(void)
+{
+    panic("ssp: stack corruption detected");
+}
 
- movl $CPU_GDT_SEL_DATA, %eax
- movl %eax, %ds
- movl %eax, %es
- movl %eax, %ss
-
- /* Alter the stack to reload the code segment using a far return */
-#ifdef __LP64__
- popq %rax
- pushq $CPU_GDT_SEL_CODE
- pushq %rax
- lretq
-#else /* __LP64__ */
- popl %eax
- pushl $CPU_GDT_SEL_CODE
- pushl %eax
- lret
-#endif /* __LP64__ */
-ASM_END(cpu_load_gdt)
+void __stack_chk_fail(void) __attribute__((alias("ssp_panic")));

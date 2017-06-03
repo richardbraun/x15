@@ -32,7 +32,6 @@ AM_CFLAGS += \
         -fsigned-char \
         -fno-common
 
-# TODO Add stack protector support
 AM_CFLAGS += -fno-stack-protector
 
 AM_CFLAGS += -nostdlib

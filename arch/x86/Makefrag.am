@@ -57,6 +57,8 @@ x15_SOURCES +=                          \
         arch/x86/machine/pit.h          \
         arch/x86/machine/pmap.c         \
         arch/x86/machine/pmap.h         \
+        arch/x86/machine/ssp.c          \
+        arch/x86/machine/ssp.h          \
         arch/x86/machine/strace.c       \
         arch/x86/machine/strace.h       \
         arch/x86/machine/string.c       \

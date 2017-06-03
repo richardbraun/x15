@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,35 +15,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <kern/init.h>
-#include <machine/asm.h>
-#include <machine/cpu.h>
+#ifndef _X86_SSP_H
+#define _X86_SSP_H
 
-.section INIT_SECTION
-
-ASM_ENTRY(cpu_load_gdt)
 #ifdef __LP64__
- lgdt (%rdi)
-#else /* __LP64__ */
- movl 4(%esp), %eax
- lgdt (%eax)
-#endif /* __LP64__ */
+#define SSP_GUARD_WORD 0xdeadd00ddeadd00d
+#else
+#define SSP_GUARD_WORD 0xdeadd00d
+#endif
 
- movl $CPU_GDT_SEL_DATA, %eax
- movl %eax, %ds
- movl %eax, %es
- movl %eax, %ss
+/*
+ * Offset, in words, of the SSP guard word.
+ */
+#define SSP_WORD_TLS_OFFSET 5
 
- /* Alter the stack to reload the code segment using a far return */
-#ifdef __LP64__
- popq %rax
- pushq $CPU_GDT_SEL_CODE
- pushq %rax
- lretq
-#else /* __LP64__ */
- popl %eax
- pushl $CPU_GDT_SEL_CODE
- pushl %eax
- lret
-#endif /* __LP64__ */
-ASM_END(cpu_load_gdt)
+#endif /* _X86_SSP_H */

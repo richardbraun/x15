@@ -91,6 +91,27 @@ char boot_panic_long_mode_msg[] __bootdata
     = "boot: processor doesn't support long mode";
 #endif /* __LP64__ */
 
+struct cpu_tls_seg boot_tls_seg __bootdata = {
+    .ssp_guard_word = SSP_GUARD_WORD,
+};
+
+/*
+ * This TLS segment descriptor is copied early at boot time into the
+ * temporary boot GDT. However, it is incomplete. Assembly code
+ * completes it before writing it into the boot GDT before calling
+ * any C function, since those may require the TLS segment ready if
+ * stack protection is enabled.
+ */
+struct cpu_seg_desc boot_tls_seg_desc __bootdata = {
+    .low = (sizeof(boot_tls_seg) & 0xffff),
+
+    .high = CPU_DESC_DB
+            | ((sizeof(boot_tls_seg) >> 16) & 0xf)
+            | CPU_DESC_PRESENT
+            | CPU_DESC_S
+            | CPU_DESC_TYPE_DATA,
+};
+
 /*
  * Copies of the multiboot data passed by the boot loader.
  */

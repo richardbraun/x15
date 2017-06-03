@@ -37,6 +37,7 @@
 #include <machine/pic.h>
 #include <machine/pit.h>
 #include <machine/pmap.h>
+#include <machine/ssp.h>
 #include <machine/trap.h>
 #include <vm/vm_page.h>
 
@@ -76,29 +77,6 @@
 #define CPU_MP_CMOS_RESET_VECTOR    0x467
 
 /*
- * Gate/segment descriptor bits and masks.
- */
-#define CPU_DESC_TYPE_DATA              0x00000200
-#define CPU_DESC_TYPE_CODE              0x00000a00
-#define CPU_DESC_TYPE_TSS               0x00000900
-#define CPU_DESC_TYPE_GATE_INTR         0x00000e00
-#define CPU_DESC_TYPE_GATE_TASK         0x00000500
-#define CPU_DESC_S                      0x00001000
-#define CPU_DESC_PRESENT                0x00008000
-#define CPU_DESC_LONG                   0x00200000
-#define CPU_DESC_DB                     0x00400000
-#define CPU_DESC_GRAN_4KB               0x00800000
-
-#define CPU_DESC_GATE_OFFSET_LOW_MASK   0x0000ffff
-#define CPU_DESC_GATE_OFFSET_HIGH_MASK  0xffff0000
-#define CPU_DESC_SEG_IST_MASK           0x00000007
-#define CPU_DESC_SEG_BASE_LOW_MASK      0x0000ffff
-#define CPU_DESC_SEG_BASE_MID_MASK      0x00ff0000
-#define CPU_DESC_SEG_BASE_HIGH_MASK     0xff000000
-#define CPU_DESC_SEG_LIMIT_LOW_MASK     0x0000ffff
-#define CPU_DESC_SEG_LIMIT_HIGH_MASK    0x000f0000
-
-/*
  * Gate descriptor.
  */
 struct cpu_gate_desc {
@@ -108,14 +86,6 @@ struct cpu_gate_desc {
     uint32_t word3;
     uint32_t word4;
 #endif /* __LP64__ */
-};
-
-/*
- * Code or data segment descriptor.
- */
-struct cpu_seg_desc {
-    uint32_t low;
-    uint32_t high;
 };
 
 /*
@@ -151,6 +121,16 @@ unsigned int cpu_nr_active __read_mostly;
  * Processor frequency, assumed fixed and equal on all processors.
  */
 static uint64_t cpu_freq __read_mostly;
+
+/*
+ * TLS segment, as expected by the compiler.
+ *
+ * TLS isn't actually used inside the kernel. The current purpose of this
+ * segment is to implement stack protection.
+ */
+static const struct cpu_tls_seg cpu_tls_seg = {
+    .ssp_guard_word = SSP_GUARD_WORD,
+};
 
 /*
  * Interrupt descriptor table.
@@ -278,9 +258,10 @@ cpu_seg_set_tss(char *table, unsigned int selector, struct cpu_tss *tss)
 /*
  * Set the given GDT for the current processor.
  *
- * On i386, the ds, es and ss segment registers are reloaded. In any case,
- * the gs segment register is set to the null selector. The fs segment
- * register, which points to the percpu area, must be set separately.
+ * On i386, the ds, es and ss segment registers are reloaded.
+ *
+ * The fs and gs segment registers, which point to the percpu and the TLS
+ * areas respectively, must be set separately.
  */
 void cpu_load_gdt(struct cpu_pseudo_desc *gdtr);
 
@@ -297,6 +278,19 @@ cpu_set_percpu_area(const struct cpu *cpu, void *area)
 #endif /* __LP64__ */
 
     percpu_var(cpu_local_area, cpu->id) = area;
+}
+
+static inline void __init
+cpu_set_tls_area(void)
+{
+#ifdef __LP64__
+    unsigned long va;
+
+    va = (unsigned long)&cpu_tls_seg;
+    cpu_set_msr(CPU_MSR_GSBASE, (uint32_t)(va >> 32), (uint32_t)va);
+#else /* __LP64__ */
+    asm volatile("mov %0, %%gs" : : "r" (CPU_GDT_SEL_TLS));
+#endif /* __LP64__ */
 }
 
 static void __init
@@ -322,11 +316,13 @@ cpu_init_gdt(struct cpu *cpu)
 #ifndef __LP64__
     cpu_seg_set_tss(cpu->gdt, CPU_GDT_SEL_DF_TSS, &cpu->double_fault_tss);
     cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_PERCPU, (unsigned long)pcpu_area);
+    cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_TLS, (unsigned long)&cpu_tls_seg);
 #endif /* __LP64__ */
 
     cpu_init_gdtr(&gdtr, cpu);
     cpu_load_gdt(&gdtr);
     cpu_set_percpu_area(cpu, pcpu_area);
+    cpu_set_tls_area();
 }
 
 static void __init
