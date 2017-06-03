@@ -16,6 +16,7 @@
  */
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -80,6 +81,7 @@ struct acpi_rsdt {
  */
 #define ACPI_MADT_ENTRY_LAPIC     0
 #define ACPI_MADT_ENTRY_IOAPIC    1
+#define ACPI_MADT_ENTRY_ISO       2
 
 struct acpi_madt_entry_hdr {
     uint8_t type;
@@ -103,11 +105,29 @@ struct acpi_madt_entry_ioapic {
     uint32_t base;
 } __packed;
 
+#define ACPI_MADT_ISO_POL_DEFAULT   0x00
+#define ACPI_MADT_ISO_POL_HIGH      0x01
+#define ACPI_MADT_ISO_POL_LOW       0x03
+#define ACPI_MADT_ISO_POL_MASK      0x03
+#define ACPI_MADT_ISO_TRIG_DEFAULT  0x00
+#define ACPI_MADT_ISO_TRIG_EDGE     0x04
+#define ACPI_MADT_ISO_TRIG_LEVEL    0x0c
+#define ACPI_MADT_ISO_TRIG_MASK     0x0c
+
+struct acpi_madt_entry_iso {
+    struct acpi_madt_entry_hdr header;
+    uint8_t bus;
+    uint8_t source;
+    uint32_t gsi;
+    int16_t flags;
+} __packed;
+
 union acpi_madt_entry {
     uint8_t type;
     struct acpi_madt_entry_hdr header;
     struct acpi_madt_entry_lapic lapic;
     struct acpi_madt_entry_ioapic ioapic;
+    struct acpi_madt_entry_iso iso;
 } __packed;
 
 #define ACPI_MADT_PC_COMPAT 0x1
@@ -487,6 +507,45 @@ acpi_load_ioapic(const struct acpi_madt_entry_ioapic *ioapic)
 }
 
 static void __init
+acpi_load_iso(const struct acpi_madt_entry_iso *iso)
+{
+    bool active_high, edge_triggered;
+
+    if (iso->bus != 0) {
+        printf("acpi: error: invalid interrupt source override bus\n");
+        return;
+    }
+
+    switch (iso->flags & ACPI_MADT_ISO_POL_MASK) {
+    case ACPI_MADT_ISO_POL_DEFAULT:
+    case ACPI_MADT_ISO_POL_HIGH:
+        active_high = true;
+        break;
+    case ACPI_MADT_ISO_POL_LOW:
+        active_high = false;
+        break;
+    default:
+        printf("acpi: error: invalid polarity\n");
+        return;
+    }
+
+    switch (iso->flags & ACPI_MADT_ISO_TRIG_MASK) {
+    case ACPI_MADT_ISO_TRIG_DEFAULT:
+    case ACPI_MADT_ISO_TRIG_EDGE:
+        edge_triggered = true;
+        break;
+    case ACPI_MADT_ISO_TRIG_LEVEL:
+        edge_triggered = false;
+        break;
+    default:
+        printf("acpi: error: invalid trigger mode\n");
+        return;
+    }
+
+    ioapic_override(iso->source, iso->gsi, active_high, edge_triggered);
+}
+
+static void __init
 acpi_load_madt(void)
 {
     const struct acpi_sdth *table;
@@ -501,10 +560,6 @@ acpi_load_madt(void)
     lapic_setup(madt->lapic_addr);
     is_bsp = 1;
 
-    /*
-     * TODO Handle interrupt overrides
-     */
-
     acpi_madt_foreach(madt, &iter) {
         switch (iter.entry->type) {
         case ACPI_MADT_ENTRY_LAPIC:
@@ -512,6 +567,10 @@ acpi_load_madt(void)
             break;
         case ACPI_MADT_ENTRY_IOAPIC:
             acpi_load_ioapic(&iter.entry->ioapic);
+            break;
+        case ACPI_MADT_ENTRY_ISO:
+            acpi_load_iso(&iter.entry->iso);
+            break;
         }
     }
 

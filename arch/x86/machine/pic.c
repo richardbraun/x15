@@ -51,8 +51,6 @@
  */
 #define PIC_SLAVE_INTR      2
 #define PIC_SPURIOUS_INTR   7
-#define PIC_NR_INTRS        8
-#define PIC_MAX_INTR        ((PIC_NR_INTRS * 2) - 1)
 
 static unsigned int pic_nr_slave_intrs;
 

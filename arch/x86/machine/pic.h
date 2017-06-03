@@ -18,7 +18,15 @@
 #ifndef _X86_PIC_H
 #define _X86_PIC_H
 
-#include <machine/trap.h>
+/*
+ * Interrupts per PIC.
+ */
+#define PIC_NR_INTRS    8
+
+/*
+ * Maximum global interrupt number.
+ */
+#define PIC_MAX_INTR    ((PIC_NR_INTRS * 2) - 1)
 
 /*
  * Initialize the pic module.

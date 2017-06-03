@@ -18,12 +18,24 @@
 #ifndef _KERN_IOAPIC_H
 #define _KERN_IOAPIC_H
 
+#include <stdbool.h>
 #include <stdint.h>
+
+/*
+ * Initialize the ioapic module.
+ */
+void ioapic_setup(void);
 
 /*
  * Register an I/O APIC controller.
  */
 void ioapic_register(unsigned int apic_id, uintptr_t addr,
                      unsigned int gsi_base);
+
+/*
+ * Report an interrupt source override.
+ */
+void ioapic_override(uint8_t source, uint32_t gsi,
+                     bool active_high, bool edge_triggered);
 
 #endif /* _KERN_IOAPIC_H */
