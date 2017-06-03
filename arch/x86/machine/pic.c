@@ -16,6 +16,7 @@
  */
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include <kern/error.h>
@@ -198,8 +199,8 @@ pic_spurious_intr(void *arg)
     return 0;
 }
 
-void __init
-pic_setup(void)
+static void __init
+pic_setup_common(bool register_ctl)
 {
     int error;
 
@@ -227,7 +228,7 @@ pic_setup(void)
     io_write_byte(PIC_MASTER_IMR, pic_master_mask);
     io_write_byte(PIC_SLAVE_IMR, pic_slave_mask);
 
-    if (lapic_unused()) {
+    if (register_ctl) {
         pic_register();
     }
 
@@ -240,4 +241,16 @@ pic_setup(void)
     error = intr_register(pic_slave_spurious_intr, pic_spurious_intr,
                           &pic_slave_spurious_intr);
     error_check(error, __func__);
+}
+
+void __init
+pic_setup(void)
+{
+    pic_setup_common(true);
+}
+
+void __init
+pic_setup_disabled(void)
+{
+    pic_setup_common(false);
 }

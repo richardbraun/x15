@@ -21,8 +21,19 @@
 #include <machine/trap.h>
 
 /*
- * Set up the pic module.
+ * Initialize the pic module.
  */
 void pic_setup(void);
+
+/*
+ * Initialize the pic module in an APIC system.
+ *
+ * This function is called by the acpi module if ACPI reports the presence
+ * of legacy interrupt controllers.
+ *
+ * Since it doesn't register the legacy PIC as an interrupt controller, the
+ * acpi module must have registered I/O APICs before calling this function.
+ */
+void pic_setup_disabled(void);
 
 #endif /* _X86_PIC_H */
