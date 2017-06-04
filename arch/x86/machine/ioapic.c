@@ -64,8 +64,8 @@ struct ioapic_map {
  * Interrupt source override descriptor.
  */
 struct ioapic_iso {
-    uint8_t source;
     uint32_t gsi;
+    uint8_t source;
     bool active_high;
     bool edge_triggered;
 };
