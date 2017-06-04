@@ -64,7 +64,15 @@ arg_setup(const char *cmdline)
 void __init
 arg_info(void)
 {
-    printf("arg: %s\n", arg_cmdline);
+    char cmdline[sizeof(arg_cmdline)];
+    size_t i;
+
+    for (i = 0; &arg_cmdline[i] < arg_cmdline_end; i++) {
+        cmdline[i] = (arg_cmdline[i] == '\0') ? ' ' : arg_cmdline[i];
+    }
+
+    cmdline[i] = '\0';
+    printf("arg: %s\n", cmdline);
 }
 
 static const char * __init
