@@ -539,6 +539,8 @@ cpu_measure_freq(void)
 {
     uint64_t start, end;
 
+    pit_setup_free_running();
+
     start = cpu_get_tsc();
     pit_delay(CPU_FREQ_CAL_DELAY);
     end = cpu_get_tsc();

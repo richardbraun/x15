@@ -71,7 +71,6 @@
 #include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/multiboot.h>
-#include <machine/pit.h>
 #include <machine/pmap.h>
 #include <machine/strace.h>
 #include <machine/trap.h>
@@ -486,7 +485,6 @@ boot_main(void)
     syscnt_setup();
     percpu_bootstrap();
     trap_setup();
-    pit_setup_free_running();
     cpu_setup();
     thread_bootstrap();
     console_setup();
