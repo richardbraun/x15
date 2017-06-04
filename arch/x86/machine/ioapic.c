@@ -76,8 +76,8 @@ struct ioapic {
     unsigned int apic_id;
     unsigned int version;
     volatile struct ioapic_map *map;
-    unsigned int first_intr;
-    unsigned int last_intr;
+    unsigned int first_gsi;
+    unsigned int last_gsi;
 };
 
 static unsigned int ioapic_nr_devs;
@@ -162,10 +162,10 @@ ioapic_intr(struct trap_frame *frame)
 }
 
 static struct ioapic * __init
-ioapic_create(unsigned int apic_id, uintptr_t addr, unsigned int intr_base)
+ioapic_create(unsigned int apic_id, uintptr_t addr, unsigned int gsi_base)
 {
     struct ioapic *ioapic;
-    unsigned int i, nr_intrs;
+    unsigned int i, nr_gsis;
     uint32_t value;
 
     ioapic = kmem_alloc(sizeof(*ioapic));
@@ -177,7 +177,7 @@ ioapic_create(unsigned int apic_id, uintptr_t addr, unsigned int intr_base)
     spinlock_init(&ioapic->lock);
     ioapic->id = ioapic_nr_devs;
     ioapic->apic_id = apic_id;
-    ioapic->first_intr = intr_base;
+    ioapic->first_gsi = gsi_base;
 
     ioapic->map = vm_kmem_map_pa(addr, sizeof(*ioapic->map), NULL, NULL);
 
@@ -188,36 +188,37 @@ ioapic_create(unsigned int apic_id, uintptr_t addr, unsigned int intr_base)
     value = ioapic_read(ioapic, IOAPIC_REG_VERSION);
     ioapic->version = (value & IOAPIC_VERSION_VERSION_MASK)
                       >> IOAPIC_VERSION_VERSION_SHIFT;
-    nr_intrs = ((value & IOAPIC_VERSION_MAXREDIR_MASK)
-                >> IOAPIC_VERSION_MAXREDIR_SHIFT) + 1;
-    ioapic->last_intr = ioapic->first_intr + nr_intrs - 1;
+    nr_gsis = ((value & IOAPIC_VERSION_MAXREDIR_MASK)
+               >> IOAPIC_VERSION_MAXREDIR_SHIFT) + 1;
+    ioapic->last_gsi = ioapic->first_gsi + nr_gsis - 1;
 
-    if (ioapic->last_intr > (TRAP_INTR_LAST - TRAP_INTR_FIRST)) {
+    /* XXX This assumes that interrupts are mapped 1:1 to traps */
+    if (ioapic->last_gsi > (TRAP_INTR_LAST - TRAP_INTR_FIRST)) {
         panic("ioapic: invalid interrupt range");
     }
 
-    for (i = ioapic->first_intr; i < ioapic->last_intr; i++) {
+    for (i = ioapic->first_gsi; i < ioapic->last_gsi; i++) {
         trap_register(TRAP_INTR_FIRST + i, ioapic_intr);
     }
 
-    printf("ioapic%u: version:%#x intrs:%u-%u\n", ioapic->id,
-           ioapic->version, ioapic->first_intr, ioapic->last_intr);
+    printf("ioapic%u: version:%#x gsis:%u-%u\n", ioapic->id,
+           ioapic->version, ioapic->first_gsi, ioapic->last_gsi);
 
     ioapic_nr_devs++;
     return ioapic;
 }
 
 static bool
-ioapic_has_intr(const struct ioapic *ioapic, unsigned int intr)
+ioapic_has_gsi(const struct ioapic *ioapic, unsigned int gsi)
 {
-    return ((intr >= ioapic->first_intr) && (intr <= ioapic->last_intr));
+    return ((gsi >= ioapic->first_gsi) && (gsi <= ioapic->last_gsi));
 }
 
 static unsigned int
-ioapic_compute_id(const struct ioapic *ioapic, unsigned int intr)
+ioapic_compute_id(const struct ioapic *ioapic, unsigned int gsi)
 {
-    assert(ioapic_has_intr(ioapic, intr));
-    return intr - ioapic->first_intr;
+    assert(ioapic_has_gsi(ioapic, gsi));
+    return gsi - ioapic->first_gsi;
 }
 
 static void
@@ -308,13 +309,17 @@ ioapic_setup(void)
 }
 
 void __init
-ioapic_register(unsigned int apic_id, uintptr_t addr, unsigned int intr_base)
+ioapic_register(unsigned int apic_id, uintptr_t addr, unsigned int gsi_base)
 {
     struct ioapic *ioapic;
 
-    ioapic = ioapic_create(apic_id, addr, intr_base);
-    intr_register_ctl(&ioapic_ops, ioapic,
-                      ioapic->first_intr, ioapic->last_intr);
+    ioapic = ioapic_create(apic_id, addr, gsi_base);
+
+    /*
+     * XXX This assumes that any interrupt override source is included
+     * in the GSI range.
+     */
+    intr_register_ctl(&ioapic_ops, ioapic, ioapic->first_gsi, ioapic->last_gsi);
 }
 
 void __init
