@@ -18,8 +18,8 @@
 #ifndef _STDIO_H
 #define _STDIO_H
 
+#include <kern/fmt.h>
 #include <kern/printf.h>
-#include <kern/sprintf.h>
 
 #ifndef EOF
 #define EOF (-1)
@@ -30,5 +30,13 @@ char console_getchar(void);
 
 #define getchar console_getchar
 #define putchar console_putchar
+
+#define sprintf     fmt_sprintf
+#define snprintf    fmt_snprintf
+#define vsprintf    fmt_vsprintf
+#define vsnprintf   fmt_vsnprintf
+
+#define sscanf      fmt_sscanf
+#define vsscanf     fmt_vsscanf
 
 #endif /* _STDIO_H */
