@@ -15,9 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-
 #include <kern/console.h>
+#include <kern/fmt.h>
 #include <kern/spinlock.h>
 #include <machine/cpu.h>
 
@@ -51,7 +50,7 @@ vprintf(const char *format, va_list ap)
 
     spinlock_lock_intr_save(&printf_lock, &flags);
 
-    length = vsnprintf(printf_buffer, sizeof(printf_buffer), format, ap);
+    length = fmt_vsnprintf(printf_buffer, sizeof(printf_buffer), format, ap);
 
     for (ptr = printf_buffer; *ptr != '\0'; ptr++) {
         console_putchar(*ptr);

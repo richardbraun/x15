@@ -29,6 +29,8 @@ x15_SOURCES +=                                              \
         kern/error.c                                        \
         kern/error.h                                        \
         kern/hash.h                                         \
+        kern/fmt.c                                          \
+        kern/fmt.h                                          \
         kern/init.h                                         \
         kern/intr.c                                         \
         kern/intr.h                                         \
@@ -79,8 +81,6 @@ x15_SOURCES +=                                              \
         kern/spinlock.h                                     \
         kern/spinlock_i.h                                   \
         kern/spinlock_types.h                               \
-        kern/sprintf.c                                      \
-        kern/sprintf.h                                      \
         kern/sref.c                                         \
         kern/sref.h                                         \
         kern/sref_i.h                                       \
