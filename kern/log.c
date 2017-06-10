@@ -28,6 +28,7 @@
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
+#include <kern/shell.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
 
@@ -141,7 +142,7 @@ log_record_consume(struct log_record *record, char c, size_t *sizep)
 }
 
 static int
-log_record_init_consume(struct log_record *record)
+log_record_init_consume(struct log_record *record, unsigned long *indexp)
 {
     bool marker_found;
     size_t size;
@@ -152,15 +153,22 @@ log_record_init_consume(struct log_record *record)
     size = 0;
 
     for (;;) {
-        error = cbuf_pop(&log_cbuf, &c);
-
-        if (error) {
+        if (*indexp == cbuf_end(&log_cbuf)) {
             if (!marker_found) {
                 return ERROR_INVAL;
             }
 
             break;
         }
+
+        error = cbuf_read(&log_cbuf, *indexp, &c);
+
+        if (error) {
+            *indexp = cbuf_start(&log_cbuf);
+            continue;
+        }
+
+        (*indexp)++;
 
         if (!marker_found) {
             if (c != LOG_MARKER) {
@@ -187,9 +195,9 @@ log_record_init_consume(struct log_record *record)
 }
 
 static void
-log_record_print(const struct log_record *record)
+log_record_print(const struct log_record *record, unsigned int level)
 {
-    if (record->level > log_print_level) {
+    if (record->level > level) {
         return;
     }
 
@@ -218,7 +226,7 @@ log_record_push(struct log_record *record)
 static void
 log_run(void *arg)
 {
-    unsigned long flags, nr_overruns;
+    unsigned long flags, index, nr_overruns;
     struct log_record record;
     int error;
 
@@ -226,14 +234,16 @@ log_run(void *arg)
 
     nr_overruns = 0;
 
-    for (;;) {
-        spinlock_lock_intr_save(&log_lock, &flags);
+    spinlock_lock_intr_save(&log_lock, &flags);
 
+    index = cbuf_start(&log_cbuf);
+
+    for (;;) {
         while (cbuf_size(&log_cbuf) == 0) {
             thread_sleep(&log_lock, &log_cbuf, "log_cbuf");
         }
 
-        error = log_record_init_consume(&record);
+        error = log_record_init_consume(&record, &index);
 
         /* Drain the log buffer before reporting overruns */
         if (cbuf_size(&log_cbuf) == 0) {
@@ -244,7 +254,7 @@ log_run(void *arg)
         spinlock_unlock_intr_restore(&log_lock, flags);
 
         if (!error) {
-            log_record_print(&record);
+            log_record_print(&record, log_print_level);
         }
 
         if (nr_overruns != 0) {
@@ -252,7 +262,57 @@ log_run(void *arg)
                     nr_overruns);
             nr_overruns = 0;
         }
+
+        spinlock_lock_intr_save(&log_lock, &flags);
     }
+}
+
+static void
+log_dump(unsigned int level)
+{
+    unsigned long index, flags;
+    struct log_record record;
+    int error;
+
+    spinlock_lock_intr_save(&log_lock, &flags);
+
+    index = cbuf_start(&log_cbuf);
+
+    for (;;) {
+        error = log_record_init_consume(&record, &index);
+
+        if (error) {
+            break;
+        }
+
+        spinlock_unlock_intr_restore(&log_lock, flags);
+
+        log_record_print(&record, level);
+
+        spinlock_lock_intr_save(&log_lock, &flags);
+    }
+
+    spinlock_unlock_intr_restore(&log_lock, flags);
+}
+
+static void
+log_shell_dump(int argc, char **argv)
+{
+    unsigned int level;
+    int ret;
+
+    if (argc != 2) {
+        level = log_print_level;
+    } else {
+        ret = sscanf(argv[1], "%u", &level);
+
+        if ((ret != 1) || (level >= LOG_NR_LEVELS)) {
+            printf("log: dump: invalid arguments\n");
+            return;
+        }
+    }
+
+    log_dump(level);
 }
 
 void __init
@@ -262,6 +322,12 @@ log_setup(void)
     spinlock_init(&log_lock);
     log_print_level = LOG_INFO;
 }
+
+static struct shell_cmd log_shell_cmds[] = {
+    SHELL_CMD_INITIALIZER("log_dump", log_shell_dump,
+                          "logdump [<level>]",
+                          "dump the log buffer"),
+};
 
 void __init
 log_start(void)
@@ -276,6 +342,8 @@ log_start(void)
     if (error) {
         panic("log: unable to create thread");
     }
+
+    SHELL_REGISTER_CMDS(log_shell_cmds);
 }
 
 int
