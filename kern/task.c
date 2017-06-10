@@ -93,7 +93,8 @@ error:
 
 static struct shell_cmd task_shell_cmds[] = {
     SHELL_CMD_INITIALIZER("task_info", task_shell_info,
-                          "task_info", "print all tasks and threads"),
+                          "task_info [<task_name>]",
+                          "print tasks and threads"),
 };
 
 void __init
@@ -213,7 +214,7 @@ task_info(struct task *task)
         spinlock_lock(&task_list_lock);
 
         list_for_each_entry(&task_list, task, node) {
-            printf("task: %s\n", task->name);
+            task_info(task);
         }
 
         spinlock_unlock(&task_list_lock);
