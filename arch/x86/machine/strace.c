@@ -75,9 +75,9 @@ strace_show_one(unsigned int index, unsigned long ip)
     name = strace_lookup(ip, &offset, &size);
 
     if (name == NULL) {
-        printf("strace: #%u [" STRACE_ADDR_FORMAT "]\n", index, ip);
+        printf("#%u [" STRACE_ADDR_FORMAT "]\n", index, ip);
     } else {
-        printf("strace: #%u [" STRACE_ADDR_FORMAT "] %s+%#lx/%#lx\n",
+        printf("#%u [" STRACE_ADDR_FORMAT "] %s+%#lx/%#lx\n",
                index, ip, name, (unsigned long)offset, (unsigned long)size);
     }
 }
@@ -90,7 +90,6 @@ strace_show(unsigned long ip, unsigned long bp)
     unsigned int i;
     int error;
 
-    printf("strace: stack trace:\n");
     strace_show_one(0, ip);
 
     i = 1;
@@ -119,8 +118,6 @@ strace_show(unsigned long ip, unsigned long bp)
         i++;
         frame = frame[0];
     }
-
-    printf("strace: end of trace\n");
 }
 
 static void * __init
