@@ -24,6 +24,7 @@
 #include <kern/init.h>
 #include <kern/intr.h>
 #include <kern/kmem.h>
+#include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/spinlock.h>
 #include <machine/cpu.h>
