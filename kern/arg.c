@@ -62,7 +62,7 @@ arg_setup(const char *cmdline)
 }
 
 void __init
-arg_info(void)
+arg_log_info(void)
 {
     char cmdline[sizeof(arg_cmdline)];
     size_t i;

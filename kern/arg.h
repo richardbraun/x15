@@ -35,9 +35,9 @@
 void arg_setup(const char *cmdline);
 
 /*
- * Display command line information.
+ * Log command line information.
  */
-void arg_info(void);
+void arg_log_info(void);
 
 /*
  * Return true if an argument with the given name is present in the
