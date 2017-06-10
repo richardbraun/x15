@@ -33,11 +33,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <kern/init.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
@@ -47,8 +47,6 @@
 #include <machine/pmap.h>
 #include <machine/types.h>
 #include <vm/vm_page.h>
-
-#define DEBUG 0
 
 /*
  * Number of free block lists per zone.
@@ -510,11 +508,9 @@ vm_page_load(unsigned int zone_index, phys_addr_t start, phys_addr_t end)
     zone->end = end;
     zone->heap_present = false;
 
-#if DEBUG
-    printf("vm_page: load: %s: %llx:%llx\n",
-           vm_page_zone_name(zone_index),
-           (unsigned long long)start, (unsigned long long)end);
-#endif
+    log_debug("vm_page: load: %s: %llx:%llx\n",
+              vm_page_zone_name(zone_index),
+              (unsigned long long)start, (unsigned long long)end);
 
     vm_page_zones_size++;
 }
@@ -537,11 +533,9 @@ vm_page_load_heap(unsigned int zone_index, phys_addr_t start, phys_addr_t end)
     zone->avail_end = end;
     zone->heap_present = true;
 
-#if DEBUG
-    printf("vm_page: heap: %s: %llx:%llx\n",
-           vm_page_zone_name(zone_index),
-           (unsigned long long)start, (unsigned long long)end);
-#endif
+    log_debug("vm_page: heap: %s: %llx:%llx",
+              vm_page_zone_name(zone_index),
+              (unsigned long long)start, (unsigned long long)end);
 }
 
 int
@@ -663,8 +657,8 @@ vm_page_setup(void)
     }
 
     table_size = vm_page_round(nr_pages * sizeof(struct vm_page));
-    printf("vm_page: page table size: %zu entries (%zuk)\n", nr_pages,
-           table_size >> 10);
+    log_info("vm_page: page table size: %zu entries (%zuk)", nr_pages,
+             table_size >> 10);
     table = vm_page_bootalloc(table_size);
     va = (uintptr_t)table;
 
@@ -781,8 +775,8 @@ vm_page_info(void)
     for (i = 0; i < vm_page_zones_size; i++) {
         zone = &vm_page_zones[i];
         pages = (unsigned long)(zone->pages_end - zone->pages);
-        printf("vm_page: %s: pages: %lu (%luM), free: %lu (%luM)\n",
-               vm_page_zone_name(i), pages, pages >> (20 - PAGE_SHIFT),
-               zone->nr_free_pages, zone->nr_free_pages >> (20 - PAGE_SHIFT));
+        log_info("vm_page: %s: pages: %lu (%luM), free: %lu (%luM)",
+                 vm_page_zone_name(i), pages, pages >> (20 - PAGE_SHIFT),
+                 zone->nr_free_pages, zone->nr_free_pages >> (20 - PAGE_SHIFT));
     }
 }

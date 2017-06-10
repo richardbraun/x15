@@ -24,11 +24,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/intr.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <machine/atkbd.h>
 #include <machine/atcons.h>
@@ -489,13 +489,13 @@ atkbd_read_status(bool check_out)
      * of hardware.
      */
     if (status == 0xff) {
-        printf("atkbd: no keyboard controller\n");
+        log_info("atkbd: no keyboard controller");
         return ERROR_NODEV;
     } else if (status & ATKBD_STATUS_PARITY_ERROR) {
-        printf("atkbd: parity error\n");
+        log_err("atkbd: parity error");
         return ERROR_IO;
     } else if (status & ATKBD_STATUS_TIMEOUT_ERROR) {
-        printf("atkbd: timeout error\n");
+        log_err("atkbd: timeout error");
         return ERROR_TIMEDOUT;
     }
 
@@ -849,7 +849,7 @@ atkbd_setup(void)
     error = intr_register(ATKBD_INTR1, atkbd_intr, NULL);
 
     if (error) {
-        printf("atkbd: error: unable to register interrupt handler\n");
+        log_err("atkbd: unable to register interrupt handler");
         return;
     }
 

@@ -18,11 +18,11 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <kern/error.h>
 #include <kern/init.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
@@ -50,8 +50,8 @@ percpu_setup(void)
     unsigned int order;
 
     percpu_area_size = &_percpu_end - &_percpu;
-    printf("percpu: max_cpus: %u, section size: %zuk\n", X15_MAX_CPUS,
-           percpu_area_size >> 10);
+    log_info("percpu: max_cpus: %u, section size: %zuk", X15_MAX_CPUS,
+             percpu_area_size >> 10);
     assert(vm_page_aligned(percpu_area_size));
 
     if (percpu_area_size == 0) {
@@ -77,8 +77,8 @@ percpu_add(unsigned int cpu)
 
     if (cpu >= ARRAY_SIZE(percpu_areas)) {
         if (!percpu_skip_warning) {
-            printf("percpu: ignoring processor beyond id %zu\n",
-                   ARRAY_SIZE(percpu_areas) - 1);
+            log_warning("percpu: ignoring processor beyond id %zu",
+                        ARRAY_SIZE(percpu_areas) - 1);
             percpu_skip_warning = 1;
         }
 
@@ -86,7 +86,7 @@ percpu_add(unsigned int cpu)
     }
 
     if (percpu_areas[cpu] != NULL) {
-        printf("percpu: error: id %u ignored, already registered\n", cpu);
+        log_err("percpu: id %u ignored, already registered", cpu);
         return ERROR_INVAL;
     }
 
@@ -98,7 +98,7 @@ percpu_add(unsigned int cpu)
     page = vm_page_alloc(order, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_KERNEL);
 
     if (page == NULL) {
-        printf("percpu: error: unable to allocate percpu area\n");
+        log_err("percpu: unable to allocate percpu area");
         return ERROR_NOMEM;
     }
 

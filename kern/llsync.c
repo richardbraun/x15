@@ -35,12 +35,12 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdio.h>
 
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/init.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/llsync.h>
 #include <kern/llsync_i.h>
 #include <kern/macros.h>
@@ -122,7 +122,7 @@ llsync_process_global_checkpoint(void)
     /* TODO Handle hysteresis */
     if (!llsync_data.no_warning && (nr_works >= LLSYNC_NR_PENDING_WORKS_WARN)) {
         llsync_data.no_warning = 1;
-        printf("llsync: warning: large number of pending works\n");
+        log_warning("llsync: large number of pending works\n");
     }
 
     if (llsync_data.nr_registered_cpus == 0) {

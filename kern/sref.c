@@ -44,12 +44,12 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdio.h>
 
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/init.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
@@ -503,7 +503,7 @@ sref_end_epoch(struct sref_queue *queue)
     if (!sref_data.no_warning
         && (sref_review_queue_size() >= SREF_NR_COUNTERS_WARN)) {
         sref_data.no_warning = 1;
-        printf("sref: warning: large number of counters in review queue\n");
+        log_warning("sref: large number of counters in review queue");
     }
 
     if (sref_data.nr_registered_cpus == 1) {

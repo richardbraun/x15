@@ -18,7 +18,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <kern/arg.h>
@@ -26,6 +25,7 @@
 #include <kern/init.h>
 #include <kern/console.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/mutex.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
@@ -128,10 +128,10 @@ console_register(struct console *console)
         console_dev = console;
     }
 
-    printf("console: %s registered\n", console->name);
+    log_info("console: %s registered", console->name);
 
     if (console == console_dev) {
-        printf("console: %s selected as active console\n", console->name);
+        log_info("console: %s selected as active console", console->name);
     }
 }
 

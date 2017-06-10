@@ -17,13 +17,13 @@
 
 #include <assert.h>
 #include <stddef.h>
-#include <stdio.h>
 
 #include <kern/bitmap.h>
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
@@ -374,7 +374,7 @@ work_process(void *arg)
 
                 if (error) {
                     work_pool_free_id(pool, id);
-                    printf("work: warning: unable to create worker thread\n");
+                    log_warning("work: unable to create worker thread");
                 }
             }
         }
@@ -490,9 +490,9 @@ work_setup(void)
     work_pool_init(&work_pool_highprio, WORK_INVALID_CPU,
                    WORK_PF_GLOBAL | WORK_PF_HIGHPRIO);
 
-    printf("work: threads per pool (per-cpu/global): %u/%u, spare: %u\n",
-           percpu_var(work_pool_cpu_main.max_threads, 0),
-           work_pool_main.max_threads, WORK_THREADS_SPARE);
+    log_info("work: threads per pool (per-cpu/global): %u/%u, spare: %u",
+             percpu_var(work_pool_cpu_main.max_threads, 0),
+             work_pool_main.max_threads, WORK_THREADS_SPARE);
 }
 
 void
