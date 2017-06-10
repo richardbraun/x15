@@ -2282,8 +2282,7 @@ static struct shell_cmd thread_shell_cmds[] = {
 void __init
 thread_setup(void)
 {
-    unsigned int i;
-    int cpu, error;
+    int cpu;
 
     for (cpu = 1; (unsigned int)cpu < cpu_count(); cpu++) {
         thread_bootstrap_common(cpu);
@@ -2302,10 +2301,7 @@ thread_setup(void)
         thread_setup_runq(percpu_ptr(thread_runq, cpu));
     }
 
-    for (i = 0; i < ARRAY_SIZE(thread_shell_cmds); i++) {
-        error = shell_cmd_register(&thread_shell_cmds[i]);
-        error_check(error, __func__);
-    }
+    SHELL_REGISTER_CMDS(thread_shell_cmds);
 }
 
 int
