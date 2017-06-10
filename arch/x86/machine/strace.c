@@ -21,6 +21,7 @@
 
 #include <kern/init.h>
 #include <kern/kmem.h>
+#include <kern/log.h>
 #include <kern/param.h>
 #include <machine/elf.h>
 #include <machine/multiboot.h>
@@ -133,14 +134,14 @@ strace_copy_section(const struct elf_shdr *shdr)
     src = vm_kmem_map_pa(shdr->addr, shdr->size, &map_addr, &map_size);
 
     if (src == NULL) {
-        printf("strace: unable to map section\n");
+        log_err("strace: unable to map section");
         goto error_map;
     }
 
     copy = kmem_alloc(shdr->size);
 
     if (copy == NULL) {
-        printf("strace: unable to allocate section copy\n");
+        log_err("strace: unable to allocate section copy");
         goto error_copy;
     }
 
@@ -191,12 +192,12 @@ strace_setup(const struct multiboot_raw_info *mbi)
     table = vm_kmem_map_pa(mbi->shdr_addr, size, &map_addr, &map_size);
 
     if (table == NULL) {
-        printf("strace: unable to map section headers table\n");
+        log_err("strace: unable to map section headers table");
         goto no_syms;
     }
 
     if (mbi->shdr_strndx >= mbi->shdr_num) {
-        printf("strace: invalid section names index\n");
+        log_err("strace: invalid section names index");
         goto error_shstrndx;
     }
 
@@ -205,21 +206,21 @@ strace_setup(const struct multiboot_raw_info *mbi)
                               &shstrtab_map_addr, &shstrtab_map_size);
 
     if (shstrtab == NULL) {
-        printf("strace: unable to map section names\n");
+        log_err("strace: unable to map section names");
         goto error_shstrtab;
     }
 
     symtab_hdr = strace_lookup_section(mbi, table, shstrtab, ".symtab");
 
     if (symtab_hdr == NULL) {
-        printf("strace: unable to find symbol table\n");
+        log_err("strace: unable to find symbol table");
         goto error_symtab_lookup;
     }
 
     strtab_hdr = strace_lookup_section(mbi, table, shstrtab, ".strtab");
 
     if (strtab_hdr == NULL) {
-        printf("strace: unable to find symbol string table\n");
+        log_err("strace: unable to find symbol string table");
         goto error_strtab_lookup;
     }
 

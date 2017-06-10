@@ -19,9 +19,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 
 #include <kern/init.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
@@ -210,8 +210,8 @@ lapic_compute_freq(void)
     cpu_delay(LAPIC_TIMER_CAL_DELAY);
     c2 = lapic_read(&lapic_map->timer_ccr);
     lapic_bus_freq = (c1 - c2) * (1000000 / LAPIC_TIMER_CAL_DELAY);
-    printf("lapic: bus frequency: %u.%02u MHz\n", lapic_bus_freq / 1000000,
-           lapic_bus_freq % 1000000);
+    log_info("lapic: bus frequency: %u.%02u MHz", lapic_bus_freq / 1000000,
+             lapic_bus_freq % 1000000);
     lapic_write(&lapic_map->timer_icr, lapic_bus_freq / HZ);
     lapic_write(&lapic_map->svr, 0);
 }
@@ -344,7 +344,7 @@ lapic_error_intr(struct trap_frame *frame)
 
     (void)frame;
     esr = lapic_read(&lapic_map->esr);
-    printf("lapic: error on cpu%u: esr:%08x\n", cpu_id(), esr);
+    log_err("lapic: error on cpu%u: esr:%08x", cpu_id(), esr);
     lapic_write(&lapic_map->esr, 0);
     lapic_eoi();
 }
@@ -353,7 +353,7 @@ void
 lapic_spurious_intr(struct trap_frame *frame)
 {
     (void)frame;
-    printf("lapic: warning: spurious interrupt\n");
+    log_warning("lapic: spurious interrupt");
 
     /* No EOI for this interrupt */
 }

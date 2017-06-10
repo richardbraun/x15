@@ -18,11 +18,11 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <kern/arg.h>
 #include <kern/init.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 
@@ -72,7 +72,7 @@ arg_info(void)
     }
 
     cmdline[i] = '\0';
-    printf("arg: %s\n", cmdline);
+    log_info("arg: %s", cmdline);
 }
 
 static const char * __init

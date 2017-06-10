@@ -18,12 +18,12 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/intr.h>
 #include <kern/kmem.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/spinlock.h>
@@ -102,7 +102,7 @@ ioapic_alloc_iso(void)
     struct ioapic_iso *iso;
 
     if (ioapic_nr_isos >= ARRAY_SIZE(ioapic_isos)) {
-        printf("ioapic: error: too many interrupt overrides\n");
+        log_err("ioapic: too many interrupt overrides");
         return NULL;
     }
 
@@ -202,8 +202,8 @@ ioapic_create(unsigned int apic_id, uintptr_t addr, unsigned int gsi_base)
         trap_register(TRAP_INTR_FIRST + i, ioapic_intr);
     }
 
-    printf("ioapic%u: version:%#x gsis:%u-%u\n", ioapic->id,
-           ioapic->version, ioapic->first_gsi, ioapic->last_gsi);
+    log_info("ioapic%u: version:%#x gsis:%u-%u", ioapic->id,
+             ioapic->version, ioapic->first_gsi, ioapic->last_gsi);
 
     ioapic_nr_devs++;
     return ioapic;
