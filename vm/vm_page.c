@@ -508,7 +508,7 @@ vm_page_load(unsigned int zone_index, phys_addr_t start, phys_addr_t end)
     zone->end = end;
     zone->heap_present = false;
 
-    log_debug("vm_page: load: %s: %llx:%llx\n",
+    log_debug("vm_page: load: %s: %llx:%llx",
               vm_page_zone_name(zone_index),
               (unsigned long long)start, (unsigned long long)end);
 
