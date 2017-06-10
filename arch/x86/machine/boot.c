@@ -347,7 +347,7 @@ boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
 }
 
 static void __init
-boot_show_version(void)
+boot_log_version(void)
 {
     log_info(KERNEL_NAME "/" QUOTE(X15_X86_MACHINE) " " KERNEL_VERSION
 #ifdef X15_X86_PAE
@@ -488,13 +488,13 @@ boot_main(void)
     trap_setup();
     cpu_setup();
     thread_bootstrap();
+    boot_log_version();
+    arg_log_info();
     console_setup();
     atcons_bootstrap();
     uart_bootstrap();
     printf_setup();
-    boot_show_version();
     shell_setup();
-    arg_info();
     uart_info();
     pmap_bootstrap();
     sref_bootstrap();
