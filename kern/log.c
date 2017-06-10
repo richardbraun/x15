@@ -1,0 +1,457 @@
+/*
+ * Copyright (c) 2017 Richard Braun.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <assert.h>
+#include <limits.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdint.h>
+
+#include <kern/cbuf.h>
+#include <kern/init.h>
+#include <kern/log.h>
+#include <kern/macros.h>
+#include <kern/panic.h>
+#include <kern/spinlock.h>
+#include <kern/thread.h>
+
+#define LOG_BUFFER_SIZE 16384
+
+#if !ISP2(LOG_BUFFER_SIZE)
+#error "log buffer size must be a power-of-two"
+#endif
+
+#define LOG_MSG_SIZE 128
+
+#define LOG_MARKER 0x1
+
+static struct thread *log_thread;
+
+static struct cbuf log_cbuf;
+static char log_buffer[LOG_BUFFER_SIZE];
+
+static unsigned long log_nr_overruns;
+
+/*
+ * Global lock.
+ *
+ * Interrupts must be disabled when holding this lock.
+ */
+static struct spinlock log_lock;
+
+/*
+ * A record starts with a marker byte and ends with a null terminating byte.
+ *
+ * There must be no null byte inside the header, and the buffer is expected
+ * to be a standard null-terminated string.
+ */
+struct log_record {
+    uint8_t mark;
+    uint8_t level;
+    char buffer[LOG_MSG_SIZE];
+};
+
+static void
+log_push(char c)
+{
+    if (cbuf_size(&log_cbuf) == cbuf_capacity(&log_cbuf)) {
+        log_nr_overruns++;
+    }
+
+    cbuf_push(&log_cbuf, c);
+}
+
+static const char *
+log_level2str(unsigned int level)
+{
+    switch (level) {
+    case LOG_EMERG:
+        return "emerg";
+    case LOG_ALERT:
+        return "alert";
+    case LOG_CRIT:
+        return "crit";
+    case LOG_ERR:
+        return "error";
+    case LOG_WARNING:
+        return "warning";
+    case LOG_NOTICE:
+        return "notice";
+    case LOG_INFO:
+        return "info";
+    case LOG_DEBUG:
+        return "debug";
+    default:
+        return NULL;
+    }
+}
+
+static char
+log_level2char(unsigned int level)
+{
+    assert(level < LOG_NR_LEVELS);
+    return '0' + level;
+}
+
+static uint8_t
+log_char2level(char c)
+{
+    uint8_t level;
+
+    level = c - '0';
+    assert(level < LOG_NR_LEVELS);
+    return level;
+}
+
+static void
+log_record_init_produce(struct log_record *record, unsigned int level)
+{
+    record->mark = LOG_MARKER;
+    record->level = log_level2char(level);
+}
+
+static void
+log_record_consume(struct log_record *record, char c, size_t *sizep)
+{
+    char *ptr;
+
+    assert(*sizep < sizeof(*record));
+
+    ptr = (char *)record;
+    ptr[*sizep] = c;
+    (*sizep)++;
+}
+
+static int
+log_record_init_consume(struct log_record *record)
+{
+    bool marker_found;
+    size_t size;
+    int error;
+    char c;
+
+    marker_found = false;
+    size = 0;
+
+    for (;;) {
+        error = cbuf_pop(&log_cbuf, &c);
+
+        if (error) {
+            if (!marker_found) {
+                return ERROR_INVAL;
+            }
+
+            break;
+        }
+
+        if (!marker_found) {
+            if (c != LOG_MARKER) {
+                continue;
+            }
+
+            marker_found = true;
+            log_record_consume(record, c, &size);
+            continue;
+        } else if (size == offsetof(struct log_record, level)) {
+            record->level = log_char2level(c);
+            size++;
+            continue;
+        }
+
+        log_record_consume(record, c, &size);
+
+        if (c == '\0') {
+            break;
+        }
+    }
+
+    return 0;
+}
+
+static void
+log_record_print(const struct log_record *record)
+{
+    printf("%7s %s\n", log_level2str(record->level), record->buffer);
+}
+
+static void
+log_record_push(struct log_record *record)
+{
+    const char *ptr;
+
+    ptr = (const char *)record;
+
+    while (*ptr != '\0') {
+        log_push(*ptr);
+        ptr++;
+    }
+
+    log_push('\0');
+}
+
+static void
+log_run(void *arg)
+{
+    unsigned long flags, nr_overruns;
+    struct log_record record;
+    int error;
+
+    (void)arg;
+
+    nr_overruns = 0;
+
+    for (;;) {
+        spinlock_lock_intr_save(&log_lock, &flags);
+
+        while (cbuf_size(&log_cbuf) == 0) {
+            thread_sleep(&log_lock, &log_cbuf, "log_cbuf");
+        }
+
+        error = log_record_init_consume(&record);
+
+        /* Drain the log buffer before reporting overruns */
+        if (cbuf_size(&log_cbuf) == 0) {
+            nr_overruns = log_nr_overruns;
+            log_nr_overruns = 0;
+        }
+
+        spinlock_unlock_intr_restore(&log_lock, flags);
+
+        if (!error) {
+            log_record_print(&record);
+        }
+
+        if (nr_overruns != 0) {
+            log_msg(LOG_ERR, "log: buffer overruns, %lu bytes dropped",
+                    nr_overruns);
+            nr_overruns = 0;
+        }
+    }
+}
+
+void __init
+log_setup(void)
+{
+    cbuf_init(&log_cbuf, log_buffer, sizeof(log_buffer));
+    spinlock_init(&log_lock);
+}
+
+void __init
+log_start(void)
+{
+    struct thread_attr attr;
+    int error;
+
+    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "log_run");
+    thread_attr_set_detached(&attr);
+    error = thread_create(&log_thread, &attr, log_run, NULL);
+
+    if (error) {
+        panic("log: unable to create thread");
+    }
+}
+
+int
+log_msg(unsigned int level, const char *format, ...)
+{
+    va_list ap;
+    int ret;
+
+    va_start(ap, format);
+    ret = log_vmsg(level, format, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+int
+log_vmsg(unsigned int level, const char *format, va_list ap)
+{
+    struct log_record record;
+    unsigned long flags;
+    int nr_chars;
+
+    log_record_init_produce(&record, level);
+    nr_chars = vsnprintf(record.buffer, sizeof(record.buffer), format, ap);
+
+    if ((unsigned int)nr_chars >= sizeof(record.buffer)) {
+        log_msg(LOG_ERR, "log: message too large");
+        goto out;;
+    }
+
+    spinlock_lock_intr_save(&log_lock, &flags);
+    log_record_push(&record);
+    thread_wakeup(log_thread);
+    spinlock_unlock_intr_restore(&log_lock, flags);
+
+out:
+    return nr_chars;
+}
+
+int
+log_emerg(const char *format, ...)
+{
+    va_list ap;
+    int ret;
+
+    va_start(ap, format);
+    ret = log_vemerg(format, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+int
+log_alert(const char *format, ...)
+{
+    va_list ap;
+    int ret;
+
+    va_start(ap, format);
+    ret = log_valert(format, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+int
+log_crit(const char *format, ...)
+{
+    va_list ap;
+    int ret;
+
+    va_start(ap, format);
+    ret = log_vcrit(format, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+int
+log_err(const char *format, ...)
+{
+    va_list ap;
+    int ret;
+
+    va_start(ap, format);
+    ret = log_verr(format, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+int
+log_warning(const char *format, ...)
+{
+    va_list ap;
+    int ret;
+
+    va_start(ap, format);
+    ret = log_vwarning(format, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+int
+log_notice(const char *format, ...)
+{
+    va_list ap;
+    int ret;
+
+    va_start(ap, format);
+    ret = log_vnotice(format, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+int
+log_info(const char *format, ...)
+{
+    va_list ap;
+    int ret;
+
+    va_start(ap, format);
+    ret = log_vinfo(format, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+int
+log_debug(const char *format, ...)
+{
+    va_list ap;
+    int ret;
+
+    va_start(ap, format);
+    ret = log_vdebug(format, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+int
+log_vemerg(const char *format, va_list ap)
+{
+    return log_vmsg(LOG_EMERG, format, ap);
+}
+
+int
+log_valert(const char *format, va_list ap)
+{
+    return log_vmsg(LOG_ALERT, format, ap);
+}
+
+int
+log_vcrit(const char *format, va_list ap)
+{
+    return log_vmsg(LOG_CRIT, format, ap);
+}
+
+int
+log_verr(const char *format, va_list ap)
+{
+    return log_vmsg(LOG_ERR, format, ap);
+}
+
+int
+log_vwarning(const char *format, va_list ap)
+{
+    return log_vmsg(LOG_WARNING, format, ap);
+}
+
+int
+log_vnotice(const char *format, va_list ap)
+{
+    return log_vmsg(LOG_NOTICE, format, ap);
+}
+
+int
+log_vinfo(const char *format, va_list ap)
+{
+    return log_vmsg(LOG_INFO, format, ap);
+}
+
+int
+log_vdebug(const char *format, va_list ap)
+{
+    return log_vmsg(LOG_DEBUG, format, ap);
+}

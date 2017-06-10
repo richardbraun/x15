@@ -54,6 +54,7 @@
 #include <kern/intr.h>
 #include <kern/kmem.h>
 #include <kern/kernel.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
@@ -479,6 +480,7 @@ boot_save_data(void)
 void __init
 boot_main(void)
 {
+    log_setup();
     arg_setup(boot_tmp_cmdline);
     sleepq_bootstrap();
     turnstile_bootstrap();
