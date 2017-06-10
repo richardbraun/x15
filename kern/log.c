@@ -48,6 +48,8 @@ static char log_buffer[LOG_BUFFER_SIZE];
 
 static unsigned long log_nr_overruns;
 
+static unsigned int log_print_level;
+
 /*
  * Global lock.
  *
@@ -187,7 +189,15 @@ log_record_init_consume(struct log_record *record)
 static void
 log_record_print(const struct log_record *record)
 {
-    printf("%7s %s\n", log_level2str(record->level), record->buffer);
+    if (record->level > log_print_level) {
+        return;
+    }
+
+    if (record->level <= LOG_WARNING) {
+        printf("%7s %s\n", log_level2str(record->level), record->buffer);
+    } else {
+        printf("%s\n", record->buffer);
+    }
 }
 
 static void
@@ -250,6 +260,7 @@ log_setup(void)
 {
     cbuf_init(&log_cbuf, log_buffer, sizeof(log_buffer));
     spinlock_init(&log_lock);
+    log_print_level = LOG_INFO;
 }
 
 void __init
