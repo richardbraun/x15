@@ -324,9 +324,19 @@ log_setup(void)
 }
 
 static struct shell_cmd log_shell_cmds[] = {
-    SHELL_CMD_INITIALIZER("log_dump", log_shell_dump,
-                          "logdump [<level>]",
-                          "dump the log buffer"),
+    SHELL_CMD_INITIALIZER2("log_dump", log_shell_dump,
+        "log_dump [<level>]",
+        "dump the log buffer",
+        "Only records of level less than or equal to the given level"
+        " are printed. Level may be one of :\n"
+        " 0: emergency\n"
+        " 1: alert\n"
+        " 2: critical\n"
+        " 3: error\n"
+        " 4: warning\n"
+        " 5: notice\n"
+        " 6: info\n"
+        " 7: debug"),
 };
 
 void __init
