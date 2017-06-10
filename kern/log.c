@@ -371,7 +371,7 @@ log_vmsg(unsigned int level, const char *format, va_list ap)
 
     if ((unsigned int)nr_chars >= sizeof(record.buffer)) {
         log_msg(LOG_ERR, "log: message too large");
-        goto out;;
+        goto out;
     }
 
     spinlock_lock_intr_save(&log_lock, &flags);
