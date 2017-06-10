@@ -1110,10 +1110,16 @@ fmt_sscanf_state_produce_int(struct fmt_sscanf_state *state)
                 c = fmt_sscanf_state_consume_string(state);
             } else {
                 fmt_sscanf_state_restore_string(state);
+                c = '0';
             }
         } else {
             if (state->base == 0) {
                 state->base = 8;
+            }
+
+            if (state->base != 8) {
+                fmt_sscanf_state_restore_string(state);
+                c = '0';
             }
         }
     }
