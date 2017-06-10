@@ -45,7 +45,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <kern/arg.h>
@@ -350,11 +349,11 @@ boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
 static void __init
 boot_show_version(void)
 {
-    printf(KERNEL_NAME "/" QUOTE(X15_X86_MACHINE) " " KERNEL_VERSION
+    log_info(KERNEL_NAME "/" QUOTE(X15_X86_MACHINE) " " KERNEL_VERSION
 #ifdef X15_X86_PAE
-           " PAE"
+             " PAE"
 #endif /* X15_X86_PAE */
-           "\n");
+             );
 }
 
 static void * __init

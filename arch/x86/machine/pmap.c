@@ -20,7 +20,6 @@
 
 #include <assert.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <kern/cpumap.h>
@@ -28,6 +27,7 @@
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
@@ -1162,7 +1162,7 @@ pmap_enter_local(struct pmap *pmap, uintptr_t va, phys_addr_t pa,
             page = vm_page_alloc(0, VM_PAGE_SEL_DIRECTMAP, VM_PAGE_PMAP);
 
             if (page == NULL) {
-                printf("pmap: warning: page table page allocation failure\n");
+                log_warning("pmap: page table page allocation failure");
                 return ERROR_NOMEM;
             }
 

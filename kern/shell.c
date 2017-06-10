@@ -20,8 +20,9 @@
 
 #include <kern/console.h>
 #include <kern/error.h>
-#include <kern/init.h>
 #include <kern/hash.h>
+#include <kern/init.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/shell.h>
@@ -445,7 +446,7 @@ shell_cmd_add(struct shell_cmd *cmd)
 
     for (;;) {
         if (strcmp(cmd->name, tmp->name) == 0) {
-            printf("shell: %s: shell command name collision", cmd->name);
+            log_err("shell: %s: shell command name collision", cmd->name);
             return ERROR_EXIST;
         }
 

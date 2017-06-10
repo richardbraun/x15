@@ -24,13 +24,13 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdio.h>
 
 #include <kern/atomic.h>
 #include <kern/kmem.h>
 #include <kern/init.h>
 #include <kern/intr.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
@@ -388,7 +388,7 @@ intr_unregister(unsigned int intr, intr_handler_fn_t fn)
     handler = intr_entry_remove(intr_get_entry(intr), fn);
 
     if (handler == NULL) {
-        printf("intr: warning: attempting to unregister unknown handler\n");
+        log_warning("intr: attempting to unregister unknown handler");
         return;
     }
 
@@ -410,7 +410,7 @@ intr_handle(unsigned int intr)
     spinlock_lock(&entry->lock);
 
     if (intr_entry_empty(entry)) {
-        printf("intr: spurious interrupt %u\n", intr);
+        log_warning("intr: spurious interrupt %u", intr);
         goto out;
     }
 
