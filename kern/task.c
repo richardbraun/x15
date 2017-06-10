@@ -99,19 +99,13 @@ static struct shell_cmd task_shell_cmds[] = {
 void __init
 task_setup(void)
 {
-    unsigned int i;
-    int error;
-
     kmem_cache_init(&task_cache, "task", sizeof(struct task), 0, NULL, 0);
     list_init(&task_list);
     spinlock_init(&task_list_lock);
     task_init(kernel_task, "x15", kernel_map);
     list_insert_head(&task_list, &kernel_task->node);
 
-    for (i = 0; i < ARRAY_SIZE(task_shell_cmds); i++) {
-        error = shell_cmd_register(&task_shell_cmds[i]);
-        error_check(error, __func__);
-    }
+    SHELL_REGISTER_CMDS(task_shell_cmds);
 }
 
 int
