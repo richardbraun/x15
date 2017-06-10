@@ -239,7 +239,7 @@ log_run(void *arg)
     index = cbuf_start(&log_cbuf);
 
     for (;;) {
-        while (cbuf_size(&log_cbuf) == 0) {
+        while (index == cbuf_end(&log_cbuf)) {
             thread_sleep(&log_lock, &log_cbuf, "log_cbuf");
         }
 
