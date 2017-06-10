@@ -20,12 +20,12 @@
 
 #include <assert.h>
 #include <stdint.h>
-#include <stdio.h>
 
 #include <kern/console.h>
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/intr.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <machine/biosmem.h>
 #include <machine/io.h>
@@ -180,8 +180,8 @@ uart_enable_intr(struct uart *uart)
     error = intr_register(uart->intr, uart_intr, uart);
 
     if (error) {
-        printf("uart%zu: error: unable to register interrupt %u\n",
-               uart_get_id(uart), uart->intr);
+        log_err("uart%zu: unable to register interrupt %u",
+                 uart_get_id(uart), uart->intr);
         return;
     }
 
@@ -312,8 +312,8 @@ uart_info(void)
         uart = uart_get_dev(i);
 
         if (uart->port != 0) {
-            printf("uart%zu: port:%#x irq:%u\n", i, (unsigned int)uart->port,
-                   (unsigned int)uart->intr);
+            log_info("uart%zu: port:%#x irq:%u", i, (unsigned int)uart->port,
+                     (unsigned int)uart->intr);
         }
     }
 }

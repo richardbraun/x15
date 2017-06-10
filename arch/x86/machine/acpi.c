@@ -19,11 +19,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <kern/init.h>
 #include <kern/kmem.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <machine/acpi.h>
@@ -193,8 +193,7 @@ acpi_register_table(struct acpi_sdth *table)
     for (i = 0; i < ARRAY_SIZE(acpi_table_addrs); i++)
         if (strcmp(sig, acpi_table_addrs[i].sig) == 0) {
             if (acpi_table_addrs[i].table != NULL) {
-                printf("acpi: warning: table %s ignored:"
-                       " already registered\n", sig);
+                log_warning("acpi: table %s ignored: already registered", sig);
                 return;
             }
 
@@ -202,7 +201,7 @@ acpi_register_table(struct acpi_sdth *table)
             return;
         }
 
-    printf("acpi: warning: table '%s' ignored: unknown table\n", sig);
+    log_warning("acpi: table '%s' ignored: unknown table", sig);
 }
 
 static struct acpi_sdth * __init
@@ -225,8 +224,7 @@ acpi_check_tables(void)
 
     for (i = 0; i < ARRAY_SIZE(acpi_table_addrs); i++)
         if (acpi_table_addrs[i].table == NULL) {
-            printf("acpi: error: table %s missing\n",
-                   acpi_table_addrs[i].sig);
+            log_err("acpi: table %s missing", acpi_table_addrs[i].sig);
             return -1;
         }
 
@@ -359,7 +357,7 @@ acpi_find_rsdp(struct acpi_rsdp *rsdp)
         return 0;
     }
 
-    printf("acpi: unable to find root system description pointer\n");
+    log_debug("acpi: unable to find root system description pointer");
     return -1;
 }
 
@@ -370,8 +368,8 @@ acpi_info(void)
 
     rsdt = acpi_lookup_table("RSDT");
     assert(rsdt != NULL);
-    printf("acpi: revision: %u, oem: %.*s\n", rsdt->revision,
-           (int)sizeof(rsdt->oem_id), rsdt->oem_id);
+    log_debug("acpi: revision: %u, oem: %.*s", rsdt->revision,
+              (int)sizeof(rsdt->oem_id), rsdt->oem_id);
 }
 
 static struct acpi_sdth * __init
@@ -409,7 +407,7 @@ acpi_copy_table(uint32_t addr)
         char sig[ACPI_SIG_SIZE];
 
         acpi_table_sig(table, sig);
-        printf("acpi: table %s: invalid checksum\n", sig);
+        log_err("acpi: table %s: invalid checksum", sig);
         copy = NULL;
         goto out;
     }
@@ -512,7 +510,7 @@ acpi_load_iso(const struct acpi_madt_entry_iso *iso)
     bool active_high, edge_triggered;
 
     if (iso->bus != 0) {
-        printf("acpi: error: invalid interrupt source override bus\n");
+        log_err("acpi: invalid interrupt source override bus");
         return;
     }
 
@@ -525,7 +523,7 @@ acpi_load_iso(const struct acpi_madt_entry_iso *iso)
         active_high = false;
         break;
     default:
-        printf("acpi: error: invalid polarity\n");
+        log_err("acpi: invalid polarity");
         return;
     }
 
@@ -538,7 +536,7 @@ acpi_load_iso(const struct acpi_madt_entry_iso *iso)
         edge_triggered = false;
         break;
     default:
-        printf("acpi: error: invalid trigger mode\n");
+        log_err("acpi: invalid trigger mode");
         return;
     }
 

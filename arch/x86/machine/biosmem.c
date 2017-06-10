@@ -19,10 +19,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <kern/init.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
@@ -33,8 +33,6 @@
 #include <machine/types.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
-
-#define DEBUG 0
 
 #define BIOSMEM_MAX_BOOT_DATA 64
 
@@ -228,11 +226,9 @@ biosmem_unregister_boot_data(phys_addr_t start, phys_addr_t end)
         return;
     }
 
-#if DEBUG
-    printf("biosmem: unregister boot data: %llx:%llx\n",
-           (unsigned long long)biosmem_boot_data_array[i].start,
-           (unsigned long long)biosmem_boot_data_array[i].end);
-#endif /* DEBUG */
+    log_debug("biosmem: unregister boot data: %llx:%llx",
+              (unsigned long long)biosmem_boot_data_array[i].start,
+              (unsigned long long)biosmem_boot_data_array[i].end);
 
     biosmem_nr_boot_data--;
 
@@ -763,8 +759,6 @@ biosmem_directmap_end(void)
     }
 }
 
-#if DEBUG
-
 static const char * __init
 biosmem_type_desc(unsigned int type)
 {
@@ -789,23 +783,19 @@ biosmem_map_show(void)
 {
     const struct biosmem_map_entry *entry, *end;
 
-    printf("biosmem: physical memory map:\n");
+    log_debug("biosmem: physical memory map:");
 
     for (entry = biosmem_map, end = entry + biosmem_map_size;
          entry < end;
          entry++)
-        printf("biosmem: %018llx:%018llx, %s\n", entry->base_addr,
-               entry->base_addr + entry->length,
-               biosmem_type_desc(entry->type));
+        log_debug("biosmem: %018llx:%018llx, %s", entry->base_addr,
+                  entry->base_addr + entry->length,
+                  biosmem_type_desc(entry->type));
 
-    printf("biosmem: heap: %llx:%llx\n",
-           (unsigned long long)biosmem_heap_start,
-           (unsigned long long)biosmem_heap_end);
+    log_debug("biosmem: heap: %llx:%llx",
+              (unsigned long long)biosmem_heap_start,
+              (unsigned long long)biosmem_heap_end);
 }
-
-#else /* DEBUG */
-#define biosmem_map_show()
-#endif /* DEBUG */
 
 static void __init
 biosmem_load_zone(struct biosmem_zone *zone, uint64_t max_phys_end)
@@ -819,13 +809,14 @@ biosmem_load_zone(struct biosmem_zone *zone, uint64_t max_phys_end)
 
     if (phys_end > max_phys_end) {
         if (max_phys_end <= phys_start) {
-            printf("biosmem: warning: zone %s physically unreachable, "
-                   "not loaded\n", vm_page_zone_name(zone_index));
+            log_warning("biosmem: zone %s physically unreachable, "
+                   "not loaded", vm_page_zone_name(zone_index));
             return;
         }
 
-        printf("biosmem: warning: zone %s truncated to %#llx\n",
-               vm_page_zone_name(zone_index), (unsigned long long)max_phys_end);
+        log_warning("biosmem: warning: zone %s truncated to %#llx",
+                    vm_page_zone_name(zone_index),
+                    (unsigned long long)max_phys_end);
         phys_end = max_phys_end;
     }
 
@@ -901,11 +892,9 @@ biosmem_free_usable_range(phys_addr_t start, phys_addr_t end)
 {
     struct vm_page *page;
 
-#if DEBUG
-    printf("biosmem: release to vm_page: %llx:%llx (%lluk)\n",
-           (unsigned long long)start, (unsigned long long)end,
-           (unsigned long long)((end - start) >> 10));
-#endif
+    log_debug("biosmem: release to vm_page: %llx:%llx (%lluk)",
+              (unsigned long long)start, (unsigned long long)end,
+              (unsigned long long)((end - start) >> 10));
 
     while (start < end) {
         page = vm_page_lookup(start);

@@ -18,10 +18,10 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include <kern/init.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
@@ -591,22 +591,22 @@ cpu_check(const struct cpu *cpu)
 void
 cpu_info(const struct cpu *cpu)
 {
-    printf("cpu%u: %s, type %u, family %u, model %u, stepping %u\n",
-           cpu->id, cpu->vendor_id, cpu->type, cpu->family, cpu->model,
-           cpu->stepping);
+    log_info("cpu%u: %s, type %u, family %u, model %u, stepping %u",
+             cpu->id, cpu->vendor_id, cpu->type, cpu->family, cpu->model,
+             cpu->stepping);
 
     if (strlen(cpu->model_name) > 0) {
-        printf("cpu%u: %s\n", cpu->id, cpu->model_name);
+        log_info("cpu%u: %s", cpu->id, cpu->model_name);
     }
 
     if ((cpu->phys_addr_width != 0) && (cpu->virt_addr_width != 0)) {
-        printf("cpu%u: address widths: physical: %hu, virtual: %hu\n",
-               cpu->id, cpu->phys_addr_width, cpu->virt_addr_width);
+        log_info("cpu%u: address widths: physical: %hu, virtual: %hu",
+                 cpu->id, cpu->phys_addr_width, cpu->virt_addr_width);
     }
 
-    printf("cpu%u: frequency: %llu.%02llu MHz\n", cpu->id,
-           (unsigned long long)cpu_freq / 1000000,
-           (unsigned long long)cpu_freq % 1000000);
+    log_info("cpu%u: frequency: %llu.%02llu MHz", cpu->id,
+             (unsigned long long)cpu_freq / 1000000,
+             (unsigned long long)cpu_freq % 1000000);
 }
 
 void __init
@@ -654,7 +654,7 @@ cpu_mp_probe(void)
         pic_setup();
     }
 
-    printf("cpu: %u processor(s) configured\n", cpu_count());
+    log_info("cpu: %u processor(s) configured", cpu_count());
 }
 
 void __init
