@@ -788,8 +788,9 @@ biosmem_map_show(void)
     for (entry = biosmem_map, end = entry + biosmem_map_size;
          entry < end;
          entry++)
-        log_debug("biosmem: %018llx:%018llx, %s", entry->base_addr,
-                  entry->base_addr + entry->length,
+        log_debug("biosmem: %018llx:%018llx, %s",
+                  (unsigned long long)entry->base_addr,
+                  (unsigned long long)(entry->base_addr + entry->length),
                   biosmem_type_desc(entry->type));
 
     log_debug("biosmem: heap: %llx:%llx",
