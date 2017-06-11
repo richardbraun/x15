@@ -64,6 +64,8 @@ task_init(struct task *task, const char *name, struct vm_map *map)
     strlcpy(task->name, name, sizeof(task->name));
 }
 
+#ifdef X15_SHELL
+
 static void
 task_shell_info(int argc, char *argv[])
 {
@@ -96,6 +98,8 @@ static struct shell_cmd task_shell_cmds[] = {
                           "task_info [<task_name>]",
                           "print tasks and threads"),
 };
+
+#endif /* X15_SHELL */
 
 void __init
 task_setup(void)

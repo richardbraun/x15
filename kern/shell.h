@@ -24,6 +24,8 @@
 #include <kern/error.h>
 #include <kern/macros.h>
 
+#ifdef X15_SHELL
+
 #define SHELL_REGISTER_CMDS(cmds)                           \
 MACRO_BEGIN                                                 \
     size_t ___i;                                            \
@@ -84,5 +86,11 @@ void shell_start(void);
  * the shell module and must persist in memory.
  */
 int shell_cmd_register(struct shell_cmd *cmd);
+
+#else /* X15_SHELL */
+#define SHELL_REGISTER_CMDS(cmds)
+#define shell_setup()
+#define shell_start()
+#endif /* X15_SHELL */
 
 #endif /* _KERN_SHELL_H */

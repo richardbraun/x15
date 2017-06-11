@@ -267,6 +267,8 @@ log_run(void *arg)
     }
 }
 
+#ifdef X15_SHELL
+
 static void
 log_dump(unsigned int level)
 {
@@ -315,14 +317,6 @@ log_shell_dump(int argc, char **argv)
     log_dump(level);
 }
 
-void __init
-log_setup(void)
-{
-    cbuf_init(&log_cbuf, log_buffer, sizeof(log_buffer));
-    spinlock_init(&log_lock);
-    log_print_level = LOG_INFO;
-}
-
 static struct shell_cmd log_shell_cmds[] = {
     SHELL_CMD_INITIALIZER2("log_dump", log_shell_dump,
         "log_dump [<level>]",
@@ -338,6 +332,16 @@ static struct shell_cmd log_shell_cmds[] = {
         " 6: info\n"
         " 7: debug"),
 };
+
+#endif /* X15_SHELL */
+
+void __init
+log_setup(void)
+{
+    cbuf_init(&log_cbuf, log_buffer, sizeof(log_buffer));
+    spinlock_init(&log_lock);
+    log_print_level = LOG_INFO;
+}
 
 void __init
 log_start(void)
