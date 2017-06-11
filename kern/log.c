@@ -228,11 +228,13 @@ log_run(void *arg)
 {
     unsigned long flags, index, nr_overruns;
     struct log_record record;
+    bool start_shell;
     int error;
 
     (void)arg;
 
     nr_overruns = 0;
+    start_shell = true;
 
     spinlock_lock_intr_save(&log_lock, &flags);
 
@@ -240,6 +242,16 @@ log_run(void *arg)
 
     for (;;) {
         while (index == cbuf_end(&log_cbuf)) {
+            /*
+             * Starting the shell after the log thread sleeps for the first
+             * time cleanly serializes log messages and shell prompt, making
+             * a clean ordered output.
+             */
+            if (start_shell) {
+                shell_start();
+                start_shell = false;
+            }
+
             thread_sleep(&log_lock, &log_cbuf, "log_cbuf");
         }
 
