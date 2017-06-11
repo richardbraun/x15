@@ -2229,6 +2229,8 @@ thread_setup_runq(struct thread_runq *runq)
     thread_setup_idler(runq);
 }
 
+#ifdef X15_SHELL
+
 /*
  * This function is meant for debugging only. As a result, it uses a weak
  * locking policy which allows tracing threads which state may mutate during
@@ -2278,6 +2280,8 @@ static struct shell_cmd thread_shell_cmds[] = {
                           "thread_trace <task_name> <thread_name>",
                           "print the stack trace of a given thread"),
 };
+
+#endif /* X15_SHELL */
 
 void __init
 thread_setup(void)
