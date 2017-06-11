@@ -21,7 +21,6 @@
 #include <kern/llsync.h>
 #include <kern/log.h>
 #include <kern/percpu.h>
-#include <kern/shell.h>
 #include <kern/sleepq.h>
 #include <kern/sref.h>
 #include <kern/task.h>
@@ -52,7 +51,6 @@ kernel_main(void)
     llsync_setup();
     sref_setup();
     vm_page_info();
-    shell_start();
     log_start();
 
 #ifdef X15_RUN_TEST_MODULE
