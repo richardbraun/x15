@@ -22,6 +22,7 @@
 #include <kern/init.h>
 #include <kern/list.h>
 #include <kern/mutex.h>
+#include <kern/shell.h>
 #include <kern/spinlock.h>
 #include <kern/syscnt.h>
 
@@ -36,6 +37,32 @@ syscnt_setup(void)
 {
     list_init(&syscnt_list);
     mutex_init(&syscnt_lock);
+}
+
+#ifdef X15_SHELL
+
+static void
+syscnt_shell_info(int argc, char **argv)
+{
+    char *prefix;
+
+    prefix = (argc >= 2) ? argv[1] : NULL;
+    syscnt_info(prefix);
+}
+
+
+static struct shell_cmd syscnt_shell_cmds[] = {
+    SHELL_CMD_INITIALIZER("syscnt_info", syscnt_shell_info,
+                          "syscnt_info [<prefix>]",
+                          "Show information about system counters"),
+};
+
+#endif /* X15_SHELL */
+
+void __init
+syscnt_register_shell_cmds(void)
+{
+    SHELL_REGISTER_CMDS(syscnt_shell_cmds);
 }
 
 void __init

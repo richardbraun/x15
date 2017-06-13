@@ -57,6 +57,11 @@ void syscnt_setup(void);
  */
 void syscnt_register(struct syscnt *syscnt, const char *name);
 
+/*
+ * Register shell commands.
+ */
+void syscnt_register_shell_cmds(void);
+
 #ifdef ATOMIC_HAVE_64B_OPS
 
 static inline void
