@@ -24,6 +24,7 @@
 #include <kern/shell.h>
 #include <kern/sleepq.h>
 #include <kern/sref.h>
+#include <kern/syscnt.h>
 #include <kern/task.h>
 #include <kern/thread.h>
 #include <kern/turnstile.h>
@@ -43,6 +44,7 @@ kernel_main(void)
 
     percpu_cleanup();
     shell_setup();
+    syscnt_register_shell_cmds();
     cpumap_setup();
     xcall_setup();
     task_setup();
