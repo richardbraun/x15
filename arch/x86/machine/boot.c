@@ -58,7 +58,6 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/percpu.h>
-#include <kern/shell.h>
 #include <kern/sleepq.h>
 #include <kern/sref.h>
 #include <kern/syscnt.h>
@@ -494,7 +493,6 @@ boot_main(void)
     atcons_bootstrap();
     uart_bootstrap();
     printf_setup();
-    shell_setup();
     uart_info();
     pmap_bootstrap();
     sref_bootstrap();
