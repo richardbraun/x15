@@ -135,7 +135,4 @@ MACRO_END
 #define atomic_fetch_sub_acq_rel(ptr, val) \
     atomic_fetch_sub(ptr, val, ATOMIC_ACQ_REL)
 
-#define atomic_or_acq_rel(ptr, val)    atomic_or(ptr, val, ATOMIC_ACQ_REL)
-#define atomic_and_acq_rel(ptr, val)   atomic_and(ptr, val, ATOMIC_ACQ_REL)
-
 #endif /* _KERN_ATOMIC_H */
