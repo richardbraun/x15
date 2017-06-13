@@ -29,7 +29,7 @@
 static void
 rtmutex_set_contended(struct rtmutex *rtmutex)
 {
-    atomic_or_acq_rel(&rtmutex->owner, RTMUTEX_CONTENDED);
+    atomic_or(&rtmutex->owner, RTMUTEX_CONTENDED, ATOMIC_RELEASE);
 }
 
 void
@@ -64,7 +64,7 @@ rtmutex_lock_slow(struct rtmutex *rtmutex)
     turnstile_own(turnstile);
 
     if (turnstile_empty(turnstile)) {
-        prev_owner = atomic_swap_acquire(&rtmutex->owner, owner);
+        prev_owner = atomic_swap(&rtmutex->owner, owner, ATOMIC_RELAXED);
         assert(prev_owner == (owner | bits));
     }
 

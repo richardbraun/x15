@@ -29,6 +29,8 @@
  * to a bit inside the word pointed by the former.
  *
  * Implemented as a macro for const-correctness.
+ *
+ * TODO Fix interface.
  */
 #define bitmap_lookup(bm, bit)          \
 MACRO_BEGIN                             \
