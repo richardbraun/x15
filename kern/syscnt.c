@@ -54,7 +54,7 @@ syscnt_shell_info(int argc, char **argv)
 static struct shell_cmd syscnt_shell_cmds[] = {
     SHELL_CMD_INITIALIZER("syscnt_info", syscnt_shell_info,
                           "syscnt_info [<prefix>]",
-                          "Show information about system counters"),
+                          "show information about system counters"),
 };
 
 #endif /* X15_SHELL */
