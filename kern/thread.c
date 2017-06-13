@@ -1727,8 +1727,8 @@ thread_ap_bootstrap(void)
     tcb_set_current(&thread_booters[cpu_id()].tcb);
 }
 
-static void
-thread_main(void)
+void
+thread_main(void (*fn)(void *), void *arg)
 {
     struct thread *thread;
 
@@ -1742,7 +1742,7 @@ thread_main(void)
     cpu_intr_enable();
     thread_preempt_enable();
 
-    thread->fn(thread->arg);
+    fn(arg);
     thread_exit();
 }
 
@@ -1829,14 +1829,12 @@ thread_init(struct thread *thread, void *stack,
     thread->task = task;
     thread->stack = stack;
     strlcpy(thread->name, attr->name, sizeof(thread->name));
-    thread->fn = fn;
-    thread->arg = arg;
 
     if (attr->flags & THREAD_ATTR_DETACHED) {
         thread->flags |= THREAD_DETACHED;
     }
 
-    error = tcb_init(&thread->tcb, stack, thread_main);
+    error = tcb_init(&thread->tcb, stack, fn, arg);
 
     if (error) {
         goto error_tcb;

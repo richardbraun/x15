@@ -178,10 +178,6 @@ struct thread {
     struct list task_node;          /* (T) */
     void *stack;                    /* (-) */
     char name[THREAD_NAME_SIZE];    /* ( ) */
-
-    /* TODO Move out of the structure and make temporary */
-    void (*fn)(void *);
-    void *arg;
 } __aligned(CPU_L1_SIZE);
 
 #define THREAD_ATTR_DETACHED 0x1

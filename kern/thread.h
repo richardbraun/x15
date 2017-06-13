@@ -171,6 +171,13 @@ void thread_bootstrap(void);
 void thread_ap_bootstrap(void);
 
 /*
+ * Thread entry point.
+ *
+ * Loaded TCBs are expected to call this function with interrupts disabled.
+ */
+void thread_main(void (*fn)(void *), void *arg);
+
+/*
  * Initialize the thread module.
  */
 void thread_setup(void);
