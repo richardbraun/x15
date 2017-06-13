@@ -21,6 +21,7 @@
 #include <kern/llsync.h>
 #include <kern/log.h>
 #include <kern/percpu.h>
+#include <kern/shell.h>
 #include <kern/sleepq.h>
 #include <kern/sref.h>
 #include <kern/task.h>
@@ -41,6 +42,7 @@ kernel_main(void)
     assert(!cpu_intr_enabled());
 
     percpu_cleanup();
+    shell_setup();
     cpumap_setup();
     xcall_setup();
     task_setup();
