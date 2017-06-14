@@ -50,7 +50,8 @@ m4_define([x86_SELECT],
 
            AC_DEFINE_UNQUOTED([X15_X86_MACHINE], [$machine], [machine])
            AC_MSG_NOTICE([machine type: $arch ($machine)])
-           AC_MSG_NOTICE([physical address extension: $enable_pae])])
+           AS_IF([test x"$machine" = xi386],
+                 [AC_MSG_NOTICE([physical address extension: $enable_pae])])])
 
 AS_CASE(["$host_cpu"],
         [i?86|x86_64], [x86_SELECT])
