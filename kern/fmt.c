@@ -38,6 +38,7 @@
 
 #include <kern/error.h>
 #include <kern/fmt.h>
+#include <kern/macros.h>
 #include <kern/types.h>
 
 /*
