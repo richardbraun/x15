@@ -112,7 +112,8 @@ AM_CONDITIONAL([X15_SHELL],
                [test x"$enable_shell" = xyes])
 AS_IF([test x"$enable_shell" = xyes],
       [AC_DEFINE_UNQUOTED([X15_SHELL], [],
-                          [Enable the diagnostics shell])])
+                          [Enable the diagnostics shell])
+       AC_MSG_NOTICE([diagnostics shell enabled])])
 
 AS_IF([test x"$enable_thread_stack_guard" = xyes],
       [AC_DEFINE_UNQUOTED([X15_THREAD_STACK_GUARD], [],
