@@ -73,7 +73,4 @@
 #define __packed            __attribute__((packed))
 #define __alias(x)          __attribute__((alias(x)))
 
-#define __format_printf(fmt, args) \
-    __attribute__((format(printf, fmt, args)))
-
 #endif /* _KERN_MACROS_H */

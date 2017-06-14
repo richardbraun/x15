@@ -33,10 +33,12 @@
 
 #include <stdarg.h>
 
-#include <kern/macros.h>
+int printf(const char *format, ...)
+    __attribute__((format(printf, 1, 2)));
 
-int printf(const char *format, ...) __format_printf(1, 2);
-int vprintf(const char *format, va_list ap) __format_printf(1, 0);
+int vprintf(const char *format, va_list ap)
+    __attribute__((format(printf, 1, 0)));
+
 void printf_setup(void);
 
 #endif /* _KERN_PRINTF_H */
