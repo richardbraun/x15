@@ -249,6 +249,10 @@ X15 Options
      likely to measurably reduce overall performance. It should only be
      enabled if you know what you're doing.
 
+`--enable-shell'
+     Enable the diagnostics shell. Note that some shell commands may have
+     a real-time unsafe behaviour.
+
 `--enable-thread-stack-guard'
      Enable the use of guard pages around kernel thread stacks to catch
      overflows. Note that this feature wastes precious kernel virtual
