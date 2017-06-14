@@ -51,15 +51,21 @@ AC_ARG_ENABLE([mutex-pi],
               [AS_HELP_STRING([--enable-mutex-pi],
                               [enable priority inheritance for regular mutexes
                                (note that priority inheritance is always
-                                enabled for real-time mutexes)])])
+                                enabled for real-time mutexes)])],
+              [],
+              [enable_mutex_pi=no])
 
 AC_ARG_ENABLE([shell],
               [AS_HELP_STRING([--enable-shell],
-                              [enable the diagnostics shell])])
+                              [enable the diagnostics shell])],
+              [],
+              [enable_shell=no])
 
 AC_ARG_ENABLE([thread-stack-guard],
               [AS_HELP_STRING([--enable-thread-stack-guard],
-                              [enable kernel thread stack guard pages])])
+                              [enable kernel thread stack guard pages])],
+              [],
+              [enable_thread_stack_guard=no])
 
 AC_DEFINE([__KERNEL__], [1], [kernel code])
 AC_DEFINE_UNQUOTED([X15_ARCH], [$arch], [arch])
@@ -107,17 +113,19 @@ AC_MSG_NOTICE([maximum number of supported processors: $opt_max_cpus])
 AS_IF([test x"$enable_mutex_pi" = xyes],
       [AC_DEFINE_UNQUOTED([X15_MUTEX_PI], [],
                           [Enable priority inheritance for regular mutexes])])
+AC_MSG_NOTICE([priority inheritance for regular mutexes: $enable_mutex_pi])
 
 AM_CONDITIONAL([X15_SHELL],
                [test x"$enable_shell" = xyes])
 AS_IF([test x"$enable_shell" = xyes],
       [AC_DEFINE_UNQUOTED([X15_SHELL], [],
-                          [Enable the diagnostics shell])
-       AC_MSG_NOTICE([diagnostics shell enabled])])
+                          [Enable the diagnostics shell])])
+AC_MSG_NOTICE([diagnostics shell: $enable_shell])
 
 AS_IF([test x"$enable_thread_stack_guard" = xyes],
       [AC_DEFINE_UNQUOTED([X15_THREAD_STACK_GUARD], [],
                           [Enable the use of guard pages for thread stacks])])
+AC_MSG_NOTICE([thread stack guard pages: $enable_thread_stack_guard])
 
 AH_BOTTOM([#include <kern/config.h>])
 AC_CONFIG_HEADER([config.h])
