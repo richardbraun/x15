@@ -23,6 +23,7 @@
 /*
  * Print the given message and halt the system immediately.
  */
-void __noreturn panic(const char *format, ...) __format_printf(1, 2);
+void __noreturn panic(const char *format, ...)
+    __attribute__((format(printf, 1, 2)));
 
 #endif /* _KERN_PANIC_H */
