@@ -2238,7 +2238,9 @@ static void
 thread_shell_trace(int argc, char *argv[])
 {
     const char *task_name, *thread_name;
+    struct thread_runq *runq;
     struct thread *thread;
+    unsigned long flags;
     struct task *task;
     int error;
 
@@ -2265,7 +2267,16 @@ thread_shell_trace(int argc, char *argv[])
         goto error;
     }
 
-    tcb_trace(&thread->tcb);
+    runq = thread_lock_runq(thread, &flags);
+
+    if (thread == runq->current) {
+        printf("thread: trace: thread is running\n");
+    } else {
+        tcb_trace(&thread->tcb);
+    }
+
+    thread_unlock_runq(runq, flags);
+
     thread_unref(thread);
     return;
 
