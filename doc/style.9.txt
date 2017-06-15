@@ -321,7 +321,7 @@ NAMES
 
 First of all, use underscores instead of camel case to separate words
 in compound names. Function and variable names are in lower case. Macro
-names generally are in upper caser, except for macros which behave
+names generally are in upper case, except for macros which behave
 strictly like functions and could be replaced with inline functions
 with no API change.
 
