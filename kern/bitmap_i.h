@@ -29,16 +29,14 @@
  * to a bit inside the word pointed by the former.
  *
  * Implemented as a macro for const-correctness.
- *
- * TODO Fix interface.
  */
-#define bitmap_lookup(bm, bit)          \
+#define bitmap_lookup(bmp, bitp)        \
 MACRO_BEGIN                             \
     int i;                              \
                                         \
-    i = BITMAP_LONGS((bit) + 1) - 1;    \
-    (bm) += i;                          \
-    (bit) -= i * LONG_BIT;              \
+    i = BITMAP_LONGS(*(bitp) + 1) - 1;  \
+    *(bmp) += i;                        \
+    *(bitp) -= i * LONG_BIT;            \
 MACRO_END
 
 static inline unsigned long
