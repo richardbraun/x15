@@ -644,6 +644,12 @@ if (error) {
 The other exception is the historical use of the *int* type, rather than
 the C99 *bool* type, for boolean values.
 
+Side effects and conditions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Conditions must never be made of expressions with side effects. This
+completely removes the need to think about short-circuit evaluations.
+
 SEE
 ---
 
