@@ -47,8 +47,16 @@ ASM_END(tcb_context_load)
 ASM_ENTRY(tcb_start)
  popq %rdi              /* load function */
  popq %rsi              /* load argument */
- call thread_main       /* use the call instruction to start
-                           a clean stack trace */
+
+ /*
+  * Use the call instruction to start a clean stack trace.
+  *
+  * Note that, on amd64, the stack must be 16-byte before the call
+  * instruction, so that "$(rsp + 8) is a multiple is always a multiple
+  * of 16 when control is transferred to the function entry point",
+  * which is another reason to use call instead of a bare jump.
+  */
+ call thread_main
 
  /* Never reached */
  nop                    /* make the return address point to an instruction
