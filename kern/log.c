@@ -144,8 +144,8 @@ log_record_consume(struct log_record *record, char c, size_t *sizep)
 static int
 log_record_init_consume(struct log_record *record, unsigned long *indexp)
 {
+    size_t size, c_size;
     bool marker_found;
-    size_t size;
     int error;
     char c;
 
@@ -161,7 +161,8 @@ log_record_init_consume(struct log_record *record, unsigned long *indexp)
             break;
         }
 
-        error = cbuf_read(&log_cbuf, *indexp, &c);
+        c_size = 1;
+        error = cbuf_read(&log_cbuf, *indexp, &c, &c_size);
 
         if (error) {
             *indexp = cbuf_start(&log_cbuf);
