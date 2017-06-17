@@ -92,12 +92,25 @@ void cbuf_push(struct cbuf *cbuf, char byte);
 int cbuf_pop(struct cbuf *cbuf, char *bytep);
 
 /*
- * Read a byte at a specific location.
+ * Write into a circular buffer at a specific location.
  *
  * If the given index is outside buffer boundaries, ERROR_INVAL is returned.
- * Otherwise the byte is stored at the bytep address and 0 is returned.
- * The buffer isn't changed by this operation.
+ * Otherwise size bytes are copied into the circular buffer. If the range
+ * in the circular buffer goes beyond its end, the end index is updated as
+ * appropriate. If the buffer is full when extending its end, the oldest
+ * bytes are overwritten and the start index is updated accordingly.
  */
-int cbuf_read(const struct cbuf *cbuf, size_t index, char *bytep);
+int cbuf_write(struct cbuf *cbuf, size_t index, const char *buf, size_t size);
+
+/*
+ * Read from a circular buffer at a specific location.
+ *
+ * If the given index is outside buffer boundaries, ERROR_INVAL is returned.
+ * Otherwise at most *sizep bytes are copied into the given character buffer,
+ * and *sizep is updated to the number of bytes actually copied.
+ *
+ * The circular buffer isn't changed by this operation.
+ */
+int cbuf_read(const struct cbuf *cbuf, size_t index, char *buf, size_t *sizep);
 
 #endif /* _KERN_CBUF_H */
