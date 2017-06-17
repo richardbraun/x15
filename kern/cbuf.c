@@ -16,16 +16,17 @@
  */
 
 #include <assert.h>
+#include <stddef.h>
 
 #include <kern/cbuf.h>
 #include <kern/error.h>
 #include <kern/macros.h>
 
 /* Negative close to 0 so that an overflow occurs early */
-#define CBUF_INIT_INDEX ((unsigned long)-500)
+#define CBUF_INIT_INDEX ((size_t)-500)
 
 void
-cbuf_init(struct cbuf *cbuf, char *buf, unsigned long capacity)
+cbuf_init(struct cbuf *cbuf, char *buf, size_t capacity)
 {
     assert(ISP2(capacity));
 
@@ -35,8 +36,8 @@ cbuf_init(struct cbuf *cbuf, char *buf, unsigned long capacity)
     cbuf->end = cbuf->start;
 }
 
-static unsigned long
-cbuf_index(const struct cbuf *cbuf, unsigned long abs_index)
+static size_t
+cbuf_index(const struct cbuf *cbuf, size_t abs_index)
 {
     return abs_index & (cbuf->capacity - 1);
 }
@@ -66,7 +67,7 @@ cbuf_pop(struct cbuf *cbuf, char *bytep)
 }
 
 int
-cbuf_read(const struct cbuf *cbuf, unsigned long index, char *bytep)
+cbuf_read(const struct cbuf *cbuf, size_t index, char *bytep)
 {
     /* Mind integer overflows */
     if ((cbuf->end - index - 1) >= cbuf_size(cbuf)) {
