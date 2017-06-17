@@ -21,6 +21,8 @@
 #ifndef _KERN_CBUF_H
 #define _KERN_CBUF_H
 
+#include <stddef.h>
+
 /*
  * Circular buffer descriptor.
  *
@@ -29,30 +31,30 @@
  */
 struct cbuf {
     char *buf;
-    unsigned long capacity;
-    unsigned long start;
-    unsigned long end;
+    size_t capacity;
+    size_t start;
+    size_t end;
 };
 
-static inline unsigned long
+static inline size_t
 cbuf_capacity(const struct cbuf *cbuf)
 {
     return cbuf->capacity;
 }
 
-static inline unsigned long
+static inline size_t
 cbuf_start(const struct cbuf *cbuf)
 {
     return cbuf->start;
 }
 
-static inline unsigned long
+static inline size_t
 cbuf_end(const struct cbuf *cbuf)
 {
     return cbuf->end;
 }
 
-static inline unsigned long
+static inline size_t
 cbuf_size(const struct cbuf *cbuf)
 {
     return cbuf->end - cbuf->start;
@@ -70,7 +72,7 @@ cbuf_clear(struct cbuf *cbuf)
  * The descriptor is set to use the given buffer for storage. Capacity
  * must be a power-of-two.
  */
-void cbuf_init(struct cbuf *cbuf, char *buf, unsigned long capacity);
+void cbuf_init(struct cbuf *cbuf, char *buf, size_t capacity);
 
 /*
  * Append a byte to a circular buffer.
@@ -96,6 +98,6 @@ int cbuf_pop(struct cbuf *cbuf, char *bytep);
  * Otherwise the byte is stored at the bytep address and 0 is returned.
  * The buffer isn't changed by this operation.
  */
-int cbuf_read(const struct cbuf *cbuf, unsigned long index, char *bytep);
+int cbuf_read(const struct cbuf *cbuf, size_t index, char *bytep);
 
 #endif /* _KERN_CBUF_H */
