@@ -26,6 +26,9 @@
 #include <kern/spinlock.h>
 #include <kern/thread.h>
 
+#define CONSOLE_SCROLL_UP   0x12    /* DC2 */
+#define CONSOLE_SCROLL_DOWN 0x14    /* DC4 */
+
 struct console;
 
 struct console_ops {
