@@ -187,7 +187,7 @@ static void
 cga_bbuf_update_phys_cursor(struct cga_bbuf *bbuf)
 {
     bool cursor_enabled;
-    uint16_t cursor;
+    uint16_t cursor = 0;
     int error;
 
     error = cga_bbuf_get_phys_cursor(bbuf, &cursor);
@@ -292,7 +292,7 @@ cga_bbuf_push(struct cga_bbuf *bbuf, char c)
 static void
 cga_bbuf_newline(struct cga_bbuf *bbuf)
 {
-    uint16_t cursor, spaces[CGA_COLUMNS];
+    uint16_t cursor = 0, spaces[CGA_COLUMNS];
     size_t i, nr_spaces, offset;
     int error;
 
