@@ -66,6 +66,21 @@ console_init(struct console *console, const char *name,
     strlcpy(console->name, name, sizeof(console->name));
 }
 
+static int
+console_process_ctrl_char(struct console *console, char c)
+{
+    switch (c) {
+    case CONSOLE_SCROLL_UP:
+    case CONSOLE_SCROLL_DOWN:
+        break;
+    default:
+        return ERROR_INVAL;
+    }
+
+    console->ops->putc(console, c);
+    return 0;
+}
+
 static void
 console_putc(struct console *console, char c)
 {
@@ -96,7 +111,11 @@ console_getc(struct console *console)
         error = cbuf_pop(&console->recvbuf, &c);
 
         if (!error) {
-            break;
+            error = console_process_ctrl_char(console, c);
+
+            if (error) {
+                break;
+            }
         }
 
         thread_sleep(&console->lock, console, "consgetc");
