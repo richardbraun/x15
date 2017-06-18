@@ -25,6 +25,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <kern/console.h>
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/intr.h>
@@ -176,6 +177,9 @@ enum atkbd_key_id {
     ATKBD_KEY_KP_DEL,
 };
 
+static const char atkbd_scroll_up[] = { CONSOLE_SCROLL_UP, '\0' };
+static const char atkbd_scroll_down[] = { CONSOLE_SCROLL_DOWN, '\0' };
+
 /*
  * Key modifiers.
  */
@@ -288,8 +292,8 @@ static const struct atkbd_key atkbd_e0_keys[] = {
     [0x71] = { 0, ATKBD_KEY_DELETE },
     [0x6c] = { 0, ATKBD_KEY_HOME },
     [0x69] = { 0, ATKBD_KEY_END },
-    [0x7d] = { 0, ATKBD_KEY_PGUP },
-    [0x7a] = { 0, ATKBD_KEY_PGDOWN },
+    [0x7d] = { ATKBD_KM_SHIFT, ATKBD_KEY_PGUP },
+    [0x7a] = { ATKBD_KM_SHIFT, ATKBD_KEY_PGDOWN },
 
     [0x6b] = { ATKBD_KM_CTL, ATKBD_KEY_LEFT },
     [0x72] = { ATKBD_KM_CTL, ATKBD_KEY_BOTTOM },
@@ -426,6 +430,9 @@ static const char *atkbd_shift_chars[] = {
     [ATKBD_KEY_COMMA] = "<",
     [ATKBD_KEY_DOT] = ">",
     [ATKBD_KEY_SLASH] = "?",
+
+    [ATKBD_KEY_PGUP] = atkbd_scroll_up,
+    [ATKBD_KEY_PGDOWN] = atkbd_scroll_down,
 };
 
 /*
