@@ -73,7 +73,7 @@ cbuf_pop(struct cbuf *cbuf, char *bytep)
 }
 
 int
-cbuf_write(struct cbuf *cbuf, size_t index, const char *buf, size_t size)
+cbuf_write(struct cbuf *cbuf, size_t index, const void *buf, size_t size)
 {
     char *start, *end, *buf_end;
     size_t new_end, skip;
@@ -113,7 +113,7 @@ cbuf_write(struct cbuf *cbuf, size_t index, const char *buf, size_t size)
 }
 
 int
-cbuf_read(const struct cbuf *cbuf, size_t index, char *buf, size_t *sizep)
+cbuf_read(const struct cbuf *cbuf, size_t index, void *buf, size_t *sizep)
 {
     const char *start, *end, *buf_end;
     size_t size;
