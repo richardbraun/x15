@@ -72,7 +72,7 @@ console_putc(struct console *console, char c)
     unsigned long flags;
 
     spinlock_lock_intr_save(&console->lock, &flags);
-    console->ops->putc(console_dev, c);
+    console->ops->putc(console, c);
     spinlock_unlock_intr_restore(&console->lock, flags);
 }
 
