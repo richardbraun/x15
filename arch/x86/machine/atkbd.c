@@ -760,7 +760,7 @@ static void
 atkbd_key_process(const struct atkbd_key *key)
 {
     if (key->id == ATKBD_KEY_INVALID) {
-        return;
+        goto out;
     }
 
     if ((key->modifiers & ATKBD_KM_SHIFT) && (atkbd_flags & ATKBD_KF_SHIFT)) {
@@ -774,6 +774,7 @@ atkbd_key_process(const struct atkbd_key *key)
         atkbd_key_process_chars(key, atkbd_chars, ARRAY_SIZE(atkbd_chars));
     }
 
+out:
     atkbd_flags &= ~ATKBD_KF_F0;
 }
 
@@ -786,10 +787,12 @@ atkbd_process_e0_code(uint8_t code)
     }
 
     if (code >= ARRAY_SIZE(atkbd_e0_keys)) {
-        return;
+        goto out;
     }
 
     atkbd_key_process(&atkbd_e0_keys[code]);
+
+out:
     atkbd_flags &= ~ATKBD_KF_E0;
 }
 
