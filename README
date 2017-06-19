@@ -1,5 +1,5 @@
 X15 is an open source microkernel. Its purpose is to provide a foundation
-for a Hurd-like operating system or an embedded kernel application.
+for a Hurd-like operating system as well as real-time kernel applications.
 
 See https://www.sceen.net/x15/.
 
