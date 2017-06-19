@@ -111,6 +111,8 @@ other development tools :
 
 module:kern/bitmap::
   Arbitrary-length bit array.
+module:kern/cbuf::
+  Circular character buffer.
 module:kern/error::
   Common errors and error handling functions.
 module:kern/kmem::
@@ -132,8 +134,9 @@ module:kern/syscnt::
 
 X15 doesn't provide a generic queue interface, because the requirements
 often vary too much. Similarly, it doesn't provide a hash table interface.
-Instead, users can easily build specialized queues and hash tables on top
-of the provided facilities. Hash functions may be provided in the future.
+Instead, users can easily build specialized queues, hash tables and ring
+buffers on top of the provided facilities. Hash functions may be provided
+in the future.
 
 [[multiprocessor_support]]
 MULTIPROCESSOR SUPPORT
