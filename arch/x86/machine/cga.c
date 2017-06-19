@@ -46,17 +46,22 @@
 /*
  * I/O ports.
  */
-#define CGA_MISC_OUTPUT_REGISTER_READ   0x3cc
-#define CGA_MISC_OUTPUT_REGISTER_WRITE  0x3c2
-#define CGA_CRTC_ADDRESS_REGISTER       0x3d4
-#define CGA_CRTC_DATA_REGISTER          0x3d5
+#define CGA_PORT_MISC_OUT_READ          0x3cc
+#define CGA_PORT_MISC_OUT_WRITE         0x3c2
+#define CGA_PORT_CRTC_ADDR              0x3d4
+#define CGA_PORT_CRTC_DATA              0x3d5
+
+/*
+ * Miscellaneous output register bits.
+ */
+#define CGA_MISC_OUT_IOAS               0x1
 
 /*
  * CRTC registers.
  */
-#define CGA_CRTC_CURSOR_START_REGISTER          0xa
-#define CGA_CRTC_CURSOR_LOCATION_HIGH_REGISTER  0xe
-#define CGA_CRTC_CURSOR_LOCATION_LOW_REGISTER   0xf
+#define CGA_CRTC_CURSOR_START_REG       0xa
+#define CGA_CRTC_CURSOR_LOC_HIGH_REG    0xe
+#define CGA_CRTC_CURSOR_LOC_LOW_REG     0xf
 
 /*
  * Cursor start register bits.
@@ -110,12 +115,12 @@ cga_get_cursor_position(void)
 {
     uint16_t tmp;
 
-    io_write_byte(CGA_CRTC_ADDRESS_REGISTER,
-                  CGA_CRTC_CURSOR_LOCATION_HIGH_REGISTER);
-    tmp = io_read_byte(CGA_CRTC_DATA_REGISTER) << 8;
-    io_write_byte(CGA_CRTC_ADDRESS_REGISTER,
-                  CGA_CRTC_CURSOR_LOCATION_LOW_REGISTER);
-    tmp |= io_read_byte(CGA_CRTC_DATA_REGISTER);
+    io_write_byte(CGA_PORT_CRTC_ADDR,
+                  CGA_CRTC_CURSOR_LOC_HIGH_REG);
+    tmp = io_read_byte(CGA_PORT_CRTC_DATA) << 8;
+    io_write_byte(CGA_PORT_CRTC_ADDR,
+                  CGA_CRTC_CURSOR_LOC_LOW_REG);
+    tmp |= io_read_byte(CGA_PORT_CRTC_DATA);
 
     return tmp;
 }
@@ -123,12 +128,10 @@ cga_get_cursor_position(void)
 static void
 cga_set_cursor_position(uint16_t position)
 {
-    io_write_byte(CGA_CRTC_ADDRESS_REGISTER,
-                  CGA_CRTC_CURSOR_LOCATION_HIGH_REGISTER);
-    io_write_byte(CGA_CRTC_DATA_REGISTER, position >> 8);
-    io_write_byte(CGA_CRTC_ADDRESS_REGISTER,
-                  CGA_CRTC_CURSOR_LOCATION_LOW_REGISTER);
-    io_write_byte(CGA_CRTC_DATA_REGISTER, position & 0xff);
+    io_write_byte(CGA_PORT_CRTC_ADDR, CGA_CRTC_CURSOR_LOC_HIGH_REG);
+    io_write_byte(CGA_PORT_CRTC_DATA, position >> 8);
+    io_write_byte(CGA_PORT_CRTC_ADDR, CGA_CRTC_CURSOR_LOC_LOW_REG);
+    io_write_byte(CGA_PORT_CRTC_DATA, position & 0xff);
 }
 
 static void
@@ -136,9 +139,9 @@ cga_enable_cursor(void)
 {
     uint8_t tmp;
 
-    io_write_byte(CGA_CRTC_ADDRESS_REGISTER, CGA_CRTC_CURSOR_START_REGISTER);
-    tmp = io_read_byte(CGA_CRTC_DATA_REGISTER);
-    io_write_byte(CGA_CRTC_DATA_REGISTER, tmp & ~CGA_CSR_DISABLED);
+    io_write_byte(CGA_PORT_CRTC_ADDR, CGA_CRTC_CURSOR_START_REG);
+    tmp = io_read_byte(CGA_PORT_CRTC_DATA);
+    io_write_byte(CGA_PORT_CRTC_DATA, tmp & ~CGA_CSR_DISABLED);
 }
 
 static void
@@ -146,9 +149,9 @@ cga_disable_cursor(void)
 {
     uint8_t tmp;
 
-    io_write_byte(CGA_CRTC_ADDRESS_REGISTER, CGA_CRTC_CURSOR_START_REGISTER);
-    tmp = io_read_byte(CGA_CRTC_DATA_REGISTER);
-    io_write_byte(CGA_CRTC_DATA_REGISTER, tmp | CGA_CSR_DISABLED);
+    io_write_byte(CGA_PORT_CRTC_ADDR, CGA_CRTC_CURSOR_START_REG);
+    tmp = io_read_byte(CGA_PORT_CRTC_DATA);
+    io_write_byte(CGA_PORT_CRTC_DATA, tmp | CGA_CSR_DISABLED);
 }
 
 static void
@@ -397,51 +400,53 @@ cga_bbuf_scroll_down(struct cga_bbuf *bbuf)
 void
 cga_putc(char c)
 {
-    if (c == '\r') {
-        return;
-    } else if (c == '\n') {
-        cga_bbuf_newline(&cga_bbuf);
-    } else if (c == '\b') {
-        cga_bbuf_backspace(&cga_bbuf);
-    } else if (c == '\t') {
-        int i;
+    unsigned int i;
 
+    switch (c) {
+    case '\r':
+        return;
+    case '\n':
+        cga_bbuf_newline(&cga_bbuf);
+        break;
+    case '\b':
+        cga_bbuf_backspace(&cga_bbuf);
+        break;
+    case '\t':
         for(i = 0; i < CGA_TABULATION_SPACES; i++) {
             cga_putc(' ');
         }
-    } else if (c == CONSOLE_SCROLL_UP) {
+
+        break;
+    case CONSOLE_SCROLL_UP:
         cga_bbuf_scroll_up(&cga_bbuf);
-    } else if (c == CONSOLE_SCROLL_DOWN) {
+        break;
+    case CONSOLE_SCROLL_DOWN:
         cga_bbuf_scroll_down(&cga_bbuf);
-    } else {
+        break;
+    default:
         cga_bbuf_push(&cga_bbuf, c);
+    }
+}
+
+static void __init
+cga_setup_misc_out(void)
+{
+    uint8_t reg;
+
+    reg = io_read_byte(CGA_PORT_MISC_OUT_READ);
+
+    if (!(reg & CGA_MISC_OUT_IOAS)) {
+        reg |= CGA_MISC_OUT_IOAS;
+        io_write_byte(CGA_PORT_MISC_OUT_WRITE, reg);
     }
 }
 
 void __init
 cga_setup(void)
 {
-    uint8_t misc_output_register;
-
     cga_memory = (void *)vm_page_direct_va(CGA_MEMORY);
 
-    /*
-     * Check if the Input/Output Address Select bit is set.
-     */
-    misc_output_register = io_read_byte(CGA_MISC_OUTPUT_REGISTER_READ);
-
-    if (!(misc_output_register & 0x1)) {
-        /*
-         * Set the I/O AS bit.
-         */
-        misc_output_register |= 0x1;
-
-        /*
-         * Update the misc output register.
-         */
-        io_write_byte(CGA_MISC_OUTPUT_REGISTER_WRITE, misc_output_register);
-    }
-
+    cga_setup_misc_out();
     cga_bbuf_init(&cga_bbuf, cga_get_cursor_position());
 }
 
