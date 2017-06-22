@@ -23,7 +23,7 @@
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
-#include <kern/param.h>
+#include <kern/macros.h>
 #include <kern/shell.h>
 #include <kern/spinlock.h>
 #include <kern/task.h>

@@ -22,7 +22,7 @@
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/log.h>
-#include <kern/param.h>
+#include <kern/macros.h>
 #include <machine/elf.h>
 #include <machine/multiboot.h>
 #include <machine/pmap.h>

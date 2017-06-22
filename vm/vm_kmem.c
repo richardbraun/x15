@@ -24,6 +24,7 @@
 
 #include <kern/cpumap.h>
 #include <kern/init.h>
+#include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <machine/pmap.h>

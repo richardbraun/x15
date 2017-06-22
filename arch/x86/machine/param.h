@@ -47,11 +47,6 @@
 #endif /* __LP64__ */
 
 /*
- * Attributes for variables that are mostly read and seldom changed.
- */
-#define __read_mostly __section(".data.read_mostly")
-
-/*
  * System timer frequency.
  *
  * The selected value of 200 translates to a period of 5ms, small enough to
