@@ -21,9 +21,9 @@
 #include <stddef.h>
 #include <string.h>
 
-#include <kern/param.h>
+#include <machine/string.h>
 
-#ifndef ARCH_STRING_MEMCPY
+#ifndef STRING_ARCH_MEMCPY
 void *
 memcpy(void *dest, const void *src, size_t n)
 {
@@ -40,9 +40,9 @@ memcpy(void *dest, const void *src, size_t n)
 
     return dest;
 }
-#endif /* ARCH_STRING_MEMCPY */
+#endif /* STRING_ARCH_MEMCPY */
 
-#ifndef ARCH_STRING_MEMMOVE
+#ifndef STRING_ARCH_MEMMOVE
 void *
 memmove(void *dest, const void *src, size_t n)
 {
@@ -68,9 +68,9 @@ memmove(void *dest, const void *src, size_t n)
 
     return dest;
 }
-#endif /* ARCH_STRING_MEMMOVE */
+#endif /* STRING_ARCH_MEMMOVE */
 
-#ifndef ARCH_STRING_MEMSET
+#ifndef STRING_ARCH_MEMSET
 void *
 memset(void *s, int c, size_t n)
 {
@@ -85,9 +85,9 @@ memset(void *s, int c, size_t n)
 
     return s;
 }
-#endif /* ARCH_STRING_MEMSET */
+#endif /* STRING_ARCH_MEMSET */
 
-#ifndef ARCH_STRING_MEMCMP
+#ifndef STRING_ARCH_MEMCMP
 int
 memcmp(const void *s1, const void *s2, size_t n)
 {
@@ -104,9 +104,9 @@ memcmp(const void *s1, const void *s2, size_t n)
 
     return 0;
 }
-#endif /* ARCH_STRING_MEMCMP */
+#endif /* STRING_ARCH_MEMCMP */
 
-#ifndef ARCH_STRING_STRLEN
+#ifndef STRING_ARCH_STRLEN
 size_t
 strlen(const char *s)
 {
@@ -120,9 +120,9 @@ strlen(const char *s)
 
     return i;
 }
-#endif /* ARCH_STRING_STRLEN */
+#endif /* STRING_ARCH_STRLEN */
 
-#ifndef ARCH_STRING_STRCPY
+#ifndef STRING_ARCH_STRCPY
 char *
 strcpy(char *dest, const char *src)
 {
@@ -137,7 +137,7 @@ strcpy(char *dest, const char *src)
 
     return tmp;
 }
-#endif /* ARCH_STRING_STRCPY */
+#endif /* STRING_ARCH_STRCPY */
 
 size_t
 strlcpy(char *dest, const char *src, size_t n)
@@ -158,7 +158,7 @@ out:
     return len;
 }
 
-#ifndef ARCH_STRING_STRCMP
+#ifndef STRING_ARCH_STRCMP
 int
 strcmp(const char *s1, const char *s2)
 {
@@ -175,9 +175,9 @@ strcmp(const char *s1, const char *s2)
 
     return (int)c1 - (int)c2;
 }
-#endif /* ARCH_STRING_STRCMP */
+#endif /* STRING_ARCH_STRCMP */
 
-#ifndef ARCH_STRING_STRNCMP
+#ifndef STRING_ARCH_STRNCMP
 int
 strncmp(const char *s1, const char *s2, size_t n)
 {
@@ -198,9 +198,9 @@ strncmp(const char *s1, const char *s2, size_t n)
 
     return (int)c1 - (int)c2;
 }
-#endif /* ARCH_STRING_STRNCMP */
+#endif /* STRING_ARCH_STRNCMP */
 
-#ifndef ARCH_STRING_STRCHR
+#ifndef STRING_ARCH_STRCHR
 char *
 strchr(const char *s, int c)
 {
@@ -214,4 +214,4 @@ strchr(const char *s, int c)
         s++;
     }
 }
-#endif /* ARCH_STRING_STRCHR */
+#endif /* STRING_ARCH_STRCHR */

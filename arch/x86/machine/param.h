@@ -52,17 +52,6 @@
 #define __read_mostly __section(".data.read_mostly")
 
 /*
- * Provide architecture-specific string functions.
- */
-#define ARCH_STRING_MEMCPY
-#define ARCH_STRING_MEMMOVE
-#define ARCH_STRING_MEMSET
-#define ARCH_STRING_MEMCMP
-#define ARCH_STRING_STRLEN
-#define ARCH_STRING_STRCPY
-#define ARCH_STRING_STRCMP
-
-/*
  * System timer frequency.
  *
  * The selected value of 200 translates to a period of 5ms, small enough to
