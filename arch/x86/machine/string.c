@@ -18,9 +18,9 @@
 #include <stddef.h>
 #include <string.h>
 
-#include <kern/param.h>
+#include <machine/string.h>
 
-#ifdef ARCH_STRING_MEMCPY
+#ifdef STRING_ARCH_MEMCPY
 void *
 memcpy(void *dest, const void *src, size_t n)
 {
@@ -32,9 +32,9 @@ memcpy(void *dest, const void *src, size_t n)
                  : : "memory");
     return orig_dest;
 }
-#endif /* ARCH_STRING_MEMCPY */
+#endif /* STRING_ARCH_MEMCPY */
 
-#ifdef ARCH_STRING_MEMMOVE
+#ifdef STRING_ARCH_MEMMOVE
 void *
 memmove(void *dest, const void *src, size_t n)
 {
@@ -56,9 +56,9 @@ memmove(void *dest, const void *src, size_t n)
 
     return orig_dest;
 }
-#endif /* ARCH_STRING_MEMMOVE */
+#endif /* STRING_ARCH_MEMMOVE */
 
-#ifdef ARCH_STRING_MEMSET
+#ifdef STRING_ARCH_MEMSET
 void *
 memset(void *s, int c, size_t n)
 {
@@ -71,9 +71,9 @@ memset(void *s, int c, size_t n)
                  : "memory");
     return orig_s;
 }
-#endif /* ARCH_STRING_MEMSET */
+#endif /* STRING_ARCH_MEMSET */
 
-#ifdef ARCH_STRING_MEMCMP
+#ifdef STRING_ARCH_MEMCMP
 int
 memcmp(const void *s1, const void *s2, size_t n)
 {
@@ -90,9 +90,9 @@ memcmp(const void *s1, const void *s2, size_t n)
     c2 = *(((const unsigned char *)s2) - 1);
     return (int)c1 - (int)c2;
 }
-#endif /* ARCH_STRING_MEMCMP */
+#endif /* STRING_ARCH_MEMCMP */
 
-#ifdef ARCH_STRING_STRLEN
+#ifdef STRING_ARCH_STRLEN
 size_t
 strlen(const char *s)
 {
@@ -105,9 +105,9 @@ strlen(const char *s)
                  : "memory");
     return ~n - 1;
 }
-#endif /* ARCH_STRING_STRLEN */
+#endif /* STRING_ARCH_STRLEN */
 
-#ifdef ARCH_STRING_STRCPY
+#ifdef STRING_ARCH_STRCPY
 char *
 strcpy(char *dest, const char *src)
 {
@@ -123,9 +123,9 @@ strcpy(char *dest, const char *src)
                  : : "al", "memory");
     return orig_dest;
 }
-#endif /* ARCH_STRING_STRCPY */
+#endif /* STRING_ARCH_STRCPY */
 
-#ifdef ARCH_STRING_STRCMP
+#ifdef STRING_ARCH_STRCMP
 int
 strcmp(const char *s1, const char *s2)
 {
@@ -144,4 +144,4 @@ strcmp(const char *s1, const char *s2)
     c2 = *(((const unsigned char *)s2) - 1);
     return (int)c1 - (int)c2;
 }
-#endif /* ARCH_STRING_STRCMP */
+#endif /* STRING_ARCH_STRCMP */

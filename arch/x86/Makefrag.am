@@ -62,6 +62,7 @@ x15_SOURCES +=                          \
         arch/x86/machine/strace.c       \
         arch/x86/machine/strace.h       \
         arch/x86/machine/string.c       \
+        arch/x86/machine/string.h       \
         arch/x86/machine/tcb_asm.S      \
         arch/x86/machine/tcb.c          \
         arch/x86/machine/tcb.h          \
