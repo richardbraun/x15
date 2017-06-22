@@ -45,7 +45,6 @@
 #include <kern/llsync_i.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
-#include <kern/param.h>
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
 #include <kern/syscnt.h>

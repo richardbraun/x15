@@ -21,7 +21,7 @@
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/kmem.h>
-#include <kern/param.h>
+#include <kern/macros.h>
 #include <machine/cpu.h>
 
 static struct cpumap cpumap_active_cpus __read_mostly = { { 1 } };

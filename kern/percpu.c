@@ -25,7 +25,6 @@
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
-#include <kern/param.h>
 #include <kern/percpu.h>
 #include <machine/cpu.h>
 #include <vm/vm_kmem.h>

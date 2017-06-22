@@ -25,6 +25,11 @@
 #include <stddef.h>
 #endif /* __ASSEMBLER__ */
 
+/*
+ * Attributes for variables that are mostly read and seldom changed.
+ */
+#define __read_mostly __section(".data.read_mostly")
+
 #define MACRO_BEGIN         ({
 #define MACRO_END           })
 

@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 
+#include <kern/param.h>
 #include <machine/types.h>
 
 /*
