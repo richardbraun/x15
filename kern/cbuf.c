@@ -78,13 +78,13 @@ cbuf_write(struct cbuf *cbuf, size_t index, const void *buf, size_t size)
     char *start, *end, *buf_end;
     size_t new_end, skip;
 
-    if ((cbuf->end - index) > cbuf_size(cbuf)) {
+    if (!cbuf_range_valid(cbuf, index, cbuf->end)) {
         return ERROR_INVAL;
     }
 
     new_end = index + size;
 
-    if ((new_end - cbuf->start) > cbuf_size(cbuf)) {
+    if (!cbuf_range_valid(cbuf, cbuf->start, new_end)) {
         cbuf->end = new_end;
 
         if (size > cbuf_capacity(cbuf)) {
@@ -118,12 +118,12 @@ cbuf_read(const struct cbuf *cbuf, size_t index, void *buf, size_t *sizep)
     const char *start, *end, *buf_end;
     size_t size;
 
-    size = cbuf->end - index;
-
     /* At least one byte must be available */
-    if ((size - 1) >= cbuf_size(cbuf)) {
+    if (!cbuf_range_valid(cbuf, index, index + 1)) {
         return ERROR_INVAL;
     }
+
+    size = cbuf->end - index;
 
     if (*sizep > size) {
         *sizep = size;

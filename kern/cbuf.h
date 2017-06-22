@@ -21,6 +21,7 @@
 #ifndef _KERN_CBUF_H
 #define _KERN_CBUF_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
 /*
@@ -64,6 +65,12 @@ static inline void
 cbuf_clear(struct cbuf *cbuf)
 {
     cbuf->start = cbuf->end;
+}
+
+static inline bool
+cbuf_range_valid(const struct cbuf *cbuf, size_t start, size_t end)
+{
+    return ((end - start) <= cbuf_size(cbuf));
 }
 
 /*
