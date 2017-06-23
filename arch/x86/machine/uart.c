@@ -13,14 +13,12 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- *
- * TODO Make serial line parameters configurable.
  */
 
 #include <assert.h>
 #include <stdint.h>
 
+#include <kern/arg.h>
 #include <kern/console.h>
 #include <kern/error.h>
 #include <kern/init.h>
@@ -53,6 +51,8 @@
 #define UART_LCR_8BITS          0x03
 #define UART_LCR_1S             0x00
 #define UART_LCR_NP             0x00
+#define UART_LCR_OP             0x08
+#define UART_LCR_EP             0x18
 #define UART_LCR_BEN            0x40
 #define UART_LCR_DLAB           0x80
 
@@ -64,6 +64,19 @@
 #define UART_LSR_TX_EMPTY       0x20
 
 #define UART_MAX_DEVS           4
+
+#define UART_SPEED_MAX          115200
+#define UART_SPEED_DEFAULT      UART_SPEED_MAX
+
+enum {
+    UART_PARITY_NONE,
+    UART_PARITY_ODD,
+    UART_PARITY_EVEN,
+};
+
+#define UART_PARITY_DEFAULT     UART_PARITY_NONE
+
+#define UART_DATA_BITS_DEFAULT  8
 
 struct uart {
     struct console console;
@@ -243,27 +256,153 @@ static const struct console_ops uart_console_ops = {
 };
 
 static void __init
+uart_init_default(unsigned int *speed, unsigned int *parity,
+                  unsigned int *data_bits)
+{
+    *speed = UART_SPEED_DEFAULT;
+    *parity = UART_PARITY_DEFAULT;
+    *data_bits = UART_DATA_BITS_DEFAULT;
+}
+
+static int __init
+uart_init_check_speed(unsigned int speed)
+{
+    if (speed > UART_SPEED_MAX) {
+        return ERROR_INVAL;
+    }
+
+    return 0;
+}
+
+static int __init
+uart_init_convert_parity_char(char c, unsigned int *parity)
+{
+    switch (c) {
+    case 'n':
+        *parity = UART_PARITY_NONE;
+        break;
+    case 'o':
+        *parity = UART_PARITY_ODD;
+        break;
+    case 'e':
+        *parity = UART_PARITY_EVEN;
+        break;
+    default:
+        return ERROR_INVAL;
+    }
+
+    return 0;
+}
+
+static int __init
+uart_init_check_data_bits(unsigned int data_bits)
+{
+    switch (data_bits) {
+    case 5 ... 8:
+        break;
+    default:
+        return ERROR_INVAL;
+    }
+
+    return 0;
+}
+
+static void __init
+uart_init_args(const struct uart *uart, const char *arg_str,
+               unsigned int *speed, unsigned int *parity,
+               unsigned int *data_bits)
+{
+    char parity_char;
+    int ret, error;
+
+    ret = sscanf(arg_str, "%u%c%1u", speed, &parity_char, data_bits);
+
+    if (ret < 1) {
+        goto set_defaults;
+    }
+
+    error = uart_init_check_speed(*speed);
+
+    if (error) {
+        goto set_defaults;
+    } else if (ret < 2) {
+        return;
+    }
+
+    error = uart_init_convert_parity_char(parity_char, parity);
+
+    if (error) {
+        goto set_defaults;
+    } else if (ret < 3) {
+        return;
+    }
+
+    error = uart_init_check_data_bits(*data_bits);
+
+    if (error) {
+        goto set_defaults;
+    }
+
+    return;
+
+set_defaults:
+    log_warning("uart%zu: invalid serial configuration, using defaults",
+                uart_get_id(uart));
+    uart_init_default(speed, parity, data_bits);
+}
+
+static void __init
 uart_init(struct uart *uart, uint16_t port, uint16_t intr)
 {
+    unsigned int speed, parity, data_bits;
+    const char *arg_str;
     char name[CONSOLE_NAME_SIZE];
+    uint16_t divisor;
     uint8_t byte;
+
+    snprintf(name, sizeof(name), "uart%zu", uart_get_id(uart));
+    arg_str = arg_value(name);
+
+    uart_init_default(&speed, &parity, &data_bits);
+
+    if (arg_str != NULL) {
+        uart_init_args(uart, arg_str, &speed, &parity, &data_bits);
+    }
+
+    log_debug("uart%zu: speed:%u parity:%u data_bits:%u",
+              uart_get_id(uart), speed, parity, data_bits);
 
     uart->port = port;
     uart->intr = intr;
 
     uart_write(uart, UART_REG_IER, 0);
 
+    divisor = UART_SPEED_MAX / speed;
+
     uart_set(uart, UART_REG_LCR, UART_LCR_DLAB);
-    uart_write(uart, UART_REG_DLH, 0);
-    uart_write(uart, UART_REG_DLL, 1);
+    uart_write(uart, UART_REG_DLH, divisor >> 8);
+    uart_write(uart, UART_REG_DLL, divisor & 0xff);
     uart_clear(uart, UART_REG_LCR, UART_LCR_DLAB);
 
     uart_write(uart, UART_REG_MCR, UART_MCR_AUX2 | UART_MCR_RTS | UART_MCR_DTR);
 
-    byte = UART_LCR_8BITS | UART_LCR_NP | UART_LCR_1S;
+    byte = UART_LCR_1S;
+
+    switch (parity) {
+    case UART_PARITY_NONE:
+        byte |= UART_LCR_NP;
+        break;
+    case UART_PARITY_ODD:
+        byte |= UART_LCR_OP;
+        break;
+    case UART_PARITY_EVEN:
+        byte |= UART_LCR_EP;
+        break;
+    }
+
+    byte |= (data_bits - 5);
     uart_write(uart, UART_REG_LCR, byte);
 
-    snprintf(name, sizeof(name), "uart%zu", uart_get_id(uart));
     console_init(&uart->console, name, &uart_console_ops);
     console_register(&uart->console);
 }
