@@ -367,12 +367,16 @@ static const char *atkbd_chars[] = {
     [ATKBD_KEY_SPACE] = " ",
 
     [ATKBD_KEY_DELETE] = "\e[3~",
+    [ATKBD_KEY_HOME] = "\e[H",
+    [ATKBD_KEY_END] = "\e[F",
 
     [ATKBD_KEY_KP_SLASH] = "/",
     [ATKBD_KEY_KP_STAR] = "*",
     [ATKBD_KEY_KP_MINUS] = "-",
+    [ATKBD_KEY_KP_HOME] = "\e[H",
     [ATKBD_KEY_KP_PLUS] = "+",
     [ATKBD_KEY_KP_5] = "5",
+    [ATKBD_KEY_KP_END] = "\e[F",
     [ATKBD_KEY_KP_ENTER] = "\n",
     [ATKBD_KEY_KP_DEL] = "\e[3~",
 };
