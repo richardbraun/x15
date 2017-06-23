@@ -54,7 +54,7 @@ kernel_main(void)
     work_setup();
     llsync_setup();
     sref_setup();
-    vm_page_info();
+    vm_page_log_info();
     log_start();
 
 #ifdef X15_RUN_TEST_MODULE

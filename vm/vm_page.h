@@ -209,6 +209,6 @@ const char * vm_page_zone_name(unsigned int zone_index);
 /*
  * Display internal information about the module.
  */
-void vm_page_info(void);
+void vm_page_log_info(void);
 
 #endif /* _VM_VM_PAGE_H */
