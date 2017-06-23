@@ -82,6 +82,10 @@ static void *cga_memory __read_mostly;
 
 #define CGA_BACK_BUFFER_SIZE (64 * 1024)
 
+#if CGA_BACK_BUFFER_SIZE < CGA_MEMORY_SIZE
+#error "back buffer size must be at least as large as video memory"
+#endif
+
 #define CGA_SCROLL_PAGE ((CGA_LINES / 2) * CGA_MEMORY_LINE_SIZE)
 
 /*
@@ -115,11 +119,9 @@ cga_get_cursor_position(void)
 {
     uint16_t tmp;
 
-    io_write_byte(CGA_PORT_CRTC_ADDR,
-                  CGA_CRTC_CURSOR_LOC_HIGH_REG);
+    io_write_byte(CGA_PORT_CRTC_ADDR, CGA_CRTC_CURSOR_LOC_HIGH_REG);
     tmp = io_read_byte(CGA_PORT_CRTC_DATA) << 8;
-    io_write_byte(CGA_PORT_CRTC_ADDR,
-                  CGA_CRTC_CURSOR_LOC_LOW_REG);
+    io_write_byte(CGA_PORT_CRTC_ADDR, CGA_CRTC_CURSOR_LOC_LOW_REG);
     tmp |= io_read_byte(CGA_PORT_CRTC_DATA);
 
     return tmp;
@@ -394,10 +396,9 @@ cga_bbuf_scroll_down(struct cga_bbuf *bbuf)
     size_t end;
 
     bbuf->view += CGA_SCROLL_PAGE;
+    end = bbuf->view + CGA_MEMORY_SIZE;
 
-    end = bbuf->view + CGA_MEMORY_SIZE - cbuf_start(&bbuf->cbuf);
-
-    if (end > cbuf_size(&bbuf->cbuf)) {
+    if (!cbuf_range_valid(&bbuf->cbuf, bbuf->view, end)) {
         bbuf->view = cbuf_end(&bbuf->cbuf) - CGA_MEMORY_SIZE;
     }
 
