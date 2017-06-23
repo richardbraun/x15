@@ -431,7 +431,7 @@ log_write(const void *s, size_t size)
     error = cbuf_write(&log_cbuf, cbuf_end(&log_cbuf), s, size);
     assert(!error);
 
-    if ((log_index - cbuf_start(&log_cbuf)) > cbuf_end(&log_cbuf)) {
+    if (!cbuf_range_valid(&log_cbuf, log_index, log_index + 1)) {
         log_nr_overruns += cbuf_start(&log_cbuf) - log_index;
         log_index = cbuf_start(&log_cbuf);
     }
