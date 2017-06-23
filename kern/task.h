@@ -68,6 +68,12 @@ task_unref(struct task *task)
     }
 }
 
+static inline struct vm_map *
+task_get_vm_map(const struct task *task)
+{
+    return task->map;
+}
+
 /*
  * Initialize the task module.
  */

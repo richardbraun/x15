@@ -33,6 +33,8 @@
 #include <kern/panic.h>
 #include <kern/param.h>
 #include <kern/rbtree.h>
+#include <kern/shell.h>
+#include <kern/task.h>
 #include <machine/pmap.h>
 #include <vm/vm_adv.h>
 #include <vm/vm_inherit.h>
@@ -695,6 +697,39 @@ vm_map_init(struct vm_map *map, struct pmap *pmap,
     map->pmap = pmap;
 }
 
+#ifdef X15_SHELL
+
+static void
+vm_map_shell_info(int argc, char **argv)
+{
+    const struct task *task;
+
+    if (argc < 2) {
+        goto error;
+    } else {
+        task = task_lookup(argv[1]);
+
+        if (task == NULL) {
+            goto error;
+        }
+
+        vm_map_info(task_get_vm_map(task));
+    }
+
+    return;
+
+error:
+    printf("vm_map: info: invalid arguments\n");
+}
+
+static struct shell_cmd vm_map_shell_cmds[] = {
+    SHELL_CMD_INITIALIZER("vm_map_info", vm_map_shell_info,
+        "vm_map_info <task_name>",
+        "print information about a VM map"),
+};
+
+#endif /* X15_SHELL */
+
 void __init
 vm_map_setup(void)
 {
@@ -705,6 +740,7 @@ vm_map_setup(void)
                     KMEM_CACHE_PAGE_ONLY);
     kmem_cache_init(&vm_map_cache, "vm_map", sizeof(struct vm_map),
                     0, NULL, 0);
+    SHELL_REGISTER_CMDS(vm_map_shell_cmds);
 }
 
 int
