@@ -48,7 +48,11 @@ void log_start(void);
 /*
  * Generate a message and send it to the log thread.
  *
- * Except for level, the arguments and return value are similar to printf().
+ * The arguments and return value are similar to printf(), with
+ * these exceptions :
+ *  - a level is associated to each log message
+ *  - processing stops at the first terminating null byte or newline
+ *    character, whichever occurs first
  *
  * This function may safely be called in interrupt context.
  */
