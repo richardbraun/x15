@@ -1317,7 +1317,7 @@ fmt_sscanf_state_produce_char(struct fmt_sscanf_state *state)
         fmt_sscanf_state_restore_string(state);
     }
 
-    if (dest != NULL) {
+    if ((dest != NULL) && (i != 0)) {
         fmt_sscanf_state_report_conv(state);
     }
 
