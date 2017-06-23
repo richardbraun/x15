@@ -296,7 +296,7 @@ static void
 cga_bbuf_newline(struct cga_bbuf *bbuf)
 {
     uint16_t cursor = 0, spaces[CGA_COLUMNS];
-    size_t i, nr_spaces, offset;
+    size_t i, nr_spaces, offset, size;
     int error;
 
     cga_bbuf_reset_view(bbuf);
@@ -309,6 +309,13 @@ cga_bbuf_newline(struct cga_bbuf *bbuf)
     for (i = 0; i < nr_spaces; i++) {
         spaces[i] = cga_build_cell(' ');
     }
+
+    /*
+     * The cursor may not point at the end of the view, in which case
+     * any existing data must be preserved.
+     */
+    size = sizeof(spaces);
+    cbuf_read(&bbuf->cbuf, bbuf->cursor, spaces, &size);
 
     cbuf_write(&bbuf->cbuf, bbuf->cursor,
                spaces, nr_spaces * sizeof(spaces[0]));
