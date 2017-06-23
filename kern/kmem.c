@@ -58,6 +58,7 @@
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/param.h>
+#include <kern/shell.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>
@@ -1092,18 +1093,6 @@ kmem_cache_info(struct kmem_cache *cache)
 {
     char flags_str[64];
 
-    if (cache == NULL) {
-        mutex_lock(&kmem_cache_list_lock);
-
-        list_for_each_entry(&kmem_cache_list, cache, node) {
-            kmem_cache_info(cache);
-        }
-
-        mutex_unlock(&kmem_cache_list_lock);
-
-        return;
-    }
-
     snprintf(flags_str, sizeof(flags_str), "%s%s",
              (cache->flags & KMEM_CF_SLAB_EXTERNAL) ? " SLAB_EXTERNAL" : "",
              (cache->flags & KMEM_CF_VERIFY) ? " VERIFY" : "");
@@ -1134,6 +1123,56 @@ kmem_cache_info(struct kmem_cache *cache)
 
     mutex_unlock(&cache->lock);
 }
+
+#ifdef X15_SHELL
+
+static struct kmem_cache *
+kmem_lookup_cache(const char *name)
+{
+    struct kmem_cache *cache;
+
+    mutex_lock(&kmem_cache_list_lock);
+
+    list_for_each_entry(&kmem_cache_list, cache, node) {
+        if (strcmp(cache->name, name) == 0) {
+            goto out;
+        }
+    }
+
+    cache = NULL;
+
+out:
+    mutex_unlock(&kmem_cache_list_lock);
+
+    return cache;
+}
+
+static void
+kmem_shell_info(int argc, char **argv)
+{
+    struct kmem_cache *cache;
+
+    if (argc < 2) {
+        kmem_info();
+    } else {
+        cache = kmem_lookup_cache(argv[1]);
+
+        if (cache == NULL) {
+            printf("kmem: info: invalid argument\n");
+            return;
+        }
+
+        kmem_cache_info(cache);
+    }
+}
+
+static struct shell_cmd kmem_shell_cmds[] = {
+    SHELL_CMD_INITIALIZER("kmem_info", kmem_shell_info,
+        "kmem_info [<cache_name>]",
+        "print information about kernel memory and caches"),
+};
+
+#endif /* X15_SHELL */
 
 void __init
 kmem_setup(void)
@@ -1170,6 +1209,8 @@ kmem_setup(void)
         kmem_cache_init(&kmem_caches[i], name, size, 0, NULL, 0);
         size <<= 1;
     }
+
+    SHELL_REGISTER_CMDS(kmem_shell_cmds);
 }
 
 static inline size_t
