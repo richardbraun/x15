@@ -22,6 +22,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <kern/cbuf.h>
 #include <kern/init.h>
@@ -457,6 +458,7 @@ log_vmsg(unsigned int level, const char *format, va_list ap)
     unsigned long flags;
     int nr_chars;
     size_t size;
+    char *ptr;
 
     log_record_init_produce(&record, level);
     nr_chars = vsnprintf(record.buffer, sizeof(record.buffer), format, ap);
@@ -464,6 +466,13 @@ log_vmsg(unsigned int level, const char *format, va_list ap)
     if ((unsigned int)nr_chars >= sizeof(record.buffer)) {
         log_msg(LOG_ERR, "log: message too large");
         goto out;
+    }
+
+    ptr = strchr(record.buffer, '\n');
+
+    if (ptr != NULL) {
+        *ptr = '\0';
+        nr_chars = ptr - record.buffer;
     }
 
     assert(nr_chars >= 0);
