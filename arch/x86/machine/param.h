@@ -32,11 +32,6 @@
 #define PAGE_MASK   (PAGE_SIZE - 1)
 
 /*
- * Maximum number of available interrupts.
- */
-#define INTR_TABLE_SIZE 256
-
-/*
  * Virtual memory properties.
  */
 

@@ -33,10 +33,10 @@
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
-#include <kern/param.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
+#include <machine/trap.h>
 
 struct intr_handler {
     struct list node;
@@ -76,7 +76,7 @@ struct intr_entry {
 /*
  * Interrupt table.
  */
-static struct intr_entry intr_table[INTR_TABLE_SIZE];
+static struct intr_entry intr_table[TRAP_INTR_TABLE_SIZE];
 
 /*
  * List of registered controllers.
