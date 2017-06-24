@@ -1099,23 +1099,22 @@ kmem_cache_info(struct kmem_cache *cache)
 
     mutex_lock(&cache->lock);
 
-    printf("kmem: name: %s\n"
-           "kmem: flags: 0x%x%s\n"
-           "kmem: obj_size: %zu\n"
-           "kmem: align: %zu\n"
-           "kmem: buf_size: %zu\n"
-           "kmem: bufctl_dist: %zu\n"
-           "kmem: slab_size: %zu\n"
-           "kmem: color_max: %zu\n"
+    printf("kmem:         flags: 0x%x%s\n"
+           "kmem:      obj_size: %zu\n"
+           "kmem:         align: %zu\n"
+           "kmem:      buf_size: %zu\n"
+           "kmem:   bufctl_dist: %zu\n"
+           "kmem:     slab_size: %zu\n"
+           "kmem:     color_max: %zu\n"
            "kmem: bufs_per_slab: %lu\n"
-           "kmem: nr_objs: %lu\n"
-           "kmem: nr_bufs: %lu\n"
-           "kmem: nr_slabs: %lu\n"
+           "kmem:       nr_objs: %lu\n"
+           "kmem:       nr_bufs: %lu\n"
+           "kmem:      nr_slabs: %lu\n"
            "kmem: nr_free_slabs: %lu\n"
-           "kmem: buftag_dist: %zu\n"
-           "kmem: redzone_pad: %zu\n"
-           "kmem: cpu_pool_size: %d\n", cache->name, cache->flags, flags_str,
-           cache->obj_size, cache->align, cache->buf_size, cache->bufctl_dist,
+           "kmem:   buftag_dist: %zu\n"
+           "kmem:   redzone_pad: %zu\n"
+           "kmem: cpu_pool_size: %d\n", cache->flags, flags_str, cache->obj_size,
+           cache->align, cache->buf_size, cache->bufctl_dist,
            cache->slab_size, cache->color_max, cache->bufs_per_slab,
            cache->nr_objs, cache->nr_bufs, cache->nr_slabs,
            cache->nr_free_slabs, cache->buftag_dist, cache->redzone_pad,
@@ -1323,8 +1322,11 @@ kmem_free(void *ptr, size_t size)
 void
 kmem_info(void)
 {
+    size_t mem_usage, mem_reclaimable, total, total_reclaimable;
     struct kmem_cache *cache;
-    size_t mem_usage, mem_reclaimable;
+
+    total = 0;
+    total_reclaimable = 0;
 
     printf("kmem: cache                  obj slab  bufs   objs   bufs "
            "   total reclaimable\n"
@@ -1338,6 +1340,8 @@ kmem_info(void)
 
         mem_usage = (cache->nr_slabs * cache->slab_size) >> 10;
         mem_reclaimable = (cache->nr_free_slabs * cache->slab_size) >> 10;
+        total += mem_usage;
+        total_reclaimable += mem_reclaimable;
 
         printf("kmem: %-19s %6zu %3zuk  %4lu %6lu %6lu %7zuk %10zuk\n",
                cache->name, cache->obj_size, cache->slab_size >> 10,
@@ -1348,4 +1352,6 @@ kmem_info(void)
     }
 
     mutex_unlock(&kmem_cache_list_lock);
+
+    printf("total: %zuk reclaimable: %zuk\n", total, total_reclaimable);
 }
