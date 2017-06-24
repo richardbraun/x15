@@ -56,7 +56,6 @@
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
-#include <kern/param.h>
 #include <kern/percpu.h>
 #include <kern/sleepq.h>
 #include <kern/sref.h>
@@ -70,6 +69,7 @@
 #include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/multiboot.h>
+#include <machine/page.h>
 #include <machine/pmap.h>
 #include <machine/strace.h>
 #include <machine/trap.h>

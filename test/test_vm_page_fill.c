@@ -30,6 +30,7 @@
 #include <kern/error.h>
 #include <kern/list.h>
 #include <kern/thread.h>
+#include <machine/page.h>
 #include <machine/pmap.h>
 #include <test/test.h>
 #include <vm/vm_kmem.h>

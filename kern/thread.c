@@ -99,7 +99,6 @@
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
-#include <kern/param.h>
 #include <kern/percpu.h>
 #include <kern/shell.h>
 #include <kern/sleepq.h>
@@ -111,6 +110,7 @@
 #include <kern/turnstile.h>
 #include <kern/work.h>
 #include <machine/cpu.h>
+#include <machine/page.h>
 #include <machine/pmap.h>
 #include <machine/tcb.h>
 #include <vm/vm_map.h>

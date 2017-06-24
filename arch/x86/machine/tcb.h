@@ -25,8 +25,8 @@
 #include <stdint.h>
 
 #include <kern/macros.h>
-#include <kern/param.h>
 #include <machine/cpu.h>
+#include <machine/page.h>
 
 /*
  * Thread stack size.

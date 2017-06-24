@@ -39,9 +39,9 @@
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
-#include <kern/param.h>
 #include <kern/thread.h>
 #include <kern/work.h>
+#include <machine/page.h>
 #include <test/test.h>
 #include <vm/vm_kmem.h>
 

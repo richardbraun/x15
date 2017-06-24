@@ -28,7 +28,7 @@
 #include <kern/list.h>
 #include <kern/log2.h>
 #include <kern/macros.h>
-#include <kern/param.h>
+#include <machine/page.h>
 #include <machine/pmap.h>
 #include <machine/pmem.h>
 #include <machine/types.h>
@@ -107,15 +107,15 @@ static inline uintptr_t
 vm_page_direct_va(phys_addr_t pa)
 {
     assert(pa < PMEM_DIRECTMAP_LIMIT);
-    return ((uintptr_t)pa + VM_MIN_DIRECTMAP_ADDRESS);
+    return ((uintptr_t)pa + PMAP_MIN_DIRECTMAP_ADDRESS);
 }
 
 static inline phys_addr_t
 vm_page_direct_pa(uintptr_t va)
 {
-    assert(va >= VM_MIN_DIRECTMAP_ADDRESS);
-    assert(va < VM_MAX_DIRECTMAP_ADDRESS);
-    return (va - VM_MIN_DIRECTMAP_ADDRESS);
+    assert(va >= PMAP_MIN_DIRECTMAP_ADDRESS);
+    assert(va < PMAP_MAX_DIRECTMAP_ADDRESS);
+    return (va - PMAP_MIN_DIRECTMAP_ADDRESS);
 }
 
 static inline void *

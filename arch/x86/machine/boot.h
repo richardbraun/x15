@@ -19,7 +19,8 @@
 #define _X86_BOOT_H
 
 #include <kern/macros.h>
-#include <machine/param.h>
+#include <machine/page.h>
+#include <machine/pmap.h>
 
 /*
  * Size of the stack used when booting a processor.
@@ -36,7 +37,7 @@
 /*
  * The kernel is physically loaded at BOOT_OFFSET by the boot loader. It
  * is divided in two parts: the .boot section which uses physical addresses
- * and the main kernel code and data at VM_KERNEL_OFFSET.
+ * and the main kernel code and data at PMAP_KERNEL_OFFSET.
  *
  * See the linker script for more information.
  */
@@ -45,7 +46,7 @@
 /*
  * Virtual to physical address translation macro.
  */
-#define BOOT_VTOP(addr) ((addr) - VM_KERNEL_OFFSET)
+#define BOOT_VTOP(addr) ((addr) - PMAP_KERNEL_OFFSET)
 
 /*
  * Address where the MP trampoline code is copied and run at.

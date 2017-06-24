@@ -25,11 +25,12 @@
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
-#include <kern/param.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/multiboot.h>
+#include <machine/page.h>
+#include <machine/pmap.h>
 #include <machine/pmem.h>
 #include <machine/types.h>
 #include <vm/vm_kmem.h>

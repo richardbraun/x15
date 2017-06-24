@@ -31,10 +31,10 @@
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
-#include <kern/param.h>
 #include <kern/rbtree.h>
 #include <kern/shell.h>
 #include <kern/task.h>
+#include <machine/page.h>
 #include <machine/pmap.h>
 #include <vm/vm_adv.h>
 #include <vm/vm_inherit.h>
@@ -734,7 +734,7 @@ void __init
 vm_map_setup(void)
 {
     vm_map_init(kernel_map, kernel_pmap,
-                VM_MIN_KMEM_ADDRESS, VM_MAX_KMEM_ADDRESS);
+                PMAP_MIN_KMEM_ADDRESS, PMAP_MAX_KMEM_ADDRESS);
     kmem_cache_init(&vm_map_entry_cache, "vm_map_entry",
                     sizeof(struct vm_map_entry), 0, NULL,
                     KMEM_CACHE_PAGE_ONLY);
@@ -763,7 +763,7 @@ vm_map_create(struct vm_map **mapp)
         goto error_pmap;
     }
 
-    vm_map_init(map, pmap, VM_MIN_ADDRESS, VM_MAX_ADDRESS);
+    vm_map_init(map, pmap, PMAP_MIN_ADDRESS, PMAP_MAX_ADDRESS);
     *mapp = map;
     return 0;
 

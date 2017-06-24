@@ -41,10 +41,10 @@
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
-#include <kern/param.h>
 #include <kern/shell.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
+#include <machine/page.h>
 #include <machine/pmem.h>
 #include <machine/types.h>
 #include <vm/vm_page.h>
