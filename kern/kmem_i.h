@@ -22,7 +22,7 @@
 
 #include <kern/list.h>
 #include <kern/mutex.h>
-#include <kern/param.h>
+#include <machine/cpu.h>
 
 /*
  * Per-processor cache of pre-constructed objects.

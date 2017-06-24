@@ -9,6 +9,7 @@ OUTPUT_ARCH(i386)
 ENTRY(_start)
 
 #include <machine/boot.h>
+#include <machine/cpu.h>
 #include <machine/param.h>
 
 PHDRS

@@ -22,7 +22,6 @@
 
 #include <kern/cpumap.h>
 #include <kern/macros.h>
-#include <kern/param.h>
 #include <kern/spinlock.h>
 #include <kern/syscnt.h>
 #include <kern/work.h>

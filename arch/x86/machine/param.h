@@ -25,13 +25,6 @@
 #include <kern/macros.h>
 
 /*
- * L1 cache line size.
- *
- * XXX Use this value until processor selection is available.
- */
-#define CPU_L1_SIZE 64
-
-/*
  * Code/data alignment.
  */
 #define TEXT_ALIGN  16

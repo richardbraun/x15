@@ -52,12 +52,12 @@
 #include <kern/kmem.h>
 #include <kern/list.h>
 #include <kern/macros.h>
-#include <kern/param.h>
 #include <kern/plist.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
 #include <kern/turnstile.h>
 #include <kern/turnstile_types.h>
+#include <machine/cpu.h>
 
 /*
  * Locking keys :

@@ -27,10 +27,10 @@
 #include <kern/kmem.h>
 #include <kern/list.h>
 #include <kern/macros.h>
-#include <kern/param.h>
 #include <kern/sleepq.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
+#include <machine/cpu.h>
 
 struct sleepq_bucket {
     struct spinlock lock;
