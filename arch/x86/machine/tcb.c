@@ -17,7 +17,6 @@
 
 #include <kern/init.h>
 #include <kern/macros.h>
-#include <kern/param.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>
@@ -85,7 +84,7 @@ tcb_init(struct tcb *tcb, void *stack, void (*fn)(void *), void *arg)
     }
 
     tcb->bp = 0;
-    tcb->sp = (uintptr_t)stack + STACK_SIZE;
+    tcb->sp = (uintptr_t)stack + TCB_STACK_SIZE;
     tcb_stack_forge(tcb, fn, arg);
     return 0;
 }

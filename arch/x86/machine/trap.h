@@ -21,6 +21,8 @@
 #ifndef _X86_TRAP_H
 #define _X86_TRAP_H
 
+#include <kern/param.h>
+
 /*
  * Architecture defined traps.
  */
@@ -62,6 +64,8 @@
 #define TRAP_LAPIC_SPURIOUS     255
 
 #define TRAP_NR_VECTORS         256
+
+#define TRAP_STACK_SIZE PAGE_SIZE
 
 #ifndef __ASSEMBLER__
 

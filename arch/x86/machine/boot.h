@@ -22,6 +22,11 @@
 #include <machine/param.h>
 
 /*
+ * Size of the stack used when booting a processor.
+ */
+#define BOOT_STACK_SIZE PAGE_SIZE
+
+/*
  * Macros used by the very early panic functions.
  */
 #define BOOT_CGAMEM     0xb8000
