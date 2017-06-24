@@ -692,7 +692,7 @@ shell_cmd_history(int argc, char *argv[])
 static struct shell_cmd shell_default_cmds[] = {
     SHELL_CMD_INITIALIZER("help", shell_cmd_help,
                           "help [command]",
-                          "obtain help about shell commands"),
+                          "display help about shell commands"),
     SHELL_CMD_INITIALIZER("history", shell_cmd_history,
                           "history",
                           "display history list"),

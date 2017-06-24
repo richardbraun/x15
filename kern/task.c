@@ -96,7 +96,7 @@ error:
 static struct shell_cmd task_shell_cmds[] = {
     SHELL_CMD_INITIALIZER("task_info", task_shell_info,
                           "task_info [<task_name>]",
-                          "print tasks and threads"),
+                          "display tasks and threads"),
 };
 
 #endif /* X15_SHELL */

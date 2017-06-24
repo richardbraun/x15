@@ -1168,7 +1168,7 @@ kmem_shell_info(int argc, char **argv)
 static struct shell_cmd kmem_shell_cmds[] = {
     SHELL_CMD_INITIALIZER("kmem_info", kmem_shell_info,
         "kmem_info [<cache_name>]",
-        "print information about kernel memory and caches"),
+        "display information about kernel memory and caches"),
 };
 
 #endif /* X15_SHELL */

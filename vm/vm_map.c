@@ -725,7 +725,7 @@ error:
 static struct shell_cmd vm_map_shell_cmds[] = {
     SHELL_CMD_INITIALIZER("vm_map_info", vm_map_shell_info,
         "vm_map_info <task_name>",
-        "print information about a VM map"),
+        "display information about a VM map"),
 };
 
 #endif /* X15_SHELL */
