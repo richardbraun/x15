@@ -212,7 +212,7 @@ lapic_compute_freq(void)
     lapic_bus_freq = (c1 - c2) * (1000000 / LAPIC_TIMER_CAL_DELAY);
     log_info("lapic: bus frequency: %u.%02u MHz", lapic_bus_freq / 1000000,
              lapic_bus_freq % 1000000);
-    lapic_write(&lapic_map->timer_icr, lapic_bus_freq / HZ);
+    lapic_write(&lapic_map->timer_icr, lapic_bus_freq / THREAD_TICK_FREQ);
     lapic_write(&lapic_map->svr, 0);
 }
 
@@ -239,7 +239,7 @@ lapic_setup_registers(void)
     lapic_write(&lapic_map->lvt_lint1, LAPIC_LVT_MASK_INTR);
     lapic_write(&lapic_map->lvt_error, TRAP_LAPIC_ERROR);
     lapic_write(&lapic_map->timer_dcr, LAPIC_TIMER_DCR_DIV1);
-    lapic_write(&lapic_map->timer_icr, lapic_bus_freq / HZ);
+    lapic_write(&lapic_map->timer_icr, lapic_bus_freq / THREAD_TICK_FREQ);
 }
 
 void __init

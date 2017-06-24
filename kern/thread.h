@@ -47,6 +47,14 @@
 #include <machine/tcb.h>
 
 /*
+ * Scheduler tick frequency.
+ *
+ * The selected value of 200 translates to a period of 5ms, small enough to
+ * provide low latency, and is practical as both a dividend and divisor.
+ */
+#define THREAD_TICK_FREQ 200
+
+/*
  * Thread structure.
  */
 struct thread;

@@ -54,7 +54,7 @@
  *
  * A few terms are used by both papers with slightly different meanings. Here
  * are the definitions used in this implementation :
- *  - The time unit is the system timer period (1 / HZ)
+ *  - The time unit is the system timer period (1 / tick frequency)
  *  - Work is the amount of execution time units consumed
  *  - Weight is the amount of execution time units allocated
  *  - A round is the shortest period during which all threads in a run queue
@@ -159,7 +159,7 @@
 /*
  * Default time slice for real-time round-robin scheduling.
  */
-#define THREAD_DEFAULT_RR_TIME_SLICE (HZ / 10)
+#define THREAD_DEFAULT_RR_TIME_SLICE (THREAD_TICK_FREQ / 10)
 
 /*
  * Maximum number of threads which can be pulled from a remote run queue
@@ -170,7 +170,7 @@
 /*
  * Delay (in ticks) between two balance attempts when a run queue is idle.
  */
-#define THREAD_IDLE_BALANCE_TICKS (HZ / 2)
+#define THREAD_IDLE_BALANCE_TICKS (THREAD_TICK_FREQ / 2)
 
 /*
  * Run queue properties for real-time threads.
@@ -190,7 +190,7 @@ struct thread_rt_runq {
 /*
  * Round slice base unit for fair-scheduling threads.
  */
-#define THREAD_FS_ROUND_SLICE_BASE (HZ / 10)
+#define THREAD_FS_ROUND_SLICE_BASE (THREAD_TICK_FREQ / 10)
 
 /*
  * Group of threads sharing the same weight.

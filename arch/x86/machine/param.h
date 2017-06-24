@@ -25,14 +25,6 @@
 #include <kern/macros.h>
 
 /*
- * System timer frequency.
- *
- * The selected value of 200 translates to a period of 5ms, small enough to
- * provide low latency, and is practical as both a dividend and divisor.
- */
-#define HZ 200
-
-/*
  * 4 KiB pages.
  */
 #define PAGE_SHIFT  12
