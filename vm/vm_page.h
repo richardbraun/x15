@@ -30,6 +30,7 @@
 #include <kern/macros.h>
 #include <kern/param.h>
 #include <machine/pmap.h>
+#include <machine/pmem.h>
 #include <machine/types.h>
 
 /*
@@ -105,7 +106,7 @@ vm_page_to_pa(const struct vm_page *page)
 static inline uintptr_t
 vm_page_direct_va(phys_addr_t pa)
 {
-    assert(pa < VM_PAGE_DIRECTMAP_LIMIT);
+    assert(pa < PMEM_DIRECTMAP_LIMIT);
     return ((uintptr_t)pa + VM_MIN_DIRECTMAP_ADDRESS);
 }
 

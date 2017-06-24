@@ -30,6 +30,7 @@
 #include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/multiboot.h>
+#include <machine/pmem.h>
 #include <machine/types.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
@@ -108,7 +109,7 @@ struct biosmem_zone {
 /*
  * Physical zone boundaries.
  */
-static struct biosmem_zone biosmem_zones[VM_PAGE_MAX_ZONES] __bootdata;
+static struct biosmem_zone biosmem_zones[PMEM_MAX_ZONES] __bootdata;
 
 /*
  * Boundaries of the simple bootstrap heap.
@@ -606,8 +607,8 @@ biosmem_setup_allocator(const struct multiboot_raw_info *mbi)
     end = vm_page_trunc((mbi->mem_upper + 1024) << 10);
 
 #ifndef __LP64__
-    if (end > VM_PAGE_DIRECTMAP_LIMIT) {
-        end = VM_PAGE_DIRECTMAP_LIMIT;
+    if (end > PMEM_DIRECTMAP_LIMIT) {
+        end = PMEM_DIRECTMAP_LIMIT;
     }
 #endif /* __LP64__ */
 
@@ -661,46 +662,46 @@ biosmem_bootstrap(const struct multiboot_raw_info *mbi)
     biosmem_map_adjust();
 
     phys_start = BIOSMEM_BASE;
-    phys_end = VM_PAGE_DMA_LIMIT;
+    phys_end = PMEM_DMA_LIMIT;
     error = biosmem_map_find_avail(&phys_start, &phys_end);
 
     if (error) {
         boot_panic(biosmem_panic_nozone_msg);
     }
 
-    biosmem_set_zone(VM_PAGE_ZONE_DMA, phys_start, phys_end);
+    biosmem_set_zone(PMEM_ZONE_DMA, phys_start, phys_end);
 
-    phys_start = VM_PAGE_DMA_LIMIT;
-#ifdef VM_PAGE_DMA32_LIMIT
-    phys_end = VM_PAGE_DMA32_LIMIT;
+    phys_start = PMEM_DMA_LIMIT;
+#ifdef PMEM_DMA32_LIMIT
+    phys_end = PMEM_DMA32_LIMIT;
     error = biosmem_map_find_avail(&phys_start, &phys_end);
 
     if (error) {
         goto out;
     }
 
-    biosmem_set_zone(VM_PAGE_ZONE_DMA32, phys_start, phys_end);
+    biosmem_set_zone(PMEM_ZONE_DMA32, phys_start, phys_end);
 
-    phys_start = VM_PAGE_DMA32_LIMIT;
-#endif /* VM_PAGE_DMA32_LIMIT */
-    phys_end = VM_PAGE_DIRECTMAP_LIMIT;
+    phys_start = PMEM_DMA32_LIMIT;
+#endif /* PMEM_DMA32_LIMIT */
+    phys_end = PMEM_DIRECTMAP_LIMIT;
     error = biosmem_map_find_avail(&phys_start, &phys_end);
 
     if (error) {
         goto out;
     }
 
-    biosmem_set_zone(VM_PAGE_ZONE_DIRECTMAP, phys_start, phys_end);
+    biosmem_set_zone(PMEM_ZONE_DIRECTMAP, phys_start, phys_end);
 
-    phys_start = VM_PAGE_DIRECTMAP_LIMIT;
-    phys_end = VM_PAGE_HIGHMEM_LIMIT;
+    phys_start = PMEM_DIRECTMAP_LIMIT;
+    phys_end = PMEM_HIGHMEM_LIMIT;
     error = biosmem_map_find_avail(&phys_start, &phys_end);
 
     if (error) {
         goto out;
     }
 
-    biosmem_set_zone(VM_PAGE_ZONE_HIGHMEM, phys_start, phys_end);
+    biosmem_set_zone(PMEM_ZONE_HIGHMEM, phys_start, phys_end);
 
 out:
     biosmem_setup_allocator(mbi);
@@ -750,12 +751,12 @@ biosmem_get_bda(void)
 phys_addr_t __boot
 biosmem_directmap_end(void)
 {
-    if (biosmem_zone_size(VM_PAGE_ZONE_DIRECTMAP) != 0) {
-        return biosmem_zone_end(VM_PAGE_ZONE_DIRECTMAP);
-    } else if (biosmem_zone_size(VM_PAGE_ZONE_DMA32) != 0) {
-        return biosmem_zone_end(VM_PAGE_ZONE_DMA32);
+    if (biosmem_zone_size(PMEM_ZONE_DIRECTMAP) != 0) {
+        return biosmem_zone_end(PMEM_ZONE_DIRECTMAP);
+    } else if (biosmem_zone_size(PMEM_ZONE_DMA32) != 0) {
+        return biosmem_zone_end(PMEM_ZONE_DMA32);
     } else {
-        return biosmem_zone_end(VM_PAGE_ZONE_DMA);
+        return biosmem_zone_end(PMEM_ZONE_DMA);
     }
 }
 
@@ -941,14 +942,14 @@ biosmem_free_usable(void)
 
         start = vm_page_round(entry->base_addr);
 
-        if (start >= VM_PAGE_HIGHMEM_LIMIT) {
+        if (start >= PMEM_HIGHMEM_LIMIT) {
             break;
         }
 
         end = vm_page_trunc(entry->base_addr + entry->length);
 
-        if (end > VM_PAGE_HIGHMEM_LIMIT) {
-            end = VM_PAGE_HIGHMEM_LIMIT;
+        if (end > PMEM_HIGHMEM_LIMIT) {
+            end = PMEM_HIGHMEM_LIMIT;
         }
 
         if (start < BIOSMEM_BASE) {

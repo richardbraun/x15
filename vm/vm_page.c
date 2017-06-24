@@ -45,7 +45,7 @@
 #include <kern/shell.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
-#include <machine/pmap.h>
+#include <machine/pmem.h>
 #include <machine/types.h>
 #include <vm/vm_page.h>
 
@@ -145,12 +145,12 @@ static int vm_page_is_ready __read_mostly;
  * the direct physical mapping, DMA and DMA32 are aliases for DIRECTMAP,
  * in which case the zone table contains DIRECTMAP and HIGHMEM only.
  */
-static struct vm_page_zone vm_page_zones[VM_PAGE_MAX_ZONES];
+static struct vm_page_zone vm_page_zones[PMEM_MAX_ZONES];
 
 /*
  * Bootstrap zone table.
  */
-static struct vm_page_boot_zone vm_page_boot_zones[VM_PAGE_MAX_ZONES]
+static struct vm_page_boot_zone vm_page_boot_zones[PMEM_MAX_ZONES]
     __initdata;
 
 /*
@@ -552,16 +552,16 @@ vm_page_select_alloc_zone(unsigned int selector)
 
     switch (selector) {
     case VM_PAGE_SEL_DMA:
-        zone_index = VM_PAGE_ZONE_DMA;
+        zone_index = PMEM_ZONE_DMA;
         break;
     case VM_PAGE_SEL_DMA32:
-        zone_index = VM_PAGE_ZONE_DMA32;
+        zone_index = PMEM_ZONE_DMA32;
         break;
     case VM_PAGE_SEL_DIRECTMAP:
-        zone_index = VM_PAGE_ZONE_DIRECTMAP;
+        zone_index = PMEM_ZONE_DIRECTMAP;
         break;
     case VM_PAGE_SEL_HIGHMEM:
-        zone_index = VM_PAGE_ZONE_HIGHMEM;
+        zone_index = PMEM_ZONE_HIGHMEM;
         break;
     default:
         panic("vm_page: invalid selector");
@@ -795,13 +795,13 @@ const char *
 vm_page_zone_name(unsigned int zone_index)
 {
     /* Don't use a switch statement since zones can be aliased */
-    if (zone_index == VM_PAGE_ZONE_HIGHMEM) {
+    if (zone_index == PMEM_ZONE_HIGHMEM) {
         return "HIGHMEM";
-    } else if (zone_index == VM_PAGE_ZONE_DIRECTMAP) {
+    } else if (zone_index == PMEM_ZONE_DIRECTMAP) {
         return "DIRECTMAP";
-    } else if (zone_index == VM_PAGE_ZONE_DMA32) {
+    } else if (zone_index == PMEM_ZONE_DMA32) {
         return "DMA32";
-    } else if (zone_index == VM_PAGE_ZONE_DMA) {
+    } else if (zone_index == PMEM_ZONE_DMA) {
         return "DMA";
     } else {
         panic("vm_page: invalid zone index");
