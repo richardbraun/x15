@@ -24,10 +24,6 @@
 
 #include <kern/macros.h>
 
-#ifndef __LITTLE_ENDIAN__
-#define __LITTLE_ENDIAN__
-#endif /* __LITTLE_ENDIAN__ */
-
 /*
  * L1 cache line size.
  *
