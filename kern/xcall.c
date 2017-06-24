@@ -20,7 +20,6 @@
 
 #include <kern/atomic.h>
 #include <kern/macros.h>
-#include <kern/param.h>
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>

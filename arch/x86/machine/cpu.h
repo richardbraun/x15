@@ -19,6 +19,13 @@
 #define _X86_CPU_H
 
 /*
+ * L1 cache line size.
+ *
+ * XXX Use this value until processor selection is available.
+ */
+#define CPU_L1_SIZE 64
+
+/*
  * Processor privilege levels.
  */
 #define CPU_PL_KERNEL   0

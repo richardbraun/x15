@@ -26,8 +26,8 @@
 #include <kern/list_types.h>
 #include <kern/macros.h>
 #include <kern/mutex_types.h>
-#include <kern/param.h>
 #include <kern/turnstile_types.h>
+#include <machine/cpu.h>
 #include <machine/tcb.h>
 
 /*
