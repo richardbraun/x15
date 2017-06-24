@@ -69,9 +69,6 @@
 extern char _boot;
 extern char _boot_end;
 
-extern char boot_stack[STACK_SIZE];
-extern char boot_ap_stack[STACK_SIZE];
-
 /*
  * This variable contains the CPU ID of an AP during early initialization.
  */
