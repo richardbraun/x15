@@ -65,6 +65,8 @@
 
 #define TRAP_NR_VECTORS         256
 
+#define TRAP_INTR_TABLE_SIZE    256
+
 #define TRAP_STACK_SIZE PAGE_SIZE
 
 #ifndef __ASSEMBLER__
