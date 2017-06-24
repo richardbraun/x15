@@ -88,8 +88,6 @@ syscnt_info(const char *prefix)
 
     prefix_length = (prefix == NULL) ? 0 : strlen(prefix);
 
-    printf("syscnt: name                                       value\n");
-
     mutex_lock(&syscnt_lock);
 
     list_for_each_entry(&syscnt_list, syscnt, node) {
@@ -104,7 +102,7 @@ syscnt_info(const char *prefix)
 
         value = syscnt_read(syscnt);
 
-        printf("syscnt: %-30s %17llu\n", syscnt->name,
+        printf("syscnt: %40s %20llu\n", syscnt->name,
                (unsigned long long)value);
     }
 
