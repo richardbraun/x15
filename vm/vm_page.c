@@ -670,7 +670,7 @@ vm_page_shell_info(int argc, char **argv)
 static struct shell_cmd vm_page_shell_cmds[] = {
     SHELL_CMD_INITIALIZER("vm_page_info", vm_page_shell_info,
         "vm_page_info",
-        "print information about physical memory"),
+        "display information about physical memory"),
 };
 
 #endif /* X15_SHELL */

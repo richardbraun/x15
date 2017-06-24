@@ -2287,7 +2287,7 @@ error:
 static struct shell_cmd thread_shell_cmds[] = {
     SHELL_CMD_INITIALIZER("thread_trace", thread_shell_trace,
                           "thread_trace <task_name> <thread_name>",
-                          "print the stack trace of a given thread"),
+                          "display the stack trace of a given thread"),
 };
 
 #endif /* X15_SHELL */
