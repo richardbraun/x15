@@ -2305,7 +2305,7 @@ thread_setup(void)
                     CPU_L1_SIZE, NULL, 0);
 #ifndef X15_THREAD_STACK_GUARD
     kmem_cache_init(&thread_stack_cache, "thread_stack", TCB_STACK_SIZE,
-                    DATA_ALIGN, NULL, 0);
+                    CPU_DATA_ALIGN, NULL, 0);
 #endif /* X15_THREAD_STACK_GUARD */
 
     thread_setup_reaper();
