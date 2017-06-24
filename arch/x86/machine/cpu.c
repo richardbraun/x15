@@ -144,7 +144,7 @@ static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8) __read_mostly;
  * memory.
  */
 static unsigned long cpu_double_fault_handler;
-static char cpu_double_fault_stack[STACK_SIZE] __aligned(DATA_ALIGN);
+static char cpu_double_fault_stack[TRAP_STACK_SIZE] __aligned(DATA_ALIGN);
 
 void
 cpu_delay(unsigned long usecs)
@@ -342,7 +342,7 @@ cpu_init_tss(struct cpu *cpu)
 #ifdef __LP64__
     assert(cpu->double_fault_stack != NULL);
     tss->ist[CPU_TSS_IST_DF] = (unsigned long)cpu->double_fault_stack
-                               + STACK_SIZE;
+                               + TRAP_STACK_SIZE;
 #endif /* __LP64__ */
 
     asm volatile("ltr %w0" : : "q" (CPU_GDT_SEL_TSS));
@@ -362,7 +362,7 @@ cpu_init_double_fault_tss(struct cpu *cpu)
     tss->cr3 = cpu_get_cr3();
     tss->eip = cpu_double_fault_handler;
     tss->eflags = CPU_EFL_ONE;
-    tss->ebp = (unsigned long)cpu->double_fault_stack + STACK_SIZE;
+    tss->ebp = (unsigned long)cpu->double_fault_stack + TRAP_STACK_SIZE;
     tss->esp = tss->ebp;
     tss->es = CPU_GDT_SEL_DATA;
     tss->cs = CPU_GDT_SEL_CODE;
@@ -414,7 +414,7 @@ cpu_idt_set_double_fault(void (*isr)(void))
 static void
 cpu_load_idt(void)
 {
-    static volatile struct cpu_pseudo_desc idtr;
+    static volatile struct cpu_pseudo_desc idtr; /* TODO Review this */
 
     idtr.address = (unsigned long)cpu_idt;
     idtr.limit = sizeof(cpu_idt) - 1;
@@ -688,18 +688,20 @@ cpu_mp_setup(void)
     io_write_byte(CPU_MP_CMOS_PORT_REG, CPU_MP_CMOS_REG_RESET);
     io_write_byte(CPU_MP_CMOS_PORT_DATA, CPU_MP_CMOS_DATA_RESET_WARM);
 
+    /* TODO Allocate stacks out of the slab allocator for sub-page sizes */
+
     for (i = 1; i < cpu_count(); i++) {
         cpu = percpu_ptr(cpu_desc, i);
-        page = vm_page_alloc(vm_page_order(STACK_SIZE), VM_PAGE_SEL_DIRECTMAP,
-                             VM_PAGE_KERNEL);
+        page = vm_page_alloc(vm_page_order(BOOT_STACK_SIZE),
+                             VM_PAGE_SEL_DIRECTMAP, VM_PAGE_KERNEL);
 
         if (page == NULL) {
             panic("cpu: unable to allocate boot stack for cpu%u", i);
         }
 
         cpu->boot_stack = vm_page_direct_ptr(page);
-        page = vm_page_alloc(vm_page_order(STACK_SIZE), VM_PAGE_SEL_DIRECTMAP,
-                             VM_PAGE_KERNEL);
+        page = vm_page_alloc(vm_page_order(TRAP_STACK_SIZE),
+                             VM_PAGE_SEL_DIRECTMAP, VM_PAGE_KERNEL);
 
         if (page == NULL) {
             panic("cpu: unable to allocate double fault stack for cpu%u", i);

@@ -37,7 +37,7 @@
 #include <machine/trap.h>
 
 struct trap_cpu_data {
-    unsigned char intr_stack[STACK_SIZE] __aligned(DATA_ALIGN);
+    unsigned char intr_stack[TRAP_STACK_SIZE] __aligned(DATA_ALIGN);
 };
 
 static struct trap_cpu_data trap_cpu_data __percpu;

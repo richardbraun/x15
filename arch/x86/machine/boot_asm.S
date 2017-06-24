@@ -67,7 +67,7 @@ ASM_ENTRY(_start)
  ljmp $BOOT_GDT_SEL_CODE, $1f
 
 1:
- movl $(boot_stack + STACK_SIZE), %esp
+ movl $(boot_stack + BOOT_STACK_SIZE), %esp
 
 #ifdef __LP64__
  call boot_check_long_mode
@@ -99,7 +99,7 @@ ASM_ENTRY(_start)
 
 #ifdef __LP64__
  movq %rax, %cr3
- movq $(boot_stack + STACK_SIZE), %rsp
+ movq $(boot_stack + BOOT_STACK_SIZE), %rsp
 #else /* __LP64__ */
  movl %eax, %cr3
  movl %cr0, %eax
@@ -108,7 +108,7 @@ ASM_ENTRY(_start)
  ljmp $BOOT_GDT_SEL_CODE, $1f
 
 1:
- movl $(boot_stack + STACK_SIZE), %esp
+ movl $(boot_stack + BOOT_STACK_SIZE), %esp
 #endif /* __LP64__ */
 
  xorl %ebp, %ebp
@@ -304,7 +304,7 @@ ASM_ENTRY(boot_ap_start32)
  ljmp $BOOT_GDT_SEL_CODE, $1f
 
 1:
- movl $(boot_ap_stack + STACK_SIZE), %esp
+ movl $(boot_ap_stack + BOOT_STACK_SIZE), %esp
 
 #ifdef __LP64__
  call boot_setup_tls
@@ -335,10 +335,10 @@ ASM_ENTRY(boot_ap_start32)
 
 #ifdef __LP64__
  movq %rax, %rsp
- addq $STACK_SIZE, %rsp
+ addq $BOOT_STACK_SIZE, %rsp
 #else /* __LP64__ */
  movl %eax, %esp
- addl $STACK_SIZE, %esp
+ addl $BOOT_STACK_SIZE, %esp
 #endif /* __LP64__ */
 
  xorl %ebp, %ebp

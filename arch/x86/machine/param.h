@@ -58,11 +58,6 @@
 #define PAGE_MASK   (PAGE_SIZE - 1)
 
 /*
- * Kernel stack size for threads and interrupt handlers.
- */
-#define STACK_SIZE PAGE_SIZE
-
-/*
  * Maximum number of available interrupts.
  */
 #define INTR_TABLE_SIZE 256

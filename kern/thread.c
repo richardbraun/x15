@@ -1893,7 +1893,7 @@ thread_alloc_stack(void)
     void *mem;
     int error;
 
-    stack_size = vm_page_round(STACK_SIZE);
+    stack_size = vm_page_round(TCB_STACK_SIZE);
     mem = vm_kmem_alloc((PAGE_SIZE * 2) + stack_size);
 
     if (mem == NULL) {
@@ -1934,7 +1934,7 @@ thread_free_stack(void *stack)
     size_t stack_size;
     char *va;
 
-    stack_size = vm_page_round(STACK_SIZE);
+    stack_size = vm_page_round(TCB_STACK_SIZE);
     va = (char *)stack - PAGE_SIZE;
 
     vm_kmem_free_va(va, PAGE_SIZE);
@@ -2304,7 +2304,7 @@ thread_setup(void)
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
                     CPU_L1_SIZE, NULL, 0);
 #ifndef X15_THREAD_STACK_GUARD
-    kmem_cache_init(&thread_stack_cache, "thread_stack", STACK_SIZE,
+    kmem_cache_init(&thread_stack_cache, "thread_stack", TCB_STACK_SIZE,
                     DATA_ALIGN, NULL, 0);
 #endif /* X15_THREAD_STACK_GUARD */
 

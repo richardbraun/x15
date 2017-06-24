@@ -25,7 +25,13 @@
 #include <stdint.h>
 
 #include <kern/macros.h>
+#include <kern/param.h>
 #include <machine/cpu.h>
+
+/*
+ * Thread stack size.
+ */
+#define TCB_STACK_SIZE PAGE_SIZE
 
 /*
  * Thread control block.
