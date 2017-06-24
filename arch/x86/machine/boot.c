@@ -77,8 +77,8 @@
 #include <vm/vm_kmem.h>
 #include <vm/vm_setup.h>
 
-char boot_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __bootdata;
-char boot_ap_stack[BOOT_STACK_SIZE] __aligned(DATA_ALIGN) __bootdata;
+char boot_stack[BOOT_STACK_SIZE] __aligned(CPU_DATA_ALIGN) __bootdata;
+char boot_ap_stack[BOOT_STACK_SIZE] __aligned(CPU_DATA_ALIGN) __bootdata;
 unsigned int boot_ap_id __bootdata;
 
 #ifdef __LP64__

@@ -144,7 +144,7 @@ static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8) __read_mostly;
  * memory.
  */
 static unsigned long cpu_double_fault_handler;
-static char cpu_double_fault_stack[TRAP_STACK_SIZE] __aligned(DATA_ALIGN);
+static char cpu_double_fault_stack[TRAP_STACK_SIZE] __aligned(CPU_DATA_ALIGN);
 
 void
 cpu_delay(unsigned long usecs)

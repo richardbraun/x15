@@ -18,12 +18,30 @@
 #ifndef _X86_CPU_H
 #define _X86_CPU_H
 
+#include <limits.h>
+
 /*
  * L1 cache line size.
  *
  * XXX Use this value until processor selection is available.
  */
 #define CPU_L1_SIZE 64
+
+/*
+ * Data alignment, normally the word size.
+ */
+#define CPU_DATA_ALIGN (LONG_BIT / 8)
+
+/*
+ * Function alignment.
+ *
+ * Aligning functions improves instruction fetching.
+ *
+ * Used for assembly functions only.
+ *
+ * XXX Use this value until processor selection is available.
+ */
+#define CPU_TEXT_ALIGN 16
 
 /*
  * Processor privilege levels.

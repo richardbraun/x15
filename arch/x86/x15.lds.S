@@ -69,7 +69,7 @@ SECTIONS
         *(.rodata)
     } : rodata
 
-    .notes ALIGN(DATA_ALIGN) : AT(BOOT_VTOP(ADDR(.notes))) {
+    .notes ALIGN(CPU_DATA_ALIGN) : AT(BOOT_VTOP(ADDR(.notes))) {
         *(.note.*)
     } : rodata
 
@@ -83,7 +83,7 @@ SECTIONS
         *(.data)
     } : data
 
-    .bss ALIGN(DATA_ALIGN) : AT(BOOT_VTOP(ADDR(.bss))) {
+    .bss ALIGN(CPU_DATA_ALIGN) : AT(BOOT_VTOP(ADDR(.bss))) {
         *(.bss)
     } : data
 
