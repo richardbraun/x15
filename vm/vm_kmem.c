@@ -26,7 +26,7 @@
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
-#include <kern/param.h>
+#include <machine/page.h>
 #include <machine/pmap.h>
 #include <machine/types.h>
 #include <vm/vm_adv.h>

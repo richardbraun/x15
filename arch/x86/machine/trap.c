@@ -26,7 +26,6 @@
 #include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/macros.h>
-#include <kern/param.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>

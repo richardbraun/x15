@@ -33,8 +33,8 @@
 #include <kern/error.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
-#include <kern/param.h>
 #include <kern/thread.h>
+#include <machine/page.h>
 #include <test/test.h>
 #include <vm/vm_kmem.h>
 

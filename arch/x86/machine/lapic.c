@@ -24,7 +24,6 @@
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
-#include <kern/param.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>

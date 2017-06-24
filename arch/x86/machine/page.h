@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,11 +13,17 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * This file is a top header in the inclusion hierarchy, and shouldn't include
+ * other headers that may cause circular dependencies.
  */
 
-#ifndef _KERN_PARAM_H
-#define _KERN_PARAM_H
+#ifndef _X86_PAGE_H
+#define _X86_PAGE_H
 
-#include <machine/param.h>
+#define PAGE_SHIFT  12
+#define PAGE_SIZE   (1 << PAGE_SHIFT)
+#define PAGE_MASK   (PAGE_SIZE - 1)
 
-#endif /* _KERN_PARAM_H */
+#endif /* _X86_PAGE_H */

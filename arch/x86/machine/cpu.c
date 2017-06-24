@@ -24,7 +24,6 @@
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
-#include <kern/param.h>
 #include <kern/percpu.h>
 #include <kern/thread.h>
 #include <kern/xcall.h>
@@ -34,6 +33,7 @@
 #include <machine/cpu.h>
 #include <machine/io.h>
 #include <machine/lapic.h>
+#include <machine/page.h>
 #include <machine/pic.h>
 #include <machine/pit.h>
 #include <machine/pmap.h>

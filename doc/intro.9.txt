@@ -219,8 +219,6 @@ module:arch/atomic::
   Architecture-specific support for atomic instructions.
 module:arch/cpu::
   Processor interface.
-module:arch/param::
-  Miscellaneous parameters.
 module:arch/pmap::
   Physical mappings, the MMU driver.
 module:arch/strace::

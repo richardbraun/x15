@@ -16,6 +16,9 @@
  *
  *
  * Helper macros.
+ *
+ * This file is a top header in the inclusion hierarchy, and shouldn't include
+ * other headers that may cause circular dependencies.
  */
 
 #ifndef _KERN_MACROS_H

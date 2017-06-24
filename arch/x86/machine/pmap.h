@@ -24,6 +24,71 @@
 #include <kern/macros.h>
 
 /*
+ * Virtual memory layout.
+ */
+
+/*
+ * User space boundaries.
+ */
+#define PMAP_MIN_ADDRESS            DECL_CONST(0, UL)
+
+#ifdef __LP64__
+#define PMAP_MAX_ADDRESS            DECL_CONST(0x800000000000, UL)
+#else /* __LP64__ */
+#define PMAP_MAX_ADDRESS            DECL_CONST(0xc0000000, UL)
+#endif/* __LP64__ */
+
+/*
+ * Kernel space boundaries.
+ */
+#ifdef __LP64__
+#define PMAP_MIN_KERNEL_ADDRESS     DECL_CONST(0xffff800000000000, UL)
+#define PMAP_MAX_KERNEL_ADDRESS     DECL_CONST(0xfffffffffffff000, UL)
+#else /* __LP64__ */
+#define PMAP_MIN_KERNEL_ADDRESS     PMAP_MAX_ADDRESS
+#define PMAP_MAX_KERNEL_ADDRESS     DECL_CONST(0xfffff000, UL)
+#endif /* __LP64__ */
+
+/*
+ * Direct physical mapping boundaries.
+ */
+#ifdef __LP64__
+#define PMAP_MIN_DIRECTMAP_ADDRESS  PMAP_MIN_KERNEL_ADDRESS
+#define PMAP_MAX_DIRECTMAP_ADDRESS  DECL_CONST(0xffffc00000000000, UL)
+#else /* __LP64__ */
+#define PMAP_MIN_DIRECTMAP_ADDRESS  PMAP_MAX_ADDRESS
+#define PMAP_MAX_DIRECTMAP_ADDRESS  DECL_CONST(0xf8000000, UL)
+#endif /* __LP64__ */
+
+/*
+ * Kernel mapping offset.
+ *
+ * On 32-bits systems, the kernel is linked at addresses included in the
+ * direct physical mapping, whereas on 64-bits systems, it is linked at
+ * -2 GiB because the "kernel" memory model is used when compiling (see
+ * the -mcmodel=kernel gcc option).
+ */
+#ifdef __LP64__
+#define PMAP_KERNEL_OFFSET          DECL_CONST(0xffffffff80000000, UL)
+#else /* __LP64__ */
+#define PMAP_KERNEL_OFFSET          PMAP_MIN_DIRECTMAP_ADDRESS
+#endif /* __LP64__ */
+
+/*
+ * Kernel virtual space boundaries.
+ *
+ * In addition to the direct physical mapping, the kernel has its own virtual
+ * memory space.
+ */
+#define PMAP_MIN_KMEM_ADDRESS       PMAP_MAX_DIRECTMAP_ADDRESS
+
+#ifdef __LP64__
+#define PMAP_MAX_KMEM_ADDRESS       PMAP_KERNEL_OFFSET
+#else /* __LP64__ */
+#define PMAP_MAX_KMEM_ADDRESS       PMAP_MAX_KERNEL_ADDRESS
+#endif /* __LP64__ */
+
+/*
  * Page table entry flags.
  */
 #define PMAP_PTE_P      0x00000001
@@ -103,7 +168,6 @@
 #include <kern/mutex.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
-#include <machine/trap.h>
 #include <machine/types.h>
 
 /*

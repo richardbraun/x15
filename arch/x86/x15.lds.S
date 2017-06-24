@@ -10,7 +10,8 @@ ENTRY(_start)
 
 #include <machine/boot.h>
 #include <machine/cpu.h>
-#include <machine/param.h>
+#include <machine/page.h>
+#include <machine/pmap.h>
 
 PHDRS
 {
@@ -37,7 +38,7 @@ SECTIONS
     . = ALIGN(PAGE_SIZE);
     _boot_end = .;
 
-    . += VM_KERNEL_OFFSET;
+    . += PMAP_KERNEL_OFFSET;
     _init = .;
 
     .init ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.init))) {

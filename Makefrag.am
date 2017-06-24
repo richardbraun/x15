@@ -54,7 +54,6 @@ x15_SOURCES +=                                              \
         kern/mutex_types.h                                  \
         kern/panic.c                                        \
         kern/panic.h                                        \
-        kern/param.h                                        \
         kern/percpu.c                                       \
         kern/percpu.h                                       \
         kern/plist.c                                        \

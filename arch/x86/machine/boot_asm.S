@@ -19,7 +19,7 @@
 #include <machine/cpu.h>
 #include <machine/boot.h>
 #include <machine/multiboot.h>
-#include <machine/param.h>
+#include <machine/page.h>
 #include <machine/pmap.h>
 
 /*

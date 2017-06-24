@@ -25,7 +25,6 @@
 #include <kern/cbuf.h>
 #include <kern/console.h>
 #include <kern/macros.h>
-#include <kern/param.h>
 #include <machine/io.h>
 #include <machine/cga.h>
 #include <vm/vm_page.h>
