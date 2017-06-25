@@ -92,7 +92,8 @@ xcall_cpu_data_get_recv_call(const struct xcall_cpu_data *cpu_data)
 }
 
 static void
-xcall_cpu_data_set_recv_call(struct xcall_cpu_data *cpu_data, struct xcall *call)
+xcall_cpu_data_set_recv_call(struct xcall_cpu_data *cpu_data,
+                             struct xcall *call)
 {
     atomic_store(&cpu_data->recv_call, call, ATOMIC_RELEASE);
 }
