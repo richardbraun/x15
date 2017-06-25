@@ -20,6 +20,7 @@
  */
 
 #include <assert.h>
+#include <stdalign.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -36,7 +37,7 @@
 #include <machine/trap.h>
 
 struct trap_cpu_data {
-    unsigned char intr_stack[TRAP_STACK_SIZE] __aligned(CPU_DATA_ALIGN);
+    alignas(CPU_DATA_ALIGN) unsigned char intr_stack[TRAP_STACK_SIZE];
 };
 
 static struct trap_cpu_data trap_cpu_data __percpu;

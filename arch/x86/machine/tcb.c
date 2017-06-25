@@ -15,16 +15,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdnoreturn.h>
+
 #include <kern/init.h>
-#include <kern/macros.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>
 #include <machine/strace.h>
 #include <machine/tcb.h>
 
-void __noreturn tcb_context_load(struct tcb *tcb);
-void __noreturn tcb_start(void);
+noreturn void tcb_context_load(struct tcb *tcb);
+noreturn void tcb_start(void);
 void tcb_context_restore(void);
 
 struct tcb *tcb_current_ptr __percpu;

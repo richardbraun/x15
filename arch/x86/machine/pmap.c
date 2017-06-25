@@ -19,6 +19,7 @@
  */
 
 #include <assert.h>
+#include <stdalign.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -113,8 +114,8 @@ struct pmap *pmap_current_ptr __percpu;
 /*
  * "Hidden" kernel root page tables for PAE mode.
  */
-static pmap_pte_t pmap_cpu_kpdpts[X15_MAX_CPUS][PMAP_L2_PTES_PER_PT]
-    __read_mostly __aligned(PMAP_PDPT_ALIGN);
+static alignas(PMAP_PDPT_ALIGN) pmap_pte_t
+    pmap_cpu_kpdpts[X15_MAX_CPUS][PMAP_L2_PTES_PER_PT] __read_mostly;
 
 #endif /* X15_X86_PAE */
 
@@ -184,11 +185,11 @@ struct pmap_update_op {
  * operation.
  */
 struct pmap_update_oplist {
-    struct cpumap cpumap;
+    alignas(CPU_L1_SIZE) struct cpumap cpumap;
     struct pmap *pmap;
     unsigned int nr_ops;
     struct pmap_update_op ops[PMAP_UPDATE_MAX_OPS];
-} __aligned(CPU_L1_SIZE);
+};
 
 static unsigned int pmap_oplist_tsd_key __read_mostly;
 
@@ -219,13 +220,13 @@ struct pmap_update_queue {
  * they perform.
  */
 struct pmap_syncer {
-    struct thread *thread;
+    alignas(CPU_L1_SIZE) struct thread *thread;
     struct pmap_update_queue queue;
     struct syscnt sc_updates;
     struct syscnt sc_update_enters;
     struct syscnt sc_update_removes;
     struct syscnt sc_update_protects;
-} __aligned(CPU_L1_SIZE);
+};
 
 static void pmap_sync(void *arg);
 
@@ -244,14 +245,14 @@ static struct pmap_syncer pmap_syncer __percpu;
  * individual TLB entries or globally flush the TLB.
  */
 struct pmap_update_request {
-    struct list node;
+    alignas(CPU_L1_SIZE) struct list node;
     struct spinlock lock;
     struct thread *sender;
     const struct pmap_update_oplist *oplist;
     unsigned int nr_mappings;
     int done;
     int error;
-} __aligned(CPU_L1_SIZE);
+};
 
 /*
  * Per processor array of requests.

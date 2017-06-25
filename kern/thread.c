@@ -82,10 +82,12 @@
  */
 
 #include <assert.h>
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdnoreturn.h>
 #include <string.h>
 
 #include <kern/atomic.h>
@@ -227,7 +229,7 @@ struct thread_fs_runq {
  * return path) may violate the locking order.
  */
 struct thread_runq {
-    struct spinlock lock;
+    alignas(CPU_L1_SIZE) struct spinlock lock;
     unsigned int cpu;
     unsigned int nr_threads;
     struct thread *current;
@@ -258,7 +260,7 @@ struct thread_runq {
     struct syscnt sc_schedule_intrs;
     struct syscnt sc_tick_intrs;
     struct syscnt sc_boosts;
-} __aligned(CPU_L1_SIZE);
+};
 
 /*
  * Operations of a scheduling class.
@@ -322,7 +324,7 @@ static struct cpumap thread_idle_runqs;
  * There can be moderate bouncing on this word so give it its own cache line.
  */
 static struct {
-    volatile unsigned long value __aligned(CPU_L1_SIZE);
+    alignas(CPU_L1_SIZE) volatile unsigned long value;
 } thread_fs_highest_round_struct;
 
 #define thread_fs_highest_round (thread_fs_highest_round_struct.value)
@@ -1515,7 +1517,7 @@ thread_sched_idle_select_runq(struct thread *thread)
     panic("thread: idler threads cannot be awaken");
 }
 
-static void __noreturn
+static noreturn void
 thread_sched_idle_panic(void)
 {
     panic("thread: only idle threads are allowed in the idle class");

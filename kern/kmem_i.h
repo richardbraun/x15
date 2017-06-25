@@ -18,6 +18,7 @@
 #ifndef _KERN_KMEM_I_H
 #define _KERN_KMEM_I_H
 
+#include <stdalign.h>
 #include <stddef.h>
 
 #include <kern/list.h>
@@ -30,13 +31,13 @@
  * The flags member is a read-only CPU-local copy of the parent cache flags.
  */
 struct kmem_cpu_pool {
-    struct mutex lock;
+    alignas(CPU_L1_SIZE) struct mutex lock;
     int flags;
     int size;
     int transfer_size;
     int nr_objs;
     void **array;
-} __aligned(CPU_L1_SIZE);
+};
 
 /*
  * When a cache is created, its CPU pool type is determined from the buffer

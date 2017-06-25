@@ -64,6 +64,7 @@
  */
 
 #include <assert.h>
+#include <stdalign.h>
 #include <stddef.h>
 
 #include <kern/atomic.h>
@@ -128,7 +129,7 @@ struct spinlock_qnode {
 #endif
 
 struct spinlock_cpu_data {
-    struct spinlock_qnode qnodes[SPINLOCK_NR_CTXS - 1] __aligned(CPU_L1_SIZE);
+    alignas(CPU_L1_SIZE) struct spinlock_qnode qnodes[SPINLOCK_NR_CTXS - 1];
 };
 
 static struct spinlock_cpu_data spinlock_cpu_data __percpu;

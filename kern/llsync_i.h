@@ -19,6 +19,7 @@
 #define _KERN_LLSYNC_I_H
 
 #include <assert.h>
+#include <stdalign.h>
 
 #include <kern/cpumap.h>
 #include <kern/macros.h>
@@ -57,7 +58,7 @@ struct llsync_data {
      *  - apply optimistic accesses to reduce contention
      */
     struct {
-        volatile unsigned int value __aligned(CPU_L1_SIZE);
+        alignas(CPU_L1_SIZE) volatile unsigned int value;
     } gcid;
 };
 

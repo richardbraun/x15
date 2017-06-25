@@ -22,6 +22,7 @@
  * Shared interrupts are supported.
  */
 
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -39,10 +40,10 @@
 #include <machine/trap.h>
 
 struct intr_handler {
-    struct list node;
+    alignas(CPU_L1_SIZE) struct list node;
     intr_handler_fn_t fn;
     void *arg;
-} __aligned(CPU_L1_SIZE);
+};
 
 /*
  * Interrupt controller.
@@ -67,11 +68,11 @@ struct intr_ctl {
  * span a cache line to avoid false sharing.
  */
 struct intr_entry {
-    struct spinlock lock;
+    alignas(CPU_L1_SIZE) struct spinlock lock;
     struct intr_ctl *ctl;
     unsigned int cpu;
     struct list handlers;
-} __aligned(CPU_L1_SIZE);
+};
 
 /*
  * Interrupt table.

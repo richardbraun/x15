@@ -44,6 +44,7 @@
  */
 
 #include <assert.h>
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -64,9 +65,9 @@
  * (b) bucket
  */
 struct turnstile_bucket {
-    struct spinlock lock;
+    alignas(CPU_L1_SIZE) struct spinlock lock;
     struct list list;       /* (b) */
-} __aligned(CPU_L1_SIZE);
+};
 
 /*
  * Adding/removing waiters to/from a turnstile are performed while
