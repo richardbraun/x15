@@ -35,7 +35,9 @@ memcpy(void *dest, const void *src, size_t n)
     src_ptr = src;
 
     for (i = 0; i < n; i++) {
-        *dest_ptr++ = *src_ptr++;
+        *dest_ptr = *src_ptr;
+        dest_ptr++;
+        src_ptr++;
     }
 
     return dest;
@@ -55,14 +57,18 @@ memmove(void *dest, const void *src, size_t n)
         src_ptr = src;
 
         for (i = 0; i < n; i++) {
-            *dest_ptr++ = *src_ptr++;
+            *dest_ptr = *src_ptr;
+            dest_ptr++;
+            src_ptr++;
         }
     } else {
         dest_ptr = dest + n - 1;
         src_ptr = src + n - 1;
 
         for (i = 0; i < n; i++) {
-            *dest_ptr-- = *src_ptr--;
+            *dest_ptr = *src_ptr;
+            dest_ptr--;
+            src_ptr--;
         }
     }
 
@@ -110,15 +116,15 @@ memcmp(const void *s1, const void *s2, size_t n)
 size_t
 strlen(const char *s)
 {
-    size_t i;
+    const char *start;
 
-    i = 0;
+    start = s;
 
-    while (*s++ != '\0') {
-        i++;
+    while (*s != '\0') {
+        s++;
     }
 
-    return i;
+    return (s - start);
 }
 #endif /* STRING_ARCH_STRLEN */
 
