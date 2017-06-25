@@ -123,7 +123,9 @@
 
 #ifndef __ASSEMBLER__
 
+#include <stdalign.h>
 #include <stdint.h>
+#include <stdnoreturn.h>
 
 #include <kern/macros.h>
 #include <kern/percpu.h>
@@ -238,7 +240,7 @@ struct cpu {
     unsigned int features4;
     unsigned short phys_addr_width;
     unsigned short virt_addr_width;
-    char gdt[CPU_GDT_SIZE] __aligned(8);
+    alignas(8) char gdt[CPU_GDT_SIZE];
     struct cpu_tss tss;
 #ifndef __LP64__
     struct cpu_tss double_fault_tss;
@@ -398,7 +400,7 @@ cpu_idle(void)
  *
  * Implies a compiler barrier.
  */
-static __noreturn __always_inline void
+noreturn static __always_inline void
 cpu_halt(void)
 {
     cpu_intr_disable();

@@ -18,6 +18,8 @@
 #ifndef _X86_BOOT_H
 #define _X86_BOOT_H
 
+#include <stdnoreturn.h>
+
 #include <kern/macros.h>
 #include <machine/page.h>
 #include <machine/pmap.h>
@@ -99,7 +101,7 @@ void * boot_memcpy(void *dest, const void *src, size_t n);
 void * boot_memmove(void *dest, const void *src, size_t n);
 void * boot_memset(void *s, int c, size_t n);
 size_t boot_strlen(const char *s);
-void __noreturn boot_panic(const char *s);
+noreturn void boot_panic(const char *s);
 
 /*
  * This function is called by the bootstrap code before paging is enabled.

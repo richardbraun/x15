@@ -18,7 +18,7 @@
 #ifndef _KERN_KERNEL_H
 #define _KERN_KERNEL_H
 
-#include <kern/macros.h>
+#include <stdnoreturn.h>
 
 /*
  * Kernel properties.
@@ -31,13 +31,13 @@
  *
  * Interrupts must be disabled when calling this function.
  */
-void __noreturn kernel_main(void);
+noreturn void kernel_main(void);
 
 /*
  * Entry point for APs.
  *
  * Interrupts must be disabled when calling this function.
  */
-void __noreturn kernel_ap_main(void);
+noreturn void kernel_ap_main(void);
 
 #endif /* _KERN_KERNEL_H */

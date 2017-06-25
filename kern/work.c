@@ -16,6 +16,7 @@
  */
 
 #include <assert.h>
+#include <stdalign.h>
 #include <stddef.h>
 
 #include <kern/bitmap.h>
@@ -84,7 +85,7 @@ struct work_thread {
  * only use one queue.
  */
 struct work_pool {
-    struct spinlock lock;
+    alignas(CPU_L1_SIZE) struct spinlock lock;
     int flags;
     struct work_queue queue0;
     struct work_queue queue1;
@@ -97,7 +98,7 @@ struct work_pool {
     struct list available_threads;
     struct list dead_threads;
     BITMAP_DECLARE(bitmap, WORK_MAX_THREADS);
-} __aligned(CPU_L1_SIZE);
+};
 
 static int work_thread_create(struct work_pool *pool, unsigned int id);
 static void work_thread_destroy(struct work_thread *worker);

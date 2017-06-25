@@ -36,11 +36,11 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdnoreturn.h>
 
 #include <kern/atomic.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
-#include <kern/macros.h>
 #include <kern/spinlock_types.h>
 #include <kern/turnstile_types.h>
 #include <machine/cpu.h>
@@ -203,7 +203,7 @@ int thread_create(struct thread **threadp, const struct thread_attr *attr,
 /*
  * Terminate the calling thread.
  */
-void __noreturn thread_exit(void);
+noreturn void thread_exit(void);
 
 /*
  * Wait for the given thread to terminate and release its resources.
@@ -244,7 +244,7 @@ void thread_wakeup(struct thread *thread);
  *
  * Interrupts must be disabled when calling this function.
  */
-void __noreturn thread_run_scheduler(void);
+noreturn void thread_run_scheduler(void);
 
 /*
  * Make the calling thread release the processor.

@@ -16,6 +16,7 @@
  */
 
 #include <assert.h>
+#include <stdalign.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -135,7 +136,7 @@ static const struct cpu_tls_seg cpu_tls_seg = {
 /*
  * Interrupt descriptor table.
  */
-static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8) __read_mostly;
+static alignas(8) struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __read_mostly;
 
 /*
  * Double fault handler, and stack for the main processor.
@@ -144,7 +145,7 @@ static struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __aligned(8) __read_mostly;
  * memory.
  */
 static unsigned long cpu_double_fault_handler;
-static char cpu_double_fault_stack[TRAP_STACK_SIZE] __aligned(CPU_DATA_ALIGN);
+static alignas(CPU_DATA_ALIGN) char cpu_double_fault_stack[TRAP_STACK_SIZE];
 
 void
 cpu_delay(unsigned long usecs)

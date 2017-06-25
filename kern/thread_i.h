@@ -18,13 +18,13 @@
 #ifndef _KERN_THREAD_I_H
 #define _KERN_THREAD_I_H
 
+#include <stdalign.h>
 #include <stdbool.h>
 
 #include <kern/atomic.h>
 #include <kern/condition_types.h>
 #include <kern/cpumap.h>
 #include <kern/list_types.h>
-#include <kern/macros.h>
 #include <kern/mutex_types.h>
 #include <kern/turnstile_types.h>
 #include <machine/cpu.h>
@@ -97,7 +97,7 @@ struct thread_fs_data {
  * ( ) read-only
  */
 struct thread {
-    struct tcb tcb;         /* (r) */
+    alignas(CPU_L1_SIZE) struct tcb tcb; /* (r) */
 
     unsigned long nr_refs;  /* (a) */
     unsigned long flags;    /* (a) */
@@ -178,7 +178,7 @@ struct thread {
     struct list task_node;          /* (T) */
     void *stack;                    /* (-) */
     char name[THREAD_NAME_SIZE];    /* ( ) */
-} __aligned(CPU_L1_SIZE);
+};
 
 #define THREAD_ATTR_DETACHED 0x1
 

@@ -23,8 +23,8 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdnoreturn.h>
 
-#include <kern/macros.h>
 #include <machine/cpu.h>
 #include <machine/page.h>
 
@@ -70,7 +70,7 @@ tcb_set_current(struct tcb *tcb)
  *
  * Called with interrupts disabled. The caller context is lost.
  */
-void __noreturn tcb_load(struct tcb *tcb);
+noreturn void tcb_load(struct tcb *tcb);
 
 /*
  * Context switch.

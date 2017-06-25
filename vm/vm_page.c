@@ -30,6 +30,7 @@
  */
 
 #include <assert.h>
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -75,12 +76,12 @@
  * Per-processor cache of pages.
  */
 struct vm_page_cpu_pool {
-    struct mutex lock;
+    alignas(CPU_L1_SIZE) struct mutex lock;
     int size;
     int transfer_size;
     int nr_pages;
     struct list pages;
-} __aligned(CPU_L1_SIZE);
+};
 
 /*
  * Special order value for pages that aren't in a free list. Such pages are

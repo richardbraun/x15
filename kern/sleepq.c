@@ -19,6 +19,7 @@
  */
 
 #include <assert.h>
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -33,9 +34,9 @@
 #include <machine/cpu.h>
 
 struct sleepq_bucket {
-    struct spinlock lock;
+    alignas(CPU_L1_SIZE) struct spinlock lock;
     struct list list;
-} __aligned(CPU_L1_SIZE);
+};
 
 struct sleepq {
     struct sleepq_bucket *bucket;
