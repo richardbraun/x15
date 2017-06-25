@@ -525,7 +525,8 @@ fmt_sprintf_state_produce_int(struct fmt_sprintf_state *state)
 
     if (n == 0) {
         if (state->precision != 0) {
-            tmp[i++] = '0';
+            tmp[i] = '0';
+            i++;
         }
     } else if (state->base == 10) {
         /*
@@ -543,7 +544,8 @@ fmt_sprintf_state_produce_int(struct fmt_sprintf_state *state)
             do {
                 r = n % 10;
                 n /= 10;
-                tmp[i++] = fmt_digits[r];
+                tmp[i] = fmt_digits[r];
+                i++;
             } while (n != 0);
 #ifndef __LP64__
         } else {
@@ -554,7 +556,8 @@ fmt_sprintf_state_produce_int(struct fmt_sprintf_state *state)
             do {
                 r = m % 10;
                 m /= 10;
-                tmp[i++] = fmt_digits[r];
+                tmp[i] = fmt_digits[r];
+                i++;
             } while (m != 0);
         }
 #endif /* __LP64__ */
@@ -565,7 +568,8 @@ fmt_sprintf_state_produce_int(struct fmt_sprintf_state *state)
         do {
             r = n & mask;
             n >>= shift;
-            tmp[i++] = fmt_digits[r] | (state->flags & FMT_FORMAT_LOWER);
+            tmp[i] = fmt_digits[r] | (state->flags & FMT_FORMAT_LOWER);
+            i++;
         } while (n != 0);
     }
 
@@ -576,9 +580,12 @@ fmt_sprintf_state_produce_int(struct fmt_sprintf_state *state)
     state->width -= state->precision;
 
     if (!(state->flags & (FMT_FORMAT_LEFT_JUSTIFY | FMT_FORMAT_ZERO_PAD))) {
-        while (state->width-- > 0) {
+        while (state->width > 0) {
+            state->width--;
             fmt_sprintf_state_produce_raw_char(state, ' ');
         }
+
+        state->width--;
     }
 
     if (state->flags & FMT_FORMAT_ALT_FORM) {
@@ -595,22 +602,32 @@ fmt_sprintf_state_produce_int(struct fmt_sprintf_state *state)
     if (!(state->flags & FMT_FORMAT_LEFT_JUSTIFY)) {
         c = (state->flags & FMT_FORMAT_ZERO_PAD) ? '0' : ' ';
 
-        while (state->width-- > 0) {
+        while (state->width > 0) {
+            state->width--;
             fmt_sprintf_state_produce_raw_char(state, c);
         }
+
+        state->width--;
     }
 
-    while (i < state->precision--) {
+    while (i < state->precision) {
+        state->precision--;
         fmt_sprintf_state_produce_raw_char(state, '0');
     }
 
-    while (i-- > 0) {
+    state->precision--;
+
+    while (i > 0) {
+        i--;
         fmt_sprintf_state_produce_raw_char(state, tmp[i]);
     }
 
-    while (state->width-- > 0) {
+    while (state->width > 0) {
+        state->width--;
         fmt_sprintf_state_produce_raw_char(state, ' ');
     }
+
+    state->width--;
 }
 
 static void
@@ -621,14 +638,26 @@ fmt_sprintf_state_produce_char(struct fmt_sprintf_state *state)
     c = va_arg(state->ap, int);
 
     if (!(state->flags & FMT_FORMAT_LEFT_JUSTIFY)) {
-        while (--state->width > 0) {
+        for (;;) {
+            state->width--;
+
+            if (state->width <= 0) {
+                break;
+            }
+
             fmt_sprintf_state_produce_raw_char(state, ' ');
         }
     }
 
     fmt_sprintf_state_produce_raw_char(state, c);
 
-    while (--state->width > 0) {
+    for (;;) {
+        state->width--;
+
+        if (state->width <= 0) {
+            break;
+        }
+
         fmt_sprintf_state_produce_raw_char(state, ' ');
     }
 }
