@@ -644,6 +644,17 @@ Side effects and conditions
 Conditions must never be made of expressions with side effects. This
 completely removes the need to think about short-circuit evaluations.
 
+Increment/decrement operators
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Increment and decrement operators may never be used inside larger expressions.
+Their usage as expression-3 of a for loop is considered as an entire expression
+and doesn't violate this rule. The rationale is to avoid tricky errors related
+to sequence points. Since such operators may not be used inside larger
+expressions, there is no difference between prefix and postfix operators.
+The latter are preferred because they look more object-oriented, somewhat
+matching the object.method() syntax.
+
 SEE
 ---
 
