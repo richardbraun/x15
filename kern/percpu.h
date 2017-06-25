@@ -54,6 +54,7 @@
 #define _KERN_PERCPU_H
 
 #include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include <kern/macros.h>
