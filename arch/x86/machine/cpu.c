@@ -414,7 +414,7 @@ cpu_idt_set_double_fault(void (*isr)(void))
 static void
 cpu_load_idt(void)
 {
-    static volatile struct cpu_pseudo_desc idtr; /* TODO Review this */
+    struct cpu_pseudo_desc idtr;
 
     idtr.address = (unsigned long)cpu_idt;
     idtr.limit = sizeof(cpu_idt) - 1;
