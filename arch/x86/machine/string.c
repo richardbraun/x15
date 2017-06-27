@@ -103,7 +103,7 @@ strlen(const char *s)
                  : "+D" (s), "+c" (n)
                  : "a" (0)
                  : "memory");
-    return ~n - 1;
+    return (size_t)-2 - n;
 }
 #endif /* STRING_ARCH_STRLEN */
 
