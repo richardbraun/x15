@@ -21,6 +21,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include <kern/macros.h>
 #include <machine/string.h>
 
 #ifndef STRING_ARCH_MEMCPY
@@ -189,8 +190,9 @@ strncmp(const char *s1, const char *s2, size_t n)
 {
     char c1, c2;
 
-    c1 = '\0';
-    c2 = '\0';
+    if (unlikely(n == 0)) {
+        return 0;
+    }
 
     while ((n != 0) && (c1 = *s1) == (c2 = *s2)) {
         if (c1 == '\0') {
