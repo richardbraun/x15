@@ -18,6 +18,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include <kern/macros.h>
 #include <machine/string.h>
 
 #ifdef STRING_ARCH_MEMCPY
@@ -145,3 +146,50 @@ strcmp(const char *s1, const char *s2)
     return (int)c1 - (int)c2;
 }
 #endif /* STRING_ARCH_STRCMP */
+
+#ifdef STRING_ARCH_STRNCMP
+int
+strncmp(const char *s1, const char *s2, size_t n)
+{
+    unsigned char c1, c2;
+
+    if (unlikely(n == 0)) {
+        return 0;
+    }
+
+    asm volatile("1:\n"
+                 "lodsb\n"
+                 "scasb\n"
+                 "jne 1f\n"
+                 "testb %%al, %%al\n"
+                 "jz 1f\n"
+                 "dec %2\n"
+                 "jnz 1b\n"
+                 "1:\n"
+                 : "+D" (s1), "+S" (s2), "+c" (n)
+                 : : "al", "memory");
+    c1 = *(((const unsigned char *)s1) - 1);
+    c2 = *(((const unsigned char *)s2) - 1);
+    return (int)c1 - (int)c2;
+}
+#endif /* STRING_ARCH_STRNCMP */
+
+#ifdef STRING_ARCH_STRCHR
+char *
+strchr(const char *s, int c)
+{
+    asm volatile("1:\n"
+                 "lodsb\n"
+                 "cmpb %%al, %1\n"
+                 "je 1f\n"
+                 "testb %%al, %%al\n"
+                 "jnz 1b\n"
+                 "mov $1, %0\n"
+                 "1:\n"
+                 "dec %0\n"
+                 : "+S" (s)
+                 : "c" ((char)c)
+                 : "al", "memory");
+    return (char *)s;
+}
+#endif /* STRING_ARCH_STRCHR */
