@@ -13,6 +13,11 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Despite comparison and scan instructions not having side-effects, the
+ * memory clobber is used because the compiler cannot infer dependencies
+ * on the memory referenced by the pointers.
  */
 
 #include <stddef.h>
