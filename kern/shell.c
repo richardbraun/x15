@@ -668,7 +668,7 @@ shell_cmd_help(int argc, char *argv[])
     shell_cmd_acquire();
 
     for (cmd = shell_list; cmd != NULL; cmd = cmd->ls_next) {
-        printf("%13s  %s\n", cmd->name, cmd->short_desc);
+        printf("%19s  %s\n", cmd->name, cmd->short_desc);
     }
 
     shell_cmd_release();
