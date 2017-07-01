@@ -24,5 +24,5 @@
 void
 test_setup(void)
 {
-    trap_test_double_fault();
+    trap_trigger_double_fault();
 }
