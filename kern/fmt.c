@@ -676,10 +676,11 @@ fmt_sprintf_state_produce_str(struct fmt_sprintf_state *state)
 
     len = 0;
 
-    for (len = 0; s[len] != '\0'; len++)
+    for (len = 0; s[len] != '\0'; len++) {
         if (len == state->precision) {
             break;
         }
+    }
 
     if (!(state->flags & FMT_FORMAT_LEFT_JUSTIFY)) {
         while (len < state->width) {

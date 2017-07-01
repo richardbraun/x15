@@ -167,10 +167,11 @@ test_read(void *arg)
             s = (const unsigned char *)pdsc->addr;
 
             if (s != NULL) {
-                for (j = 0; j < PAGE_SIZE; j++)
+                for (j = 0; j < PAGE_SIZE; j++) {
                     if (s[j] != TEST_VALIDATION_BYTE) {
                         panic("invalid content");
                     }
+                }
 
                 if ((i % TEST_LOOPS_PER_PRINT) == 0) {
                     printf("read ");

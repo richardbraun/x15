@@ -104,10 +104,11 @@ memcmp(const void *s1, const void *s2, size_t n)
     a1 = s1;
     a2 = s2;
 
-    for (i = 0; i < n; i++)
+    for (i = 0; i < n; i++) {
         if (a1[i] != a2[i]) {
             return (int)a1[i] - (int)a2[i];
         }
+    }
 
     return 0;
 }
