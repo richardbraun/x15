@@ -22,6 +22,7 @@
 #include <kern/log.h>
 #include <kern/percpu.h>
 #include <kern/shell.h>
+#include <kern/shutdown.h>
 #include <kern/sleepq.h>
 #include <kern/sref.h>
 #include <kern/syscnt.h>
@@ -55,6 +56,7 @@ kernel_main(void)
     llsync_setup();
     sref_setup();
     vm_page_log_info();
+    shutdown_register_shell_cmds();
     log_start();
 
 #ifdef X15_RUN_TEST_MODULE
