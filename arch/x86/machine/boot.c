@@ -58,6 +58,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
+#include <kern/shutdown.h>
 #include <kern/sleepq.h>
 #include <kern/sref.h>
 #include <kern/syscnt.h>
@@ -514,6 +515,7 @@ boot_main(void)
     vm_setup();
     boot_save_data();
     biosmem_free_usable();
+    shutdown_setup();
     intr_setup();
     cpu_mp_probe();
     atcons_setup();
