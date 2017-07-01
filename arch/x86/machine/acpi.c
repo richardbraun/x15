@@ -174,10 +174,11 @@ acpi_table_required(const struct acpi_sdth *table)
 
     acpi_table_sig(table, sig);
 
-    for (i = 0; i < ARRAY_SIZE(acpi_table_addrs); i++)
+    for (i = 0; i < ARRAY_SIZE(acpi_table_addrs); i++) {
         if (strcmp(sig, acpi_table_addrs[i].sig) == 0) {
             return 1;
         }
+    }
 
     return 0;
 }
@@ -190,7 +191,7 @@ acpi_register_table(struct acpi_sdth *table)
 
     acpi_table_sig(table, sig);
 
-    for (i = 0; i < ARRAY_SIZE(acpi_table_addrs); i++)
+    for (i = 0; i < ARRAY_SIZE(acpi_table_addrs); i++) {
         if (strcmp(sig, acpi_table_addrs[i].sig) == 0) {
             if (acpi_table_addrs[i].table != NULL) {
                 log_warning("acpi: table %s ignored: already registered", sig);
@@ -200,6 +201,7 @@ acpi_register_table(struct acpi_sdth *table)
             acpi_table_addrs[i].table = table;
             return;
         }
+    }
 
     log_warning("acpi: table '%s' ignored: unknown table", sig);
 }
@@ -209,10 +211,11 @@ acpi_lookup_table(const char *sig)
 {
     size_t i;
 
-    for (i = 0; i < ARRAY_SIZE(acpi_table_addrs); i++)
+    for (i = 0; i < ARRAY_SIZE(acpi_table_addrs); i++) {
         if (strcmp(sig, acpi_table_addrs[i].sig) == 0) {
             return acpi_table_addrs[i].table;
         }
+    }
 
     return NULL;
 }
@@ -222,11 +225,12 @@ acpi_check_tables(void)
 {
     size_t i;
 
-    for (i = 0; i < ARRAY_SIZE(acpi_table_addrs); i++)
+    for (i = 0; i < ARRAY_SIZE(acpi_table_addrs); i++) {
         if (acpi_table_addrs[i].table == NULL) {
             log_err("acpi: table %s missing", acpi_table_addrs[i].sig);
             return -1;
         }
+    }
 
     return 0;
 }
