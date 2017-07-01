@@ -26,6 +26,7 @@
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
+#include <kern/shutdown.h>
 #include <machine/acpi.h>
 #include <machine/biosmem.h>
 #include <machine/cpu.h>
@@ -37,13 +38,24 @@
 #include <vm/vm_kmem.h>
 
 /*
- * Alignment of the RSDP.
+ * Priority of the shutdown operations.
+ *
+ * Higher than all other methods.
  */
+#define ACPI_SHUTDOWN_PRIORITY 10
+
+#define ACPI_GAS_ASID_SYSIO 1
+
+struct acpi_gas {
+    uint8_t asid;
+    uint8_t reg_width;
+    uint8_t reg_offset;
+    uint8_t access_size;
+    uint64_t addr;
+} __packed;
+
 #define ACPI_RSDP_ALIGN 16
 
-/*
- * Signature of the root system description pointer.
- */
 #define ACPI_RSDP_SIG "RSD PTR "
 
 struct acpi_rsdp {
@@ -54,9 +66,6 @@ struct acpi_rsdp {
     uint32_t rsdt_address;
 } __packed;
 
-/*
- * Size of a buffer which can store a table signature as a string.
- */
 #define ACPI_SIG_SIZE 5
 
 struct acpi_sdth {
@@ -76,9 +85,6 @@ struct acpi_rsdt {
     uint32_t entries[0];
 } __packed;
 
-/*
- * MADT entry type codes.
- */
 #define ACPI_MADT_ENTRY_LAPIC     0
 #define ACPI_MADT_ENTRY_IOAPIC    1
 #define ACPI_MADT_ENTRY_ISO       2
@@ -149,15 +155,32 @@ for (acpi_madt_iter_init(iter, madt); \
      acpi_madt_iter_valid(iter);      \
      acpi_madt_iter_next(iter))
 
+#define ACPI_FADT_FL_RESET_REG_SUP  0x400
+
+struct acpi_fadt {
+    union {
+        struct acpi_sdth header;
+        char unused[112];
+    };
+
+    uint32_t flags;
+    struct acpi_gas reset_reg;
+    uint8_t reset_value;
+} __packed;
+
 struct acpi_table_addr {
     const char *sig;
     struct acpi_sdth *table;
 };
 
 static struct acpi_table_addr acpi_table_addrs[] __initdata = {
-    { "RSDT",   NULL },
-    { "APIC",   NULL }
+    { "RSDT", NULL },
+    { "APIC", NULL },
+    { "FACP", NULL },
 };
+
+static struct acpi_gas acpi_reset_reg;
+static uint8_t acpi_reset_value;
 
 static void __init
 acpi_table_sig(const struct acpi_sdth *table, char sig[ACPI_SIG_SIZE])
@@ -581,6 +604,63 @@ acpi_load_madt(void)
     }
 }
 
+static void
+acpi_shutdown_reset_sysio(uint64_t addr)
+{
+    if (addr > UINT16_MAX) {
+        log_warning("acpi: invalid sysio address");
+        return;
+    }
+
+    io_write_byte((uint16_t)addr, acpi_reset_value);
+}
+
+static void
+acpi_shutdown_reset(void)
+{
+    if ((acpi_reset_reg.reg_width != 8) || (acpi_reset_reg.reg_offset != 0)) {
+        log_warning("acpi: invalid reset register");
+        return;
+    }
+
+    switch (acpi_reset_reg.asid) {
+    case ACPI_GAS_ASID_SYSIO:
+        acpi_shutdown_reset_sysio(acpi_reset_reg.addr);
+        break;
+    default:
+        log_warning("acpi: unsupported reset register type");
+    }
+}
+
+static struct shutdown_ops acpi_shutdown_ops = {
+    .reset = acpi_shutdown_reset,
+};
+
+static void __init
+acpi_load_fadt(void)
+{
+    const struct acpi_sdth *table;
+    const struct acpi_fadt *fadt;
+
+    table = acpi_lookup_table("FACP");
+
+    if (table == NULL) {
+        log_debug("acpi: unable to find FADT table");
+        return;
+    }
+
+    fadt = structof(table, struct acpi_fadt, header);
+
+    if (!(fadt->flags & ACPI_FADT_FL_RESET_REG_SUP)) {
+        log_debug("acpi: reset register not supported");
+        return;
+    }
+
+    acpi_reset_reg = fadt->reset_reg;
+    acpi_reset_value = fadt->reset_value;
+    shutdown_register(&acpi_shutdown_ops, ACPI_SHUTDOWN_PRIORITY);
+}
+
 int __init
 acpi_setup(void)
 {
@@ -601,6 +681,7 @@ acpi_setup(void)
 
     acpi_info();
     acpi_load_madt();
+    acpi_load_fadt();
     acpi_free_tables();
     return 0;
 }
