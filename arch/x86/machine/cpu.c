@@ -26,6 +26,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
+#include <kern/shutdown.h>
 #include <kern/thread.h>
 #include <kern/xcall.h>
 #include <machine/acpi.h>
@@ -78,6 +79,13 @@
 #define CPU_MP_CMOS_RESET_VECTOR    0x467
 
 /*
+ * Priority of the shutdown operations.
+ *
+ * Last resort, lower than everything else.
+ */
+#define CPU_SHUTDOWN_PRIORITY 0
+
+/*
  * Gate descriptor.
  */
 struct cpu_gate_desc {
@@ -103,7 +111,7 @@ struct cpu_sysseg_desc {
 
 struct cpu_pseudo_desc {
     uint16_t limit;
-    unsigned long address;
+    uintptr_t address;
 } __packed;
 
 void *cpu_local_area __percpu;
@@ -413,12 +421,12 @@ cpu_idt_set_double_fault(void (*isr)(void))
 }
 
 static void
-cpu_load_idt(void)
+cpu_load_idt(const void *idt, size_t size)
 {
     struct cpu_pseudo_desc idtr;
 
-    idtr.address = (unsigned long)cpu_idt;
-    idtr.limit = sizeof(cpu_idt) - 1;
+    idtr.address = (uintptr_t)idt;
+    idtr.limit = size - 1;
     asm volatile("lidt %0" : : "m" (idtr));
 }
 
@@ -443,7 +451,7 @@ cpu_init(struct cpu *cpu)
 #ifndef __LP64__
     cpu_init_double_fault_tss(cpu);
 #endif /* __LP64__ */
-    cpu_load_idt();
+    cpu_load_idt(cpu_idt, sizeof(cpu_idt));
 
     eax = 0;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
@@ -638,6 +646,17 @@ cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
     cpu_nr_active++;
 }
 
+static void
+cpu_shutdown_reset(void)
+{
+    cpu_load_idt(NULL, 1);
+    trap_trigger_double_fault();
+}
+
+static struct shutdown_ops cpu_shutdown_ops = {
+    .reset = cpu_shutdown_reset,
+};
+
 void __init
 cpu_mp_probe(void)
 {
@@ -656,6 +675,10 @@ cpu_mp_probe(void)
     }
 
     log_info("cpu: %u processor(s) configured", cpu_count());
+
+    if (cpu_count() == 1) {
+        shutdown_register(&cpu_shutdown_ops, CPU_SHUTDOWN_PRIORITY);
+    }
 }
 
 void __init
