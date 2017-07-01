@@ -137,7 +137,7 @@ struct trap_frame {
 typedef void (*trap_handler_fn_t)(struct trap_frame *);
 
 static inline void
-trap_test_double_fault(void)
+trap_trigger_double_fault(void)
 {
     printf("trap: double fault test\n");
     asm volatile("movl $0xdead, %esp; push $0");
