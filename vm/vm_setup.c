@@ -20,6 +20,7 @@
 #include <kern/rdxtree.h>
 #include <kern/percpu.h>
 #include <machine/pmap.h>
+#include <vm/vm_kmem.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -33,6 +34,7 @@ vm_setup(void)
     rdxtree_setup();
     vm_object_setup();
     vm_map_setup();
+    vm_kmem_setup();
     pmap_setup();
     percpu_setup();
 }
