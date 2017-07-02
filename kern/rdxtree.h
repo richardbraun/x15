@@ -29,6 +29,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <kern/llsync.h>
+
 typedef uint64_t rdxtree_key_t;
 
 /*
@@ -152,6 +154,12 @@ static inline void **
 rdxtree_lookup_slot(const struct rdxtree *tree, rdxtree_key_t key)
 {
     return rdxtree_lookup_common(tree, key, 1);
+}
+
+static inline void *
+rdxtree_load_slot(void **slot)
+{
+    return llsync_read_ptr(*slot);
 }
 
 /*
