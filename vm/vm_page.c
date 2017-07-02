@@ -167,6 +167,10 @@ vm_page_init(struct vm_page *page, unsigned short zone_index, phys_addr_t pa)
     page->zone_index = zone_index;
     page->order = VM_PAGE_ORDER_UNLISTED;
     page->phys_addr = pa;
+
+    page->nr_refs = 0;
+
+    page->object = NULL;
 }
 
 void
@@ -740,6 +744,7 @@ vm_page_setup(void)
     SHELL_REGISTER_CMDS(vm_page_shell_cmds);
 }
 
+/* TODO Rename to avoid confusion with "managed pages" */
 void __init
 vm_page_manage(struct vm_page *page)
 {
@@ -767,6 +772,22 @@ vm_page_lookup(phys_addr_t pa)
     return NULL;
 }
 
+static bool
+vm_page_block_referenced(const struct vm_page *page, unsigned int order)
+{
+    unsigned int i, nr_pages;
+
+    nr_pages = 1 << order;
+
+    for (i = 0; i < nr_pages; i++) {
+        if (vm_page_referenced(&page[i])) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 struct vm_page *
 vm_page_alloc(unsigned int order, unsigned int selector, unsigned short type)
 {
@@ -777,6 +798,7 @@ vm_page_alloc(unsigned int order, unsigned int selector, unsigned short type)
         page = vm_page_zone_alloc(&vm_page_zones[i], order, type);
 
         if (page != NULL) {
+            assert(!vm_page_block_referenced(page, order));
             return page;
         }
     }
@@ -788,6 +810,7 @@ void
 vm_page_free(struct vm_page *page, unsigned int order)
 {
     assert(page->zone_index < ARRAY_SIZE(vm_page_zones));
+    assert(!vm_page_block_referenced(page, order));
 
     vm_page_zone_free(&vm_page_zones[page->zone_index], page, order);
 }

@@ -117,6 +117,9 @@ x15_SOURCES +=                                              \
         vm/vm_kmem.h                                        \
         vm/vm_map.c                                         \
         vm/vm_map.h                                         \
+        vm/vm_object.c                                      \
+        vm/vm_object.h                                      \
+        vm/vm_object_types.h                                \
         vm/vm_page.c                                        \
         vm/vm_page.h                                        \
         vm/vm_prot.h                                        \

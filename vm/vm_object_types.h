@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2014 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,28 +13,24 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#include <kern/init.h>
-#include <kern/kmem.h>
-#include <kern/rdxtree.h>
-#include <kern/percpu.h>
-#include <machine/pmap.h>
-#include <vm/vm_kmem.h>
-#include <vm/vm_map.h>
-#include <vm/vm_object.h>
-#include <vm/vm_page.h>
-#include <vm/vm_setup.h>
+#ifndef _VM_OBJECT_TYPES_H
+#define _VM_OBJECT_TYPES_H
 
-void __init
-vm_setup(void)
-{
-    vm_page_setup();
-    kmem_setup();
-    rdxtree_setup();
-    vm_object_setup();
-    vm_map_setup();
-    vm_kmem_setup();
-    pmap_setup();
-    percpu_setup();
-}
+#include <stdint.h>
+
+#include <kern/mutex.h>
+#include <kern/rdxtree.h>
+
+struct vm_object {
+    struct mutex lock;
+    struct rdxtree pages;
+    uint64_t size;
+    unsigned long nr_pages;
+};
+
+#endif /* _VM_OBJECT_TYPES_H */
