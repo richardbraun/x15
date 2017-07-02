@@ -16,15 +16,20 @@
  *
  *
  * Physical page management.
+ *
+ * A page is said to be managed if it's linked to a VM object, in which
+ * case there is at least one reference to it.
  */
 
 #ifndef _VM_VM_PAGE_H
 #define _VM_VM_PAGE_H
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
+#include <kern/atomic.h>
 #include <kern/list.h>
 #include <kern/log2.h>
 #include <kern/macros.h>
@@ -32,11 +37,14 @@
 #include <machine/pmap.h>
 #include <machine/pmem.h>
 #include <machine/types.h>
+#include <vm/vm_object_types.h>
 
 /*
  * Address/page conversion and rounding macros (not inline functions to
  * be easily usable on both virtual and physical addresses, which may not
  * have the same type size).
+ *
+ * TODO Rename btop and ptob.
  */
 #define vm_page_atop(addr)      ((addr) >> PAGE_SHIFT)
 #define vm_page_ptoa(page)      ((page) << PAGE_SHIFT)
@@ -80,6 +88,12 @@ struct vm_page {
     unsigned short order;
     phys_addr_t phys_addr;
     void *priv;
+
+    unsigned int nr_refs;
+
+    /* VM object back reference */
+    struct vm_object *object;
+    uint64_t offset;
 };
 
 static inline unsigned short
@@ -139,6 +153,21 @@ vm_page_get_priv(const struct vm_page *page)
     return page->priv;
 }
 
+static inline void
+vm_page_link(struct vm_page *page, struct vm_object *object, uint64_t offset)
+{
+    assert(object != NULL);
+    page->object = object;
+    page->offset = offset;
+}
+
+static inline void
+vm_page_unlink(struct vm_page *page)
+{
+    assert(page->object != NULL);
+    page->object = NULL;
+}
+
 /*
  * Load physical memory into the vm_page module at boot time.
  *
@@ -193,12 +222,16 @@ struct vm_page * vm_page_lookup(phys_addr_t pa);
  *
  * The selector is used to determine the zones from which allocation can
  * be attempted.
+ *
+ * If successful, the returned pages have no references.
  */
 struct vm_page * vm_page_alloc(unsigned int order, unsigned int selector,
                                unsigned short type);
 
 /*
  * Release a block of 2^order physical pages.
+ *
+ * The pages must have no references.
  */
 void vm_page_free(struct vm_page *page, unsigned int order);
 
@@ -211,5 +244,51 @@ const char * vm_page_zone_name(unsigned int zone_index);
  * Display internal information about the module.
  */
 void vm_page_log_info(void);
+
+static inline bool
+vm_page_referenced(const struct vm_page *page)
+{
+    return atomic_load(&page->nr_refs, ATOMIC_RELAXED) != 0;
+}
+
+static inline void
+vm_page_ref(struct vm_page *page)
+{
+    unsigned int nr_refs;
+
+    nr_refs = atomic_fetch_add(&page->nr_refs, 1, ATOMIC_RELAXED);
+    assert(nr_refs != (unsigned int)-1);
+}
+
+static inline void
+vm_page_unref(struct vm_page *page)
+{
+    unsigned int nr_refs;
+
+    nr_refs = atomic_fetch_sub_acq_rel(&page->nr_refs, 1);
+    assert(nr_refs != 0);
+
+    if (nr_refs == 1) {
+        vm_page_free(page, 0);
+    }
+}
+
+static inline int
+vm_page_tryref(struct vm_page *page)
+{
+    unsigned int nr_refs, prev;
+
+    do {
+        nr_refs = atomic_load(&page->nr_refs, ATOMIC_RELAXED);
+
+        if (nr_refs == 0) {
+            return ERROR_AGAIN;
+        }
+
+        prev = atomic_cas_acquire(&page->nr_refs, nr_refs, nr_refs + 1);
+    } while (prev != nr_refs);
+
+    return 0;
+}
 
 #endif /* _VM_VM_PAGE_H */
