@@ -45,6 +45,11 @@ extern char _end;
 extern struct vm_map *kernel_map;
 
 /*
+ * Initialize the vm_kmem module.
+ */
+void vm_kmem_setup(void);
+
+/*
  * Allocate pure virtual kernel pages.
  *
  * The caller is reponsible for taking care of the underlying physical memory.

@@ -102,8 +102,6 @@ llsync_setup(void)
         cpu_data = percpu_ptr(llsync_cpu_data, i);
         work_queue_init(&cpu_data->queue0);
     }
-
-    llsync_is_ready = true;
 }
 
 static void
@@ -180,6 +178,10 @@ llsync_register(void)
     struct llsync_cpu_data *cpu_data;
     unsigned long flags;
     unsigned int cpu;
+
+    if (!llsync_is_ready) {
+        llsync_is_ready = true;
+    }
 
     cpu = cpu_id();
     cpu_data = llsync_get_cpu_data();

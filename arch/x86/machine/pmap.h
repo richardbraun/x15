@@ -16,6 +16,7 @@
  *
  *
  * TODO Comment.
+ * TODO Rename MIN/MAX to START/END.
  */
 
 #ifndef _X86_PMAP_H
