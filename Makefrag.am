@@ -157,10 +157,6 @@ if TEST_VM_PAGE_FILL
 x15_SOURCES += test/test_vm_page_fill.c
 endif TEST_VM_PAGE_FILL
 
-if TEST_X86_DOUBLE_FAULT
-x15_SOURCES += test/test_x86_double_fault.c
-endif TEST_X86_DOUBLE_FAULT
-
 if TEST_XCALL
 x15_SOURCES += test/test_xcall.c
 endif TEST_XCALL

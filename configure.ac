@@ -79,7 +79,6 @@ m4_define([ENABLE_TEST_MODULE],
                    [sref_noref], [test_sref_noref=yes],
                    [sref_weakref], [test_sref_weakref=yes],
                    [vm_page_fill], [test_vm_page_fill=yes],
-                   [x86_double_fault], [test_x86_double_fault=yes],
                    [xcall], [test_xcall=yes],
                    [AC_MSG_ERROR([invalid test module])])
           AC_DEFINE([X15_RUN_TEST_MODULE], [1],
@@ -101,8 +100,6 @@ AM_CONDITIONAL([TEST_SREF_WEAKREF],
                [test x"$test_sref_weakref" = xyes])
 AM_CONDITIONAL([TEST_VM_PAGE_FILL],
                [test x"$test_vm_page_fill" = xyes])
-AM_CONDITIONAL([TEST_X86_DOUBLE_FAULT],
-               [test x"$test_x86_double_fault" = xyes])
 AM_CONDITIONAL([TEST_XCALL],
                [test x"$test_xcall" = xyes])
 
