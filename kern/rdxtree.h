@@ -29,7 +29,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef uint32_t rdxtree_key_t;
+typedef uint64_t rdxtree_key_t;
 
 /*
  * Radix tree initialization flags.
