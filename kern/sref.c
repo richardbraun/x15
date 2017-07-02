@@ -288,6 +288,7 @@ sref_weakref_tryget(struct sref_weakref *weakref)
 {
     uintptr_t addr, oldval, newval;
 
+    /* TODO Review */
     do {
         addr = atomic_load(&weakref->addr, ATOMIC_RELAXED);
         newval = addr & SREF_WEAKREF_MASK;
