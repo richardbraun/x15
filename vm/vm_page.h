@@ -30,6 +30,7 @@
 #include <stdint.h>
 
 #include <kern/atomic.h>
+#include <kern/init.h>
 #include <kern/list.h>
 #include <kern/log2.h>
 #include <kern/macros.h>
@@ -192,19 +193,6 @@ void vm_page_load_heap(unsigned int zone_index, phys_addr_t start,
 int vm_page_ready(void);
 
 /*
- * Set up the vm_page module.
- *
- * Architecture-specific code must have loaded zones before calling this
- * function. Zones must comply with the selector-to-zone-list table,
- * e.g. HIGHMEM is loaded if and only if DIRECTMAP, DMA32 and DMA are loaded,
- * notwithstanding zone aliasing.
- *
- * Once this function returns, the vm_page module is ready, and normal
- * allocation functions can be used.
- */
-void vm_page_setup(void);
-
-/*
  * Make the given page managed by the vm_page module.
  *
  * If additional memory can be made usable after the VM system is initialized,
@@ -241,7 +229,7 @@ void vm_page_free(struct vm_page *page, unsigned int order);
 const char * vm_page_zone_name(unsigned int zone_index);
 
 /*
- * Display internal information about the module.
+ * Log information about physical pages.
  */
 void vm_page_log_info(void);
 
@@ -290,5 +278,11 @@ vm_page_tryref(struct vm_page *page)
 
     return 0;
 }
+
+/*
+ * This init operation provides :
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(vm_page_setup);
 
 #endif /* _VM_VM_PAGE_H */

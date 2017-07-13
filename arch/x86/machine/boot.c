@@ -43,27 +43,19 @@
  */
 
 #include <stdalign.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <kern/arg.h>
-#include <kern/console.h>
 #include <kern/init.h>
-#include <kern/intr.h>
 #include <kern/kmem.h>
 #include <kern/kernel.h>
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
-#include <kern/percpu.h>
-#include <kern/shutdown.h>
-#include <kern/sleepq.h>
-#include <kern/sref.h>
-#include <kern/syscnt.h>
 #include <kern/thread.h>
-#include <kern/turnstile.h>
+#include <machine/acpi.h>
 #include <machine/atcons.h>
 #include <machine/biosmem.h>
 #include <machine/boot.h>
@@ -74,10 +66,8 @@
 #include <machine/page.h>
 #include <machine/pmap.h>
 #include <machine/strace.h>
-#include <machine/trap.h>
 #include <machine/uart.h>
 #include <vm/vm_kmem.h>
-#include <vm/vm_setup.h>
 
 alignas(CPU_DATA_ALIGN) char boot_stack[BOOT_STACK_SIZE] __bootdata;
 alignas(CPU_DATA_ALIGN) char boot_ap_stack[BOOT_STACK_SIZE] __bootdata;
@@ -358,8 +348,8 @@ boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
     return pmap_setup_paging();
 }
 
-static void __init
-boot_log_version(void)
+void __init
+boot_log_info(void)
 {
     log_info(KERNEL_NAME "/" QUOTE(X15_X86_MACHINE) " " KERNEL_VERSION
 #ifdef X15_X86_PAE
@@ -480,46 +470,24 @@ boot_save_mods(void)
  * the boot loader. Once the boot data are managed as kernel buffers, their
  * backing pages can be freed.
  */
-static void __init
+static int __init
 boot_save_data(void)
 {
     boot_mbi.flags = boot_raw_mbi.flags;
     boot_save_mods();
-    strace_setup(&boot_raw_mbi);
+    return 0;
 }
+
+INIT_OP_DEFINE(boot_save_data,
+               INIT_OP_DEP(kmem_setup, true),
+               INIT_OP_DEP(panic_setup, true),
+               INIT_OP_DEP(vm_kmem_setup, true));
 
 void __init
 boot_main(void)
 {
-    log_setup();
-    arg_setup(boot_tmp_cmdline);
-    sleepq_bootstrap();
-    turnstile_bootstrap();
-    syscnt_setup();
-    percpu_bootstrap();
-    trap_setup();
-    cpu_setup();
-    thread_bootstrap();
-    boot_log_version();
-    arg_log_info();
-    console_setup();
-    atcons_bootstrap();
-    uart_bootstrap();
-    printf_setup();
-    uart_info();
-    pmap_bootstrap();
-    sref_bootstrap();
-    cpu_check(cpu_current());
-    cpu_info(cpu_current());
-    biosmem_setup();
-    vm_setup();
-    boot_save_data();
-    biosmem_free_usable();
-    shutdown_setup();
-    intr_setup();
-    cpu_mp_probe();
-    atcons_setup();
-    uart_setup();
+    arg_set_cmdline(boot_tmp_cmdline);
+    strace_set_mbi(&boot_raw_mbi);
     kernel_main();
 
     /* Never reached */
@@ -529,9 +497,61 @@ void __init
 boot_ap_main(void)
 {
     cpu_ap_setup();
-    thread_ap_bootstrap();
-    pmap_ap_bootstrap();
+    thread_ap_setup();
+    pmap_ap_setup();
     kernel_ap_main();
 
     /* Never reached */
 }
+
+/*
+ * Init operation aliases.
+ */
+
+static int __init
+boot_bootstrap_console(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(boot_bootstrap_console,
+               INIT_OP_DEP(atcons_bootstrap, true),
+               INIT_OP_DEP(uart_bootstrap, true));
+
+static int __init
+boot_setup_console(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(boot_setup_console,
+               INIT_OP_DEP(atcons_setup, true),
+               INIT_OP_DEP(uart_setup, true));
+
+static int __init
+boot_load_vm_page_zones(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(boot_load_vm_page_zones,
+               INIT_OP_DEP(biosmem_setup, true));
+
+static int __init
+boot_setup_intr(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(boot_setup_intr,
+               INIT_OP_DEP(acpi_setup, true));
+
+static int __init
+boot_setup_shutdown(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(boot_setup_shutdown,
+               INIT_OP_DEP(acpi_setup, true),
+               INIT_OP_DEP(cpu_setup_shutdown, true));

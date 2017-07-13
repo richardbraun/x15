@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/llsync.h>
 #include <kern/macros.h>
@@ -895,10 +896,14 @@ rdxtree_remove_all(struct rdxtree *tree)
     }
 }
 
-void
+static int __init
 rdxtree_setup(void)
 {
     kmem_cache_init(&rdxtree_node_cache, "rdxtree_node",
                     sizeof(struct rdxtree_node), 0,
                     rdxtree_node_ctor, KMEM_CACHE_PAGE_ONLY);
+    return 0;
 }
+
+INIT_OP_DEFINE(rdxtree_setup,
+               INIT_OP_DEP(kmem_bootstrap, true));

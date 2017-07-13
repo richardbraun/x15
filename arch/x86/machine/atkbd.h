@@ -21,9 +21,12 @@
 #ifndef _X86_ATKBD_H
 #define _X86_ATKBD_H
 
+#include <kern/init.h>
+
 /*
- * Initialize the atkbd module.
+ * This init operation provides :
+ *  - module fully initialized
  */
-void atkbd_setup(void);
+INIT_OP_DECLARE(atkbd_setup);
 
 #endif /* _X86_ATKBD_H */

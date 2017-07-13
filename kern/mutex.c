@@ -17,9 +17,9 @@
 
 #ifndef X15_MUTEX_PI
 
-#include <stdbool.h>
 #include <stddef.h>
 
+#include <kern/init.h>
 #include <kern/mutex.h>
 #include <kern/mutex_i.h>
 #include <kern/sleepq.h>
@@ -69,3 +69,12 @@ mutex_unlock_slow(struct mutex *mutex)
 }
 
 #endif /* X15_MUTEX_PI */
+
+static int __init
+mutex_setup(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(mutex_setup,
+               INIT_OP_DEP(thread_setup_booter, true));

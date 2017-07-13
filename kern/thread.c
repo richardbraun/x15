@@ -1687,11 +1687,9 @@ thread_reset_real_priority(struct thread *thread)
 }
 
 static void __init
-thread_bootstrap_common(unsigned int cpu)
+thread_init_booter(unsigned int cpu)
 {
     struct thread *booter;
-
-    cpumap_set(&thread_active_runqs, cpu);
 
     /* Initialize only what's needed during bootstrap */
     booter = &thread_booters[cpu];
@@ -1708,10 +1706,20 @@ thread_bootstrap_common(unsigned int cpu)
     booter->task = kernel_task;
     snprintf(booter->name, sizeof(booter->name),
              THREAD_KERNEL_PREFIX "thread_boot/%u", cpu);
-    thread_runq_init(percpu_ptr(thread_runq, cpu), cpu, booter);
 }
 
-void __init
+static int __init
+thread_setup_booter(void)
+{
+    tcb_set_current(&thread_booters[0].tcb);
+    thread_init_booter(0);
+    return 0;
+}
+
+INIT_OP_DEFINE(thread_setup_booter,
+               INIT_OP_DEP(tcb_setup, true));
+
+static int __init
 thread_bootstrap(void)
 {
     cpumap_zero(&thread_active_runqs);
@@ -1719,15 +1727,14 @@ thread_bootstrap(void)
 
     thread_fs_highest_round = THREAD_FS_INITIAL_ROUND;
 
-    tcb_set_current(&thread_booters[0].tcb);
-    thread_bootstrap_common(0);
+    cpumap_set(&thread_active_runqs, 0);
+    thread_runq_init(cpu_local_ptr(thread_runq), 0, &thread_booters[0]);
+    return 0;
 }
 
-void __init
-thread_ap_bootstrap(void)
-{
-    tcb_set_current(&thread_booters[cpu_id()].tcb);
-}
+INIT_OP_DEFINE(thread_bootstrap,
+               INIT_OP_DEP(syscnt_setup, true),
+               INIT_OP_DEP(thread_setup_booter, true));
 
 void
 thread_main(void (*fn)(void *), void *arg)
@@ -2292,15 +2299,37 @@ static struct shell_cmd thread_shell_cmds[] = {
                           "display the stack trace of a given thread"),
 };
 
+static int __init
+thread_setup_shell(void)
+{
+    SHELL_REGISTER_CMDS(thread_shell_cmds);
+    return 0;
+}
+
+INIT_OP_DEFINE(thread_setup_shell,
+               INIT_OP_DEP(printf_setup, true),
+               INIT_OP_DEP(shell_setup, true),
+               INIT_OP_DEP(task_setup, true),
+               INIT_OP_DEP(thread_setup, true));
+
 #endif /* X15_SHELL */
 
-void __init
+static void __init
+thread_setup_common(unsigned int cpu)
+{
+    assert(cpu != 0);
+    cpumap_set(&thread_active_runqs, cpu);
+    thread_init_booter(cpu);
+    thread_runq_init(percpu_ptr(thread_runq, cpu), cpu, &thread_booters[cpu]);
+}
+
+static int __init
 thread_setup(void)
 {
     int cpu;
 
     for (cpu = 1; (unsigned int)cpu < cpu_count(); cpu++) {
-        thread_bootstrap_common(cpu);
+        thread_setup_common(cpu);
     }
 
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
@@ -2316,7 +2345,28 @@ thread_setup(void)
         thread_setup_runq(percpu_ptr(thread_runq, cpu));
     }
 
-    SHELL_REGISTER_CMDS(thread_shell_cmds);
+    return 0;
+}
+
+INIT_OP_DEFINE(thread_setup,
+               INIT_OP_DEP(cpumap_setup, true),
+               INIT_OP_DEP(kmem_setup, true),
+               INIT_OP_DEP(pmap_setup, true),
+               INIT_OP_DEP(sleepq_setup, true),
+               INIT_OP_DEP(task_setup, true),
+               INIT_OP_DEP(thread_bootstrap, true),
+               INIT_OP_DEP(turnstile_setup, true),
+#ifdef X15_THREAD_STACK_GUARD
+               INIT_OP_DEP(vm_kmem_setup, true),
+               INIT_OP_DEP(vm_map_setup, true),
+               INIT_OP_DEP(vm_page_setup, true),
+#endif
+               );
+
+void __init
+thread_ap_setup(void)
+{
+    tcb_set_current(&thread_booters[cpu_id()].tcb);
 }
 
 int

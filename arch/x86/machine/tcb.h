@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+#include <kern/init.h>
 #include <machine/cpu.h>
 #include <machine/page.h>
 
@@ -94,5 +95,11 @@ tcb_switch(struct tcb *prev, struct tcb *next)
  * The thread associated to the TCB must not be running.
  */
 void tcb_trace(const struct tcb *tcb);
+
+/*
+ * This init operation provides :
+ *  - current TCB handling
+ */
+INIT_OP_DECLARE(tcb_setup);
 
 #endif /* _X86_TCB_H */

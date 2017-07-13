@@ -49,6 +49,7 @@
 #include <kern/spinlock.h>
 #include <kern/syscnt.h>
 #include <kern/work.h>
+#include <kern/thread.h>
 #include <machine/cpu.h>
 
 /*
@@ -81,7 +82,7 @@ llsync_ready(void)
     return llsync_is_ready;
 }
 
-void __init
+static int __init
 llsync_setup(void)
 {
     struct llsync_cpu_data *cpu_data;
@@ -102,7 +103,18 @@ llsync_setup(void)
         cpu_data = percpu_ptr(llsync_cpu_data, i);
         work_queue_init(&cpu_data->queue0);
     }
+
+    return 0;
 }
+
+INIT_OP_DEFINE(llsync_setup,
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(mutex_setup, true),
+               INIT_OP_DEP(percpu_setup, true),
+               INIT_OP_DEP(spinlock_setup, true),
+               INIT_OP_DEP(syscnt_setup, true),
+               INIT_OP_DEP(thread_bootstrap, true),
+               INIT_OP_DEP(work_setup, true));
 
 static void
 llsync_process_global_checkpoint(void)

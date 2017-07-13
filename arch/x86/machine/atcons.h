@@ -21,17 +21,7 @@
 #ifndef _X86_ATCONS_H
 #define _X86_ATCONS_H
 
-/*
- * Early initialization of the atcons module.
- */
-void atcons_bootstrap(void);
-
-/*
- * Initialize the atcons module.
- *
- * This function enables keyboard interrupt handling.
- */
-void atcons_setup(void);
+#include <kern/init.h>
 
 /*
  * Console interrupt handler.
@@ -48,5 +38,18 @@ void atcons_left(void);
 void atcons_bottom(void);
 void atcons_right(void);
 void atcons_up(void);
+
+/*
+ * This init operation provides :
+ *  - CGA output through the console module
+ */
+INIT_OP_DECLARE(atcons_bootstrap);
+
+/*
+ * This init operation provides :
+ *  - AT keyboard input through the console module
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(atcons_setup);
 
 #endif /* _X86_ATCONS_H */

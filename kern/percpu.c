@@ -36,13 +36,16 @@ static void *percpu_area_content __initdata;
 static size_t percpu_area_size __initdata;
 static int percpu_skip_warning __initdata;
 
-void __init
+static int __init
 percpu_bootstrap(void)
 {
     percpu_areas[0] = &_percpu;
+    return 0;
 }
 
-void __init
+INIT_OP_DEFINE(percpu_bootstrap);
+
+static int __init
 percpu_setup(void)
 {
     struct vm_page *page;
@@ -54,7 +57,7 @@ percpu_setup(void)
     assert(vm_page_aligned(percpu_area_size));
 
     if (percpu_area_size == 0) {
-        return;
+        return 0;
     }
 
     order = vm_page_order(percpu_area_size);
@@ -66,7 +69,12 @@ percpu_setup(void)
 
     percpu_area_content = vm_page_direct_ptr(page);
     memcpy(percpu_area_content, &_percpu, percpu_area_size);
+    return 0;
 }
+
+INIT_OP_DEFINE(percpu_setup,
+               INIT_OP_DEP(percpu_bootstrap, true),
+               INIT_OP_DEP(vm_page_setup, true));
 
 int __init
 percpu_add(unsigned int cpu)
@@ -108,7 +116,7 @@ out:
     return 0;
 }
 
-void
+static int __init
 percpu_cleanup(void)
 {
     struct vm_page *page;
@@ -117,4 +125,10 @@ percpu_cleanup(void)
     va = (uintptr_t)percpu_area_content;
     page = vm_page_lookup(vm_page_direct_pa(va));
     vm_page_free(page, vm_page_order(percpu_area_size));
+    return 0;
 }
+
+INIT_OP_DEFINE(percpu_cleanup,
+               INIT_OP_DEP(cpu_mp_probe, true),
+               INIT_OP_DEP(percpu_setup, true),
+               INIT_OP_DEP(vm_page_setup, true));

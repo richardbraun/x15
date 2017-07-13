@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <kern/arg.h>
 #include <kern/cbuf.h>
 #include <kern/init.h>
 #include <kern/log.h>
@@ -32,6 +33,8 @@
 #include <kern/shell.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
+#include <machine/boot.h>
+#include <machine/cpu.h>
 
 #define LOG_BUFFER_SIZE 16384
 
@@ -396,18 +399,40 @@ static struct shell_cmd log_shell_cmds[] = {
         " 7: debug"),
 };
 
+static int __init
+log_setup_shell(void)
+{
+    SHELL_REGISTER_CMDS(log_shell_cmds);
+    return 0;
+}
+
+INIT_OP_DEFINE(log_setup_shell,
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(shell_setup, true));
+
 #endif /* X15_SHELL */
 
-void __init
+static int __init
 log_setup(void)
 {
     cbuf_init(&log_cbuf, log_buffer, sizeof(log_buffer));
     log_index = cbuf_start(&log_cbuf);
     spinlock_init(&log_lock);
     log_print_level = LOG_INFO;
+
+    boot_log_info();
+    arg_log_info();
+    cpu_log_info(cpu_current());
+
+    return 0;
 }
 
-void __init
+INIT_OP_DEFINE(log_setup,
+               INIT_OP_DEP(arg_setup, true),
+               INIT_OP_DEP(cpu_setup, true),
+               INIT_OP_DEP(spinlock_setup, true));
+
+static int __init
 log_start(void)
 {
     struct thread_attr attr;
@@ -421,8 +446,13 @@ log_start(void)
         panic("log: unable to create thread");
     }
 
-    SHELL_REGISTER_CMDS(log_shell_cmds);
+    return 0;
 }
+
+INIT_OP_DEFINE(log_start,
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(panic_setup, true),
+               INIT_OP_DEP(thread_setup, true));
 
 static void
 log_write(const void *s, size_t size)

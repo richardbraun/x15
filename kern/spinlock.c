@@ -69,6 +69,7 @@
 
 #include <kern/atomic.h>
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
@@ -329,3 +330,12 @@ spinlock_unlock_slow(struct spinlock *lock)
     next_qnode = spinlock_get_remote_qnode(next_qid);
     atomic_store_release(&next_qnode->locked, false);
 }
+
+static int __init
+spinlock_setup(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(spinlock_setup,
+               INIT_OP_DEP(thread_setup_booter, true));

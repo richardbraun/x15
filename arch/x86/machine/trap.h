@@ -77,6 +77,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include <kern/init.h>
 #include <kern/macros.h>
 
 #ifdef __LP64__
@@ -144,11 +145,6 @@ trap_trigger_double_fault(void)
 }
 
 /*
- * Set up the trap module.
- */
-void trap_setup(void);
-
-/*
  * Unified trap entry point.
  */
 void trap_main(struct trap_frame *frame);
@@ -176,6 +172,13 @@ void trap_stack_show(struct trap_frame *frame);
  * Return NULL if no stack switching is required.
  */
 void * trap_get_interrupt_stack(const struct trap_frame *frame);
+
+/*
+ * This init operation provides :
+ *  - initialization of all IDT entries and trap handlers
+ *  - double fault exception support
+ */
+INIT_OP_DECLARE(trap_setup);
 
 #endif /* __ASSEMBLER__ */
 

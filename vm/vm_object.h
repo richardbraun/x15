@@ -26,16 +26,12 @@
 
 #include <stdint.h>
 
+#include <kern/init.h>
 #include <kern/rdxtree.h>
 #include <vm/vm_object_types.h>
 #include <vm/vm_page.h>
 
 struct vm_object;
-
-/*
- * Initialize the vm_object module.
- */
-void vm_object_setup(void);
 
 /*
  * Initialize a VM object.
@@ -74,5 +70,11 @@ void vm_object_remove(struct vm_object *object, uint64_t start, uint64_t end);
  * moved at a different offset.
  */
 struct vm_page * vm_object_lookup(struct vm_object *object, uint64_t offset);
+
+/*
+ * This init operation provides :
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(vm_object_setup);
 
 #endif /* _VM_OBJECT_H */

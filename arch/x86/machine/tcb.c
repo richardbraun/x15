@@ -104,3 +104,12 @@ tcb_trace(const struct tcb *tcb)
 {
     strace_show((uintptr_t)tcb_context_restore, tcb->bp);
 }
+
+static int __init
+tcb_setup(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(tcb_setup,
+               INIT_OP_DEP(cpu_setup, true));

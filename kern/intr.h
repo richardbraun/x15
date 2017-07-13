@@ -21,6 +21,8 @@
 #ifndef _KERN_INTR_H
 #define _KERN_INTR_H
 
+#include <kern/init.h>
+
 /*
  * Type for interrupt handler functions.
  *
@@ -42,11 +44,6 @@ struct intr_ops {
 };
 
 /*
- * Initialize the intr module.
- */
-void intr_setup(void);
-
-/*
  * Register an interrupt controller.
  *
  * This function isn't thread-safe and can only be called during system
@@ -65,5 +62,18 @@ void intr_unregister(unsigned int intr, intr_handler_fn_t fn);
  * Handle an interrupt.
  */
 void intr_handle(unsigned int intr);
+
+/*
+ * This init operation provides :
+ *  - registration of interrupt controllers and handlers
+ */
+INIT_OP_DECLARE(intr_bootstrap);
+
+/*
+ * This init operation provides :
+ *  - all interrupt controllers have been registered
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(intr_setup);
 
 #endif /* _KERN_INTR_H */
