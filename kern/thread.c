@@ -1931,24 +1931,18 @@ thread_alloc_stack(void)
     pmap_remove(kernel_pmap, va + PAGE_SIZE + stack_size, cpumap_all());
     pmap_update(kernel_pmap);
 
-    vm_page_free(first_page, 0);
-    vm_page_free(last_page, 0);
-
-    return (char *)va + PAGE_SIZE;
+    return (void *)va + PAGE_SIZE;
 }
 
 static void
 thread_free_stack(void *stack)
 {
     size_t stack_size;
-    char *va;
+    void *va;
 
     stack_size = vm_page_round(TCB_STACK_SIZE);
-    va = (char *)stack - PAGE_SIZE;
-
-    vm_kmem_free_va(va, PAGE_SIZE);
-    vm_kmem_free(va + PAGE_SIZE, stack_size);
-    vm_kmem_free_va(va + PAGE_SIZE + stack_size, PAGE_SIZE);
+    va = (void *)stack - PAGE_SIZE;
+    vm_kmem_free(va, (PAGE_SIZE * 2) + stack_size);
 }
 
 #else /* X15_THREAD_STACK_GUARD */
