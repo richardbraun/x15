@@ -31,7 +31,9 @@ x15_SOURCES +=                                              \
         kern/hash.h                                         \
         kern/fmt.c                                          \
         kern/fmt.h                                          \
+        kern/init.c                                         \
         kern/init.h                                         \
+        kern/init_i.h                                       \
         kern/intr.c                                         \
         kern/intr.h                                         \
         kern/kernel.c                                       \
