@@ -19,6 +19,7 @@
 #define _KERN_TASK_H
 
 #include <kern/atomic.h>
+#include <kern/init.h>
 #include <kern/list.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
@@ -75,11 +76,6 @@ task_get_vm_map(const struct task *task)
 }
 
 /*
- * Initialize the task module.
- */
-void task_setup(void);
-
-/*
  * Create a task.
  */
 int task_create(struct task **taskp, const char *name);
@@ -118,5 +114,12 @@ struct thread * task_lookup_thread(struct task *task, const char *name);
  * If task is NULL, this function displays all tasks.
  */
 void task_info(struct task *task);
+
+/*
+ * This init operation provides :
+ *  - task creation
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(task_setup);
 
 #endif /* _KERN_TASK_H */

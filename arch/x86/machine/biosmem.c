@@ -33,7 +33,6 @@
 #include <machine/pmap.h>
 #include <machine/pmem.h>
 #include <machine/types.h>
-#include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 
 #define BIOSMEM_MAX_BOOT_DATA 64
@@ -234,9 +233,9 @@ biosmem_unregister_boot_data(phys_addr_t start, phys_addr_t end)
 
     biosmem_nr_boot_data--;
 
-    boot_memmove(&biosmem_boot_data_array[i],
-                 &biosmem_boot_data_array[i + 1],
-                 (biosmem_nr_boot_data - i) * sizeof(*biosmem_boot_data_array));
+    memmove(&biosmem_boot_data_array[i],
+            &biosmem_boot_data_array[i + 1],
+            (biosmem_nr_boot_data - i) * sizeof(*biosmem_boot_data_array));
 }
 
 static void __boot
@@ -813,7 +812,7 @@ biosmem_load_zone(struct biosmem_zone *zone, uint64_t max_phys_end)
     if (phys_end > max_phys_end) {
         if (max_phys_end <= phys_start) {
             log_warning("biosmem: zone %s physically unreachable, "
-                   "not loaded", vm_page_zone_name(zone_index));
+                        "not loaded", vm_page_zone_name(zone_index));
             return;
         }
 
@@ -847,7 +846,7 @@ biosmem_load_zone(struct biosmem_zone *zone, uint64_t max_phys_end)
     }
 }
 
-void __init
+static int __init
 biosmem_setup(void)
 {
     uint64_t max_phys_end;
@@ -870,7 +869,13 @@ biosmem_setup(void)
         zone = &biosmem_zones[i];
         biosmem_load_zone(zone, max_phys_end);
     }
+
+    return 0;
 }
+
+INIT_OP_DEFINE(biosmem_setup,
+               INIT_OP_DEP(cpu_setup, true),
+               INIT_OP_DEP(log_setup, true));
 
 static void __init
 biosmem_unregister_temporary_boot_data(void)
@@ -925,7 +930,7 @@ biosmem_free_usable_entry(phys_addr_t start, phys_addr_t end)
     }
 }
 
-void __init
+static int __init
 biosmem_free_usable(void)
 {
     struct biosmem_map_entry *entry;
@@ -963,4 +968,12 @@ biosmem_free_usable(void)
 
         biosmem_free_usable_entry(start, end);
     }
+
+    return 0;
 }
+
+INIT_OP_DEFINE(biosmem_free_usable,
+               INIT_OP_DEP(boot_save_data, true),
+               INIT_OP_DEP(panic_setup, true),
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(vm_page_setup, true));

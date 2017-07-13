@@ -20,6 +20,7 @@
 #include <kern/bitmap.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/macros.h>
 #include <machine/cpu.h>
@@ -28,7 +29,7 @@ static struct cpumap cpumap_active_cpus __read_mostly = { { 1 } };
 
 static struct kmem_cache cpumap_cache;
 
-void
+static int __init
 cpumap_setup(void)
 {
     unsigned int i, nr_cpus;
@@ -40,7 +41,13 @@ cpumap_setup(void)
     for (i = 0; i < nr_cpus; i++) {
         cpumap_set(&cpumap_active_cpus, i);
     }
+
+    return 0;
 }
+
+INIT_OP_DEFINE(cpumap_setup,
+               INIT_OP_DEP(kmem_setup, true),
+               INIT_OP_DEP(cpu_mp_probe, true));
 
 const struct cpumap *
 cpumap_all(void)

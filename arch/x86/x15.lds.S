@@ -44,6 +44,12 @@ SECTIONS
     .init ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.init))) {
         *(.init.text)
         *(.init.data)
+
+        . = ALIGN(64);
+        _init_ops = .;
+        *(.init.ops)
+        _init_ops_end = .;
+
     } : init
 
     . = ALIGN(PAGE_SIZE);

@@ -17,7 +17,9 @@
 
 #include <kern/console.h>
 #include <kern/fmt.h>
+#include <kern/init.h>
 #include <kern/spinlock.h>
+#include <machine/boot.h>
 #include <machine/cpu.h>
 
 /*
@@ -61,8 +63,14 @@ vprintf(const char *format, va_list ap)
     return length;
 }
 
-void
+static int __init
 printf_setup(void)
 {
     spinlock_init(&printf_lock);
+    return 0;
 }
+
+INIT_OP_DEFINE(printf_setup,
+               INIT_OP_DEP(boot_bootstrap_console, true),
+               INIT_OP_DEP(console_bootstrap, true),
+               INIT_OP_DEP(spinlock_setup, true));

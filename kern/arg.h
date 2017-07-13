@@ -27,12 +27,16 @@
 
 #include <stdbool.h>
 
+#include <kern/init.h>
+
 #define ARG_CMDLINE_MAX_SIZE 256
 
 /*
- * Initialize the arg module.
+ * Set the command line string.
+ *
+ * This function must be called before calling the kernel main entry point.
  */
-void arg_setup(const char *cmdline);
+void arg_set_cmdline(const char *cmdline);
 
 /*
  * Log command line information.
@@ -53,5 +57,11 @@ bool arg_present(const char *name);
  * argument isn't present, NULL is returned.
  */
 const char * arg_value(const char *name);
+
+/*
+ * This init operation provides :
+ *  - command line arguments can be retrieved
+ */
+INIT_OP_DECLARE(arg_setup);
 
 #endif /* _KERN_ARG_H */

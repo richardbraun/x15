@@ -23,6 +23,8 @@
 
 #include <stddef.h>
 
+#include <kern/init.h>
+
 /*
  * Object cache.
  */
@@ -77,14 +79,6 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj);
 void kmem_cache_info(struct kmem_cache *cache);
 
 /*
- * Set up the kernel memory allocator module.
- *
- * This function should only be called by the VM system. Once it returns,
- * caches can be initialized.
- */
-void kmem_setup(void);
-
-/*
  * Allocate size bytes of uninitialized memory.
  */
 void * kmem_alloc(size_t size);
@@ -105,5 +99,17 @@ void kmem_free(void *ptr, size_t size);
  * Display global kernel memory information.
  */
 void kmem_info(void);
+
+/*
+ * This init operation provides :
+ *  - allocation from caches backed by the page allocator
+ */
+INIT_OP_DECLARE(kmem_bootstrap);
+
+/*
+ * This init operation provides :
+ *  - allocation from all caches
+ */
+INIT_OP_DECLARE(kmem_setup);
 
 #endif /* _KERN_KMEM_H */

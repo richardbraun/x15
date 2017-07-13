@@ -18,7 +18,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <kern/console.h>
 #include <kern/error.h>
 #include <kern/hash.h>
 #include <kern/init.h>
@@ -1183,7 +1182,7 @@ shell_run(void *arg)
     }
 }
 
-void __init
+static int __init
 shell_setup(void)
 {
     unsigned long i;
@@ -1195,7 +1194,14 @@ shell_setup(void)
         error = shell_cmd_register(&shell_default_cmds[i]);
         error_check(error, "shell_cmd_register");
     }
+
+    return 0;
 }
+
+INIT_OP_DEFINE(shell_setup,
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(mutex_setup, true),
+               INIT_OP_DEP(printf_setup, true));
 
 void __init
 shell_start(void)

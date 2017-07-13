@@ -20,6 +20,7 @@
 
 #include <stdbool.h>
 
+#include <kern/init.h>
 #include <machine/multiboot.h>
 #include <machine/types.h>
 
@@ -53,9 +54,9 @@
  * Once all boot data have been registered, the user can set up the
  * early page allocator.
  *
- * If the range is marked temporary, it will be unregistered when
- * biosmem_free_usable() is called, so that pages that used to store
- * these boot data may be released to the VM system.
+ * If the range is marked temporary, it will be unregistered once
+ * the boot data have been saved/consumed so that their backing
+ * pages are loaded into the VM system.
  *
  * This function is called before paging is enabled.
  */
@@ -102,17 +103,9 @@ const void * biosmem_get_bda(void);
 phys_addr_t biosmem_directmap_end(void);
 
 /*
- * Set up physical memory based on the information obtained during bootstrap
- * and load it in the VM system.
+ * This init operation provides :
+ *  - heaps of physical memory are loaded by the VM system
  */
-void biosmem_setup(void);
-
-/*
- * Free all usable memory.
- *
- * This function releases all pages that aren't used by boot data and have
- * not already been loaded into the VM system.
- */
-void biosmem_free_usable(void);
+INIT_OP_DECLARE(biosmem_setup);
 
 #endif /* _X86_BIOSMEM_H */

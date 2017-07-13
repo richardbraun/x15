@@ -21,24 +21,19 @@
 #ifndef _X86_UART_H
 #define _X86_UART_H
 
-/*
- * Early initialization of the uart module.
- *
- * Devices may only be used to report diagnostics until initialization
- * is completed.
- */
-void uart_bootstrap(void);
+#include <kern/init.h>
 
 /*
- * Initialize the uart module.
- *
- * On return, devices may be used for both input and output, using interrupts.
+ * This init operation provides :
+ *  - UART output through the console module
  */
-void uart_setup(void);
+INIT_OP_DECLARE(uart_bootstrap);
 
 /*
- * Display device information.
+ * This init operation provides :
+ *  - UART input through the console module
+ *  - module fully initialized
  */
-void uart_info(void);
+INIT_OP_DECLARE(uart_setup);
 
 #endif /* _X86_UART_H */

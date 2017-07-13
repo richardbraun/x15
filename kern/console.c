@@ -29,6 +29,7 @@
 #include <kern/mutex.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
+#include <machine/boot.h>
 #include <machine/cpu.h>
 
 /*
@@ -129,12 +130,27 @@ out:
     return c;
 }
 
-void __init
-console_setup(void)
+static int __init
+console_bootstrap(void)
 {
     list_init(&console_devs);
     console_name = arg_value("console");
+    return 0;
 }
+
+INIT_OP_DEFINE(console_bootstrap,
+               INIT_OP_DEP(arg_setup, true),
+               INIT_OP_DEP(log_setup, true));
+
+static int __init
+console_setup(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(console_setup,
+               INIT_OP_DEP(boot_setup_console, true),
+               INIT_OP_DEP(thread_setup, true));
 
 void __init
 console_register(struct console *console)

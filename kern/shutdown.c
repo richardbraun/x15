@@ -21,6 +21,7 @@
 #include <kern/plist.h>
 #include <kern/shell.h>
 #include <kern/shutdown.h>
+#include <machine/boot.h>
 #include <machine/cpu.h>
 
 static struct plist shutdown_ops_list;
@@ -54,19 +55,39 @@ static struct shell_cmd shutdown_shell_cmds[] = {
         "reboot the system"),
 };
 
-#endif /* X15_SHELL */
-
-void __init
-shutdown_setup(void)
-{
-    plist_init(&shutdown_ops_list);
-}
-
-void __init
-shutdown_register_shell_cmds(void)
+static int __init
+shutdown_setup_shell(void)
 {
     SHELL_REGISTER_CMDS(shutdown_shell_cmds);
+    return 0;
 }
+
+INIT_OP_DEFINE(shutdown_setup_shell,
+               INIT_OP_DEP(shell_setup, true),
+               INIT_OP_DEP(shutdown_setup, true));
+
+#endif /* X15_SHELL */
+
+static int __init
+shutdown_bootstrap(void)
+{
+    plist_init(&shutdown_ops_list);
+    return 0;
+}
+
+INIT_OP_DEFINE(shutdown_bootstrap);
+
+static int __init
+shutdown_setup(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(shutdown_setup,
+               INIT_OP_DEP(boot_setup_shutdown, true),
+               INIT_OP_DEP(cpu_setup, true),
+               INIT_OP_DEP(printf_setup, true),
+               INIT_OP_DEP(shutdown_bootstrap, true));
 
 void __init
 shutdown_register(struct shutdown_ops *ops, unsigned int priority)

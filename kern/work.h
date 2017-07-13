@@ -26,6 +26,8 @@
 #ifndef _KERN_WORK_H
 #define _KERN_WORK_H
 
+#include <kern/init.h>
+
 /*
  * Work scheduling flags.
  */
@@ -134,11 +136,6 @@ work_init(struct work *work, work_fn_t fn)
 }
 
 /*
- * Initialize the work module.
- */
-void work_setup(void);
-
-/*
  * Schedule work for deferred processing.
  *
  * This function may be called from interrupt context.
@@ -155,5 +152,12 @@ void work_queue_schedule(struct work_queue *queue, int flags);
  * Interrupts and preemption must be disabled when calling this function.
  */
 void work_report_periodic_event(void);
+
+/*
+ * This init operation provides :
+ *  - works can be scheduled
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(work_setup);
 
 #endif /* _KERN_WORK_H */

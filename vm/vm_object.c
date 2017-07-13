@@ -31,10 +31,16 @@
 #include <vm/vm_page.h>
 #include <machine/page.h>
 
-void __init
+static int __init
 vm_object_setup(void)
 {
+    return 0;
 }
+
+INIT_OP_DEFINE(vm_object_setup,
+               INIT_OP_DEP(mutex_setup, true),
+               INIT_OP_DEP(rdxtree_setup, true),
+               INIT_OP_DEP(vm_page_setup, true));
 
 void __init
 vm_object_init(struct vm_object *object, uint64_t size)

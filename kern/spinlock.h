@@ -26,6 +26,7 @@
 #ifndef _KERN_SPINLOCK_H
 #define _KERN_SPINLOCK_H
 
+#include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/spinlock_i.h>
 #include <kern/spinlock_types.h>
@@ -161,5 +162,13 @@ spinlock_unlock_intr_restore(struct spinlock *lock, unsigned long flags)
     cpu_intr_restore(flags);
     thread_preempt_enable();
 }
+
+/*
+ * This init operation provides :
+ *  - uncontended spinlock locking
+ *
+ * Contended locking may only occur after starting APs.
+ */
+INIT_OP_DECLARE(spinlock_setup);
 
 #endif /* _KERN_SPINLOCK_H */

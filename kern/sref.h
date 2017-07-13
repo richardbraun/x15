@@ -49,20 +49,6 @@ typedef void (*sref_noref_fn_t)(struct sref_counter *);
 #include <kern/sref_i.h>
 
 /*
- * Early initialization of the sref module.
- *
- * This function depends on the availability of percpu variables.
- */
-void sref_bootstrap(void);
-
-/*
- * Initialize the sref module.
- *
- * This function mostly takes care of setting up periodic maintenance.
- */
-void sref_setup(void);
-
-/*
  * Manage registration of the current processor.
  *
  * Registering tells the sref module that the current processor reports

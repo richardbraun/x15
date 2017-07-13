@@ -32,13 +32,6 @@
 static struct list syscnt_list;
 static struct mutex syscnt_lock;
 
-void __init
-syscnt_setup(void)
-{
-    list_init(&syscnt_list);
-    mutex_init(&syscnt_lock);
-}
-
 #ifdef X15_SHELL
 
 static void
@@ -50,20 +43,35 @@ syscnt_shell_info(int argc, char **argv)
     syscnt_info(prefix);
 }
 
-
 static struct shell_cmd syscnt_shell_cmds[] = {
     SHELL_CMD_INITIALIZER("syscnt_info", syscnt_shell_info,
                           "syscnt_info [<prefix>]",
                           "display information about system counters"),
 };
 
-#endif /* X15_SHELL */
-
-void __init
-syscnt_register_shell_cmds(void)
+static int __init
+syscnt_setup_shell(void)
 {
     SHELL_REGISTER_CMDS(syscnt_shell_cmds);
+    return 0;
 }
+
+INIT_OP_DEFINE(syscnt_setup_shell,
+               INIT_OP_DEP(shell_setup, true),
+               INIT_OP_DEP(syscnt_setup, true));
+
+#endif /* X15_SHELL */
+
+static int __init
+syscnt_setup(void)
+{
+    list_init(&syscnt_list);
+    mutex_init(&syscnt_lock);
+    return 0;
+}
+
+INIT_OP_DEFINE(syscnt_setup,
+               INIT_OP_DEP(mutex_setup, true));
 
 void __init
 syscnt_register(struct syscnt *syscnt, const char *name)

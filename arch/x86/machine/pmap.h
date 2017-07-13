@@ -165,6 +165,7 @@
 #include <stdint.h>
 
 #include <kern/cpumap.h>
+#include <kern/init.h>
 #include <kern/list.h>
 #include <kern/mutex.h>
 #include <kern/thread.h>
@@ -203,22 +204,9 @@ pmap_pte_t * pmap_setup_paging(void);
 pmap_pte_t * pmap_ap_setup_paging(void);
 
 /*
- * Early initialization of the pmap module.
+ * Initialize the pmap module on APs.
  */
-void pmap_bootstrap(void);
-
-/*
- * Early initialization of the MMU on APs.
- */
-void pmap_ap_bootstrap(void);
-
-/*
- * Set up the pmap module.
- *
- * This function should only be called by the VM system, once kernel
- * allocations can be performed safely.
- */
-void pmap_setup(void);
+void pmap_ap_setup(void);
 
 /*
  * Set up the pmap module for multiprocessor operations.
@@ -329,6 +317,19 @@ pmap_current(void)
     extern struct pmap *pmap_current_ptr;
     return cpu_local_read(pmap_current_ptr);
 }
+
+/*
+ * This init operation provides :
+ *  - kernel pmap operations
+ */
+INIT_OP_DECLARE(pmap_bootstrap);
+
+/*
+ * This init operation provides :
+ *  - user pmap creation
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(pmap_setup);
 
 #endif /* __ASSEMBLER__ */
 

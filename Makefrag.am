@@ -31,7 +31,9 @@ x15_SOURCES +=                                              \
         kern/hash.h                                         \
         kern/fmt.c                                          \
         kern/fmt.h                                          \
+        kern/init.c                                         \
         kern/init.h                                         \
+        kern/init_i.h                                       \
         kern/intr.c                                         \
         kern/intr.h                                         \
         kern/kernel.c                                       \
@@ -122,9 +124,7 @@ x15_SOURCES +=                                              \
         vm/vm_object_types.h                                \
         vm/vm_page.c                                        \
         vm/vm_page.h                                        \
-        vm/vm_prot.h                                        \
-        vm/vm_setup.c                                       \
-        vm/vm_setup.h
+        vm/vm_prot.h
 
 x15_SOURCES +=                                              \
         test/test.h
