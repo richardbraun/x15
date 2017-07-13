@@ -492,6 +492,13 @@ error_subobj:
 }
 --------------------------------------------------------------------------------
 
+Local variables
+~~~~~~~~~~~~~~~
+
+Local variables must be declared at the beginning of their scope. An empty
+line separates them from the function body. A notable exception is iterators,
+which may be declared inside loop statements.
+
 Common functions and methods
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
