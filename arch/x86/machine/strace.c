@@ -36,6 +36,8 @@
 #define STRACE_ADDR_FORMAT "%#010lx"
 #endif /* __LP64__ */
 
+static const struct multiboot_raw_info *strace_mbi __initdata;
+
 static struct elf_sym *strace_symtab __read_mostly;
 static struct elf_sym *strace_symtab_end __read_mostly;
 static char *strace_strtab __read_mostly;
@@ -173,13 +175,22 @@ strace_lookup_section(const struct multiboot_raw_info *mbi, const void *table,
 }
 
 void __init
-strace_setup(const struct multiboot_raw_info *mbi)
+strace_set_mbi(const struct multiboot_raw_info *mbi)
+{
+    strace_mbi = mbi;
+}
+
+static int __init
+strace_setup(void)
 {
     const struct elf_shdr *shstrtab_hdr, *symtab_hdr, *strtab_hdr;
+    const struct multiboot_raw_info *mbi;
     uintptr_t map_addr, shstrtab_map_addr;
     size_t size, map_size, shstrtab_map_size;
     const char *shstrtab;
     const void *table;
+
+    mbi = strace_mbi;
 
     if (!(mbi->flags & MULTIBOOT_LOADER_SHDR) || (mbi->shdr_num == 0)) {
         goto no_syms;
@@ -236,7 +247,7 @@ strace_setup(const struct multiboot_raw_info *mbi)
 
     vm_kmem_unmap_pa(shstrtab_map_addr, shstrtab_map_size);
     vm_kmem_unmap_pa(map_addr, map_size);
-    return;
+    return 0;
 
 error_strtab:
     kmem_free(strace_symtab, symtab_hdr->size);
@@ -251,4 +262,12 @@ no_syms:
     strace_symtab = NULL;
     strace_symtab_end = NULL;
     strace_strtab = NULL;
+    return 0;
 }
+
+INIT_OP_DEFINE(strace_setup,
+               INIT_OP_DEP(kmem_setup, true),
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(pmap_bootstrap, true),
+               INIT_OP_DEP(printf_setup, true),
+               INIT_OP_DEP(vm_kmem_setup, true));

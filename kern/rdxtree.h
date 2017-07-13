@@ -29,6 +29,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <kern/init.h>
 #include <kern/llsync.h>
 
 typedef uint64_t rdxtree_key_t;
@@ -200,8 +201,9 @@ rdxtree_iter_key(const struct rdxtree_iter *iter)
 void rdxtree_remove_all(struct rdxtree *tree);
 
 /*
- * Initialize the rdxtree module.
+ * This init operation provides :
+ *  - module fully initialized
  */
-void rdxtree_setup(void);
+INIT_OP_DECLARE(rdxtree_setup);
 
 #endif /* _KERN_RDXTREE_H */

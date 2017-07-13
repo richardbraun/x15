@@ -23,6 +23,7 @@
 
 #include <stdint.h>
 
+#include <kern/init.h>
 #include <kern/list.h>
 #include <kern/mutex.h>
 #include <kern/rbtree.h>
@@ -104,11 +105,6 @@ int vm_map_enter(struct vm_map *map, uintptr_t *startp,
 void vm_map_remove(struct vm_map *map, uintptr_t start, uintptr_t end);
 
 /*
- * Set up the vm_map module.
- */
-void vm_map_setup(void);
-
-/*
  * Create a VM map.
  */
 int vm_map_create(struct vm_map **mapp);
@@ -117,5 +113,18 @@ int vm_map_create(struct vm_map **mapp);
  * Display information about a memory map.
  */
 void vm_map_info(struct vm_map *map);
+
+/*
+ * This init operation provides :
+ *  - kernel mapping operations
+ */
+INIT_OP_DECLARE(vm_map_bootstrap);
+
+/*
+ * This init operation provides :
+ *  - VM map creation
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(vm_map_setup);
 
 #endif /* _VM_VM_MAP_H */

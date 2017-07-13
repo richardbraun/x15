@@ -27,6 +27,7 @@
 #define _KERN_CPUMAP_H
 
 #include <kern/bitmap.h>
+#include <kern/init.h>
 
 struct cpumap {
     BITMAP_DECLARE(cpus, X15_MAX_CPUS);
@@ -135,11 +136,6 @@ cpumap_find_first_zero(const struct cpumap *cpumap)
     bitmap_for_each_zero((cpumap)->cpus, X15_MAX_CPUS, index)
 
 /*
- * Initialize the cpumap module.
- */
-void cpumap_setup(void);
-
-/*
  * Return a cpumap representing all active processors.
  *
  * Until the cpumap module is initialized, the cpumap returned by this
@@ -166,5 +162,12 @@ void cpumap_destroy(struct cpumap *cpumap);
  * ERROR_INVAL.
  */
 int cpumap_check(const struct cpumap *cpumap);
+
+/*
+ * This init operation provides :
+ *  - cpumap creation
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(cpumap_setup);
 
 #endif /* _KERN_CPUMAP_H */

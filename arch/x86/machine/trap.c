@@ -171,7 +171,7 @@ trap_default(struct trap_frame *frame)
     cpu_halt();
 }
 
-void __init
+static int __init
 trap_setup(void)
 {
     size_t i;
@@ -213,7 +213,11 @@ trap_setup(void)
     trap_install(TRAP_LAPIC_TIMER, TRAP_HF_INTR, lapic_timer_intr);
     trap_install(TRAP_LAPIC_ERROR, TRAP_HF_INTR, lapic_error_intr);
     trap_install(TRAP_LAPIC_SPURIOUS, TRAP_HF_INTR, lapic_spurious_intr);
+
+    return 0;
 }
+
+INIT_OP_DEFINE(trap_setup);
 
 void
 trap_main(struct trap_frame *frame)

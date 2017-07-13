@@ -33,12 +33,18 @@
 
 #include <stdarg.h>
 
+#include <kern/init.h>
+
 int printf(const char *format, ...)
     __attribute__((format(printf, 1, 2)));
 
 int vprintf(const char *format, va_list ap)
     __attribute__((format(printf, 1, 0)));
 
-void printf_setup(void);
+/*
+ * This init operation provides :
+ *  - printf is usable
+ */
+INIT_OP_DECLARE(printf_setup);
 
 #endif /* _KERN_PRINTF_H */

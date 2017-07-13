@@ -36,6 +36,7 @@
 #include <kern/panic.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
+#include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/trap.h>
 
@@ -315,8 +316,8 @@ intr_get_entry(unsigned int intr)
     return &intr_table[intr];
 }
 
-void __init
-intr_setup(void)
+static int __init
+intr_bootstrap(void)
 {
     unsigned int i;
 
@@ -328,7 +329,26 @@ intr_setup(void)
     for (i = 0; i < ARRAY_SIZE(intr_table); i++) {
         intr_entry_init(intr_get_entry(i));
     }
+
+    return 0;
 }
+
+INIT_OP_DEFINE(intr_bootstrap,
+               INIT_OP_DEP(kmem_setup, true),
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(panic_setup, true),
+               INIT_OP_DEP(spinlock_setup, true),
+               INIT_OP_DEP(thread_bootstrap, true));
+
+static int __init
+intr_setup(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(intr_setup,
+               INIT_OP_DEP(boot_setup_intr, true),
+               INIT_OP_DEP(intr_bootstrap, true));
 
 static void __init
 intr_check_range(unsigned int first_intr, unsigned int last_intr)

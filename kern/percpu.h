@@ -57,6 +57,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <kern/init.h>
 #include <kern/macros.h>
 
 #define PERCPU_SECTION .percpu
@@ -95,25 +96,6 @@ percpu_area(unsigned int cpu)
 }
 
 /*
- * Early initialization of the percpu module.
- *
- * This function registers the percpu section as the percpu area of the
- * BSP. If a percpu variable is modified before calling percpu_setup(),
- * the modification will be part of the percpu section and propagated to
- * new percpu areas.
- */
-void percpu_bootstrap(void);
-
-/*
- * Complete initialization of the percpu module.
- *
- * The BSP keeps using the percpu section, but its content is copied to a
- * dedicated block of memory used as a template for subsequently added
- * processors.
- */
-void percpu_setup(void);
-
-/*
  * Register a processor.
  *
  * This function creates a percpu area from kernel virtual memory for the
@@ -123,8 +105,16 @@ void percpu_setup(void);
 int percpu_add(unsigned int cpu);
 
 /*
- * Release init data allocated for setup.
+ * This init operation provides :
+ *  - percpu section is registered as the BSP percpu area
  */
-void percpu_cleanup(void);
+INIT_OP_DECLARE(percpu_bootstrap);
+
+/*
+ * This init operation provides :
+ *  - percpu section is copied to a kernel buffer subsequently used as
+ *    the template for future percpu areas
+ */
+INIT_OP_DECLARE(percpu_setup);
 
 #endif /* _KERN_PERCPU_H */

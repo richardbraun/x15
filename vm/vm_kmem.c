@@ -22,7 +22,6 @@
 #include <kern/cpumap.h>
 #include <kern/init.h>
 #include <kern/macros.h>
-#include <kern/panic.h>
 #include <machine/page.h>
 #include <machine/pmap.h>
 #include <machine/types.h>
@@ -49,14 +48,21 @@ vm_kmem_offset(uintptr_t va)
     return va - PMAP_MIN_KMEM_ADDRESS;
 }
 
-void __init
+static int __init
 vm_kmem_setup(void)
 {
     uint64_t size;
 
     size = vm_kmem_offset(PMAP_MAX_KMEM_ADDRESS);
     vm_object_init(&vm_kmem_kernel_object, size);
+    return 0;
 }
+
+INIT_OP_DEFINE(vm_kmem_setup,
+               INIT_OP_DEP(pmap_bootstrap, true),
+               INIT_OP_DEP(vm_map_bootstrap, true),
+               INIT_OP_DEP(vm_object_setup, true),
+               INIT_OP_DEP(vm_page_setup, true));
 
 static int
 vm_kmem_alloc_check(size_t size)

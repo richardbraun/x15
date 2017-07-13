@@ -60,6 +60,7 @@
 
 #ifndef __ASSEMBLER__
 
+#include <kern/init.h>
 #include <machine/multiboot.h>
 #include <machine/pmap.h>
 
@@ -121,6 +122,47 @@ void boot_main(void);
  * Entry point for APs.
  */
 void boot_ap_main(void);
+
+/*
+ * Log kernel version and other architecture-specific information.
+ */
+void boot_log_info(void);
+
+/*
+ * This init operation provides :
+ *  - boot data are saved
+ */
+INIT_OP_DECLARE(boot_save_data);
+
+/*
+ * This init operation provides :
+ *  - all console devices are bootstrapped
+ */
+INIT_OP_DECLARE(boot_bootstrap_console);
+
+/*
+ * This init operation provides :
+ *  - all console devices are fully initialized
+ */
+INIT_OP_DECLARE(boot_setup_console);
+
+/*
+ * This init operation provides :
+ *  - physical memory has been loaded to the VM system
+ */
+INIT_OP_DECLARE(boot_load_vm_page_zones);
+
+/*
+ * This init operation provides :
+ *  - all interrupt controllers have been registered
+ */
+INIT_OP_DECLARE(boot_setup_intr);
+
+/*
+ * This init operation provides :
+ *  - all shutdown operations have been registered
+ */
+INIT_OP_DECLARE(boot_setup_shutdown);
 
 #endif /* __ASSEMBLER__ */
 

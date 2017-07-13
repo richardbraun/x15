@@ -22,12 +22,14 @@
 #ifndef _X86_ACPI_H
 #define _X86_ACPI_H
 
+#include <kern/init.h>
+
 /*
- * Load ACPI information.
- *
- * Return 0 if successful (an error usually means hardware doesn't support
- * ACPI).
+ * This init operation provides :
+ *  - Multiprocessor probing
+ *  - registration of I/O APIC interrupt controllers
+ *  - registration of ACPI shutdown operations
  */
-int acpi_setup(void);
+INIT_OP_DECLARE(acpi_setup);
 
 #endif /* _X86_ACPI_H */

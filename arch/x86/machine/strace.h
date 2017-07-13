@@ -21,6 +21,7 @@
 #ifndef _X86_STRACE_H
 #define _X86_STRACE_H
 
+#include <kern/init.h>
 #include <kern/macros.h>
 #include <machine/multiboot.h>
 
@@ -45,10 +46,17 @@ strace_dump(void)
 }
 
 /*
- * Setup the stack tracing module.
+ * Pass the multiboot information structure.
  *
- * If available, the symbol table is extracted from the boot data.
+ * If available, the symbol table is extracted from the boot data, when
+ * the strace module is initialized.
  */
-void strace_setup(const struct multiboot_raw_info *mbi);
+void strace_set_mbi(const struct multiboot_raw_info *mbi);
+
+/*
+ * This init operation provides :
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(strace_setup);
 
 #endif /* _X86_STRACE_H */

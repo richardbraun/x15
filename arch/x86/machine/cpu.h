@@ -127,6 +127,7 @@
 #include <stdint.h>
 #include <stdnoreturn.h>
 
+#include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/percpu.h>
 #include <machine/lapic.h>
@@ -614,36 +615,21 @@ void * cpu_get_boot_stack(void);
 
 /*
  * Install an interrupt handler in the IDT.
+ *
+ * These functions may be called before the cpu module is initialized.
  */
 void cpu_idt_set_gate(unsigned int vector, void (*isr)(void));
 void cpu_idt_set_double_fault(void (*isr)(void));
 
 /*
- * Set up the cpu module.
+ * Log processor information.
  */
-void cpu_setup(void);
-
-/*
- * Make sure the CPU has some required features.
- */
-void cpu_check(const struct cpu *cpu);
-
-/*
- * Display processor information.
- */
-void cpu_info(const struct cpu *cpu);
+void cpu_log_info(const struct cpu *cpu);
 
 /*
  * Register the presence of a local APIC.
  */
 void cpu_mp_register_lapic(unsigned int apic_id, int is_bsp);
-
-/*
- * Probe application processors.
- *
- * On return, cpu_count() gives the actual number of managed processors.
- */
-void cpu_mp_probe(void);
 
 /*
  * Start application processors.
@@ -695,6 +681,26 @@ cpu_send_thread_schedule(unsigned int cpu)
  * Interrupt handler for scheduling requests.
  */
 void cpu_thread_schedule_intr(struct trap_frame *frame);
+
+/*
+ * This init operation provides :
+ *  - initialization of the BSP structure.
+ *  - cpu_delay()
+ *  - cpu_local_ptr() and cpu_local_var()
+ */
+INIT_OP_DECLARE(cpu_setup);
+
+/*
+ * This init operation provides :
+ *  - cpu_count()
+ */
+INIT_OP_DECLARE(cpu_mp_probe);
+
+/*
+ * This init operation provides :
+ *  - cpu shutdown operations registered
+ */
+INIT_OP_DECLARE(cpu_setup_shutdown);
 
 #endif /* __ASSEMBLER__ */
 

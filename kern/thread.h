@@ -170,15 +170,6 @@ thread_attr_set_priority(struct thread_attr *attr, unsigned short priority)
 }
 
 /*
- * Early initialization of the thread module.
- *
- * These function make it possible to use migration and preemption control
- * operations (and in turn, spin locks) during bootstrap.
- */
-void thread_bootstrap(void);
-void thread_ap_bootstrap(void);
-
-/*
  * Thread entry point.
  *
  * Loaded TCBs are expected to call this function with interrupts disabled.
@@ -186,9 +177,9 @@ void thread_ap_bootstrap(void);
 void thread_main(void (*fn)(void *), void *arg);
 
 /*
- * Initialize the thread module.
+ * Initialization of the thread module on APs.
  */
-void thread_setup(void);
+void thread_ap_setup(void);
 
 /*
  * Create a thread.
@@ -739,5 +730,25 @@ thread_get_specific(unsigned int key)
 {
     return thread_tsd_get(thread_self(), key);
 }
+
+/*
+ * This init operation provides :
+ *  - a dummy thread context for the BSP, allowing the use of thread_self()
+ */
+INIT_OP_DECLARE(thread_setup_booter);
+
+/*
+ * This init operation provides :
+ *  - same as thread_setup_booter
+ *  - BSP run queue initialization
+ */
+INIT_OP_DECLARE(thread_bootstrap);
+
+/*
+ * This init operation provides :
+ *  - thread creation
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(thread_setup);
 
 #endif /* _KERN_THREAD_H */

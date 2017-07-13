@@ -21,6 +21,7 @@
 #ifndef _KERN_SHELL_H
 #define _KERN_SHELL_H
 
+#include <kern/init.h>
 #include <kern/error.h>
 #include <kern/macros.h>
 
@@ -65,13 +66,6 @@ void shell_cmd_init(struct shell_cmd *cmd, const char *name,
                     const char *short_desc, const char *long_desc);
 
 /*
- * Initialize the shell module.
- *
- * On return, shell commands can be registered.
- */
-void shell_setup(void);
-
-/*
  * Start the shell thread.
  */
 void shell_start(void);
@@ -92,5 +86,12 @@ int shell_cmd_register(struct shell_cmd *cmd);
 #define shell_setup()
 #define shell_start()
 #endif /* X15_SHELL */
+
+/*
+ * This init operation provides :
+ *  - commands can be registered
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(shell_setup);
 
 #endif /* _KERN_SHELL_H */

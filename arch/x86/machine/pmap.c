@@ -828,7 +828,7 @@ pmap_syncer_init(struct pmap_syncer *syncer, unsigned int cpu)
     syscnt_register(&syncer->sc_update_protects, name);
 }
 
-void __init
+static int __init
 pmap_bootstrap(void)
 {
     struct pmap_cpu_table *cpu_table;
@@ -864,19 +864,16 @@ pmap_bootstrap(void)
     if (cpu_has_global_pages()) {
         pmap_setup_global_pages();
     }
+
+    return 0;
 }
 
-void __init
-pmap_ap_bootstrap(void)
-{
-    cpu_local_assign(pmap_current_ptr, kernel_pmap);
-
-    if (cpu_has_global_pages()) {
-        cpu_enable_global_pages();
-    } else {
-        cpu_tlb_flush();
-    }
-}
+INIT_OP_DEFINE(pmap_bootstrap,
+               INIT_OP_DEP(cpu_setup, true),
+               INIT_OP_DEP(mutex_setup, true),
+               INIT_OP_DEP(spinlock_setup, true),
+               INIT_OP_DEP(syscnt_setup, true),
+               INIT_OP_DEP(thread_bootstrap, true));
 
 static void __init
 pmap_setup_set_ptp_type(phys_addr_t ptp_pa, unsigned int index,
@@ -906,7 +903,7 @@ pmap_setup_fix_ptps(void)
                   pmap_setup_set_ptp_type);
 }
 
-void __init
+static int __init
 pmap_setup(void)
 {
     pmap_setup_fix_ptps();
@@ -914,6 +911,25 @@ pmap_setup(void)
     kmem_cache_init(&pmap_update_oplist_cache, "pmap_update_oplist",
                     sizeof(struct pmap_update_oplist), CPU_L1_SIZE,
                     pmap_update_oplist_ctor, 0);
+    return 0;
+}
+
+INIT_OP_DEFINE(pmap_setup,
+               INIT_OP_DEP(kmem_setup, true),
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(pmap_bootstrap, true),
+               INIT_OP_DEP(vm_page_setup, true));
+
+void __init
+pmap_ap_setup(void)
+{
+    cpu_local_assign(pmap_current_ptr, kernel_pmap);
+
+    if (cpu_has_global_pages()) {
+        cpu_enable_global_pages();
+    } else {
+        cpu_tlb_flush();
+    }
 }
 
 static void __init

@@ -843,7 +843,7 @@ atkbd_intr(void *arg)
     return 0;
 }
 
-void __init
+static int __init
 atkbd_setup(void)
 {
     int error;
@@ -851,25 +851,31 @@ atkbd_setup(void)
     error = atkbd_flush();
 
     if (error) {
-        return;
+        return 0;
     }
 
     error = atkbd_disable();
 
     if (error) {
-        return;
+        return 0;
     }
 
     error = intr_register(ATKBD_INTR1, atkbd_intr, NULL);
 
     if (error) {
         log_err("atkbd: unable to register interrupt handler");
-        return;
+        return 0;
     }
 
     error = atkbd_enable();
 
     if (error) {
-        return;
+        return 0;
     }
+
+    return 0;
 }
+
+INIT_OP_DEFINE(atkbd_setup,
+               INIT_OP_DEP(atcons_bootstrap, true),
+               INIT_OP_DEP(intr_setup, true));

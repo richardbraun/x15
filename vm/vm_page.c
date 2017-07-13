@@ -44,6 +44,7 @@
 #include <kern/panic.h>
 #include <kern/shell.h>
 #include <kern/thread.h>
+#include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/page.h>
 #include <machine/pmem.h>
@@ -678,9 +679,21 @@ static struct shell_cmd vm_page_shell_cmds[] = {
         "display information about physical memory"),
 };
 
+static int __init
+vm_page_setup_shell(void)
+{
+    SHELL_REGISTER_CMDS(vm_page_shell_cmds);
+    return 0;
+}
+
+INIT_OP_DEFINE(vm_page_setup_shell,
+               INIT_OP_DEP(printf_setup, true),
+               INIT_OP_DEP(shell_setup, true),
+               INIT_OP_DEP(vm_page_setup, true));
+
 #endif /* X15_SHELL */
 
-void __init
+static int __init
 vm_page_setup(void)
 {
     struct vm_page_boot_zone *boot_zone;
@@ -741,8 +754,13 @@ vm_page_setup(void)
 
     vm_page_is_ready = 1;
 
-    SHELL_REGISTER_CMDS(vm_page_shell_cmds);
+    return 0;
 }
+
+INIT_OP_DEFINE(vm_page_setup,
+               INIT_OP_DEP(boot_load_vm_page_zones, true),
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(printf_setup, true));
 
 /* TODO Rename to avoid confusion with "managed pages" */
 void __init

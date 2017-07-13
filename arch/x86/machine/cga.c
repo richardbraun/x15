@@ -20,10 +20,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <kern/console.h>
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/cbuf.h>
-#include <kern/console.h>
 #include <kern/macros.h>
 #include <machine/io.h>
 #include <machine/cga.h>
@@ -448,14 +448,16 @@ cga_setup_misc_out(void)
     }
 }
 
-void __init
+static int __init
 cga_setup(void)
 {
     cga_memory = (void *)vm_page_direct_va(CGA_MEMORY);
-
     cga_setup_misc_out();
     cga_bbuf_init(&cga_bbuf, cga_get_cursor_position());
+    return 0;
 }
+
+INIT_OP_DEFINE(cga_setup);
 
 void
 cga_cursor_left(void)

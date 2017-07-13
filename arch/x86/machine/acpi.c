@@ -22,10 +22,12 @@
 #include <string.h>
 
 #include <kern/init.h>
+#include <kern/intr.h>
 #include <kern/kmem.h>
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
+#include <kern/percpu.h>
 #include <kern/shutdown.h>
 #include <machine/acpi.h>
 #include <machine/biosmem.h>
@@ -661,7 +663,7 @@ acpi_load_fadt(void)
     shutdown_register(&acpi_shutdown_ops, ACPI_SHUTDOWN_PRIORITY);
 }
 
-int __init
+static int __init
 acpi_setup(void)
 {
     struct acpi_rsdp rsdp;
@@ -670,18 +672,39 @@ acpi_setup(void)
     error = acpi_find_rsdp(&rsdp);
 
     if (error) {
-        return error;
+        goto error;
     }
 
     error = acpi_copy_tables(&rsdp);
 
     if (error) {
-        return error;
+        goto error;
     }
 
     acpi_info();
     acpi_load_madt();
     acpi_load_fadt();
     acpi_free_tables();
+
+    return 0;
+
+error:
+    /*
+     * For the sake of simplicity, it has been decided to ignore legacy
+     * specifications such as the multiprocessor specification, and use
+     * ACPI only. If ACPI is unavailable, consider the APIC system to
+     * be missing and fall back to using the legaxy XT-PIC.
+     */
+    pic_setup();
     return 0;
 }
+
+INIT_OP_DEFINE(acpi_setup,
+               INIT_OP_DEP(cpu_setup, true),
+               INIT_OP_DEP(intr_bootstrap, true),
+               INIT_OP_DEP(kmem_setup, true),
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(percpu_setup, true),
+               INIT_OP_DEP(shutdown_bootstrap, true),
+               INIT_OP_DEP(trap_setup, true),
+               INIT_OP_DEP(vm_kmem_setup, true));

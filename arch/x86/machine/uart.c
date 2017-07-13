@@ -407,7 +407,23 @@ uart_init(struct uart *uart, uint16_t port, uint16_t intr)
     console_register(&uart->console);
 }
 
-void __init
+static void __init
+uart_log_info(void)
+{
+    const struct uart *uart;
+    size_t i;
+
+    for (i = 0; i < ARRAY_SIZE(uart_devs); i++) {
+        uart = uart_get_dev(i);
+
+        if (uart->port != 0) {
+            log_info("uart%zu: port:%#x irq:%u", i, (unsigned int)uart->port,
+                     (unsigned int)uart->intr);
+        }
+    }
+}
+
+static int __init
 uart_bootstrap(void)
 {
     const uint16_t *ptr;
@@ -422,9 +438,17 @@ uart_bootstrap(void)
 
         uart_init(uart_get_dev(i), ptr[i], uart_intrs[i]);
     }
+
+    uart_log_info();
+    return 0;
 }
 
-void __init
+INIT_OP_DEFINE(uart_bootstrap,
+               INIT_OP_DEP(arg_setup, true),
+               INIT_OP_DEP(console_bootstrap, true),
+               INIT_OP_DEP(log_setup, true));
+
+static int __init
 uart_setup(void)
 {
     struct uart *uart;
@@ -439,20 +463,10 @@ uart_setup(void)
 
         uart_enable_intr(uart);
     }
+
+    return 0;
 }
 
-void __init
-uart_info(void)
-{
-    const struct uart *uart;
-    size_t i;
-
-    for (i = 0; i < ARRAY_SIZE(uart_devs); i++) {
-        uart = uart_get_dev(i);
-
-        if (uart->port != 0) {
-            log_info("uart%zu: port:%#x irq:%u", i, (unsigned int)uart->port,
-                     (unsigned int)uart->intr);
-        }
-    }
-}
+INIT_OP_DEFINE(uart_setup,
+               INIT_OP_DEP(intr_setup, true),
+               INIT_OP_DEP(uart_bootstrap, true));
