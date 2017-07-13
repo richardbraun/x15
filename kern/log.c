@@ -293,8 +293,10 @@ log_run(void *arg)
              * a clean ordered output.
              */
             if (start_shell) {
+                spinlock_unlock_intr_restore(&log_lock, flags);
                 shell_start();
                 start_shell = false;
+                spinlock_lock_intr_save(&log_lock, &flags);
             }
 
             log_index = log_consume_ctx_index(&ctx);
