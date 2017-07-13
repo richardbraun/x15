@@ -23,6 +23,8 @@
 
 #include <stdarg.h>
 
+
+#include <kern/init.h>
 enum {
     LOG_EMERG,
     LOG_ALERT,
@@ -34,16 +36,6 @@ enum {
     LOG_DEBUG,
     LOG_NR_LEVELS,
 };
-
-/*
- * Initialize the log module.
- */
-void log_setup(void);
-
-/*
- * Start the log thread.
- */
-void log_start(void);
 
 /*
  * Generate a message and send it to the log thread.
@@ -91,5 +83,14 @@ int log_vinfo(const char *format, va_list ap)
     __attribute__((format(printf, 1, 0)));
 int log_vdebug(const char *format, va_list ap)
     __attribute__((format(printf, 1, 0)));
+
+/*
+ * This init operation provides :
+ *  - message logging
+ *
+ * The log thread isn't yet started and messages are merely stored in an
+ * internal buffer.
+ */
+INIT_OP_DECLARE(log_setup);
 
 #endif /* _KERN_LOG_H */

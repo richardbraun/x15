@@ -30,11 +30,6 @@
 typedef void (*xcall_fn_t)(void *arg);
 
 /*
- * Initialize the xcall module.
- */
-void xcall_setup(void);
-
-/*
  * Run the given cross-call function on a specific processor.
  *
  * The operation is completely synchronous, returning only when the function

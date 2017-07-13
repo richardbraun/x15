@@ -124,7 +124,7 @@ struct cpu cpu_desc __percpu;
 /*
  * Number of active processors.
  */
-unsigned int cpu_nr_active __read_mostly;
+unsigned int cpu_nr_active __read_mostly = 1;
 
 /*
  * Processor frequency, assumed fixed and equal on all processors.
@@ -557,7 +557,7 @@ cpu_measure_freq(void)
     cpu_freq = (end - start) / (1000000 / CPU_FREQ_CAL_DELAY);
 }
 
-void __init
+static int __init
 cpu_setup(void)
 {
     struct cpu *cpu;
@@ -566,10 +566,15 @@ cpu_setup(void)
     cpu_preinit(cpu, 0, CPU_INVALID_APIC_ID);
     cpu->double_fault_stack = cpu_double_fault_stack; /* XXX */
     cpu_init(cpu);
-    cpu_nr_active = 1;
 
     cpu_measure_freq();
+
+    return 0;
 }
+
+INIT_OP_DEFINE(cpu_setup,
+               INIT_OP_DEP(percpu_bootstrap, true),
+               INIT_OP_DEP(trap_setup, true));
 
 static void __init
 cpu_panic_on_missing_feature(const char *feature)
@@ -577,7 +582,7 @@ cpu_panic_on_missing_feature(const char *feature)
     panic("cpu: %s feature missing", feature);
 }
 
-void __init
+static void __init
 cpu_check(const struct cpu *cpu)
 {
     if (!(cpu->features2 & CPU_FEATURE2_FPU)) {
@@ -597,8 +602,19 @@ cpu_check(const struct cpu *cpu)
 #endif
 }
 
+static int __init
+cpu_check_bsp(void)
+{
+    cpu_check(cpu_current());
+    return 0;
+}
+
+INIT_OP_DEFINE(cpu_check_bsp,
+               INIT_OP_DEP(cpu_setup, true),
+               INIT_OP_DEP(panic_setup, true));
+
 void
-cpu_info(const struct cpu *cpu)
+cpu_log_info(const struct cpu *cpu)
 {
     log_info("cpu%u: %s, type %u, family %u, model %u, stepping %u",
              cpu->id, cpu->vendor_id, cpu->type, cpu->family, cpu->model,
@@ -657,29 +673,31 @@ static struct shutdown_ops cpu_shutdown_ops = {
     .reset = cpu_shutdown_reset,
 };
 
-void __init
+static int __init
 cpu_mp_probe(void)
 {
-    int error;
-
-    error = acpi_setup();
-
-    if (error) {
-        /*
-         * For the sake of simplicity, it has been decided to ignore legacy
-         * specifications such as the multiprocessor specification, and use
-         * ACPI only. If ACPI is unavailable, consider the APIC system to
-         * be missing and fall back to using the legaxy XT-PIC.
-         */
-        pic_setup();
-    }
-
     log_info("cpu: %u processor(s) configured", cpu_count());
+    return 0;
+}
 
+INIT_OP_DEFINE(cpu_mp_probe,
+               INIT_OP_DEP(acpi_setup, true),
+               INIT_OP_DEP(cpu_setup, true),
+               INIT_OP_DEP(log_setup, true));
+
+static int __init
+cpu_setup_shutdown(void)
+{
     if (cpu_count() == 1) {
         shutdown_register(&cpu_shutdown_ops, CPU_SHUTDOWN_PRIORITY);
     }
+
+    return 0;
 }
+
+INIT_OP_DEFINE(cpu_setup_shutdown,
+               INIT_OP_DEP(cpu_mp_probe, true),
+               INIT_OP_DEP(shutdown_bootstrap, true));
 
 void __init
 cpu_mp_setup(void)

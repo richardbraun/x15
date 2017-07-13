@@ -816,7 +816,7 @@ sref_manage(void *arg)
     /* Never reached */
 }
 
-void __init
+static int __init
 sref_bootstrap(void)
 {
     spinlock_init(&sref_data.lock);
@@ -828,7 +828,12 @@ sref_bootstrap(void)
     syscnt_register(&sref_data.sc_true_zeroes, "sref_true_zeroes");
 
     sref_cache_init(sref_cache_get(), 0);
+
+    return 0;
 }
+
+INIT_OP_DEFINE(sref_bootstrap,
+               INIT_OP_DEP(syscnt_setup, true));
 
 static void __init
 sref_setup_manager(struct sref_cache *cache, unsigned int cpu)
@@ -861,7 +866,7 @@ sref_setup_manager(struct sref_cache *cache, unsigned int cpu)
     cache->manager = manager;
 }
 
-void __init
+static int __init
 sref_setup(void)
 {
     unsigned int i;
@@ -873,7 +878,19 @@ sref_setup(void)
     for (i = 0; i < cpu_count(); i++) {
         sref_setup_manager(percpu_ptr(sref_cache, i), i);
     }
+
+    return 0;
 }
+
+INIT_OP_DEFINE(sref_setup,
+               INIT_OP_DEP(cpu_mp_probe, true),
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(mutex_setup, true),
+               INIT_OP_DEP(panic_setup, true),
+               INIT_OP_DEP(percpu_setup, true),
+               INIT_OP_DEP(sref_bootstrap, true),
+               INIT_OP_DEP(syscnt_setup, true),
+               INIT_OP_DEP(thread_setup, true));
 
 void
 sref_register(void)

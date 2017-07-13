@@ -123,11 +123,6 @@ llsync_read_exit(void)
 bool llsync_ready(void);
 
 /*
- * Initialize the llsync module.
- */
-void llsync_setup(void);
-
-/*
  * Manage registration of the current processor.
  *
  * The caller must not be allowed to migrate when calling these functions.

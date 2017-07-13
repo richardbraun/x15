@@ -20,6 +20,7 @@
 #include <stddef.h>
 
 #include <kern/atomic.h>
+#include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
@@ -104,7 +105,7 @@ xcall_cpu_data_clear_recv_call(struct xcall_cpu_data *cpu_data)
     xcall_cpu_data_set_recv_call(cpu_data, NULL);
 }
 
-void
+static int __init
 xcall_setup(void)
 {
     unsigned int i;
@@ -112,7 +113,14 @@ xcall_setup(void)
     for (i = 0; i < cpu_count(); i++) {
         xcall_cpu_data_init(percpu_ptr(xcall_cpu_data, i));
     }
+
+    return 0;
 }
+
+INIT_OP_DEFINE(xcall_setup,
+               INIT_OP_DEP(percpu_setup, true),
+               INIT_OP_DEP(thread_bootstrap, true),
+               INIT_OP_DEP(spinlock_setup, true));
 
 void
 xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu)

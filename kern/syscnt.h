@@ -27,6 +27,7 @@
 #include <stdint.h>
 
 #include <kern/atomic.h>
+#include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/spinlock.h>
 
@@ -43,24 +44,11 @@
 struct syscnt;
 
 /*
- * Initialize the syscnt module.
- *
- * This module is initialized by architecture-specific code. It is normally
- * safe to call this function very early at boot time.
- */
-void syscnt_setup(void);
-
-/*
  * Initialize and register the given counter.
  *
  * The counter is set to 0.
  */
 void syscnt_register(struct syscnt *syscnt, const char *name);
-
-/*
- * Register shell commands.
- */
-void syscnt_register_shell_cmds(void);
 
 #ifdef ATOMIC_HAVE_64B_OPS
 
@@ -122,5 +110,11 @@ syscnt_dec(struct syscnt *syscnt)
  * given prefix are displayed. If NULL, all counters are reported.
  */
 void syscnt_info(const char *prefix);
+
+/*
+ * This init operation provides :
+ *  - registration of system counters
+ */
+INIT_OP_DECLARE(syscnt_setup);
 
 #endif /* _KERN_SYSCNT_H */

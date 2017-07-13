@@ -472,7 +472,7 @@ work_thread_destroy(struct work_thread *worker)
     kmem_cache_free(&work_thread_cache, worker);
 }
 
-void __init
+static int __init
 work_setup(void)
 {
     unsigned int i;
@@ -493,7 +493,19 @@ work_setup(void)
     log_info("work: threads per pool (per-cpu/global): %u/%u, spare: %u",
              percpu_var(work_pool_cpu_main.max_threads, 0),
              work_pool_main.max_threads, WORK_THREADS_SPARE);
+
+    return 0;
 }
+
+INIT_OP_DEFINE(work_setup,
+               INIT_OP_DEP(cpu_mp_probe, true),
+               INIT_OP_DEP(kmem_setup, true),
+               INIT_OP_DEP(log_setup, true),
+               INIT_OP_DEP(panic_setup, true),
+               INIT_OP_DEP(percpu_setup, true),
+               INIT_OP_DEP(spinlock_setup, true),
+               INIT_OP_DEP(syscnt_setup, true),
+               INIT_OP_DEP(thread_bootstrap, true));
 
 void
 work_schedule(struct work *work, int flags)

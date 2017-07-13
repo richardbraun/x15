@@ -129,20 +129,27 @@ static const struct console_ops atcons_ops = {
     .putc = atcons_putc,
 };
 
-void __init
+static int __init
 atcons_bootstrap(void)
 {
-    cga_setup();
-
     console_init(&atcons_console, "atcons", &atcons_ops);
     console_register(&atcons_console);
+    return 0;
 }
 
-void __init
+INIT_OP_DEFINE(atcons_bootstrap,
+               INIT_OP_DEP(cga_setup, true),
+               INIT_OP_DEP(console_bootstrap, true));
+
+static int __init
 atcons_setup(void)
 {
-    atkbd_setup();
+    return 0;
 }
+
+INIT_OP_DEFINE(atcons_setup,
+               INIT_OP_DEP(atcons_bootstrap, true),
+               INIT_OP_DEP(atkbd_setup, true));
 
 void
 atcons_intr(const char *s)

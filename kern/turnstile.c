@@ -500,7 +500,7 @@ turnstile_ctor(void *ptr)
     turnstile->owner = NULL;
 }
 
-void __init
+static int __init
 turnstile_bootstrap(void)
 {
     unsigned int i;
@@ -508,14 +508,23 @@ turnstile_bootstrap(void)
     for (i = 0; i < ARRAY_SIZE(turnstile_htable); i++) {
         turnstile_bucket_init(&turnstile_htable[i]);
     }
+
+    return 0;
 }
 
-void __init
+INIT_OP_DEFINE(turnstile_bootstrap);
+
+static int __init
 turnstile_setup(void)
 {
     kmem_cache_init(&turnstile_cache, "turnstile", sizeof(struct turnstile),
                     CPU_L1_SIZE, turnstile_ctor, 0);
+    return 0;
 }
+
+INIT_OP_DEFINE(turnstile_setup,
+               INIT_OP_DEP(kmem_setup, true),
+               INIT_OP_DEP(turnstile_bootstrap, true));
 
 struct turnstile *
 turnstile_create(void)

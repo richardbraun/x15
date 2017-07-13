@@ -35,22 +35,17 @@ static char arg_cmdline[ARG_CMDLINE_MAX_SIZE] __initdata;
 static const char *arg_cmdline_end __initdata;
 
 void __init
-arg_setup(const char *cmdline)
+arg_set_cmdline(const char *cmdline)
+{
+    strlcpy(arg_cmdline, cmdline, sizeof(arg_cmdline));
+}
+
+static int __init
+arg_setup(void)
 {
     size_t i, length;
 
-    if (cmdline == NULL) {
-        arg_cmdline[0] = '\0';
-        return;
-    }
-
-    length = strlen(cmdline);
-
-    if ((length + 1) > ARRAY_SIZE(arg_cmdline)) {
-        panic("arg: command line too long");
-    }
-
-    memcpy(arg_cmdline, cmdline, length + 1);
+    length = strlen(arg_cmdline);
 
     for (i = 0; i < length; i++) {
         if (arg_cmdline[i] == ' ') {
@@ -59,7 +54,10 @@ arg_setup(const char *cmdline)
     }
 
     arg_cmdline_end = arg_cmdline + length;
+    return 0;
 }
+
+INIT_OP_DEFINE(arg_setup);
 
 void __init
 arg_log_info(void)

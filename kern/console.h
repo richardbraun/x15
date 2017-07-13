@@ -22,6 +22,7 @@
 #define _KERN_CONSOLE_H
 
 #include <kern/cbuf.h>
+#include <kern/init.h>
 #include <kern/list.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
@@ -62,11 +63,6 @@ void console_init(struct console *console, const char *name,
                   const struct console_ops *ops);
 
 /*
- * Initialize the console module.
- */
-void console_setup(void);
-
-/*
  * Register a console device.
  *
  * The given console must be initialized before calling this function.
@@ -94,5 +90,18 @@ void console_intr(struct console *console, const char *s);
  */
 void console_putchar(char c);
 char console_getchar(void);
+
+/*
+ * This init operation provides :
+ *  - registration of consoles
+ */
+INIT_OP_DECLARE(console_bootstrap);
+
+/*
+ * This init operation provides :
+ *  - all consoles have been registered
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(console_setup);
 
 #endif /* _KERN_CONSOLE_H */

@@ -29,6 +29,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <kern/init.h>
 #include <kern/plist.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
@@ -99,20 +100,6 @@ turnstile_td_get_turnstile(const struct turnstile_td *td)
  * Propagate priority starting at the thread containing the given thread data.
  */
 void turnstile_td_propagate_priority(struct turnstile_td *td);
-
-/*
- * Early initialization of the turnstile module.
- *
- * This module is initialized by architecture-specific code. It should
- * be one of the first modules to be initialized since it's used by
- * synchronization objects that may be accessed very early.
- */
-void turnstile_bootstrap(void);
-
-/*
- * Initialize the turnstile module.
- */
-void turnstile_setup(void);
 
 /*
  * Create/destroy a turnstile.
@@ -196,5 +183,18 @@ void turnstile_signal(struct turnstile *turnstile);
  */
 void turnstile_own(struct turnstile *turnstile);
 void turnstile_disown(struct turnstile *turnstile);
+
+/*
+ * This init operation provides :
+ *  - ? TODO Review
+ */
+INIT_OP_DECLARE(turnstile_bootstrap);
+
+/*
+ * This init operation provides :
+ *  - turnstile creation
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(turnstile_setup);
 
 #endif /* _KERN_TURNSTILE_H */

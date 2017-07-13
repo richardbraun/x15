@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 
+#include <kern/init.h>
 #include <machine/pmap.h>
 #include <machine/types.h>
 
@@ -43,11 +44,6 @@ extern char _end;
  * The kernel map.
  */
 extern struct vm_map *kernel_map;
-
-/*
- * Initialize the vm_kmem module.
- */
-void vm_kmem_setup(void);
 
 /*
  * Allocate pure virtual kernel pages.
@@ -93,5 +89,11 @@ void * vm_kmem_map_pa(phys_addr_t pa, size_t size,
  * Unmap physical memory from the kernel map.
  */
 void vm_kmem_unmap_pa(uintptr_t map_va, size_t map_size);
+
+/*
+ * This init operation provides :
+ *  - kernel virtual memory allocation
+ */
+INIT_OP_DECLARE(vm_kmem_setup);
 
 #endif /* _VM_VM_KMEM_H */

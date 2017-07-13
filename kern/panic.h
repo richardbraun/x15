@@ -20,10 +20,18 @@
 
 #include <stdnoreturn.h>
 
+#include <kern/init.h>
+
 /*
  * Print the given message and halt the system immediately.
  */
 noreturn void panic(const char *format, ...)
     __attribute__((format(printf, 1, 2)));
+
+/*
+ * This init operation provides :
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(panic_setup);
 
 #endif /* _KERN_PANIC_H */

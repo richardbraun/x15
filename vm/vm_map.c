@@ -728,20 +728,49 @@ static struct shell_cmd vm_map_shell_cmds[] = {
         "display information about a VM map"),
 };
 
+static int __init
+vm_map_setup_shell(void)
+{
+    SHELL_REGISTER_CMDS(vm_map_shell_cmds);
+    return 0;
+}
+
+INIT_OP_DEFINE(vm_map_setup_shell,
+               INIT_OP_DEP(mutex_setup, true),
+               INIT_OP_DEP(printf_setup, true),
+               INIT_OP_DEP(shell_setup, true),
+               INIT_OP_DEP(task_setup, true),
+               INIT_OP_DEP(vm_map_setup, true));
+
 #endif /* X15_SHELL */
 
-void __init
-vm_map_setup(void)
+static int __init
+vm_map_bootstrap(void)
 {
     vm_map_init(kernel_map, kernel_pmap,
                 PMAP_MIN_KMEM_ADDRESS, PMAP_MAX_KMEM_ADDRESS);
     kmem_cache_init(&vm_map_entry_cache, "vm_map_entry",
                     sizeof(struct vm_map_entry), 0, NULL,
                     KMEM_CACHE_PAGE_ONLY);
-    kmem_cache_init(&vm_map_cache, "vm_map", sizeof(struct vm_map),
-                    0, NULL, 0);
-    SHELL_REGISTER_CMDS(vm_map_shell_cmds);
+    return 0;
 }
+
+INIT_OP_DEFINE(vm_map_bootstrap,
+               INIT_OP_DEP(kmem_bootstrap, true),
+               INIT_OP_DEP(thread_bootstrap, true));
+
+static int __init
+vm_map_setup(void)
+{
+    kmem_cache_init(&vm_map_cache, "vm_map", sizeof(struct vm_map),
+                    0, NULL, KMEM_CACHE_PAGE_ONLY);
+    return 0;
+}
+
+INIT_OP_DEFINE(vm_map_setup,
+               INIT_OP_DEP(pmap_setup, true),
+               INIT_OP_DEP(printf_setup, true),
+               INIT_OP_DEP(vm_map_bootstrap, true));
 
 int
 vm_map_create(struct vm_map **mapp)

@@ -1171,10 +1171,23 @@ static struct shell_cmd kmem_shell_cmds[] = {
         "display information about kernel memory and caches"),
 };
 
+static int __init
+kmem_setup_shell(void)
+{
+    SHELL_REGISTER_CMDS(kmem_shell_cmds);
+    return 0;
+}
+
+INIT_OP_DEFINE(kmem_setup_shell,
+               INIT_OP_DEP(kmem_setup, true),
+               INIT_OP_DEP(printf_setup, true),
+               INIT_OP_DEP(shell_setup, true),
+               INIT_OP_DEP(thread_setup, true));
+
 #endif /* X15_SHELL */
 
-void __init
-kmem_setup(void)
+static int __init
+kmem_bootstrap(void)
 {
     struct kmem_cpu_pool_type *cpu_pool_type;
     char name[KMEM_NAME_SIZE];
@@ -1209,8 +1222,22 @@ kmem_setup(void)
         size <<= 1;
     }
 
-    SHELL_REGISTER_CMDS(kmem_shell_cmds);
+    return 0;
 }
+
+INIT_OP_DEFINE(kmem_bootstrap,
+               INIT_OP_DEP(thread_bootstrap, true),
+               INIT_OP_DEP(vm_page_setup, true));
+
+static int __init
+kmem_setup(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(kmem_setup,
+               INIT_OP_DEP(kmem_bootstrap, true),
+               INIT_OP_DEP(vm_kmem_setup, true));
 
 static inline size_t
 kmem_get_index(unsigned long size)

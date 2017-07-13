@@ -25,6 +25,7 @@
 #ifndef _KERN_MUTEX_H
 #define _KERN_MUTEX_H
 
+#include <kern/init.h>
 #include <kern/mutex_types.h>
 
 #ifdef X15_MUTEX_PI
@@ -157,5 +158,13 @@ mutex_unlock(struct mutex *mutex)
 }
 
 #endif /* X15_MUTEX_PI */
+
+/*
+ * This init operation provides :
+ *  - uncontended mutex locking
+ *
+ * Contended locking may only occur after starting the scheduler.
+ */
+INIT_OP_DECLARE(mutex_setup);
 
 #endif /* _KERN_MUTEX_H */

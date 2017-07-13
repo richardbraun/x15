@@ -21,10 +21,7 @@
 #ifndef _X86_CGA_H
 #define _X86_CGA_H
 
-/*
- * Initialize the cga module.
- */
-void cga_setup(void);
+#include <kern/init.h>
 
 /*
  * Append a character to the CGA screen.
@@ -36,5 +33,11 @@ void cga_putc(char c);
  */
 void cga_cursor_left(void);
 void cga_cursor_right(void);
+
+/*
+ * This init operation provides :
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(cga_setup);
 
 #endif /* _X86_CGA_H */
