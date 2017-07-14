@@ -39,6 +39,7 @@
 #include <stdnoreturn.h>
 
 #include <kern/atomic.h>
+#include <kern/init.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/spinlock_types.h>
