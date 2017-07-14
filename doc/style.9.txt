@@ -613,19 +613,8 @@ the macro used to declare an array again in the iteration code.
 Boolean Coercion
 ~~~~~~~~~~~~~~~~
 
-Boolean coercion is forbidden by default, especially on pointers. Always
-explicitely compare pointers to NULL and integers to 0. For example :
-
-[source,c]
---------------------------------------------------------------------------------
-/* Read "if ptr is not invalid and if ptr and ref are equal" */
-if ((ptr != NULL) && (memcmp(ptr, ref, sizeof(*ptr)) == 0)) {
-    do_something();
-}
---------------------------------------------------------------------------------
-
-The main exception to this rule is error codes, which developers are
-encouraged to use as boolean values. Here is an example :
+Boolean coercion is forbidden by default. It is only allowed when
+checking error codes and pointers. For example :
 
 [source,c]
 --------------------------------------------------------------------------------
@@ -642,8 +631,8 @@ if (error) {
 }
 --------------------------------------------------------------------------------
 
-The other exception is the historical use of the *int* type, rather than
-the C99 *bool* type, for boolean values.
+There are historical uses of the *int* type for boolean values, but all of
+them should be converted to the C99 *bool* type.
 
 Side effects and conditions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
