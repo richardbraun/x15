@@ -38,6 +38,8 @@
 
 #include <stdbool.h>
 
+#include <kern/init.h>
+
 struct sleepq;
 
 /*
