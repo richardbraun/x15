@@ -36,7 +36,7 @@ void
 rtmutex_lock_slow(struct rtmutex *rtmutex)
 {
     struct turnstile *turnstile;
-    uintptr_t owner, prev_owner;
+    uintptr_t owner, prev_owner; /* TODO Review names */
     struct thread *thread;
     uintptr_t bits;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,16 +13,27 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#include <kern/init.h>
-#include <kern/thread.h>
+#ifndef _KERN_MUTEX_PI_TYPES_H
+#define _KERN_MUTEX_PI_TYPES_H
 
-static int __init
-mutex_setup(void)
-{
-    return 0;
-}
+#ifndef _KERN_MUTEX_TYPES_H
+#error "don't include <kern/mutex/mutex_pi_types.h> directly," \
+       " use <kern/mutex_types.h> instead"
+#endif
 
-INIT_OP_DEFINE(mutex_setup,
-               INIT_OP_DEP(thread_setup_booter, true));
+#include <kern/rtmutex_types.h>
+
+/*
+ * Do not directly alias rtmutex to make sure they cannot be used
+ * with condition variables by mistake.
+ */
+struct mutex {
+    struct rtmutex rtmutex;
+};
+
+#endif /* _KERN_MUTEX_PI_TYPES_H */

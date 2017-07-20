@@ -267,6 +267,33 @@ sleepq_acquire(const void *sync_obj, bool condition, unsigned long *flags)
     return sleepq;
 }
 
+struct sleepq *
+sleepq_tryacquire(const void *sync_obj, bool condition, unsigned long *flags)
+{
+    struct sleepq_bucket *bucket;
+    struct sleepq *sleepq;
+    int error;
+
+    assert(sync_obj != NULL);
+
+    bucket = sleepq_bucket_get(sync_obj, condition);
+
+    error = spinlock_trylock_intr_save(&bucket->lock, flags);
+
+    if (error) {
+        return NULL;
+    }
+
+    sleepq = sleepq_bucket_lookup(bucket, sync_obj);
+
+    if (sleepq == NULL) {
+        spinlock_unlock_intr_restore(&bucket->lock, *flags);
+        return NULL;
+    }
+
+    return sleepq;
+}
+
 void
 sleepq_release(struct sleepq *sleepq, unsigned long flags)
 {
