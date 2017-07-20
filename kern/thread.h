@@ -724,4 +724,12 @@ thread_get_specific(unsigned int key)
     return thread_tsd_get(thread_self(), key);
 }
 
+/*
+ * Return true if the given thread is running.
+ *
+ * Note that this check is speculative, and may not return an accurate
+ * result. It may only be used for optimistic optimizations.
+ */
+bool thread_is_running(const struct thread *thread);
+
 #endif /* _KERN_THREAD_H */
