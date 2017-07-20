@@ -44,10 +44,12 @@ x15_SOURCES +=                                              \
         kern/llsync_i.h                                     \
         kern/log2.h                                         \
         kern/macros.h                                       \
-        kern/mutex.c                                        \
         kern/mutex.h                                        \
-        kern/mutex_i.h                                      \
         kern/mutex_types.h                                  \
+        kern/mutex/mutex_pi_i.h                             \
+        kern/mutex/mutex_pi_types.h                         \
+        kern/mutex/mutex_plain_i.h                          \
+        kern/mutex/mutex_plain_types.h                      \
         kern/panic.c                                        \
         kern/panic.h                                        \
         kern/param.h                                        \
@@ -102,6 +104,10 @@ x15_SOURCES +=                                              \
         kern/work.h                                         \
         kern/xcall.c                                        \
         kern/xcall.h
+
+if !MUTEX_PI
+        x15_SOURCES += kern/mutex/mutex_plain.c
+endif
 
 x15_SOURCES +=                                              \
         vm/vm_adv.h                                         \

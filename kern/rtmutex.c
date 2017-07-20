@@ -36,7 +36,7 @@ void
 rtmutex_lock_slow(struct rtmutex *rtmutex)
 {
     struct turnstile *turnstile;
-    uintptr_t owner, prev_owner;
+    uintptr_t owner, prev_owner; /* TODO Review names */
     struct thread *thread;
     uintptr_t bits;
 
@@ -64,6 +64,7 @@ rtmutex_lock_slow(struct rtmutex *rtmutex)
     turnstile_own(turnstile);
 
     if (turnstile_empty(turnstile)) {
+        /* TODO Review memory order */
         prev_owner = atomic_swap_acquire(&rtmutex->owner, owner);
         assert(prev_owner == (owner | bits));
     }

@@ -101,8 +101,15 @@ AC_DEFINE_UNQUOTED([X15_MAX_CPUS], [$opt_max_cpus],
 AC_MSG_NOTICE([maximum number of supported processors: $opt_max_cpus])
 
 AS_IF([test x"$enable_mutex_pi" = xyes],
+      [mutex_impl="priority inheritance"],
+      [mutex_impl=plain])
+AC_MSG_NOTICE([mutex implementation: $mutex_impl])
+
+AS_IF([test x"$enable_mutex_pi" = xyes],
       [AC_DEFINE_UNQUOTED([X15_MUTEX_PI], [],
                           [Enable priority inheritance for regular mutexes])])
+AM_CONDITIONAL([MUTEX_PI],
+               [test x"$enable_mutex_pi" = xyes])
 
 AS_IF([test x"$enable_thread_stack_guard" = xyes],
       [AC_DEFINE_UNQUOTED([X15_THREAD_STACK_GUARD], [],

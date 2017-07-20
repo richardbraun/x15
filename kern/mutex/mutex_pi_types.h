@@ -18,13 +18,22 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_MUTEX_TYPES_H
-#define _KERN_MUTEX_TYPES_H
+#ifndef _KERN_MUTEX_PI_TYPES_H
+#define _KERN_MUTEX_PI_TYPES_H
 
-#if defined(X15_MUTEX_PI)
-#include <kern/mutex/mutex_pi_types.h>
-#else
-#include <kern/mutex/mutex_plain_types.h>
+#ifndef _KERN_MUTEX_TYPES_H
+#error "don't include <kern/mutex/mutex_pi_types.h> directly," \
+       " use <kern/mutex_types.h> instead"
 #endif
 
-#endif /* _KERN_MUTEX_TYPES_H */
+#include <kern/rtmutex_types.h>
+
+/*
+ * Do not directly alias rtmutex to make sure they cannot be used
+ * with condition variables by mistake.
+ */
+struct mutex {
+    struct rtmutex rtmutex;
+};
+
+#endif /* _KERN_MUTEX_PI_TYPES_H */
