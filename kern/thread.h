@@ -733,6 +733,14 @@ thread_get_specific(unsigned int key)
 }
 
 /*
+ * Return true if the given thread is running.
+ *
+ * Note that this check is speculative, and may not return an accurate
+ * result. It may only be used for optimistic optimizations.
+ */
+bool thread_is_running(const struct thread *thread);
+
+/*
  * This init operation provides :
  *  - a dummy thread context for the BSP, allowing the use of thread_self()
  */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 Richard Braun.
+ * Copyright (c) 2017 Agustina Arzille.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,16 +13,23 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#include <kern/init.h>
-#include <kern/thread.h>
+#ifndef _KERN_MUTEX_ADAPTIVE_TYPES_H
+#define _KERN_MUTEX_ADAPTIVE_TYPES_H
 
-static int __init
-mutex_setup(void)
-{
-    return 0;
-}
+#ifndef _KERN_MUTEX_TYPES_H
+#error "don't include <kern/mutex/mutex_adaptive_types.h> directly," \
+       " use <kern/mutex_types.h> instead"
+#endif
 
-INIT_OP_DEFINE(mutex_setup,
-               INIT_OP_DEP(thread_setup_booter, true));
+#include <stdint.h>
+
+struct mutex {
+    uintptr_t owner;
+};
+
+#endif /* _KERN_MUTEX_ADAPTIVE_TYPES_H */

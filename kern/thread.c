@@ -554,7 +554,7 @@ thread_runq_get_next(struct thread_runq *runq)
         thread = thread_sched_ops[i].get_next(runq);
 
         if (thread != NULL) {
-            runq->current = thread;
+            atomic_store(&runq->current, thread, ATOMIC_RELAXED);
             return thread;
         }
     }
@@ -574,7 +574,7 @@ thread_runq_set_next(struct thread_runq *runq, struct thread *thread)
         ops->set_next(runq, thread);
     }
 
-    runq->current = thread;
+    atomic_store(&runq->current, thread, ATOMIC_RELAXED);
 }
 
 static void
@@ -2851,4 +2851,15 @@ thread_key_create(unsigned int *keyp, thread_dtor_fn_t dtor)
 
     thread_dtors[key] = dtor;
     *keyp = key;
+}
+
+bool
+thread_is_running(const struct thread *thread)
+{
+    const struct thread_runq *runq;
+
+    runq = thread->runq;
+
+    return (runq != NULL)
+           && (atomic_load(&runq->current, ATOMIC_RELAXED) == thread);
 }

@@ -21,24 +21,12 @@
 #ifndef _KERN_MUTEX_TYPES_H
 #define _KERN_MUTEX_TYPES_H
 
-#ifdef X15_MUTEX_PI
-
-#include <kern/rtmutex_types.h>
-
-/*
- * Do not directly alias rtmutex to make sure they cannot be used
- * with condition variables by mistake.
- */
-struct mutex {
-    struct rtmutex rtmutex;
-};
-
-#else /* X15_MUTEX_PI */
-
-struct mutex {
-    unsigned int state;
-};
-
-#endif /* X15_MUTEX_PI */
+#if defined(X15_MUTEX_PI)
+#include <kern/mutex/mutex_pi_types.h>
+#elif defined(X15_MUTEX_ADAPTIVE)
+#include <kern/mutex/mutex_adaptive_types.h>
+#else
+#include <kern/mutex/mutex_plain_types.h>
+#endif
 
 #endif /* _KERN_MUTEX_TYPES_H */

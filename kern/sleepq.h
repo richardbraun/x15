@@ -56,9 +56,15 @@ void sleepq_destroy(struct sleepq *sleepq);
  *
  * The condition argument must be true if the synchronization object
  * is a condition variable.
+ *
+ * Note that, in the case of the non-blocking variant, the call may also
+ * return NULL if internal state shared by unrelated synchronization
+ * objects is locked.
  */
 struct sleepq * sleepq_acquire(const void *sync_obj, bool condition,
                                unsigned long *flags);
+struct sleepq * sleepq_tryacquire(const void *sync_obj, bool condition,
+                                  unsigned long *flags);
 void sleepq_release(struct sleepq *sleepq, unsigned long flags);
 
 /*
