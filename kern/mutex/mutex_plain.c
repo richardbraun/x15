@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,26 +15,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef X15_MUTEX_PI
-
 #include <stdbool.h>
 #include <stddef.h>
 
+#include <kern/atomic.h>
 #include <kern/mutex.h>
-#include <kern/mutex_i.h>
+#include <kern/mutex_types.h>
 #include <kern/sleepq.h>
 
 void
-mutex_lock_slow(struct mutex *mutex)
+mutex_plain_lock_slow(struct mutex *mutex)
 {
+    unsigned int state;
     struct sleepq *sleepq;
     unsigned long flags;
-    unsigned int state;
 
     sleepq = sleepq_lend(mutex, false, &flags);
 
     for (;;) {
-        state = atomic_swap_acquire(&mutex->state, MUTEX_CONTENDED);
+        state = atomic_swap_release(&mutex->state, MUTEX_CONTENDED);
 
         if (state == MUTEX_UNLOCKED) {
             break;
@@ -44,28 +43,23 @@ mutex_lock_slow(struct mutex *mutex)
     }
 
     if (sleepq_empty(sleepq)) {
-        state = atomic_swap_acquire(&mutex->state, MUTEX_LOCKED);
-        assert(state == MUTEX_CONTENDED);
+        /* TODO Review memory order */
+        atomic_store(&mutex->state, MUTEX_LOCKED, ATOMIC_RELEASE);
     }
 
     sleepq_return(sleepq, flags);
 }
 
 void
-mutex_unlock_slow(struct mutex *mutex)
+mutex_plain_unlock_slow(struct mutex *mutex)
 {
     struct sleepq *sleepq;
     unsigned long flags;
 
     sleepq = sleepq_acquire(mutex, false, &flags);
 
-    if (sleepq == NULL) {
-        return;
+    if (sleepq != NULL) {
+        sleepq_signal(sleepq);
+        sleepq_release(sleepq, flags);
     }
-
-    sleepq_signal(sleepq);
-
-    sleepq_release(sleepq, flags);
 }
-
-#endif /* X15_MUTEX_PI */

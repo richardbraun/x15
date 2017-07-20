@@ -18,13 +18,16 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_MUTEX_TYPES_H
-#define _KERN_MUTEX_TYPES_H
+#ifndef _KERN_MUTEX_PLAIN_TYPES_H
+#define _KERN_MUTEX_PLAIN_TYPES_H
 
-#if defined(X15_MUTEX_PI)
-#include <kern/mutex/mutex_pi_types.h>
-#else
-#include <kern/mutex/mutex_plain_types.h>
+#ifndef _KERN_MUTEX_TYPES_H
+#error "don't include <kern/mutex/mutex_plain_types.h> directly," \
+       " use <kern/mutex_types.h> instead"
 #endif
 
-#endif /* _KERN_MUTEX_TYPES_H */
+struct mutex {
+    unsigned int state;
+};
+
+#endif /* _KERN_MUTEX_PLAIN_TYPES_H */
