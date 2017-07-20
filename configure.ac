@@ -47,6 +47,10 @@ AC_ARG_WITH([max-cpus],
             [opt_max_cpus=$withval],
             [opt_max_cpus=128])
 
+AC_ARG_ENABLE([mutex-adaptive],
+              [AS_HELP_STRING([--enable-mutex-adaptive],
+                              [enable adaptive spinning mutexes])])
+
 AC_ARG_ENABLE([mutex-pi],
               [AS_HELP_STRING([--enable-mutex-pi],
                               [enable priority inheritance for regular mutexes
@@ -100,10 +104,21 @@ AC_DEFINE_UNQUOTED([X15_MAX_CPUS], [$opt_max_cpus],
                    [maximum number of supported processors])
 AC_MSG_NOTICE([maximum number of supported processors: $opt_max_cpus])
 
-AS_IF([test x"$enable_mutex_pi" = xyes],
+AS_IF([test x"$enable_mutex_adaptive" = xyes -a x"$enable_mutex_pi" = xyes],
+      [AC_MSG_ERROR([--enable-mutex-adaptive and --enable-mutex-pi are mutually exclusive])])
+
+AS_IF([test x"$enable_mutex_adaptive" = xyes],
+      [mutex_impl="adaptive spinning"],
+      [test x"$enable_mutex_pi" = xyes],
       [mutex_impl="priority inheritance"],
       [mutex_impl=plain])
 AC_MSG_NOTICE([mutex implementation: $mutex_impl])
+
+AS_IF([test x"$enable_mutex_adaptive" = xyes],
+      [AC_DEFINE_UNQUOTED([X15_MUTEX_ADAPTIVE], [],
+                          [Enable adaptive mutexes])])
+AM_CONDITIONAL([MUTEX_ADAPTIVE],
+               [test x"$enable_mutex_adaptive" = xyes])
 
 AS_IF([test x"$enable_mutex_pi" = xyes],
       [AC_DEFINE_UNQUOTED([X15_MUTEX_PI], [],

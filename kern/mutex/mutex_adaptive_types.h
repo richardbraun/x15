@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017 Agustina Arzille.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,15 +18,18 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_MUTEX_TYPES_H
-#define _KERN_MUTEX_TYPES_H
+#ifndef _KERN_MUTEX_ADAPTIVE_TYPES_H
+#define _KERN_MUTEX_ADAPTIVE_TYPES_H
 
-#if defined(X15_MUTEX_PI)
-#include <kern/mutex/mutex_pi_types.h>
-#elif defined(X15_MUTEX_ADAPTIVE)
-#include <kern/mutex/mutex_adaptive_types.h>
-#else
-#include <kern/mutex/mutex_plain_types.h>
+#ifndef _KERN_MUTEX_TYPES_H
+#error "don't include <kern/mutex/mutex_adaptive_types.h> directly," \
+       " use <kern/mutex_types.h> instead"
 #endif
 
-#endif /* _KERN_MUTEX_TYPES_H */
+#include <stdint.h>
+
+struct mutex {
+    uintptr_t owner;
+};
+
+#endif /* _KERN_MUTEX_ADAPTIVE_TYPES_H */

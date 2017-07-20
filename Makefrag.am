@@ -46,6 +46,8 @@ x15_SOURCES +=                                              \
         kern/macros.h                                       \
         kern/mutex.h                                        \
         kern/mutex_types.h                                  \
+        kern/mutex/mutex_adaptive_i.h                       \
+        kern/mutex/mutex_adaptive_types.h                   \
         kern/mutex/mutex_pi_i.h                             \
         kern/mutex/mutex_pi_types.h                         \
         kern/mutex/mutex_plain_i.h                          \
@@ -105,8 +107,12 @@ x15_SOURCES +=                                              \
         kern/xcall.c                                        \
         kern/xcall.h
 
+if MUTEX_ADAPTIVE
+        x15_SOURCES += kern/mutex/mutex_adaptive.c
+else
 if !MUTEX_PI
         x15_SOURCES += kern/mutex/mutex_plain.c
+endif
 endif
 
 x15_SOURCES +=                                              \
