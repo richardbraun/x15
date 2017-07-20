@@ -19,6 +19,7 @@
 #include <kern/kernel.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
+#include <test/test.h>
 #include <vm/vm_page.h>
 
 void __init
@@ -28,6 +29,10 @@ kernel_main(void)
 
     init_setup();
     vm_page_log_info();
+
+#ifdef X15_RUN_TEST_MODULE
+    test_setup();
+#endif /* X15_RUN_TEST_MODULE */
 
     /*
      * Enabling application processors is done late in the boot process for
