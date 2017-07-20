@@ -243,6 +243,13 @@ X15 Options
      in a file named `test_pmap_update_mp.c' would be selected with the
      option `--enable-test-module=pmap_update_mp'.
 
+`--enable-mutex-adaptive'
+     Enable the adaptive spinning mutex implementation for regular mutexes.
+     Adaptive spinning mutexes optimistically spin instead of sleep if the
+     owner of a mutex is found running, in the hope the mutex is unlocked
+     soon. This optimization increases performance by avoiding some sleeps
+     and wakeups, but it makes the system globally non real-time.
+
 `--enable-mutex-pi'
      Enable priority inheritance for regular mutexes (note that priority
      inheritance is always enabled for real-time mutexes). This option is
