@@ -102,6 +102,21 @@ module:kern/thread::
 module:kern/work::
   Work queue of deferred asynchronous lightweight jobs.
 
+Mutex implementations
+~~~~~~~~~~~~~~~~~~~~~
+
+In order to best satisfy either performance or real-time needs, the
+kernel provides multiple mutex implementations. Note that, whatever
+implementation is chosen, the *rtmutex* module is always available.
+The mutex implementations are :
+
+module_mutex:adaptive::
+  Adaptive spinning mutex.
+module_mutex:pi::
+  Real-time mutex with priority inheritance.
+module_mutex:plain::
+  Default mutex.
+
 [[generic_development_tools]]
 GENERIC DEVELOPMENT TOOLS
 -------------------------
@@ -115,6 +130,10 @@ module:kern/cbuf::
   Circular character buffer.
 module:kern/error::
   Common errors and error handling functions.
+module:kern/hash::
+  Hash functions for integers and strings.
+module:kern/hlist::
+  Doubly-linked list specialized for forward traversals and O(1) removals.
 module:kern/kmem::
   Object caching and general purpose memory allocator.
 module:kern/list::
@@ -127,6 +146,8 @@ module:kern/rbtree::
   Red-black tree.
 module:kern/rdxtree::
   Radix tree (with integer keys).
+module:kern/slist::
+  Singly-linked list.
 module:kern/sprintf::
   Formatted string functions.
 module:kern/syscnt::
@@ -135,8 +156,7 @@ module:kern/syscnt::
 X15 doesn't provide a generic queue interface, because the requirements
 often vary too much. Similarly, it doesn't provide a hash table interface.
 Instead, users can easily build specialized queues, hash tables and ring
-buffers on top of the provided facilities. Hash functions may be provided
-in the future.
+buffers on top of the provided facilities.
 
 [[multiprocessor_support]]
 MULTIPROCESSOR SUPPORT
