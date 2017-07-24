@@ -87,6 +87,8 @@ x15_SOURCES +=                                              \
         kern/shutdown.h                                     \
         kern/sleepq.c                                       \
         kern/sleepq.h                                       \
+        kern/slist.h                                        \
+        kern/slist_types.h                                  \
         kern/spinlock.c                                     \
         kern/spinlock.h                                     \
         kern/spinlock_i.h                                   \
