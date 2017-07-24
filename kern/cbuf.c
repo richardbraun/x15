@@ -52,16 +52,58 @@ cbuf_update_start(struct cbuf *cbuf)
     }
 }
 
-void
-cbuf_push(struct cbuf *cbuf, char byte)
+int
+cbuf_push(struct cbuf *cbuf, const void *buf, size_t size, bool erase)
 {
-    cbuf->buf[cbuf_index(cbuf, cbuf->end)] = byte;
-    cbuf->end++;
-    cbuf_update_start(cbuf);
+    size_t free_size;
+
+    if (!erase) {
+        free_size = cbuf_capacity(cbuf) - cbuf_size(cbuf);
+
+        if (size > free_size) {
+            return ERROR_AGAIN;
+        }
+    }
+
+    return cbuf_write(cbuf, cbuf_end(cbuf), buf, size);
 }
 
 int
-cbuf_pop(struct cbuf *cbuf, char *bytep)
+cbuf_pop(struct cbuf *cbuf, void *buf, size_t *sizep)
+{
+    int error;
+
+    if (cbuf_size(cbuf) == 0) {
+        return ERROR_AGAIN;
+    }
+
+    error = cbuf_read(cbuf, cbuf_start(cbuf), buf, sizep);
+    assert(!error);
+    cbuf->start += *sizep;
+    return 0;
+}
+
+int
+cbuf_pushb(struct cbuf *cbuf, char byte, bool erase)
+{
+    size_t free_size;
+
+    if (!erase) {
+        free_size = cbuf_capacity(cbuf) - cbuf_size(cbuf);
+
+        if (free_size == 0) {
+            return ERROR_AGAIN;
+        }
+    }
+
+    cbuf->buf[cbuf_index(cbuf, cbuf->end)] = byte;
+    cbuf->end++;
+    cbuf_update_start(cbuf);
+    return 0;
+}
+
+int
+cbuf_popb(struct cbuf *cbuf, char *bytep)
 {
     if (cbuf_size(cbuf) == 0) {
         return ERROR_AGAIN;

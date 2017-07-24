@@ -461,7 +461,7 @@ log_write(const void *s, size_t size)
 {
     int error;
 
-    error = cbuf_write(&log_cbuf, cbuf_end(&log_cbuf), s, size);
+    error = cbuf_push(&log_cbuf, s, size, true);
     assert(!error);
 
     if (!cbuf_range_valid(&log_cbuf, log_index, log_index + 1)) {

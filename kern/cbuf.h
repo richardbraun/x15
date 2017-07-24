@@ -84,12 +84,35 @@ cbuf_range_valid(const struct cbuf *cbuf, size_t start, size_t end)
 void cbuf_init(struct cbuf *cbuf, char *buf, size_t capacity);
 
 /*
+ * Append a buffer to a circular buffer.
+ *
+ * If erasing old data is not allowed, and the circular buffer doesn't have
+ * enough unused bytes for the new data, ERROR_AGAIN is returned. Otherwise,
+ * the end index is increased by the new data size, possibly erasing old
+ * data, in which case, the start index is updated accordingly.
+ */
+int cbuf_push(struct cbuf *cbuf, const void *buf, size_t size, bool erase);
+
+/*
+ * Read bytes from a circular buffer.
+ *
+ * If the buffer is empty, ERROR_AGAIN is returned. Otherwise, the oldest
+ * bytes are stored into the given buffer. On entry, the sizep argument points
+ * to the size of the given buffer. On exit, that value is updated to the
+ * number of bytes actually stored. If successful, the start index is increased
+ * by the amount of bytes read.
+ */
+int cbuf_pop(struct cbuf *cbuf, void *buf, size_t *sizep);
+
+/*
  * Append a byte to a circular buffer.
  *
- * The end index is incremented. If the buffer is full, the oldest byte
- * is overwritten and the start index is updated accordingly.
+ * If erasing old data is not allowed, and the circular buffer is full,
+ * ERROR_AGAIN is returned. Otherwise, the end index is incremented and, if the
+ * buffer is full, the oldest byte is overwritten and the start index
+ * is updated accordingly.
  */
-void cbuf_push(struct cbuf *cbuf, char byte);
+int cbuf_pushb(struct cbuf *cbuf, char byte, bool erase);
 
 /*
  * Read a byte from a circular buffer.
@@ -98,7 +121,7 @@ void cbuf_push(struct cbuf *cbuf, char byte);
  * byte is stored at the bytep address, the start index is incremented,
  * and 0 is returned.
  */
-int cbuf_pop(struct cbuf *cbuf, char *bytep);
+int cbuf_popb(struct cbuf *cbuf, char *bytep);
 
 /*
  * Write into a circular buffer at a specific location.
