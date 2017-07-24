@@ -29,6 +29,8 @@ x15_SOURCES +=                                              \
         kern/error.c                                        \
         kern/error.h                                        \
         kern/hash.h                                         \
+        kern/hlist.h                                        \
+        kern/hlist_types.h                                  \
         kern/fmt.c                                          \
         kern/fmt.h                                          \
         kern/init.c                                         \
