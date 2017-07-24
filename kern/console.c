@@ -109,7 +109,7 @@ console_getc(struct console *console)
     console->waiter = thread_self();
 
     for (;;) {
-        error = cbuf_pop(&console->recvbuf, &c);
+        error = cbuf_popb(&console->recvbuf, &c);
 
         if (!error) {
             error = console_process_ctrl_char(console, c);
@@ -186,7 +186,7 @@ console_intr(struct console *console, const char *s)
             goto out;
         }
 
-        cbuf_push(&console->recvbuf, *s);
+        cbuf_pushb(&console->recvbuf, *s, false);
         s++;
     }
 
