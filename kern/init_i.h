@@ -28,7 +28,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <kern/list_types.h>
+#include <kern/slist_types.h>
 #include <kern/macros.h>
 
 #define __initop __section(QUOTE(INIT_OPS_SECTION))
@@ -38,8 +38,8 @@
 #define INIT_OP_STATE_COMPLETE      2
 
 struct init_op {
-    alignas(INIT_OP_ALIGN) struct list list_node;
-    struct list stack_node;
+    alignas(INIT_OP_ALIGN) struct slist_node list_node;
+    struct slist_node stack_node;
     const char *name;
     init_op_fn_t fn;
     struct init_op_dep *deps;

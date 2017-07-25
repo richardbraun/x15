@@ -30,7 +30,7 @@
 
 #include <kern/error.h>
 #include <kern/init.h>
-#include <kern/list.h>
+#include <kern/slist.h>
 #include <kern/macros.h>
 #include <machine/cpu.h>
 
@@ -47,14 +47,14 @@ static_assert(sizeof(struct init_op) == INIT_OP_ALIGN, "invalid init_op size");
  * This type is used for the output of the topological sort.
  */
 struct init_ops_list {
-    struct list ops;
+    struct slist ops;
     size_t size;
 };
 
 static void __init
 init_ops_list_init(struct init_ops_list *list)
 {
-    list_init(&list->ops);
+    slist_init(&list->ops);
     list->size = 0;
 }
 
@@ -67,7 +67,7 @@ init_ops_list_size(const struct init_ops_list *list)
 static void __init
 init_ops_list_push(struct init_ops_list *list, struct init_op *op)
 {
-    list_insert_tail(&list->ops, &op->list_node);
+    slist_insert_head(&list->ops, &op->list_node);
     list->size++;
 }
 
@@ -80,8 +80,8 @@ init_ops_list_pop(struct init_ops_list *list)
         return NULL;
     }
 
-    op = list_last_entry(&list->ops, struct init_op, list_node);
-    list_remove(&op->list_node);
+    op = slist_first_entry(&list->ops, struct init_op, list_node);
+    slist_remove(&list->ops, NULL);
     list->size--;
     return op;
 }
@@ -92,19 +92,19 @@ init_ops_list_pop(struct init_ops_list *list)
  * This type is used internally by the topological sort algorithm.
  */
 struct init_ops_stack {
-    struct list ops;
+    struct slist ops;
 };
 
 static void __init
 init_ops_stack_init(struct init_ops_stack *stack)
 {
-    list_init(&stack->ops);
+    slist_init(&stack->ops);
 }
 
 static void __init
 init_ops_stack_push(struct init_ops_stack *stack, struct init_op *op)
 {
-    list_insert_tail(&stack->ops, &op->stack_node);
+    slist_insert_head(&stack->ops, &op->stack_node);
 }
 
 static struct init_op * __init
@@ -112,12 +112,12 @@ init_ops_stack_pop(struct init_ops_stack *stack)
 {
     struct init_op *op;
 
-    if (list_empty(&stack->ops)) {
+    if (slist_empty(&stack->ops)) {
         return NULL;
     }
 
-    op = list_last_entry(&stack->ops, struct init_op, stack_node);
-    list_remove(&op->stack_node);
+    op = slist_first_entry(&stack->ops, struct init_op, stack_node);
+    slist_remove(&stack->ops, NULL);
     return op;
 }
 
