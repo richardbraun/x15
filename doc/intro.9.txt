@@ -105,17 +105,23 @@ module:kern/work::
 Mutex implementations
 ~~~~~~~~~~~~~~~~~~~~~
 
-In order to best satisfy either performance or real-time needs, the
-kernel provides multiple mutex implementations. Note that, whatever
-implementation is chosen, the *rtmutex* module is always available.
-The mutex implementations are :
+In order to best satisfy either overall performance or latencies, the
+kernel provides several mutex implementations for the interface provided
+by the *mutex* module. Note that, whatever implementation is selected,
+the *rtmutex* module is always available. The mutex implementations are :
 
 module_mutex:adaptive::
-  Adaptive spinning mutex.
+  Adaptive spinning mutex, spinning instead of sleeping if the owner
+  is running, in the hope the critical section is short and the mutex
+  will be unlocked soon, to avoid expensive sleep/wakeup operations.
+  This implementation should improve overall performance at the cost
+  of increased latencies.
 module_mutex:pi::
-  Real-time mutex with priority inheritance.
+  Real-time mutex with priority inheritance. This implementation is a
+  wrapper in front of the *rtmutex* module. It should improve latencies
+  at the cost of overall performance.
 module_mutex:plain::
-  Default mutex.
+  Default mutex, immediately sleeping on contention.
 
 [[generic_development_tools]]
 GENERIC DEVELOPMENT TOOLS
