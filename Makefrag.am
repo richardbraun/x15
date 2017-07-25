@@ -1,7 +1,9 @@
 include arch/x86/Makefrag.am
 include doc/Makefrag.am
 
-EXTRA_DIST += tools/qemu.sh
+EXTRA_DIST +=                                               \
+        tools/qemu.sh                                       \
+        tools/tsort_init_ops.sh
 
 x15_SOURCES +=                                              \
         include/assert.h                                    \

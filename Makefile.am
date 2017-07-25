@@ -57,10 +57,13 @@ SUFFIXES += .9 .9.html .9.xml .9.txt
 	$(AM_V_GEN)$(A2X) $(A2X_FLAGS) -f manpage --xsltproc-opts="-o $(abs_top_builddir)/$@" $<
 
 bin_PROGRAMS = x15
-x15_DEPENDENCIES = arch/$(arch)/x15.lds
-MOSTLYCLEANFILES += arch/$(arch)/x15.lds
+x15_DEPENDENCIES = arch/$(arch)/x15.lds x15.sorted_init_ops
+MOSTLYCLEANFILES += $(x15_DEPENDENCIES)
 x15_SOURCES =
 x15_LDFLAGS = -nostdlib -Xlinker -T arch/$(arch)/x15.lds
 x15_LDADD = -lgcc
 
 include Makefrag.am
+
+x15.sorted_init_ops: $(filter %.c,$(x15_SOURCES))
+	$(AM_V_GEN)$(top_srcdir)/tools/tsort_init_ops.sh "$(COMPILE)" "$@" $^
