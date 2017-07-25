@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * Circular character buffer.
+ * Circular byte buffer.
  */
 
 #ifndef _KERN_CBUF_H
@@ -23,6 +23,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 /*
  * Circular buffer descriptor.
@@ -31,7 +32,7 @@
  * which can overflow. Their difference cannot exceed the capacity.
  */
 struct cbuf {
-    char *buf;
+    uint8_t *buf;
     size_t capacity;
     size_t start;
     size_t end;
@@ -81,65 +82,58 @@ cbuf_range_valid(const struct cbuf *cbuf, size_t start, size_t end)
  * The descriptor is set to use the given buffer for storage. Capacity
  * must be a power-of-two.
  */
-void cbuf_init(struct cbuf *cbuf, char *buf, size_t capacity);
+void cbuf_init(struct cbuf *cbuf, void *buf, size_t capacity);
 
 /*
- * Append a buffer to a circular buffer.
+ * Push data to a circular buffer.
  *
- * If erasing old data is not allowed, and the circular buffer doesn't have
- * enough unused bytes for the new data, ERROR_AGAIN is returned. Otherwise,
- * the end index is increased by the new data size, possibly erasing old
- * data, in which case, the start index is updated accordingly.
+ * If the function isn't allowed to erase old data and the circular buffer
+ * doesn't have enough unused bytes for the new data, ERROR_AGAIN is returned.
  */
 int cbuf_push(struct cbuf *cbuf, const void *buf, size_t size, bool erase);
 
 /*
- * Read bytes from a circular buffer.
+ * Pop data from a circular buffer.
  *
- * If the buffer is empty, ERROR_AGAIN is returned. Otherwise, the oldest
- * bytes are stored into the given buffer. On entry, the sizep argument points
- * to the size of the given buffer. On exit, that value is updated to the
- * number of bytes actually stored. If successful, the start index is increased
- * by the amount of bytes read.
+ * On entry, the sizep argument points to the size of the output buffer.
+ * On exit, it is updated to the number of bytes actually transferred.
+ *
+ * If the buffer is empty, ERROR_AGAIN is returned, and the size of the
+ * output buffer is undefined.
  */
 int cbuf_pop(struct cbuf *cbuf, void *buf, size_t *sizep);
 
 /*
- * Append a byte to a circular buffer.
+ * Push a byte to a circular buffer.
  *
- * If erasing old data is not allowed, and the circular buffer is full,
- * ERROR_AGAIN is returned. Otherwise, the end index is incremented and, if the
- * buffer is full, the oldest byte is overwritten and the start index
- * is updated accordingly.
+ * If the function isn't allowed to erase old data and the circular buffer
+ * is full, ERROR_AGAIN is returned.
  */
-int cbuf_pushb(struct cbuf *cbuf, char byte, bool erase);
+int cbuf_pushb(struct cbuf *cbuf, uint8_t byte, bool erase);
 
 /*
- * Read a byte from a circular buffer.
+ * Pop a byte from a circular buffer.
  *
- * If the buffer is empty, ERROR_AGAIN is returned. Otherwise, the oldest
- * byte is stored at the bytep address, the start index is incremented,
- * and 0 is returned.
+ * If the buffer is empty, ERROR_AGAIN is returned.
  */
-int cbuf_popb(struct cbuf *cbuf, char *bytep);
+int cbuf_popb(struct cbuf *cbuf, void *bytep);
 
 /*
  * Write into a circular buffer at a specific location.
  *
  * If the given index is outside buffer boundaries, ERROR_INVAL is returned.
- * Otherwise size bytes are copied into the circular buffer. If the range
- * in the circular buffer goes beyond its end, the end index is updated as
- * appropriate. If the buffer is full when extending its end, the oldest
- * bytes are overwritten and the start index is updated accordingly.
+ * The given [index, size) range may extend beyond the end of the circular
+ * buffer.
  */
 int cbuf_write(struct cbuf *cbuf, size_t index, const void *buf, size_t size);
 
 /*
  * Read from a circular buffer at a specific location.
  *
+ * On entry, the sizep argument points to the size of the output buffer.
+ * On exit, it is updated to the number of bytes actually transferred.
+ *
  * If the given index is outside buffer boundaries, ERROR_INVAL is returned.
- * Otherwise at most *sizep bytes are copied into the given byte buffer,
- * and *sizep is updated to the number of bytes actually copied.
  *
  * The circular buffer isn't changed by this operation.
  */
