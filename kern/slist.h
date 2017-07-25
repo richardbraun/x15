@@ -301,7 +301,7 @@ for (entry = slist_first_entry(list, typeof(*entry), member),           \
 static inline struct slist_node *
 slist_llsync_first(const struct slist *list)
 {
-    return llsync_read_ptr(list->first);
+    return llsync_load_ptr(list->first);
 }
 
 /*
@@ -310,7 +310,7 @@ slist_llsync_first(const struct slist *list)
 static inline struct slist_node *
 slist_llsync_next(const struct slist_node *node)
 {
-    return llsync_read_ptr(node->next);
+    return llsync_load_ptr(node->next);
 }
 
 /*
@@ -324,7 +324,7 @@ slist_llsync_insert_head(struct slist *list, struct slist_node *node)
     }
 
     node->next = list->first;
-    llsync_assign_ptr(list->first, node);
+    llsync_store_ptr(list->first, node);
 }
 
 /*
@@ -336,9 +336,9 @@ slist_llsync_insert_tail(struct slist *list, struct slist_node *node)
     node->next = NULL;
 
     if (slist_empty(list)) {
-        llsync_assign_ptr(list->first, node);
+        llsync_store_ptr(list->first, node);
     } else {
-        llsync_assign_ptr(list->last->next, node);
+        llsync_store_ptr(list->last->next, node);
     }
 
     list->last = node;
@@ -356,7 +356,7 @@ slist_llsync_insert_after(struct slist *list, struct slist_node *prev,
                           struct slist_node *node)
 {
     node->next = prev->next;
-    llsync_assign_ptr(prev->next, node);
+    llsync_store_ptr(prev->next, node);
 
     if (list->last == prev) {
         list->last = node;
@@ -377,14 +377,14 @@ slist_llsync_remove(struct slist *list, struct slist_node *prev)
 
     if (slist_end(prev)) {
         node = list->first;
-        llsync_assign_ptr(list->first, node->next);
+        llsync_store_ptr(list->first, node->next);
 
         if (list->last == node) {
             list->last = NULL;
         }
     } else {
         node = prev->next;
-        llsync_assign_ptr(prev->next, node->next);
+        llsync_store_ptr(prev->next, node->next);
 
         if (list->last == node) {
             list->last = prev;
@@ -397,7 +397,7 @@ slist_llsync_remove(struct slist *list, struct slist_node *prev)
  * given node based on the given type and member.
  */
 #define slist_llsync_entry(node, type, member) \
-    structof(llsync_read_ptr(node), type, member)
+    structof(llsync_load_ptr(node), type, member)
 
 /*
  * Get the first entry of a list.
