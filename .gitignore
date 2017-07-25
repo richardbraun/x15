@@ -14,5 +14,6 @@ x15.lds
 /configure
 /stamp-h1
 /x15
+/x15.sorted_init_ops
 /doc/*\.[1-9]
 /doc/*\.[1-9]\.html
