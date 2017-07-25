@@ -43,8 +43,7 @@ mutex_plain_lock_slow(struct mutex *mutex)
     }
 
     if (sleepq_empty(sleepq)) {
-        /* TODO Review memory order */
-        atomic_store(&mutex->state, MUTEX_LOCKED, ATOMIC_RELEASE);
+        atomic_store(&mutex->state, MUTEX_LOCKED, ATOMIC_RELAXED);
     }
 
     sleepq_return(sleepq, flags);
