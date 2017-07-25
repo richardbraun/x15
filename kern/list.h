@@ -387,7 +387,7 @@ for (entry = list_last_entry(list, typeof(*entry), member),         \
 static inline struct list *
 list_llsync_first(const struct list *list)
 {
-    return llsync_read_ptr(list->next);
+    return llsync_load_ptr(list->next);
 }
 
 /*
@@ -396,7 +396,7 @@ list_llsync_first(const struct list *list)
 static inline struct list *
 list_llsync_next(const struct list *node)
 {
-    return llsync_read_ptr(node->next);
+    return llsync_load_ptr(node->next);
 }
 
 /*
@@ -409,7 +409,7 @@ list_llsync_add(struct list *prev, struct list *next, struct list *node)
 {
     node->next = next;
     node->prev = prev;
-    llsync_assign_ptr(prev->next, node);
+    llsync_store_ptr(prev->next, node);
     next->prev = node;
 }
 
@@ -458,7 +458,7 @@ static inline void
 list_llsync_remove(struct list *node)
 {
     node->next->prev = node->prev;
-    llsync_assign_ptr(node->prev->next, node->next);
+    llsync_store_ptr(node->prev->next, node->next);
 }
 
 /*
@@ -466,7 +466,7 @@ list_llsync_remove(struct list *node)
  * given node based on the given type and member.
  */
 #define list_llsync_entry(node, type, member) \
-    structof(llsync_read_ptr(node), type, member)
+    structof(llsync_load_ptr(node), type, member)
 
 /*
  * Get the first entry of a list.

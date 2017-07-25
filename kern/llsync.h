@@ -38,8 +38,8 @@
  * supported architectures must guarantee that, when updating a word, and
  * in turn a pointer, other processors reading that word obtain a valid
  * value, that is either the previous or the next value of the word, but not
- * a mixed-up value. The llsync module provides the llsync_assign_ptr() and
- * llsync_read_ptr() wrappers that take care of low level details such as
+ * a mixed-up value. The llsync module provides the llsync_store_ptr() and
+ * llsync_load_ptr() wrappers that take care of low level details such as
  * compiler and memory barriers, so that objects are completely built and
  * consistent when published and accessed.
  *
@@ -79,14 +79,14 @@
 #include <kern/work.h>
 
 /*
- * Safely assign a pointer.
+ * Safely store a pointer.
  */
-#define llsync_assign_ptr(ptr, value) atomic_store(&(ptr), value, ATOMIC_RELEASE)
+#define llsync_store_ptr(ptr, value) atomic_store(&(ptr), value, ATOMIC_RELEASE)
 
 /*
- * Safely access a pointer.
+ * Safely load a pointer.
  */
-#define llsync_read_ptr(ptr) atomic_load(&(ptr), ATOMIC_CONSUME)
+#define llsync_load_ptr(ptr) atomic_load(&(ptr), ATOMIC_CONSUME)
 
 /*
  * Read-side critical section enter/exit functions.

@@ -160,7 +160,7 @@ rdxtree_lookup_slot(const struct rdxtree *tree, rdxtree_key_t key)
 static inline void *
 rdxtree_load_slot(void **slot)
 {
-    return llsync_read_ptr(*slot);
+    return llsync_load_ptr(*slot);
 }
 
 /*

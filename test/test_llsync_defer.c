@@ -87,7 +87,7 @@ test_alloc(void *arg)
             }
         }
 
-        llsync_assign_ptr(test_pdsc, pdsc);
+        llsync_store_ptr(test_pdsc, pdsc);
         condition_signal(&test_condition);
 
         if ((i % TEST_LOOPS_PER_PRINT) == 0) {
@@ -130,7 +130,7 @@ test_free(void *arg)
         }
 
         pdsc = test_pdsc;
-        llsync_assign_ptr(test_pdsc, NULL);
+        llsync_store_ptr(test_pdsc, NULL);
 
         if (pdsc != NULL) {
             work_init(&pdsc->work, test_deferred_free);
@@ -161,7 +161,7 @@ test_read(void *arg)
     for (;;) {
         llsync_read_enter();
 
-        pdsc = llsync_read_ptr(test_pdsc);
+        pdsc = llsync_load_ptr(test_pdsc);
 
         if (pdsc != NULL) {
             s = (const unsigned char *)pdsc->addr;
