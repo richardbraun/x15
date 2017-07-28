@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# This script is meant to be run by the build system.
+
 set -e
 
 compile="$1"
