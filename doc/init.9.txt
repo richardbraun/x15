@@ -1,0 +1,77 @@
+INIT(9)
+========
+:doctype:       manpage
+:man source:    X15
+:man manual:    X15 Kernel initialization
+
+NAME
+----
+
+init - kernel initialization
+
+DESCRIPTION
+-----------
+
+This document describes kernel initialization, and in particular, the concept
+of initialization operation and their dependencies. All related declarations
+are provided by the module:kern/init module.
+
+Initialization operations
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An initialization operation is a function that enables the use of a specific
+interface. For example, The cfunction:thread_setup function enables the
+creation of threads. Any thread created before calling that function is
+invalid and leads to undefined behaviour, potentially being silent and
+unnoticed for a long time. This kind of relation is expressed as an
+initialization operation dependency. As a result, the data structure for
+initialization operations associates a function and its dependencies.
+
+Definition
+~~~~~~~~~~
+
+Initialization operations are defined using the cmacro:INIT_OP_DEFINE()
+macro. The first argument is the function implementing the operation,
+and any additional argument is a dependency.
+
+Dependencies are built with the cmacro:INIT_OP_DEP() macro. They may
+be either required or optional. An optional dependency is only used
+to infer execution order. If it fails, the initialization operation
+function is run regardless.
+
+Declaration
+~~~~~~~~~~~
+
+In order to build dependencies, initialization operations must be
+declared as part of the public interface of the module providing it.
+This is accomplished using the cmacro:INIT_OP_DECLARE() macro in the
+public header.
+
+Execution order
+~~~~~~~~~~~~~~~
+
+The complete set of initialization operations and their dependencies
+must result in a directed acyclic graph, so that a topological sort
+can be applied, starting from the roots, i.e. initialization operations
+with no dependencies. For convenience, the topological sort is performed
+both at build and run time. Sorting at build time is done with the
+shell:{make x15.sorted_init_ops} command.
+
+Debugging
+~~~~~~~~~
+
+In order to help debugging initialization issues, the module:kern/init
+module provides a debugging mode, that may be enabled at build time
+by changing an internal macro. In this mode, text buffers record
+various information such as the list of roots, operations with dependency
+cycles (in case the build time check isn't used), and the list of
+operations that completed. These buffers can be dumped using a debugger
+such as a JTAG interface. Debugging mode is enabled by setting the
+cmacro:INIT_DEBUG macro to a non-zero value.
+
+SEE
+---
+
+manpage:intro
+
+{x15-operating-system}

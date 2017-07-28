@@ -276,4 +276,6 @@ SEE
 
 manpage:style
 
+manpage:init
+
 {x15-operating-system}
