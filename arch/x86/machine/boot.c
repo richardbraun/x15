@@ -40,6 +40,8 @@
  * almost everywhere, the latter solution is implemented (a small part of
  * 32-bit code is required until the identity mapping is in place). Mentions
  * to "enabling paging" do not refer to this initial identity mapping.
+ *
+ * TODO EFI support.
  */
 
 #include <stdalign.h>
