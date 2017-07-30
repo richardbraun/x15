@@ -339,15 +339,8 @@ static unsigned int thread_nr_keys __read_mostly;
  */
 static thread_dtor_fn_t thread_dtors[THREAD_KEYS_MAX] __read_mostly;
 
-/*
- * List of threads pending for destruction by the reaper.
- */
-static struct mutex thread_reap_lock;
-static struct condition thread_reap_cond;
-static struct list thread_reap_list;
-
 struct thread_zombie {
-    struct list node;
+    struct work work;
     struct thread *thread;
 };
 
@@ -2002,55 +1995,6 @@ thread_join_common(struct thread *thread)
 }
 
 static void
-thread_reap(void *arg)
-{
-    struct thread_zombie *zombie;
-    struct list zombies;
-
-    (void)arg;
-
-    for (;;) {
-        mutex_lock(&thread_reap_lock);
-
-        while (list_empty(&thread_reap_list)) {
-            condition_wait(&thread_reap_cond, &thread_reap_lock);
-        }
-
-        list_set_head(&zombies, &thread_reap_list);
-        list_init(&thread_reap_list);
-
-        mutex_unlock(&thread_reap_lock);
-
-        while (!list_empty(&zombies)) {
-            zombie = list_first_entry(&zombies, struct thread_zombie, node);
-            list_remove(&zombie->node);
-            thread_join_common(zombie->thread);
-        }
-    }
-
-    /* Never reached */
-}
-
-static void __init
-thread_setup_reaper(void)
-{
-    struct thread_attr attr;
-    struct thread *thread;
-    int error;
-
-    mutex_init(&thread_reap_lock);
-    condition_init(&thread_reap_cond);
-    list_init(&thread_reap_list);
-
-    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "thread_reap");
-    error = thread_create(&thread, &attr, thread_reap, NULL);
-
-    if (error) {
-        panic("thread: unable to create reaper thread");
-    }
-}
-
-static void
 thread_balance_idle_tick(struct thread_runq *runq)
 {
     assert(runq->idle_balance_ticks != 0);
@@ -2333,8 +2277,6 @@ thread_setup(void)
                     CPU_DATA_ALIGN, NULL, 0);
 #endif /* X15_THREAD_STACK_GUARD */
 
-    thread_setup_reaper();
-
     cpumap_for_each(&thread_active_runqs, cpu) {
         thread_setup_runq(percpu_ptr(thread_runq, cpu));
     }
@@ -2418,6 +2360,15 @@ error_thread:
     return error;
 }
 
+static void
+thread_reap(struct work *work)
+{
+    struct thread_zombie *zombie;
+
+    zombie = structof(work, struct thread_zombie, work);
+    thread_join_common(zombie->thread);
+}
+
 void
 thread_exit(void)
 {
@@ -2431,25 +2382,17 @@ thread_exit(void)
     if (thread_test_flag(thread, THREAD_DETACHED)) {
         zombie.thread = thread;
 
-        mutex_lock(&thread_reap_lock);
-        list_insert_tail(&thread_reap_list, &zombie.node);
-        condition_signal(&thread_reap_cond);
-        mutex_unlock(&thread_reap_lock);
+        work_init(&zombie.work, thread_reap);
+        work_schedule(&zombie.work, 0);
     }
 
     mutex_lock(&thread->join_lock);
     thread->exited = 1;
     condition_signal(&thread->join_cond);
 
-    /*
-     * Disable preemption before releasing the mutex to make sure the current
-     * thread becomes dead as soon as possible. This is important because the
-     * joining thread actively polls the thread state before destroying it.
-     */
-    thread_preempt_disable();
-
     mutex_unlock(&thread->join_lock);
 
+    thread_preempt_disable();
     runq = thread_runq_local();
     spinlock_lock_intr_save(&runq->lock, &flags);
 
