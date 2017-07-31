@@ -132,12 +132,6 @@ void sleepq_signal(struct sleepq *sleepq);
 
 /*
  * This init operation provides :
- *  - ? TODO Review
- */
-INIT_OP_DECLARE(sleepq_bootstrap);
-
-/*
- * This init operation provides :
  *  - sleepq creation
  *  - module fully initialized
  */
