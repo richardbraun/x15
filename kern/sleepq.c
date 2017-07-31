@@ -194,7 +194,7 @@ sleepq_ctor(void *ptr)
 }
 
 static int __init
-sleepq_bootstrap(void)
+sleepq_setup(void)
 {
     unsigned int i;
 
@@ -206,22 +206,13 @@ sleepq_bootstrap(void)
         sleepq_bucket_init(&sleepq_cond_htable[i]);
     }
 
-    return 0;
-}
-
-INIT_OP_DEFINE(sleepq_bootstrap);
-
-static int __init
-sleepq_setup(void)
-{
     kmem_cache_init(&sleepq_cache, "sleepq", sizeof(struct sleepq),
                     CPU_L1_SIZE, sleepq_ctor, 0);
     return 0;
 }
 
 INIT_OP_DEFINE(sleepq_setup,
-               INIT_OP_DEP(kmem_setup, true),
-               INIT_OP_DEP(sleepq_bootstrap, true));
+               INIT_OP_DEP(kmem_setup, true));
 
 struct sleepq *
 sleepq_create(void)

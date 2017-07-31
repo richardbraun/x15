@@ -186,12 +186,6 @@ void turnstile_disown(struct turnstile *turnstile);
 
 /*
  * This init operation provides :
- *  - ? TODO Review
- */
-INIT_OP_DECLARE(turnstile_bootstrap);
-
-/*
- * This init operation provides :
  *  - turnstile creation
  *  - module fully initialized
  */
