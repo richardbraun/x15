@@ -266,13 +266,13 @@ vm_page_zone_free_to_buddy(struct vm_page_zone *zone, struct vm_page *page,
     pa = page->phys_addr;
 
     while (order < (VM_PAGE_NR_FREE_LISTS - 1)) {
-        buddy_pa = pa ^ vm_page_ptoa(1 << order);
+        buddy_pa = pa ^ vm_page_ptob(1 << order);
 
         if ((buddy_pa < zone->start) || (buddy_pa >= zone->end)) {
             break;
         }
 
-        buddy = &zone->pages[vm_page_atop(buddy_pa - zone->start)];
+        buddy = &zone->pages[vm_page_btop(buddy_pa - zone->start)];
 
         if (buddy->order != order) {
             break;
@@ -281,8 +281,8 @@ vm_page_zone_free_to_buddy(struct vm_page_zone *zone, struct vm_page *page,
         vm_page_free_list_remove(&zone->free_lists[order], buddy);
         buddy->order = VM_PAGE_ORDER_UNLISTED;
         order++;
-        pa &= -vm_page_ptoa(1 << order);
-        page = &zone->pages[vm_page_atop(pa - zone->start)];
+        pa &= -vm_page_ptob(1 << order);
+        page = &zone->pages[vm_page_btop(pa - zone->start)];
     }
 
     vm_page_free_list_insert(&zone->free_lists[order], page);
@@ -383,7 +383,7 @@ vm_page_zone_compute_pool_size(struct vm_page_zone *zone)
 {
     phys_addr_t size;
 
-    size = vm_page_atop(vm_page_zone_size(zone)) / VM_PAGE_CPU_POOL_RATIO;
+    size = vm_page_btop(vm_page_zone_size(zone)) / VM_PAGE_CPU_POOL_RATIO;
 
     if (size == 0) {
         size = 1;
@@ -411,7 +411,7 @@ vm_page_zone_init(struct vm_page_zone *zone, phys_addr_t start, phys_addr_t end,
     }
 
     zone->pages = pages;
-    zone->pages_end = pages + vm_page_atop(vm_page_zone_size(zone));
+    zone->pages_end = pages + vm_page_btop(vm_page_zone_size(zone));
     mutex_init(&zone->lock);
 
     for (i = 0; i < ARRAY_SIZE(zone->free_lists); i++) {
@@ -422,7 +422,7 @@ vm_page_zone_init(struct vm_page_zone *zone, phys_addr_t start, phys_addr_t end,
     i = zone - vm_page_zones;
 
     for (pa = zone->start; pa < zone->end; pa += PAGE_SIZE) {
-        vm_page_init(&pages[vm_page_atop(pa - zone->start)], i, pa);
+        vm_page_init(&pages[vm_page_btop(pa - zone->start)], i, pa);
     }
 }
 
@@ -712,7 +712,7 @@ vm_page_setup(void)
     nr_pages = 0;
 
     for (i = 0; i < vm_page_zones_size; i++) {
-        nr_pages += vm_page_atop(vm_page_boot_zone_size(&vm_page_boot_zones[i]));
+        nr_pages += vm_page_btop(vm_page_boot_zone_size(&vm_page_boot_zones[i]));
     }
 
     table_size = vm_page_round(nr_pages * sizeof(struct vm_page));
@@ -730,9 +730,9 @@ vm_page_setup(void)
         zone = &vm_page_zones[i];
         boot_zone = &vm_page_boot_zones[i];
         vm_page_zone_init(zone, boot_zone->start, boot_zone->end, table);
-        page = zone->pages + vm_page_atop(boot_zone->avail_start
+        page = zone->pages + vm_page_btop(boot_zone->avail_start
                                           - boot_zone->start);
-        end = zone->pages + vm_page_atop(boot_zone->avail_end
+        end = zone->pages + vm_page_btop(boot_zone->avail_end
                                          - boot_zone->start);
 
         while (page < end) {
@@ -741,7 +741,7 @@ vm_page_setup(void)
             page++;
         }
 
-        table += vm_page_atop(vm_page_zone_size(zone));
+        table += vm_page_btop(vm_page_zone_size(zone));
     }
 
     while (va < (uintptr_t)table) {
@@ -783,7 +783,7 @@ vm_page_lookup(phys_addr_t pa)
         zone = &vm_page_zones[i];
 
         if ((pa >= zone->start) && (pa < zone->end)) {
-            return &zone->pages[vm_page_atop(pa - zone->start)];
+            return &zone->pages[vm_page_btop(pa - zone->start)];
         }
     }
 
