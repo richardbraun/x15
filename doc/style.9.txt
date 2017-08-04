@@ -548,6 +548,18 @@ with link-time optimizations (LTO), public functions can also be inlined
 or even removed if unused. As a result, use inline for a few performance
 critical short functions only.
 
+Passing arrays as arguments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The C language automatically converts arrays to pointers when passed as
+function arguments. As a result, declaring an argument as an array is
+misleading. In particular, it may give the impression that the sizeof
+operator may be used safely to get the size of the array, when it
+actually always returns the size of a pointer. Therefore, declaring
+arguments as arrays is strictly forbidden.
+
+TODO Fix historic array argument declarations.
+
 GIT COMMITS
 -----------
 
