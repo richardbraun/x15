@@ -74,7 +74,7 @@ vm_object_insert(struct vm_object *object, struct vm_page *page,
         goto error;
     }
 
-    error = rdxtree_insert(&object->pages, vm_page_atop(offset), page);
+    error = rdxtree_insert(&object->pages, vm_page_btop(offset), page);
 
     if (error) {
         goto error;
@@ -109,7 +109,7 @@ vm_object_remove(struct vm_object *object, uint64_t start, uint64_t end)
     mutex_lock(&object->lock);
 
     for (offset = start; offset < end; offset += PAGE_SIZE) {
-        page = rdxtree_remove(&object->pages, vm_page_atop(offset));
+        page = rdxtree_remove(&object->pages, vm_page_btop(offset));
 
         if (page == NULL) {
             continue;
@@ -133,7 +133,7 @@ vm_object_lookup(struct vm_object *object, uint64_t offset)
     llsync_read_enter();
 
     do {
-        page = rdxtree_lookup(&object->pages, vm_page_atop(offset));
+        page = rdxtree_lookup(&object->pages, vm_page_btop(offset));
 
         if (page == NULL) {
             break;

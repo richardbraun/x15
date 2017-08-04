@@ -41,18 +41,16 @@
 #include <vm/vm_object_types.h>
 
 /*
- * Address/page conversion and rounding macros (not inline functions to
+ * Byte/page conversion and rounding macros (not inline functions to
  * be easily usable on both virtual and physical addresses, which may not
  * have the same type size).
- *
- * TODO Rename btop and ptob.
  */
-#define vm_page_atop(addr)      ((addr) >> PAGE_SHIFT)
-#define vm_page_ptoa(page)      ((page) << PAGE_SHIFT)
-#define vm_page_trunc(addr)     P2ALIGN(addr, PAGE_SIZE)
-#define vm_page_round(addr)     P2ROUND(addr, PAGE_SIZE)
-#define vm_page_end(addr)       P2END(addr, PAGE_SIZE)
-#define vm_page_aligned(addr)   P2ALIGNED(addr, PAGE_SIZE)
+#define vm_page_btop(bytes)     ((bytes) >> PAGE_SHIFT)
+#define vm_page_ptob(pages)     ((pages) << PAGE_SHIFT)
+#define vm_page_trunc(bytes)    P2ALIGN(bytes, PAGE_SIZE)
+#define vm_page_round(bytes)    P2ROUND(bytes, PAGE_SIZE)
+#define vm_page_end(bytes)      P2END(bytes, PAGE_SIZE)
+#define vm_page_aligned(bytes)  P2ALIGNED(bytes, PAGE_SIZE)
 
 /*
  * Zone selectors.
@@ -109,7 +107,7 @@ void vm_page_set_type(struct vm_page *page, unsigned int order,
 static inline unsigned int
 vm_page_order(size_t size)
 {
-    return iorder2(vm_page_atop(vm_page_round(size)));
+    return iorder2(vm_page_btop(vm_page_round(size)));
 }
 
 static inline phys_addr_t

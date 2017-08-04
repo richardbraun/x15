@@ -150,7 +150,7 @@ vm_kmem_alloc(size_t size)
         error = pmap_enter(kernel_pmap, start, vm_page_to_pa(page),
                            VM_PROT_READ | VM_PROT_WRITE, PMAP_PEF_GLOBAL);
 
-        if (error || (start - va == vm_page_ptoa(1000))) {
+        if (error || (start - va == vm_page_ptob(1000))) {
             goto error;
         }
     }

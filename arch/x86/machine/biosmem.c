@@ -712,7 +712,7 @@ biosmem_bootalloc(unsigned int nr_pages)
 {
     unsigned long addr, size;
 
-    size = vm_page_ptoa(nr_pages);
+    size = vm_page_ptob(nr_pages);
 
     if (size == 0) {
         boot_panic(biosmem_panic_inval_msg);
