@@ -886,7 +886,6 @@ INIT_OP_DEFINE(sref_setup,
                INIT_OP_DEP(log_setup, true),
                INIT_OP_DEP(mutex_setup, true),
                INIT_OP_DEP(panic_setup, true),
-               INIT_OP_DEP(percpu_setup, true),
                INIT_OP_DEP(sref_bootstrap, true),
                INIT_OP_DEP(syscnt_setup, true),
                INIT_OP_DEP(thread_setup, true));

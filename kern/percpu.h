@@ -112,8 +112,7 @@ INIT_OP_DECLARE(percpu_bootstrap);
 
 /*
  * This init operation provides :
- *  - percpu section is copied to a kernel buffer subsequently used as
- *    the template for future percpu areas
+ *  - new percpu areas can be created
  */
 INIT_OP_DECLARE(percpu_setup);
 
