@@ -118,7 +118,6 @@ xcall_setup(void)
 }
 
 INIT_OP_DEFINE(xcall_setup,
-               INIT_OP_DEP(percpu_setup, true),
                INIT_OP_DEP(thread_bootstrap, true),
                INIT_OP_DEP(spinlock_setup, true));
 
