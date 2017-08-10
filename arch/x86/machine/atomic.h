@@ -48,7 +48,7 @@
  */
 #define atomic_load_64(ptr, mo)                                           \
 MACRO_BEGIN                                                               \
-    uint64_t ___ret;                                                      \
+    uint64_t ___ret = 0;                                                  \
                                                                           \
     __atomic_compare_exchange_n((uint64_t *)(ptr), &___ret, 0,            \
                                 false, mo, __ATOMIC_RELAXED);             \
