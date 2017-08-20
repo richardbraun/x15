@@ -202,7 +202,7 @@ turnstile_remove_waiter(struct turnstile *turnstile,
 }
 
 static void
-turnstile_waiter_requeue(struct turnstile *turnstile,
+turnstile_requeue_waiter(struct turnstile *turnstile,
                          struct turnstile_waiter *waiter)
 {
     unsigned int global_priority;
@@ -363,7 +363,7 @@ turnstile_td_propagate_priority_loop(struct turnstile_td *td)
          * This couldn't be done while changing the thread's priority
          * because of locking restrictions. Do it now.
          */
-        turnstile_waiter_requeue(turnstile, waiter);
+        turnstile_requeue_waiter(turnstile, waiter);
 
         spinlock_unlock(&td->lock);
         thread_unref(thread);
@@ -663,7 +663,7 @@ turnstile_empty(const struct turnstile *turnstile)
 }
 
 static void
-turnstile_set_owner(struct turnstile *turnstile, struct thread *owner)
+turnstile_update_owner(struct turnstile *turnstile, struct thread *owner)
 {
     struct turnstile_td *td;
 
@@ -711,7 +711,7 @@ turnstile_wait(struct turnstile *turnstile, const char *wchan,
         }
     } else {
         /* This function temporarily unlocks the turnstile */
-        turnstile_set_owner(turnstile, owner);
+        turnstile_update_owner(turnstile, owner);
     }
 
     for (;;) {
