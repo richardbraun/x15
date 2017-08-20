@@ -677,6 +677,8 @@ turnstile_update_owner(struct turnstile *turnstile, struct thread *owner)
 
     if (turnstile->owner == NULL) {
         turnstile_td_own(td, turnstile);
+    } else {
+        turnstile_td_reown(td, turnstile);
     }
 
     spinlock_unlock(&turnstile->bucket->lock);
