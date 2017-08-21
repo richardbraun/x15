@@ -25,7 +25,7 @@
 #include <kern/condition_types.h>
 #include <kern/cpumap.h>
 #include <kern/list_types.h>
-#include <kern/mutex_types.h>
+#include <kern/spinlock_types.h>
 #include <kern/turnstile_types.h>
 #include <machine/cpu.h>
 #include <machine/tcb.h>
@@ -169,10 +169,20 @@ struct thread {
      */
     void *tsd[THREAD_KEYS_MAX];
 
-    /* Members related to termination */
-    struct mutex join_lock;
-    struct condition join_cond;     /* (j) */
-    int exited;                     /* (j) */
+    /*
+     * Members related to termination.
+     *
+     * The termination protocol is made of two steps :
+     *  1/ The thread exits, thereby reporting that it is exiting while
+     *     holding the join lock. This includes waking up any thread
+     *     currently joining.
+     *  2/ The thread sets its state to dead and calls the scheduler.
+     *     The join operation polls the state, and releases a reference
+     *     when it sees the dead state.
+     */
+    struct thread *join_waiter;     /* (j) */
+    struct spinlock join_lock;
+    bool exiting;                   /* (j) */
 
     struct task *task;              /* (T) */
     struct list task_node;          /* (T) */

@@ -99,7 +99,6 @@
 #include <kern/list.h>
 #include <kern/llsync.h>
 #include <kern/macros.h>
-#include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
 #include <kern/shell.h>
@@ -1825,9 +1824,9 @@ thread_init(struct thread *thread, void *stack,
     thread_set_user_priority(thread, attr->priority);
     thread_reset_real_priority(thread);
     memset(thread->tsd, 0, sizeof(thread->tsd));
-    mutex_init(&thread->join_lock);
-    condition_init(&thread->join_cond);
-    thread->exited = 0;
+    thread->join_waiter = NULL;
+    spinlock_init(&thread->join_lock);
+    thread->exiting = false;
     thread->task = task;
     thread->stack = stack;
     strlcpy(thread->name, attr->name, sizeof(thread->name));
@@ -1957,16 +1956,8 @@ thread_free_stack(void *stack)
 void
 thread_destroy(struct thread *thread)
 {
-    struct thread_runq *runq;
-    unsigned long flags, state;
-
     assert(thread != thread_self());
-
-    do {
-        runq = thread_lock_runq(thread, &flags);
-        state = thread->state;
-        thread_unlock_runq(runq, flags);
-    } while (state != THREAD_DEAD);
+    assert(thread->state == THREAD_DEAD);
 
     /* See task_info() */
     task_remove_thread(thread->task, thread);
@@ -1981,15 +1972,29 @@ thread_destroy(struct thread *thread)
 static void
 thread_join_common(struct thread *thread)
 {
-    assert(thread != thread_self());
+    struct thread_runq *runq;
+    unsigned long flags, state;
+    struct thread *self;
 
-    mutex_lock(&thread->join_lock);
+    self = thread_self();
+    assert(thread != self);
 
-    while (!thread->exited) {
-        condition_wait(&thread->join_cond, &thread->join_lock);
+    spinlock_lock(&thread->join_lock);
+
+    assert(!thread->join_waiter);
+    thread->join_waiter = self;
+
+    while (!thread->exiting) {
+        thread_sleep(&thread->join_lock, thread, "exit");
     }
 
-    mutex_unlock(&thread->join_lock);
+    spinlock_unlock(&thread->join_lock);
+
+    do {
+        runq = thread_lock_runq(thread, &flags);
+        state = thread->state;
+        thread_unlock_runq(runq, flags);
+    } while (state != THREAD_DEAD);
 
     thread_unref(thread);
 }
@@ -2386,13 +2391,17 @@ thread_exit(void)
         work_schedule(&zombie.work, 0);
     }
 
-    mutex_lock(&thread->join_lock);
-    thread->exited = 1;
-    condition_signal(&thread->join_cond);
-
-    mutex_unlock(&thread->join_lock);
-
+    /*
+     * Disable preemption before waking up since step 2 of the termination
+     * protocol involves actively polling the thread state.
+     */
     thread_preempt_disable();
+
+    spinlock_lock(&thread->join_lock);
+    thread->exiting = true;
+    thread_wakeup(thread->join_waiter);
+    spinlock_unlock(&thread->join_lock);
+
     runq = thread_runq_local();
     spinlock_lock_intr_save(&runq->lock, &flags);
 
