@@ -291,7 +291,7 @@ thread_unref(struct thread *thread)
     assert(nr_refs != 0);
 
     if (nr_refs == 1) {
-        thread_destroy(thread);
+        thread_terminate(thread);
     }
 }
 

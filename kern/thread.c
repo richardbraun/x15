@@ -1826,7 +1826,7 @@ thread_init(struct thread *thread, void *stack,
     memset(thread->tsd, 0, sizeof(thread->tsd));
     thread->join_waiter = NULL;
     spinlock_init(&thread->join_lock);
-    thread->exiting = false;
+    thread->terminating = false;
     thread->task = task;
     thread->stack = stack;
     strlcpy(thread->name, attr->name, sizeof(thread->name));
@@ -1953,7 +1953,7 @@ thread_free_stack(void *stack)
 
 #endif /* X15_THREAD_STACK_GUARD */
 
-void
+static void
 thread_destroy(struct thread *thread)
 {
     assert(thread != thread_self());
@@ -1984,7 +1984,7 @@ thread_join_common(struct thread *thread)
     assert(!thread->join_waiter);
     thread->join_waiter = self;
 
-    while (!thread->exiting) {
+    while (!thread->terminating) {
         thread_sleep(&thread->join_lock, thread, "exit");
     }
 
@@ -1996,7 +1996,15 @@ thread_join_common(struct thread *thread)
         thread_unlock_runq(runq, flags);
     } while (state != THREAD_DEAD);
 
-    thread_unref(thread);
+    thread_destroy(thread);
+}
+
+void thread_terminate(struct thread *thread)
+{
+    spinlock_lock(&thread->join_lock);
+    thread->terminating = true;
+    thread_wakeup(thread->join_waiter);
+    spinlock_unlock(&thread->join_lock);
 }
 
 static void
@@ -2391,16 +2399,9 @@ thread_exit(void)
         work_schedule(&zombie.work, 0);
     }
 
-    /*
-     * Disable preemption before waking up since step 2 of the termination
-     * protocol involves actively polling the thread state.
-     */
     thread_preempt_disable();
 
-    spinlock_lock(&thread->join_lock);
-    thread->exiting = true;
-    thread_wakeup(thread->join_waiter);
-    spinlock_unlock(&thread->join_lock);
+    thread_unref(thread);
 
     runq = thread_runq_local();
     spinlock_lock_intr_save(&runq->lock, &flags);

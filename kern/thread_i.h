@@ -173,16 +173,17 @@ struct thread {
      * Members related to termination.
      *
      * The termination protocol is made of two steps :
-     *  1/ The thread exits, thereby reporting that it is exiting while
-     *     holding the join lock. This includes waking up any thread
-     *     currently joining.
-     *  2/ The thread sets its state to dead and calls the scheduler.
-     *     The join operation polls the state, and releases a reference
-     *     when it sees the dead state.
+     *  1/ The thread exits, thereby releasing its self reference, and
+     *     sets its state to dead before calling the scheduler.
+     *  2/ Another thread must either already be joining, or join later.
+     *     When the thread reference counter drops to zero, the terminating
+     *     flag is set, and the joining thread is awaken, if any. After that,
+     *     the join operation polls the state until it sees the target thread
+     *     as dead, and then releases its resources.
      */
     struct thread *join_waiter;     /* (j) */
     struct spinlock join_lock;
-    bool exiting;                   /* (j) */
+    bool terminating;               /* (j) */
 
     struct task *task;              /* (T) */
     struct list task_node;          /* (T) */
@@ -192,7 +193,7 @@ struct thread {
 
 #define THREAD_ATTR_DETACHED 0x1
 
-void thread_destroy(struct thread *thread);
+void thread_terminate(struct thread *thread);
 
 /*
  * Flag access functions.
