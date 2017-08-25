@@ -573,15 +573,23 @@ thread_preempt_enable_no_resched(void)
     assert(thread->preempt != 0);
     thread->preempt--;
 
-    if (thread_preempt_enabled() && thread_priority_propagation_needed()) {
-        thread_propagate_priority();
-    }
+    /*
+     * Don't perform priority propagation here, because this function is
+     * called on return from interrupt, where the transient state may
+     * incorrectly trigger it.
+     */
 }
 
 static inline void
 thread_preempt_enable(void)
 {
     thread_preempt_enable_no_resched();
+
+    if (thread_priority_propagation_needed()
+        && thread_preempt_enabled()) {
+        thread_propagate_priority();
+    }
+
     thread_schedule();
 }
 
