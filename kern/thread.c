@@ -609,6 +609,8 @@ thread_runq_schedule(struct thread_runq *runq)
 
     prev = thread_self();
 
+    assert((__builtin_frame_address(0) >= prev->stack)
+           && (__builtin_frame_address(0) < (prev->stack + TCB_STACK_SIZE)));
     assert(prev->preempt == THREAD_SUSPEND_PREEMPT_LEVEL);
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
