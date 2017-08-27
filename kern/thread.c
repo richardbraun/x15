@@ -1861,7 +1861,7 @@ thread_lock_runq(struct thread *thread, unsigned long *flags)
     struct thread_runq *runq;
 
     for (;;) {
-        runq = thread->runq;
+        runq = thread->runq; /* TODO Atomic access */
 
         spinlock_lock_intr_save(&runq->lock, flags);
 

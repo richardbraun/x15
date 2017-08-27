@@ -233,8 +233,7 @@ Priority inheritance can also be enabled for regular mutexes. Please read
 Victor Yodaiken's report {against-priority-inheritance} in order to fully
 understand the implications of relying on priority inheritance.
 
-TODO X15 doesn't yet comply with all the requirements for hard real-time.
-For that, it still needs a high resolution timer system.
+TODO Separate man page with more description
 
 [[portability]]
 PORTABILITY
@@ -266,6 +265,8 @@ X15 currently requires a memory management unit, but that may change in
 the future. In addition, the machine-independent code assumes an almost
 completely relaxed memory model, but still expects no reordering between
 dependent loads. This model closely matches the ARM family of processors.
+
+TODO Fix memory model description
 
 [[posix_like_interface]]
 POSIX-LIKE INTERFACE

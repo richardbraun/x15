@@ -265,6 +265,8 @@ rbtree_insert_slot(struct rbtree *tree, rbtree_slot_t slot,
  * Remove a node from a tree.
  *
  * After completion, the node is stale.
+ *
+ * TODO rbtree_replace.
  */
 void rbtree_remove(struct rbtree *tree, struct rbtree_node *node);
 

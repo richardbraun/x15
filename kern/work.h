@@ -46,6 +46,8 @@ typedef void (*work_fn_t)(struct work *);
  * This structure should be embedded in objects related to the work. It
  * stores the work function and is passed to it as its only parameter.
  * The function can then find the containing object with the structof macro.
+ *
+ * TODO Make private.
  */
 struct work {
     struct work *next;

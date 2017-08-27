@@ -652,6 +652,7 @@ thread_intr_leave(void)
     }
 }
 
+/* TODO Use in interrupt handlers instead of manual interrupt/preemption checks */
 static inline void
 thread_assert_interrupted(void)
 {
