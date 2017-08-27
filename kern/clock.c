@@ -27,6 +27,7 @@
 #include <kern/sref.h>
 #include <kern/syscnt.h>
 #include <kern/thread.h>
+#include <kern/timer.h>
 #include <kern/work.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
@@ -89,6 +90,7 @@ void clock_tick_intr(void)
 #endif /* ATOMIC_HAVE_64B_OPS */
     }
 
+    timer_report_periodic_event();
     llsync_report_periodic_event();
     sref_report_periodic_event();
     work_report_periodic_event();

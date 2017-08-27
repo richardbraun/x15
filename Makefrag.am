@@ -111,6 +111,9 @@ x15_SOURCES +=                                              \
         kern/thread.c                                       \
         kern/thread.h                                       \
         kern/thread_i.h                                     \
+        kern/timer.c                                        \
+        kern/timer.h                                        \
+        kern/timer_i.h                                      \
         kern/turnstile.c                                    \
         kern/turnstile.h                                    \
         kern/turnstile_types.h                              \
