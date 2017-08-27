@@ -231,6 +231,11 @@ int thread_timedsleep(struct spinlock *interlock, const void *wchan_addr,
 int thread_wakeup(struct thread *thread);
 
 /*
+ * Suspend execution of the calling thread.
+ */
+void thread_delay(uint64_t ticks, bool absolute);
+
+/*
  * Start running threads on the local processor.
  *
  * Interrupts must be disabled when calling this function.
