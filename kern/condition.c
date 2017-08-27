@@ -21,6 +21,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include <kern/condition.h>
 #include <kern/condition_types.h>
@@ -28,52 +29,14 @@
 #include <kern/sleepq.h>
 #include <kern/thread.h>
 
-static void
-condition_inc_nr_sleeping_waiters(struct condition *condition)
-{
-    condition->nr_sleeping_waiters++;
-    assert(condition->nr_sleeping_waiters != 0);
-}
-
-static void
-condition_dec_nr_sleeping_waiters(struct condition *condition)
-{
-    assert(condition->nr_sleeping_waiters != 0);
-    condition->nr_sleeping_waiters--;
-}
-
-static void
-condition_inc_nr_pending_waiters(struct condition *condition)
-{
-    condition->nr_pending_waiters++;
-    assert(condition->nr_pending_waiters != 0);
-}
-
-static void
-condition_dec_nr_pending_waiters(struct condition *condition)
-{
-    assert(condition->nr_pending_waiters != 0);
-    condition->nr_pending_waiters--;
-}
-
-static void
-condition_move_waiters(struct condition *condition)
-{
-    unsigned short old;
-
-    assert(condition->nr_sleeping_waiters != 0);
-    old = condition->nr_pending_waiters;
-    condition->nr_pending_waiters += condition->nr_sleeping_waiters;
-    assert(old < condition->nr_pending_waiters);
-    condition->nr_sleeping_waiters = 0;
-}
-
-void
-condition_wait(struct condition *condition, struct mutex *mutex)
+static int
+condition_wait_common(struct condition *condition, struct mutex *mutex,
+                      bool timed, uint64_t ticks)
 {
     struct condition *last_cond;
     struct sleepq *sleepq;
     unsigned long flags;
+    int error;
 
     mutex_assert_locked(mutex);
 
@@ -101,23 +64,41 @@ condition_wait(struct condition *condition, struct mutex *mutex)
 
     if (last_cond != NULL) {
         assert(last_cond == condition);
-
-        if (condition->nr_pending_waiters != 0) {
-            sleepq_signal(sleepq);
-        }
+        sleepq_wakeup(sleepq);
     }
 
-    condition_inc_nr_sleeping_waiters(condition);
-    sleepq_wait(sleepq, "cond");
-    condition_dec_nr_pending_waiters(condition);
+    if (timed) {
+        error = sleepq_timedwait(sleepq, "cond", ticks);
+    } else {
+        sleepq_wait(sleepq, "cond");
+        error = 0;
+    }
 
-    if (condition->nr_pending_waiters != 0) {
+    if (!error) {
         thread_set_last_cond(condition);
     }
 
     sleepq_return(sleepq, flags);
 
     mutex_lock(mutex);
+
+    return error;
+}
+
+void
+condition_wait(struct condition *condition, struct mutex *mutex)
+{
+    int error;
+
+    error = condition_wait_common(condition, mutex, false, 0);
+    assert(!error);
+}
+
+int
+condition_timedwait(struct condition *condition,
+                    struct mutex *mutex, uint64_t ticks)
+{
+    return condition_wait_common(condition, mutex, true, ticks);
 }
 
 void
@@ -132,16 +113,8 @@ condition_signal(struct condition *condition)
         return;
     }
 
-    if (condition->nr_sleeping_waiters == 0) {
-        goto out;
-    }
-
     sleepq_signal(sleepq);
 
-    condition_dec_nr_sleeping_waiters(condition);
-    condition_inc_nr_pending_waiters(condition);
-
-out:
     sleepq_release(sleepq, flags);
 }
 
@@ -157,15 +130,8 @@ condition_broadcast(struct condition *condition)
         return;
     }
 
-    if (condition->nr_sleeping_waiters == 0) {
-        goto out;
-    }
+    sleepq_broadcast(sleepq);
 
-    sleepq_signal(sleepq);
-
-    condition_move_waiters(condition);
-
-out:
     sleepq_release(sleepq, flags);
 }
 
@@ -181,17 +147,7 @@ condition_wakeup(struct condition *condition)
         return;
     }
 
-    if (condition->nr_pending_waiters == 0) {
-        goto out;
-    }
+    sleepq_wakeup(sleepq);
 
-    /*
-     * Rely on the FIFO ordering of sleep queues so that signalling multiple
-     * times always wakes up the same thread, as long as that thread didn't
-     * reacquire the sleep queue.
-     */
-    sleepq_signal(sleepq);
-
-out:
     sleepq_release(sleepq, flags);
 }

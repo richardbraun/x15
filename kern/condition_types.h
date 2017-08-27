@@ -22,8 +22,7 @@
 #define _KERN_CONDITION_TYPES_H
 
 struct condition {
-    unsigned short nr_sleeping_waiters;
-    unsigned short nr_pending_waiters;
+    unsigned int _unused;
 };
 
 #endif /* _KERN_CONDITION_TYPES_H */
