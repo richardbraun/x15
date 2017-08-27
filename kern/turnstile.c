@@ -196,7 +196,6 @@ static void
 turnstile_remove_waiter(struct turnstile *turnstile,
                         struct turnstile_waiter *waiter)
 {
-    assert(turnstile_waiter_awaken(waiter));
     plist_remove(&turnstile->waiters, &waiter->node);
     turnstile_update_top_waiter(turnstile);
 }
@@ -283,6 +282,9 @@ turnstile_td_disown(struct turnstile_td *td, struct turnstile *turnstile)
     turnstile->owner = NULL;
 }
 
+/*
+ * A turnstile must be "reowned" whenever its top waiter has changed.
+ */
 static void
 turnstile_td_reown(struct turnstile_td *td, struct turnstile *turnstile)
 {
@@ -407,7 +409,6 @@ turnstile_assert_init_state(const struct turnstile *turnstile)
     assert(plist_empty(&turnstile->waiters));
     assert(turnstile->next_free == NULL);
     assert(turnstile->top_waiter == NULL);
-    assert(turnstile->owner == NULL);
 }
 
 static void
@@ -675,7 +676,11 @@ turnstile_update_owner(struct turnstile *turnstile, struct thread *owner)
     thread_ref(owner);
     spinlock_lock(&td->lock);
 
-    if (turnstile->owner == NULL) {
+    if (turnstile_empty(turnstile)) {
+        if (turnstile->owner != NULL) {
+            turnstile_td_disown(td, turnstile);
+        }
+    } else if (turnstile->owner == NULL) {
         turnstile_td_own(td, turnstile);
     } else {
         turnstile_td_reown(td, turnstile);
@@ -688,14 +693,16 @@ turnstile_update_owner(struct turnstile *turnstile, struct thread *owner)
     spinlock_lock(&turnstile->bucket->lock);
 }
 
-void
-turnstile_wait(struct turnstile *turnstile, const char *wchan,
-               struct thread *owner)
+static int
+turnstile_wait_common(struct turnstile *turnstile, const char *wchan,
+                      struct thread *owner, bool timed, uint64_t ticks)
 {
     struct turnstile_waiter waiter;
     struct turnstile_td *td;
     struct thread *thread;
+    int error;
 
+    error = 0;
     thread = thread_self();
     assert(thread != owner);
 
@@ -718,8 +725,24 @@ turnstile_wait(struct turnstile *turnstile, const char *wchan,
 
     for (;;) {
         if (!turnstile_waiter_awaken(&waiter)) {
-            thread_sleep(&turnstile->bucket->lock, turnstile->sync_obj, wchan);
+            if (!timed) {
+                thread_sleep(&turnstile->bucket->lock,
+                             turnstile->sync_obj, wchan);
+            } else {
+                error = thread_timedsleep(&turnstile->bucket->lock,
+                                          turnstile->sync_obj, wchan, ticks);
+
+                if (error) {
+                    if (turnstile_waiter_awaken(&waiter)) {
+                        error = 0;
+                    } else {
+                        break;
+                    }
+                }
+            }
         }
+
+        assert(turnstile_waiter_awaken(&waiter));
 
         /*
          * The real priority of a thread may change between waking up
@@ -738,6 +761,30 @@ turnstile_wait(struct turnstile *turnstile, const char *wchan,
     turnstile_td_set_waiter(td, NULL);
     turnstile_remove_waiter(turnstile, &waiter);
     spinlock_unlock(&td->lock);
+
+    if (error && (turnstile->owner != NULL)) {
+        /* This function temporarily unlocks the turnstile */
+        turnstile_update_owner(turnstile, turnstile->owner);
+    }
+
+    return error;
+}
+
+void
+turnstile_wait(struct turnstile *turnstile, const char *wchan,
+               struct thread *owner)
+{
+    int error;
+
+    error = turnstile_wait_common(turnstile, wchan, owner, false, 0);
+    assert(!error);
+}
+
+int
+turnstile_timedwait(struct turnstile *turnstile, const char *wchan,
+                    struct thread *owner, uint64_t ticks)
+{
+    return turnstile_wait_common(turnstile, wchan, owner, true, ticks);
 }
 
 void
@@ -782,6 +829,10 @@ turnstile_disown(struct turnstile *turnstile)
 {
     struct turnstile_td *td;
     struct thread *owner;
+
+    if (turnstile->owner == NULL) {
+        return;
+    }
 
     owner = thread_self();
     assert(turnstile->owner == owner);
