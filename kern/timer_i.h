@@ -13,16 +13,29 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- *
- * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_CONDITION_TYPES_H
-#define _KERN_CONDITION_TYPES_H
+#ifndef _KERN_TIMER_I_H
+#define _KERN_TIMER_I_H
 
-struct condition {
-    unsigned int _unused;
+#include <stdbool.h>
+#include <stdint.h>
+
+#include <kern/hlist.h>
+#include <kern/work.h>
+
+struct timer {
+    union {
+        struct hlist_node node;
+        struct work work;
+    };
+
+    uint64_t ticks;
+    timer_fn_t fn;
+    unsigned int cpu;
+    unsigned short state;
+    unsigned short flags;
+    struct thread *joiner;
 };
 
-#endif /* _KERN_CONDITION_TYPES_H */
+#endif /* _KERN_TIMER_I_H */

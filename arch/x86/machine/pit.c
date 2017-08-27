@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2012 Richard Braun.
+ * Copyright (c) 2011-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,7 +17,11 @@
 
 #include <assert.h>
 
+#include <kern/clock.h>
 #include <kern/init.h>
+#include <kern/intr.h>
+#include <kern/log.h>
+#include <kern/macros.h>
 #include <machine/io.h>
 #include <machine/pit.h>
 
@@ -45,19 +49,46 @@
  */
 #define PIT_MAX_COUNT 0xffff
 
-void __init
-pit_setup_free_running(void)
+/*
+ * Timer interrupt.
+ */
+#define PIT_INTR 0
+
+static int
+pit_intr(void *arg)
+{
+    (void)arg;
+
+    clock_tick_intr();
+    return 0;
+}
+
+static void __init
+pit_setup_common(uint16_t count)
 {
     io_write_byte(PIT_PORT_MODE, PIT_MODE_RATE_GEN | PIT_MODE_RW_LSB
                                  | PIT_MODE_RW_MSB);
-    io_write_byte(PIT_PORT_COUNTER0, PIT_MAX_COUNT & 0xff);
-    io_write_byte(PIT_PORT_COUNTER0, PIT_MAX_COUNT >> 8);
+    io_write_byte(PIT_PORT_COUNTER0, count & 0xff);
+    io_write_byte(PIT_PORT_COUNTER0, count >> 8);
+}
+
+void __init
+pit_setup_free_running(void)
+{
+    pit_setup_common(PIT_MAX_COUNT);
 }
 
 void __init
 pit_setup(void)
 {
-    /* TODO Implement */
+    int error;
+
+    pit_setup_common(DIV_CEIL(PIT_FREQ, CLOCK_FREQ));
+    error = intr_register(PIT_INTR, pit_intr, NULL);
+
+    if (error) {
+        log_err("pit: unable to register interrupt handler");
+    }
 }
 
 static unsigned int

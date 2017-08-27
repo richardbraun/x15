@@ -27,6 +27,8 @@
 #ifndef _KERN_CONDITION_H
 #define _KERN_CONDITION_H
 
+#include <stdint.h>
+
 #include <kern/condition_types.h>
 #include <kern/mutex_types.h>
 
@@ -35,20 +37,21 @@ struct condition;
 /*
  * Initialize a condition variable.
  */
-static inline void
-condition_init(struct condition *condition)
-{
-    condition->nr_sleeping_waiters = 0;
-    condition->nr_pending_waiters = 0;
-}
+#define condition_init(c) ((void)(c))
 
 /*
- * Wait for a wake-up on the given condition variable.
+ * Wait for a signal on the given condition variable.
  *
  * The associated mutex must be locked when calling this function.
  * It is unlocked before waiting and relocked before returning.
+ *
+ * When bounding the duration of the wait, the caller must pass an absolute
+ * time in ticks, and ERROR_TIMEDOUT is returned if that time is reached
+ * before the sleep queue is signalled.
  */
 void condition_wait(struct condition *condition, struct mutex *mutex);
+int condition_timedwait(struct condition *condition,
+                        struct mutex *mutex, uint64_t ticks);
 
 /*
  * Wake up one (signal) or all (broadcast) threads waiting on a

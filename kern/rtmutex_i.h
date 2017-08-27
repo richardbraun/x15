@@ -74,6 +74,8 @@ rtmutex_unlock_fast(struct rtmutex *rtmutex)
 
 void rtmutex_lock_slow(struct rtmutex *rtmutex);
 
+int rtmutex_timedlock_slow(struct rtmutex *rtmutex, uint64_t ticks);
+
 void rtmutex_unlock_slow(struct rtmutex *rtmutex);
 
 #endif /* _KERN_RTMUTEX_I_H */

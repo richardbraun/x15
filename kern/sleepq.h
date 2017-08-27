@@ -26,17 +26,13 @@
  * the associated mutex, at which point two sleep queues are locked.
  * Handling condition variable sleep queues slightly differently
  * allows preventing deadlocks while keeping overall complexity low.
- *
- * In addition, despite being used to implement condition variables,
- * this implementation doesn't provide a broadcast call. The rationale
- * is to force users to implement "chained waking" in order to avoid
- * the thundering herd effect.
  */
 
 #ifndef _KERN_SLEEPQ_H
 #define _KERN_SLEEPQ_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include <kern/init.h>
 
@@ -98,7 +94,7 @@ void sleepq_return(struct sleepq *sleepq, unsigned long flags);
 bool sleepq_empty(const struct sleepq *sleepq);
 
 /*
- * Wait for a wake up on the given sleep queue.
+ * Wait for a wake-up on the given sleep queue.
  *
  * The sleep queue must be lent when calling this function. It is
  * released and later reacquired before returning from this function.
@@ -110,8 +106,13 @@ bool sleepq_empty(const struct sleepq *sleepq);
  * the queue, the queue is not immediately considered empty.
  *
  * Threads are queued in FIFO order.
+ *
+ * When bounding the duration of the wait, the caller must pass an absolute
+ * time in ticks, and ERROR_TIMEDOUT is returned if that time is reached
+ * before the sleep queue is signalled.
  */
 void sleepq_wait(struct sleepq *sleepq, const char *wchan);
+int sleepq_timedwait(struct sleepq *sleepq, const char *wchan, uint64_t ticks);
 
 /*
  * Wake up a thread waiting on the given sleep queue, if any.
@@ -125,10 +126,26 @@ void sleepq_wait(struct sleepq *sleepq, const char *wchan);
  *
  * Threads are queued in FIFO order, which means signalling a sleep
  * queue multiple times always awakens the same thread, regardless
- * of new waiters, as long as that first thread didn't reacquire the
+ * of new waiters, as long as that thread didn't reacquire the
  * sleep queue.
+ *
+ * A broadcast differs only by also making all currently waiting threads
+ * pending for wake-up. As with sleepq_signal, a single thread may be
+ * awaken. The rationale is to force users to implement "chained waking"
+ * in order to avoid the thundering herd effect.
  */
 void sleepq_signal(struct sleepq *sleepq);
+void sleepq_broadcast(struct sleepq *sleepq);
+
+/*
+ * Wake up a pending thread.
+ *
+ * This function may only wake up a thread pending for wake-up after a
+ * broadcast. It is used to chain wake-ups to avoid the thundering herd
+ * effect. If there are no threads pending for wake-up, this function
+ * does nothing.
+ */
+void sleepq_wakeup(struct sleepq *sleepq);
 
 /*
  * This init operation provides :

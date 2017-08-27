@@ -15,11 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include <kern/atomic.h>
+#include <kern/clock.h>
+#include <kern/error.h>
 #include <kern/mutex.h>
 #include <kern/mutex_types.h>
 #include <kern/sleepq.h>
@@ -47,20 +50,23 @@ mutex_adaptive_is_owner(struct mutex *mutex, uintptr_t owner)
     return mutex_adaptive_get_thread(prev) == mutex_adaptive_get_thread(owner);
 }
 
-void
-mutex_adaptive_lock_slow(struct mutex *mutex)
+static int
+mutex_adaptive_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
 {
     uintptr_t self, owner;
     struct sleepq *sleepq;
+    struct thread *thread;
     unsigned long flags;
+    int error;
 
+    error = 0;
     self = (uintptr_t)thread_self();
 
     sleepq = sleepq_lend(mutex, false, &flags);
 
     mutex_adaptive_set_contended(mutex);
 
-    for (;;) {
+    do {
         owner = atomic_cas_acquire(&mutex->owner, MUTEX_ADAPTIVE_CONTENDED,
                                    self | MUTEX_ADAPTIVE_CONTENDED);
         assert(owner & MUTEX_ADAPTIVE_CONTENDED);
@@ -75,40 +81,131 @@ mutex_adaptive_lock_slow(struct mutex *mutex)
          */
         while (mutex_adaptive_is_owner(mutex, owner)) {
             if (thread_is_running(mutex_adaptive_get_thread(owner))) {
+                if (timed && clock_time_occurred(ticks, clock_get_time())) {
+                    error = ERROR_TIMEDOUT;
+                    break;
+                }
+
                 cpu_pause();
             } else {
-                sleepq_wait(sleepq, "mutex");
+                if (!timed) {
+                    sleepq_wait(sleepq, "mutex");
+                } else {
+                    error = sleepq_timedwait(sleepq, "mutex", ticks);
+
+                    if (error) {
+                        break;
+                    }
+                }
             }
         }
-    }
+    } while (!error);
 
     /*
-     * A potentially spinning thread wouldn't be accounted in the sleep queue,
-     * but the only potentially spinning thread is the new owner.
+     * Attempt to clear the contended bit.
+     *
+     * In case of success, the current thread becomes the new owner, and
+     * simply checking if the sleep queue is empty is enough.
+     *
+     * Keep in mind accesses to the mutex word aren't synchronized by
+     * the sleep queue, i.e. an unlock may occur completely concurrently
+     * while attempting to clear the contended bit .
      */
+
+    if (error) {
+        if (sleepq_empty(sleepq)) {
+            owner = atomic_load(&mutex->owner, ATOMIC_RELAXED);
+            assert(owner & MUTEX_ADAPTIVE_CONTENDED);
+            thread = mutex_adaptive_get_thread(owner);
+
+            /* If there is an owner, try to clear the contended bit */
+            if (thread != NULL) {
+                owner = atomic_cas(&mutex->owner, owner,
+                                   (uintptr_t)thread, ATOMIC_RELAXED);
+                assert(owner & MUTEX_ADAPTIVE_CONTENDED);
+                thread = mutex_adaptive_get_thread(owner);
+            }
+
+            /*
+             * If there is no owner, the previous owner is currently unlocking
+             * the mutex, waiting for either a successful signal, or the
+             * value of the mutex to become different from the contended bit.
+             */
+            if (thread == NULL) {
+                owner = atomic_cas(&mutex->owner, owner, 0, ATOMIC_RELAXED);
+                assert(owner == MUTEX_ADAPTIVE_CONTENDED);
+            }
+        }
+
+        goto out;
+    }
+
     if (sleepq_empty(sleepq)) {
         atomic_store(&mutex->owner, self, ATOMIC_RELAXED);
     }
 
+out:
     sleepq_return(sleepq, flags);
+
+    return error;
+}
+
+void
+mutex_adaptive_lock_slow(struct mutex *mutex)
+{
+    int error;
+
+    error = mutex_adaptive_lock_slow_common(mutex, false, 0);
+    assert(!error);
+}
+
+int
+mutex_adaptive_timedlock_slow(struct mutex *mutex, uint64_t ticks)
+{
+    return mutex_adaptive_lock_slow_common(mutex, true, ticks);
 }
 
 void
 mutex_adaptive_unlock_slow(struct mutex *mutex)
 {
-    uintptr_t owner;
+    uintptr_t self, owner;
     struct sleepq *sleepq;
     unsigned long flags;
+    int error;
 
-    atomic_store(&mutex->owner, MUTEX_ADAPTIVE_CONTENDED, ATOMIC_RELEASE);
+    self = (uintptr_t)thread_self() | MUTEX_ADAPTIVE_CONTENDED;
+
+    for (;;) {
+        owner = atomic_cas_release(&mutex->owner, self,
+                                   MUTEX_ADAPTIVE_CONTENDED);
+
+        if (owner == self) {
+            break;
+        } else {
+            /*
+             * The contended bit was cleared after the fast path failed,
+             * but before the slow path (re)started.
+             */
+            assert(owner == (uintptr_t)thread_self());
+            error = mutex_adaptive_unlock_fast(mutex);
+
+            if (error) {
+                continue;
+            }
+
+            return;
+        }
+    }
 
     for (;;) {
         owner = atomic_load(&mutex->owner, ATOMIC_RELAXED);
 
         /*
-         * This only happens if another thread was able to become the new
-         * owner, in which case that thread isn't spinning on the current
-         * thread, i.e. there is no need for an additional reference.
+         * This only happens if :
+         *  1/ Another thread was able to become the new owner, in which
+         *     case that thread isn't spinning on the current thread, i.e.
+         *     there is no need for an additional reference.
+         *  2/ A timeout cleared the contended bit.
          */
         if (owner != MUTEX_ADAPTIVE_CONTENDED) {
             break;

@@ -28,6 +28,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include <kern/init.h>
 #include <kern/plist.h>
@@ -157,9 +158,17 @@ bool turnstile_empty(const struct turnstile *turnstile);
  * the associated synchronization object. The priority of the caller
  * is propagated to the chain of turnstiles and owners as necessary
  * to prevent unbounded priority inversion.
+ *
+ * When bounding the duration of the wait, the caller must pass an absolute
+ * time in ticks, and ERROR_TIMEDOUT is returned if that time is reached
+ * before the turnstile is signalled. In addition, if a timeout occurs,
+ * the calling thread temporarily releases the turnstile before returning,
+ * causing other threads to consider the turnstile as empty.
  */
 void turnstile_wait(struct turnstile *turnstile, const char *wchan,
                     struct thread *owner);
+int turnstile_timedwait(struct turnstile *turnstile, const char *wchan,
+                        struct thread *owner, uint64_t ticks);
 
 /*
  * Wake up a thread waiting on the given turnstile, if any.
@@ -175,8 +184,7 @@ void turnstile_signal(struct turnstile *turnstile);
  * Own/disown a turnstile.
  *
  * The turnstile must be lent when taking ownership, acquired when
- * releasing it. Owning has no effect on empty turnstiles.
- * Conversely, an empty turnstile cannot be disowned.
+ * releasing it.
  *
  * Ownership must be updated atomically with regard to the ownership
  * of the associated synchronization object.

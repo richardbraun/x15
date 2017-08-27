@@ -107,6 +107,7 @@ struct thread {
     bool in_runq;               /* (r) */
     const void *wchan_addr;     /* (r) */
     const char *wchan_desc;     /* (r) */
+    int wakeup_error;           /* (r) */
     unsigned short state;       /* (r) */
 
     /* Sleep queue available for lending */

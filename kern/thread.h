@@ -36,6 +36,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdnoreturn.h>
 
 #include <kern/atomic.h>
@@ -46,14 +47,6 @@
 #include <kern/turnstile_types.h>
 #include <machine/cpu.h>
 #include <machine/tcb.h>
-
-/*
- * Scheduler tick frequency.
- *
- * The selected value of 200 translates to a period of 5ms, small enough to
- * provide low latency, and is practical as both a dividend and divisor.
- */
-#define THREAD_TICK_FREQ 200
 
 /*
  * Thread structure.
@@ -218,18 +211,29 @@ void thread_join(struct thread *thread);
  * address should refer to a relevant synchronization object, normally
  * containing the interlock, but not necessarily.
  *
+ * When bounding the duration of the sleep, the caller must pass an absolute
+ * time in ticks, and ERROR_TIMEDOUT is returned if that time is reached
+ * before the thread is awaken.
+ *
  * Implies a memory barrier.
  */
 void thread_sleep(struct spinlock *interlock, const void *wchan_addr,
                   const char *wchan_desc);
+int thread_timedsleep(struct spinlock *interlock, const void *wchan_addr,
+                      const char *wchan_desc, uint64_t ticks);
 
 /*
  * Schedule a thread for execution on a processor.
  *
- * No action is performed if the target thread is NULL, the calling thread,
- * or already in the running state.
+ * If the target thread is NULL, the calling thread, or already in the
+ * running state, no action is performed and ERROR_INVAL is returned.
  */
-void thread_wakeup(struct thread *thread);
+int thread_wakeup(struct thread *thread);
+
+/*
+ * Suspend execution of the calling thread.
+ */
+void thread_delay(uint64_t ticks, bool absolute);
 
 /*
  * Start running threads on the local processor.
@@ -253,10 +257,11 @@ void thread_yield(void);
 void thread_schedule_intr(void);
 
 /*
- * Report a periodic timer interrupt on the thread currently running on
- * the local processor.
+ * Report a periodic event on the current processor.
+ *
+ * Interrupts and preemption must be disabled when calling this function.
  */
-void thread_tick_intr(void);
+void thread_report_periodic_event(void);
 
 /*
  * Set thread scheduling parameters.
@@ -647,6 +652,7 @@ thread_intr_leave(void)
     }
 }
 
+/* TODO Use in interrupt handlers instead of manual interrupt/preemption checks */
 static inline void
 thread_assert_interrupted(void)
 {

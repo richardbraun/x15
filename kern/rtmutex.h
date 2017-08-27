@@ -87,6 +87,20 @@ rtmutex_lock(struct rtmutex *rtmutex)
     }
 }
 
+static inline int
+rtmutex_timedlock(struct rtmutex *rtmutex, uint64_t ticks)
+{
+    uintptr_t prev_owner;
+
+    prev_owner = rtmutex_lock_fast(rtmutex);
+
+    if (unlikely(prev_owner != 0)) {
+        return rtmutex_timedlock_slow(rtmutex, ticks);
+    }
+
+    return 0;
+}
+
 /*
  * Unlock a real-time mutex.
  *
