@@ -33,6 +33,7 @@
 #define _KERN_SEMAPHORE_H
 
 #include <assert.h>
+#include <stdint.h>
 
 #include <kern/atomic.h>
 #include <kern/error.h>
@@ -91,6 +92,20 @@ semaphore_wait(struct semaphore *semaphore)
     if (unlikely(prev == 0)) {
         semaphore_wait_slow(semaphore);
     }
+}
+
+static inline int
+semaphore_timedwait(struct semaphore *semaphore, uint64_t ticks)
+{
+    unsigned int prev;
+
+    prev = semaphore_dec(semaphore);
+
+    if (unlikely(prev == 0)) {
+        return semaphore_timedwait_slow(semaphore, ticks);
+    }
+
+    return 0;
 }
 
 /*

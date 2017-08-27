@@ -36,6 +36,7 @@
 #include <machine/ioapic.h>
 #include <machine/lapic.h>
 #include <machine/pic.h>
+#include <machine/pit.h>
 #include <machine/types.h>
 #include <vm/vm_kmem.h>
 
@@ -693,9 +694,10 @@ error:
      * For the sake of simplicity, it has been decided to ignore legacy
      * specifications such as the multiprocessor specification, and use
      * ACPI only. If ACPI is unavailable, consider the APIC system to
-     * be missing and fall back to using the legacy XT-PIC.
+     * be missing and fall back to using the legacy XT-PIC and PIT.
      */
     pic_setup();
+    pit_setup();
     return 0;
 }
 

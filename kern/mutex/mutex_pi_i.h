@@ -23,6 +23,8 @@
        " use <kern/mutex.h> instead"
 #endif
 
+#include <stdint.h>
+
 #include <kern/mutex_types.h>
 #include <kern/rtmutex.h>
 
@@ -49,6 +51,12 @@ static inline void
 mutex_impl_lock(struct mutex *mutex)
 {
     rtmutex_lock(&mutex->rtmutex);
+}
+
+static inline int
+mutex_impl_timedlock(struct mutex *mutex, uint64_t ticks)
+{
+    return rtmutex_timedlock(&mutex->rtmutex, ticks);
 }
 
 static inline void

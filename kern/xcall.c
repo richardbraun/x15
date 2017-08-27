@@ -133,6 +133,7 @@ xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu)
 
     thread_preempt_disable();
 
+    /* TODO Fix to match interrupt context semantics */
     if (cpu == cpu_id()) {
         unsigned long flags;
 

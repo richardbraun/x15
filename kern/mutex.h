@@ -27,6 +27,8 @@
 #error "only one of X15_MUTEX_PI and X15_MUTEX_ADAPTIVE may be defined"
 #endif
 
+#include <stdint.h>
+
 #if defined(X15_MUTEX_PI)
 #include <kern/mutex/mutex_pi_i.h>
 #elif defined(X15_MUTEX_ADAPTIVE)
@@ -74,6 +76,22 @@ static inline void
 mutex_lock(struct mutex *mutex)
 {
     mutex_impl_lock(mutex);
+}
+
+/*
+ * Lock a mutex, with a time boundary.
+ *
+ * The time boundary is an absolute time in ticks.
+ *
+ * If successful, the mutex is locked, otherwise an error is returned.
+ * A mutex can only be locked once.
+ *
+ * This function may sleep.
+ */
+static inline int
+mutex_timedlock(struct mutex *mutex, uint64_t ticks)
+{
+    return mutex_impl_timedlock(mutex, ticks);
 }
 
 /*

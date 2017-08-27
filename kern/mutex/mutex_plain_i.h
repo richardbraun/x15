@@ -24,6 +24,7 @@
 #endif
 
 #include <assert.h>
+#include <stdint.h>
 
 #include <kern/atomic.h>
 #include <kern/error.h>
@@ -71,6 +72,7 @@ mutex_plain_unlock_fast(struct mutex *mutex)
 }
 
 void mutex_plain_lock_slow(struct mutex *mutex);
+int mutex_plain_timedlock_slow(struct mutex *mutex, uint64_t ticks);
 void mutex_plain_unlock_slow(struct mutex *mutex);
 
 /*
@@ -96,6 +98,20 @@ mutex_impl_lock(struct mutex *mutex)
     if (unlikely(error)) {
         mutex_plain_lock_slow(mutex);
     }
+}
+
+static inline int
+mutex_impl_timedlock(struct mutex *mutex, uint64_t ticks)
+{
+    int error;
+
+    error = mutex_plain_lock_fast(mutex);
+
+    if (unlikely(error)) {
+        error = mutex_plain_timedlock_slow(mutex, ticks);
+    }
+
+    return error;
 }
 
 static inline void
