@@ -48,14 +48,6 @@
 #include <machine/tcb.h>
 
 /*
- * Scheduler tick frequency.
- *
- * The selected value of 200 translates to a period of 5ms, small enough to
- * provide low latency, and is practical as both a dividend and divisor.
- */
-#define THREAD_TICK_FREQ 200
-
-/*
  * Thread structure.
  */
 struct thread;
@@ -253,10 +245,11 @@ void thread_yield(void);
 void thread_schedule_intr(void);
 
 /*
- * Report a periodic timer interrupt on the thread currently running on
- * the local processor.
+ * Report a periodic event on the current processor.
+ *
+ * Interrupts and preemption must be disabled when calling this function.
  */
-void thread_tick_intr(void);
+void thread_report_periodic_event(void);
 
 /*
  * Set thread scheduling parameters.

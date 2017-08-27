@@ -20,6 +20,9 @@ x15_SOURCES +=                                              \
         kern/bitmap_i.h                                     \
         kern/cbuf.c                                         \
         kern/cbuf.h                                         \
+        kern/clock.c                                        \
+        kern/clock.h                                        \
+        kern/clock_i.h                                      \
         kern/condition.c                                    \
         kern/condition.h                                    \
         kern/condition_types.h                              \

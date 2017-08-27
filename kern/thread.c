@@ -91,6 +91,7 @@
 #include <string.h>
 
 #include <kern/atomic.h>
+#include <kern/clock.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
@@ -160,7 +161,7 @@
 /*
  * Default time slice for real-time round-robin scheduling.
  */
-#define THREAD_DEFAULT_RR_TIME_SLICE (THREAD_TICK_FREQ / 10)
+#define THREAD_DEFAULT_RR_TIME_SLICE (CLOCK_FREQ / 10)
 
 /*
  * Maximum number of threads which can be pulled from a remote run queue
@@ -171,7 +172,7 @@
 /*
  * Delay (in ticks) between two balance attempts when a run queue is idle.
  */
-#define THREAD_IDLE_BALANCE_TICKS (THREAD_TICK_FREQ / 2)
+#define THREAD_IDLE_BALANCE_TICKS (CLOCK_FREQ / 2)
 
 /*
  * Run queue properties for real-time threads.
@@ -191,7 +192,7 @@ struct thread_rt_runq {
 /*
  * Round slice base unit for fair-scheduling threads.
  */
-#define THREAD_FS_ROUND_SLICE_BASE (THREAD_TICK_FREQ / 10)
+#define THREAD_FS_ROUND_SLICE_BASE (CLOCK_FREQ / 10)
 
 /*
  * Group of threads sharing the same weight.
@@ -257,7 +258,6 @@ struct thread_runq {
     unsigned int idle_balance_ticks;
 
     struct syscnt sc_schedule_intrs;
-    struct syscnt sc_tick_intrs;
     struct syscnt sc_boosts;
 };
 
@@ -451,8 +451,6 @@ thread_runq_init(struct thread_runq *runq, unsigned int cpu,
     runq->idle_balance_ticks = (unsigned int)-1;
     snprintf(name, sizeof(name), "thread_schedule_intrs/%u", cpu);
     syscnt_register(&runq->sc_schedule_intrs, name);
-    snprintf(name, sizeof(name), "thread_tick_intrs/%u", cpu);
-    syscnt_register(&runq->sc_tick_intrs, name);
     snprintf(name, sizeof(name), "thread_boosts/%u", cpu);
     syscnt_register(&runq->sc_boosts, name);
 }
@@ -2570,7 +2568,7 @@ thread_schedule_intr(void)
 }
 
 void
-thread_tick_intr(void)
+thread_report_periodic_event(void)
 {
     const struct thread_sched_ops *ops;
     struct thread_runq *runq;
@@ -2579,10 +2577,6 @@ thread_tick_intr(void)
     thread_assert_interrupted();
 
     runq = thread_runq_local();
-    syscnt_inc(&runq->sc_tick_intrs);
-    llsync_report_periodic_event();
-    sref_report_periodic_event();
-    work_report_periodic_event();
     thread = thread_self();
 
     spinlock_lock(&runq->lock);
