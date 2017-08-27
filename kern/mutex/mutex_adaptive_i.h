@@ -78,6 +78,7 @@ mutex_adaptive_unlock_fast(struct mutex *mutex)
 }
 
 void mutex_adaptive_lock_slow(struct mutex *mutex);
+int mutex_adaptive_timedlock_slow(struct mutex *mutex, uint64_t ticks);
 void mutex_adaptive_unlock_slow(struct mutex *mutex);
 
 /*
@@ -103,6 +104,20 @@ mutex_impl_lock(struct mutex *mutex)
     if (unlikely(error)) {
         mutex_adaptive_lock_slow(mutex);
     }
+}
+
+static inline int
+mutex_impl_timedlock(struct mutex *mutex, uint64_t ticks)
+{
+    int error;
+
+    error = mutex_adaptive_lock_fast(mutex);
+
+    if (unlikely(error)) {
+        error = mutex_adaptive_timedlock_slow(mutex, ticks);
+    }
+
+    return error;
 }
 
 static inline void
