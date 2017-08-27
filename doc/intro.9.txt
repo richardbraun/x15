@@ -102,6 +102,10 @@ module:kern/thread::
 module:kern/work::
   Work queue of deferred asynchronous lightweight jobs.
 
+All wait functions on synchronization objects can be time-bounded.
+This includes waiting for a mutex lock, a condition variable, or a
+semaphore.
+
 Mutex implementations
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -134,6 +138,8 @@ module:kern/bitmap::
   Arbitrary-length bit array.
 module:kern/cbuf::
   Circular character buffer.
+module:kern/clock::
+  Low resolution clock.
 module:kern/error::
   Common errors and error handling functions.
 module:kern/hash::
@@ -158,6 +164,8 @@ module:kern/sprintf::
   Formatted string functions.
 module:kern/syscnt::
   Generic 64-bits counter.
+module:kern/timer::
+  Low resolution timer.
 
 X15 doesn't provide a generic queue interface, because the requirements
 often vary too much. Similarly, it doesn't provide a hash table interface.
@@ -202,13 +210,13 @@ TODO Write when the virtual memory system is rewritten.
 REAL-TIME
 ---------
 
-X15 complies with almost all the requirements of a true hard real-time
-multiprocessor system. It is a fully preemptible kernel with short,
-bounded preemption-based critical sections. It provides real-time
-scheduling policies and a complete priority inheritance algorithm.
-Preemption and interrupts are clearly decoupled so that interrupts
-can remain enabled as much as possible. Multiprocessor synchronization
-uses rigorously fair spin locks. The modules related to real-time are :
+X15 complies with all the requirements of a real-time multiprocessor
+system. It is a fully preemptible kernel with short, bounded
+preemption-based critical sections. It provides real-time scheduling
+policies and a complete priority inheritance algorithm. Preemption and
+interrupts are clearly decoupled so that interrupts can remain enabled
+as much as possible. Multiprocessor synchronization uses rigorously
+fair spin locks. The modules related to real-time are :
 
 module:kern/rtmutex::
   Mutual exclusion with priority inheritance.
