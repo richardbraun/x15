@@ -19,6 +19,7 @@
 #define _KERN_SEMAPHORE_I_H
 
 #include <assert.h>
+#include <stdint.h>
 
 #include <kern/atomic.h>
 
@@ -55,6 +56,8 @@ semaphore_inc(struct semaphore *semaphore)
 }
 
 void semaphore_wait_slow(struct semaphore *semaphore);
+
+int semaphore_timedwait_slow(struct semaphore *semaphore, uint64_t ticks);
 
 void semaphore_post_slow(struct semaphore *semaphore);
 
