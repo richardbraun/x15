@@ -109,6 +109,7 @@
 #include <kern/syscnt.h>
 #include <kern/task.h>
 #include <kern/thread.h>
+#include <kern/timer.h>
 #include <kern/turnstile.h>
 #include <kern/work.h>
 #include <machine/cpu.h>
@@ -2419,49 +2420,14 @@ thread_join(struct thread *thread)
     thread_join_common(thread);
 }
 
-void
-thread_sleep(struct spinlock *interlock, const void *wchan_addr,
-             const char *wchan_desc)
-{
-    struct thread_runq *runq;
-    struct thread *thread;
-    unsigned long flags;
-
-    thread = thread_self();
-    assert(thread->preempt == 1);
-
-    runq = thread_runq_local();
-    spinlock_lock_intr_save(&runq->lock, &flags);
-
-    if (interlock != NULL) {
-        thread_preempt_disable();
-        spinlock_unlock(interlock);
-    }
-
-    thread_set_wchan(thread, wchan_addr, wchan_desc);
-    thread->state = THREAD_SLEEPING;
-
-    runq = thread_runq_schedule(runq);
-    assert(thread->state == THREAD_RUNNING);
-
-    spinlock_unlock_intr_restore(&runq->lock, flags);
-
-    if (interlock != NULL) {
-        spinlock_lock(interlock);
-        thread_preempt_enable_no_resched();
-    }
-
-    assert(thread->preempt == 1);
-}
-
-void
-thread_wakeup(struct thread *thread)
+static int
+thread_wakeup_common(struct thread *thread, int error)
 {
     struct thread_runq *runq;
     unsigned long flags;
 
     if ((thread == NULL) || (thread == thread_self())) {
-        return;
+        return ERROR_INVAL;
     }
 
     /*
@@ -2477,7 +2443,7 @@ thread_wakeup(struct thread *thread)
 
         if (thread->state == THREAD_RUNNING) {
             thread_unlock_runq(runq, flags);
-            return;
+            return ERROR_INVAL;
         }
 
         thread_clear_wchan(thread);
@@ -2495,10 +2461,98 @@ thread_wakeup(struct thread *thread)
         spinlock_lock(&runq->lock);
     }
 
+    thread->wakeup_error = error;
     thread_runq_wakeup(runq, thread);
     spinlock_unlock(&runq->lock);
     cpu_intr_restore(flags);
     thread_preempt_enable();
+
+    return 0;
+}
+
+int
+thread_wakeup(struct thread *thread)
+{
+    return thread_wakeup_common(thread, 0);
+}
+
+struct thread_timeout_waiter {
+    struct thread *thread;
+    struct timer timer;
+};
+
+static void
+thread_timeout(struct timer *timer)
+{
+    struct thread_timeout_waiter *waiter;
+
+    waiter = structof(timer, struct thread_timeout_waiter, timer);
+    thread_wakeup_common(waiter->thread, ERROR_TIMEDOUT);
+}
+
+static int
+thread_sleep_common(struct spinlock *interlock, const void *wchan_addr,
+                    const char *wchan_desc, bool timed, uint64_t ticks)
+{
+    struct thread_timeout_waiter waiter;
+    struct thread_runq *runq;
+    struct thread *thread;
+    unsigned long flags;
+
+    thread = thread_self();
+    assert(thread->preempt == 1);
+
+    if (timed) {
+        waiter.thread = thread;
+        timer_init(&waiter.timer, thread_timeout, TIMER_INTR);
+        timer_schedule(&waiter.timer, ticks);
+    }
+
+    runq = thread_runq_local();
+    spinlock_lock_intr_save(&runq->lock, &flags);
+
+    if (interlock != NULL) {
+        thread_preempt_disable();
+        spinlock_unlock(interlock);
+    }
+
+    thread_set_wchan(thread, wchan_addr, wchan_desc);
+    thread->state = THREAD_SLEEPING;
+
+    runq = thread_runq_schedule(runq);
+    assert(thread->state == THREAD_RUNNING);
+
+    spinlock_unlock_intr_restore(&runq->lock, flags);
+
+    if (timed) {
+        timer_cancel(&waiter.timer);
+    }
+
+    if (interlock != NULL) {
+        spinlock_lock(interlock);
+        thread_preempt_enable_no_resched();
+    }
+
+    assert(thread->preempt == 1);
+
+    return thread->wakeup_error;
+}
+
+void
+thread_sleep(struct spinlock *interlock, const void *wchan_addr,
+             const char *wchan_desc)
+{
+    int error;
+
+    error = thread_sleep_common(interlock, wchan_addr, wchan_desc, false, 0);
+    assert(!error);
+}
+
+int
+thread_timedsleep(struct spinlock *interlock, const void *wchan_addr,
+                  const char *wchan_desc, uint64_t ticks)
+{
+    return thread_sleep_common(interlock, wchan_addr, wchan_desc, true, ticks);
 }
 
 void __init

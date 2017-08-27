@@ -36,6 +36,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdnoreturn.h>
 
 #include <kern/atomic.h>
@@ -210,18 +211,24 @@ void thread_join(struct thread *thread);
  * address should refer to a relevant synchronization object, normally
  * containing the interlock, but not necessarily.
  *
+ * When bounding the duration of the sleep, the caller must pass an absolute
+ * time in ticks, and ERROR_TIMEDOUT is returned if that time is reached
+ * before the thread is awaken.
+ *
  * Implies a memory barrier.
  */
 void thread_sleep(struct spinlock *interlock, const void *wchan_addr,
                   const char *wchan_desc);
+int thread_timedsleep(struct spinlock *interlock, const void *wchan_addr,
+                      const char *wchan_desc, uint64_t ticks);
 
 /*
  * Schedule a thread for execution on a processor.
  *
- * No action is performed if the target thread is NULL, the calling thread,
- * or already in the running state.
+ * If the target thread is NULL, the calling thread, or already in the
+ * running state, no action is performed and ERROR_INVAL is returned.
  */
-void thread_wakeup(struct thread *thread);
+int thread_wakeup(struct thread *thread);
 
 /*
  * Start running threads on the local processor.
