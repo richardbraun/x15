@@ -2555,6 +2555,21 @@ thread_timedsleep(struct spinlock *interlock, const void *wchan_addr,
     return thread_sleep_common(interlock, wchan_addr, wchan_desc, true, ticks);
 }
 
+void
+thread_delay(uint64_t ticks, bool absolute)
+{
+    thread_preempt_disable();
+
+    if (!absolute) {
+        /* Add a tick to avoid quantization errors */
+        ticks += clock_get_time() + 1;
+    }
+
+    thread_timedsleep(NULL, thread_self(), "delay", ticks);
+
+    thread_preempt_enable();
+}
+
 void __init
 thread_run_scheduler(void)
 {
