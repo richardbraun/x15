@@ -172,6 +172,9 @@ often vary too much. Similarly, it doesn't provide a hash table interface.
 Instead, users can easily build specialized queues, hash tables and ring
 buffers on top of the provided facilities.
 
+TODO List supported standard C interfaces and remove the printf/sprintf
+modules from the list above.
+
 [[multiprocessor_support]]
 MULTIPROCESSOR SUPPORT
 ----------------------
