@@ -32,9 +32,6 @@ AM_CFLAGS += \
         -fsigned-char \
         -fno-common
 
-# TODO Add option
-AM_CFLAGS += -fno-stack-protector
-
 AM_CFLAGS += -nostdlib
 
 SUFFIXES += .lds .lds.S
