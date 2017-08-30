@@ -16,6 +16,7 @@
  */
 
 #include <kern/init.h>
+#include <kern/mutex.h>
 #include <kern/thread.h>
 
 static int __init
@@ -25,4 +26,5 @@ mutex_setup(void)
 }
 
 INIT_OP_DEFINE(mutex_setup,
+               INIT_OP_DEP(mutex_impl_setup, true),
                INIT_OP_DEP(thread_setup_booter, true));

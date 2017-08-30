@@ -21,9 +21,58 @@
 #include <stdint.h>
 
 #include <kern/atomic.h>
+#include <kern/init.h>
 #include <kern/mutex.h>
 #include <kern/mutex_types.h>
 #include <kern/sleepq.h>
+#include <kern/syscnt.h>
+
+/* Set to 1 to enable debugging */
+#define MUTEX_PLAIN_DEBUG 0
+
+#if MUTEX_PLAIN_DEBUG
+
+enum {
+    MUTEX_PLAIN_SC_WAIT_SUCCESSES,
+    MUTEX_PLAIN_SC_WAIT_ERRORS,
+    MUTEX_PLAIN_SC_DOWNGRADES,
+    MUTEX_PLAIN_SC_ERROR_DOWNGRADES,
+    MUTEX_PLAIN_NR_SCS
+};
+
+static struct syscnt mutex_plain_sc_array[MUTEX_PLAIN_NR_SCS];
+
+static void
+mutex_plain_register_sc(unsigned int index, const char *name)
+{
+    assert(index < ARRAY_SIZE(mutex_plain_sc_array));
+    syscnt_register(&mutex_plain_sc_array[index], name);
+}
+
+static void
+mutex_plain_setup_debug(void)
+{
+    mutex_plain_register_sc(MUTEX_PLAIN_SC_WAIT_SUCCESSES,
+                            "mutex_plain_wait_successes");
+    mutex_plain_register_sc(MUTEX_PLAIN_SC_WAIT_ERRORS,
+                            "mutex_plain_wait_errors");
+    mutex_plain_register_sc(MUTEX_PLAIN_SC_DOWNGRADES,
+                            "mutex_plain_downgrades");
+    mutex_plain_register_sc(MUTEX_PLAIN_SC_ERROR_DOWNGRADES,
+                            "mutex_plain_error_downgrades");
+}
+
+static void
+mutex_plain_inc_sc(unsigned int index)
+{
+    assert(index < ARRAY_SIZE(mutex_plain_sc_array));
+    syscnt_inc(&mutex_plain_sc_array[index]);
+}
+
+#else /* MUTEX_PLAIN_DEBUG */
+#define mutex_plain_setup_debug()
+#define mutex_plain_inc_sc(x)
+#endif /* MUTEX_PLAIN_DEBUG */
 
 static int
 mutex_plain_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
@@ -56,7 +105,10 @@ mutex_plain_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
     }
 
     if (error) {
+        mutex_plain_inc_sc(MUTEX_PLAIN_SC_WAIT_ERRORS);
+
         if (sleepq_empty(sleepq)) {
+            mutex_plain_inc_sc(MUTEX_PLAIN_SC_ERROR_DOWNGRADES);
             atomic_cas(&mutex->state, MUTEX_CONTENDED,
                        MUTEX_LOCKED, ATOMIC_RELAXED);
         }
@@ -64,7 +116,10 @@ mutex_plain_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
         goto out;
     }
 
+    mutex_plain_inc_sc(MUTEX_PLAIN_SC_WAIT_SUCCESSES);
+
     if (sleepq_empty(sleepq)) {
+        mutex_plain_inc_sc(MUTEX_PLAIN_SC_DOWNGRADES);
         atomic_store(&mutex->state, MUTEX_LOCKED, ATOMIC_RELAXED);
     }
 
@@ -105,3 +160,16 @@ mutex_plain_unlock_slow(struct mutex *mutex)
 
     sleepq_release(sleepq, flags);
 }
+
+static int
+mutex_plain_setup(void)
+{
+    mutex_plain_setup_debug();
+    return 0;
+}
+
+INIT_OP_DEFINE(mutex_plain_setup,
+#if MUTEX_PLAIN_DEBUG
+               INIT_OP_DEP(syscnt_setup, true),
+#endif /* MUTEX_PLAIN_DEBUG */
+);

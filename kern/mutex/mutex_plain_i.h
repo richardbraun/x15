@@ -28,6 +28,7 @@
 
 #include <kern/atomic.h>
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/mutex_types.h>
 
 #define MUTEX_UNLOCKED  0
@@ -125,5 +126,9 @@ mutex_impl_unlock(struct mutex *mutex)
         mutex_plain_unlock_slow(mutex);
     }
 }
+
+#define mutex_impl_setup mutex_plain_setup
+
+INIT_OP_DECLARE(mutex_plain_setup);
 
 #endif /* _KERN_MUTEX_PLAIN_I_H */

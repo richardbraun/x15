@@ -21,11 +21,63 @@
 #include <stdint.h>
 
 #include <kern/atomic.h>
+#include <kern/init.h>
+#include <kern/macros.h>
 #include <kern/rtmutex.h>
 #include <kern/rtmutex_i.h>
 #include <kern/rtmutex_types.h>
 #include <kern/thread.h>
 #include <kern/turnstile.h>
+
+/* Set to 1 to enable debugging */
+#define RTMUTEX_DEBUG 0
+
+#if RTMUTEX_DEBUG
+
+enum {
+    RTMUTEX_SC_WAIT_SUCCESSES,
+    RTMUTEX_SC_WAIT_ERRORS,
+    RTMUTEX_SC_DOWNGRADES,
+    RTMUTEX_SC_ERROR_DOWNGRADES,
+    RTMUTEX_SC_CANCELED_DOWNGRADES,
+    RTMUTEX_NR_SCS
+};
+
+static struct syscnt rtmutex_sc_array[RTMUTEX_NR_SCS];
+
+static void
+rtmutex_register_sc(unsigned int index, const char *name)
+{
+    assert(index < ARRAY_SIZE(rtmutex_sc_array));
+    syscnt_register(&rtmutex_sc_array[index], name);
+}
+
+static void
+rtmutex_setup_debug(void)
+{
+    rtmutex_register_sc(RTMUTEX_SC_WAIT_SUCCESSES,
+                        "rtmutex_wait_successes");
+    rtmutex_register_sc(RTMUTEX_SC_WAIT_ERRORS,
+                        "rtmutex_wait_errors");
+    rtmutex_register_sc(RTMUTEX_SC_DOWNGRADES,
+                        "rtmutex_downgrades");
+    rtmutex_register_sc(RTMUTEX_SC_ERROR_DOWNGRADES,
+                        "rtmutex_error_downgrades");
+    rtmutex_register_sc(RTMUTEX_SC_CANCELED_DOWNGRADES,
+                        "rtmutex_canceled_downgrades");
+}
+
+static void
+rtmutex_inc_sc(unsigned int index)
+{
+    assert(index < ARRAY_SIZE(rtmutex_sc_array));
+    syscnt_inc(&rtmutex_sc_array[index]);
+}
+
+#else /* RTMUTEX_DEBUG */
+#define rtmutex_setup_debug()
+#define rtmutex_inc_sc(x)
+#endif /* RTMUTEX_DEBUG */
 
 static struct thread *
 rtmutex_get_thread(uintptr_t owner)
@@ -81,6 +133,8 @@ rtmutex_lock_slow_common(struct rtmutex *rtmutex, bool timed, uint64_t ticks)
     }
 
     if (error) {
+        rtmutex_inc_sc(RTMUTEX_SC_WAIT_ERRORS);
+
         /*
          * Keep in mind more than one thread may have timed out on waiting.
          * These threads aren't considered waiters, making the turnstile
@@ -91,17 +145,23 @@ rtmutex_lock_slow_common(struct rtmutex *rtmutex, bool timed, uint64_t ticks)
             owner = atomic_load(&rtmutex->owner, ATOMIC_RELAXED);
 
             if (owner & RTMUTEX_CONTENDED) {
+                rtmutex_inc_sc(RTMUTEX_SC_ERROR_DOWNGRADES);
                 owner &= RTMUTEX_OWNER_MASK;
                 atomic_store(&rtmutex->owner, owner, ATOMIC_RELAXED);
+            } else {
+                rtmutex_inc_sc(RTMUTEX_SC_CANCELED_DOWNGRADES);
             }
         }
 
         goto out;
     }
 
+    rtmutex_inc_sc(RTMUTEX_SC_WAIT_SUCCESSES);
+
     turnstile_own(turnstile);
 
     if (turnstile_empty(turnstile)) {
+        rtmutex_inc_sc(RTMUTEX_SC_DOWNGRADES);
         owner = atomic_swap(&rtmutex->owner, self, ATOMIC_RELAXED);
         assert(owner == (self | bits));
     }
@@ -166,3 +226,16 @@ rtmutex_unlock_slow(struct rtmutex *rtmutex)
     /* TODO Make private, use thread_set_priority_propagation_needed instead */
     thread_propagate_priority();
 }
+
+static int
+rtmutex_setup(void)
+{
+    rtmutex_setup_debug();
+    return 0;
+}
+
+INIT_OP_DEFINE(rtmutex_setup,
+#if RTMUTEX_DEBUG
+               INIT_OP_DEP(syscnt_setup, true),
+#endif /* RTMUTEX_DEBUG */
+               );
