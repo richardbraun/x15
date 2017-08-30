@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <kern/atomic.h>
 #include <kern/clock.h>
 #include <kern/error.h>
 #include <kern/init.h>
@@ -57,6 +58,8 @@
 #define TIMER_TF_HIGH_PRIO      0x4
 #define TIMER_TF_CANCELED       0x8
 
+#define TIMER_INVALID_CPU ((unsigned int)-1)
+
 #define TIMER_HTABLE_SIZE 2048
 
 #if !ISP2(TIMER_HTABLE_SIZE)
@@ -73,6 +76,9 @@ struct timer_bucket {
  * The hash table bucket matching the last time member has already been
  * processed, and the next periodic event resumes from the next bucket.
  *
+ * The cpu member is used to determine which lock serializes access to
+ * the structure. It must be accessed atomically.
+ *
  * Locking order: interrupts -> timer_cpu_data.
  */
 struct timer_cpu_data {
@@ -85,13 +91,41 @@ struct timer_cpu_data {
 static struct timer_cpu_data timer_cpu_data __percpu;
 
 static struct timer_cpu_data *
-timer_lock_cpu_data(struct timer *timer, unsigned long *flagsp)
+timer_cpu_data_acquire(unsigned long *flags)
 {
     struct timer_cpu_data *cpu_data;
 
-    cpu_data = percpu_ptr(timer_cpu_data, timer->cpu);
-    spinlock_lock_intr_save(&cpu_data->lock, flagsp);
+    thread_preempt_disable();
+    cpu_data = cpu_local_ptr(timer_cpu_data);
+    spinlock_lock_intr_save(&cpu_data->lock, flags);
+    thread_preempt_enable_no_resched();
+
     return cpu_data;
+}
+
+static struct timer_cpu_data *
+timer_lock_cpu_data(struct timer *timer, unsigned long *flags)
+{
+    struct timer_cpu_data *cpu_data;
+    unsigned int cpu;
+
+    for (;;) {
+        cpu = atomic_load(&timer->cpu, ATOMIC_RELAXED);
+
+        if (cpu == TIMER_INVALID_CPU) {
+            return NULL;
+        }
+
+        cpu_data = percpu_ptr(timer_cpu_data, cpu);
+
+        spinlock_lock_intr_save(&cpu_data->lock, flags);
+
+        if (cpu == atomic_load(&timer->cpu, ATOMIC_RELAXED)) {
+            return cpu_data;
+        }
+
+        spinlock_unlock_intr_restore(&cpu_data->lock, *flags);
+    }
 }
 
 static void
@@ -125,7 +159,7 @@ timer_scheduled(const struct timer *timer)
 static void
 timer_set_scheduled(struct timer *timer, unsigned int cpu)
 {
-    timer->cpu = cpu;
+    atomic_store(&timer->cpu, cpu, ATOMIC_RELAXED);
     timer->state = TIMER_TS_SCHEDULED;
 }
 
@@ -325,25 +359,6 @@ timer_cpu_data_init(struct timer_cpu_data *cpu_data, unsigned int cpu)
     }
 }
 
-static struct timer_cpu_data *
-timer_cpu_data_acquire_local(unsigned long *flags)
-{
-    struct timer_cpu_data *cpu_data;
-
-    thread_pin();
-    cpu_data = cpu_local_ptr(timer_cpu_data);
-    spinlock_lock_intr_save(&cpu_data->lock, flags);
-    return cpu_data;
-}
-
-static void
-timer_cpu_data_release_local(struct timer_cpu_data *cpu_data,
-                             unsigned long flags)
-{
-    spinlock_unlock_intr_restore(&cpu_data->lock, flags);
-    thread_unpin();
-}
-
 static struct timer_bucket *
 timer_cpu_data_get_bucket(struct timer_cpu_data *cpu_data, uint64_t ticks)
 {
@@ -412,6 +427,7 @@ INIT_OP_DEFINE(timer_setup,
 void timer_init(struct timer *timer, timer_fn_t fn, int flags)
 {
     timer->fn = fn;
+    timer->cpu = TIMER_INVALID_CPU;
     timer->state = TIMER_TS_READY;
     timer->flags = 0;
     timer->joiner = NULL;
@@ -433,18 +449,22 @@ timer_schedule(struct timer *timer, uint64_t ticks)
     struct timer_cpu_data *cpu_data;
     unsigned long cpu_flags;
 
-    cpu_data = timer_cpu_data_acquire_local(&cpu_flags);
+    cpu_data = timer_lock_cpu_data(timer, &cpu_flags);
 
-    if (timer_canceled(timer)) {
-        goto out;
-    }
+    if (cpu_data == NULL) {
+        cpu_data = timer_cpu_data_acquire(&cpu_flags);
+    } else {
+        if (timer_canceled(timer)) {
+            goto out;
+        }
 
-    /*
-     * If called from the handler, the timer is running. If rescheduled
-     * after completion, it's done.
-     */
-    if (timer_running(timer) || timer_done(timer)) {
-        timer_set_ready(timer);
+        /*
+         * If called from the handler, the timer is running. If rescheduled
+         * after completion, it's done.
+         */
+        if (timer_running(timer) || timer_done(timer)) {
+            timer_set_ready(timer);
+        }
     }
 
     timer_set_time(timer, ticks);
@@ -457,7 +477,7 @@ timer_schedule(struct timer *timer, uint64_t ticks)
     timer_set_scheduled(timer, cpu_data->cpu);
 
 out:
-    timer_cpu_data_release_local(cpu_data, cpu_flags);
+    timer_unlock_cpu_data(cpu_data, cpu_flags);
 }
 
 void
