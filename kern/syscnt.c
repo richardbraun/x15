@@ -25,6 +25,7 @@
 #include <kern/shell.h>
 #include <kern/spinlock.h>
 #include <kern/syscnt.h>
+#include <kern/thread.h>
 
 /*
  * Global list of all registered counters.
@@ -70,8 +71,12 @@ syscnt_setup(void)
     return 0;
 }
 
+/*
+ * Do not make initialization depend on mutex_setup, since mutex
+ * modules may use system counters for debugging.
+ */
 INIT_OP_DEFINE(syscnt_setup,
-               INIT_OP_DEP(mutex_setup, true));
+               INIT_OP_DEP(thread_setup_booter, true));
 
 void __init
 syscnt_register(struct syscnt *syscnt, const char *name)

@@ -28,6 +28,7 @@
 
 #include <kern/atomic.h>
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/mutex_types.h>
 #include <kern/thread.h>
@@ -131,5 +132,9 @@ mutex_impl_unlock(struct mutex *mutex)
         mutex_adaptive_unlock_slow(mutex);
     }
 }
+
+#define mutex_impl_setup mutex_adaptive_setup
+
+INIT_OP_DECLARE(mutex_adaptive_setup);
 
 #endif /* _KERN_MUTEX_ADAPTIVE_I_H */

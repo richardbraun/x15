@@ -28,6 +28,7 @@
 #include <stdint.h>
 
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/rtmutex_i.h>
 #include <kern/rtmutex_types.h>
@@ -118,5 +119,7 @@ rtmutex_unlock(struct rtmutex *rtmutex)
         rtmutex_unlock_slow(rtmutex);
     }
 }
+
+INIT_OP_DECLARE(rtmutex_setup);
 
 #endif /* _KERN_RTMUTEX_H */
