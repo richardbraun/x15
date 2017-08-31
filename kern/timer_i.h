@@ -24,18 +24,32 @@
 #include <kern/hlist.h>
 #include <kern/work.h>
 
+/*
+ * Locking keys :
+ * (c) cpu_data
+ * (a) atomic
+ *
+ * (*) The ticks member represents the expiration date. It may be read without
+ * locking the timer, in which case it must be accessed atomically. It
+ * may only be updated when the timer is locked though, so reads at such
+ * times don't need to be atomic.
+ *
+ * (**) The cpu member is used to determine which lock serializes access to
+ * the structure. It must be accessed atomically, but updated while the
+ * timer is locked.
+ */
 struct timer {
     union {
-        struct hlist_node node;
+        struct hlist_node node; /* (c)      */
         struct work work;
     };
 
-    uint64_t ticks;
+    uint64_t ticks;             /* (c,a,*)  */
     timer_fn_t fn;
-    unsigned int cpu;
-    unsigned short state;
-    unsigned short flags;
-    struct thread *joiner;
+    unsigned int cpu;           /* (c,a,**) */
+    unsigned short state;       /* (c)      */
+    unsigned short flags;       /* (c)      */
+    struct thread *joiner;      /* (c)      */
 };
 
 #endif /* _KERN_TIMER_I_H */

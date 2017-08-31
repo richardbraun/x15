@@ -76,9 +76,6 @@ struct timer_bucket {
  * The hash table bucket matching the last time member has already been
  * processed, and the next periodic event resumes from the next bucket.
  *
- * The cpu member is used to determine which lock serializes access to
- * the structure. It must be accessed atomically.
- *
  * Locking order: interrupts -> timer_cpu_data.
  */
 struct timer_cpu_data {
@@ -242,13 +239,13 @@ timer_set_canceled(struct timer *timer)
 static void
 timer_set_time(struct timer *timer, uint64_t ticks)
 {
-    timer->ticks = ticks;
+    atomic_store(&timer->ticks, ticks, ATOMIC_RELAXED);
 }
 
 static bool
 timer_occurred(const struct timer *timer, uint64_t ref)
 {
-    return clock_time_occurred(timer->ticks, ref);
+    return clock_time_occurred(timer_get_time(timer), ref);
 }
 
 static uintptr_t
