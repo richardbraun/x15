@@ -23,6 +23,7 @@
 
 #include <stdint.h>
 
+#include <kern/atomic.h>
 #include <kern/init.h>
 
 /*
@@ -47,7 +48,7 @@ typedef void (*timer_fn_t)(struct timer *);
 static inline uint64_t
 timer_get_time(const struct timer *timer)
 {
-    return timer->ticks; /* TODO atomic */
+    return atomic_load(&timer->ticks, ATOMIC_RELAXED);
 }
 
 /*
