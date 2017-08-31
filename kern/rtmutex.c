@@ -29,8 +29,9 @@
 #include <kern/thread.h>
 #include <kern/turnstile.h>
 
-/* Set to 1 to enable debugging */
+#ifndef RTMUTEX_DEBUG
 #define RTMUTEX_DEBUG 0
+#endif /* RTMUTEX_DEBUG */
 
 #if RTMUTEX_DEBUG
 

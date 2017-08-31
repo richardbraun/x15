@@ -27,8 +27,9 @@
 #include <kern/sleepq.h>
 #include <kern/syscnt.h>
 
-/* Set to 1 to enable debugging */
+#ifndef MUTEX_PLAIN_DEBUG
 #define MUTEX_PLAIN_DEBUG 0
+#endif /* MUTEX_PLAIN_DEBUG */
 
 #if MUTEX_PLAIN_DEBUG
 
