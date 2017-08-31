@@ -492,7 +492,7 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
         thread_set_flag(runq->current, THREAD_YIELD);
     }
 
-    thread->runq = runq;
+    atomic_store(&thread->runq, runq, ATOMIC_RELAXED);
     thread->in_runq = true;
 }
 
@@ -1861,11 +1861,11 @@ thread_lock_runq(struct thread *thread, unsigned long *flags)
     struct thread_runq *runq;
 
     for (;;) {
-        runq = thread->runq; /* TODO Atomic access */
+        runq = atomic_load(&thread->runq, ATOMIC_RELAXED);
 
         spinlock_lock_intr_save(&runq->lock, flags);
 
-        if (runq == thread->runq) {
+        if (runq == atomic_load(&thread->runq, ATOMIC_RELAXED)) {
             return runq;
         }
 
@@ -2457,6 +2457,10 @@ thread_wakeup_common(struct thread *thread, int error)
     if (!thread->pinned) {
         runq = thread_get_real_sched_ops(thread)->select_runq(thread);
     } else {
+        /*
+         * This access doesn't need to be atomic, as the current thread is
+         * the only one which may update the member.
+         */
         runq = thread->runq;
         spinlock_lock(&runq->lock);
     }
@@ -2876,7 +2880,7 @@ thread_is_running(const struct thread *thread)
 {
     const struct thread_runq *runq;
 
-    runq = thread->runq;
+    runq = atomic_load(&thread->runq, ATOMIC_RELAXED);
 
     return (runq != NULL)
            && (atomic_load(&runq->current, ATOMIC_RELAXED) == thread);
