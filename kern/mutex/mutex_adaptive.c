@@ -31,8 +31,9 @@
 #include <kern/thread.h>
 #include <machine/cpu.h>
 
-/* Set to 1 to enable debugging */
+#ifndef MUTEX_ADAPTIVE_DEBUG
 #define MUTEX_ADAPTIVE_DEBUG 0
+#endif /* MUTEX_ADAPTIVE_DEBUG */
 
 #if MUTEX_ADAPTIVE_DEBUG
 
