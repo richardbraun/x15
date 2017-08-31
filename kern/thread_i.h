@@ -95,6 +95,11 @@ struct thread_fs_data {
  * (a) atomic
  * (-) thread-local
  * ( ) read-only
+ *
+ * (*) The runq member is used to determine which run queue lock must be
+ * held to serialize access to the relevant members. However, it is only
+ * updated while the associated run queue is locked. As a result, atomic
+ * reads are only necessary outside critical sections.
  */
 struct thread {
     alignas(CPU_L1_SIZE) struct tcb tcb; /* (r) */
@@ -103,12 +108,12 @@ struct thread {
     unsigned long flags;    /* (a) */
 
     /* Sleep/wake-up synchronization members */
-    struct thread_runq *runq;   /* (r) */
-    bool in_runq;               /* (r) */
-    const void *wchan_addr;     /* (r) */
-    const char *wchan_desc;     /* (r) */
-    int wakeup_error;           /* (r) */
-    unsigned short state;       /* (r) */
+    struct thread_runq *runq;   /* (r,*) */
+    bool in_runq;               /* (r)   */
+    const void *wchan_addr;     /* (r)   */
+    const char *wchan_desc;     /* (r)   */
+    int wakeup_error;           /* (r)   */
+    unsigned short state;       /* (r)   */
 
     /* Sleep queue available for lending */
     struct sleepq *priv_sleepq; /* (-) */
