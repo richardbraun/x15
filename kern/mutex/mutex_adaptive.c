@@ -43,8 +43,8 @@ enum {
     MUTEX_ADAPTIVE_SC_WAIT_ERRORS,
     MUTEX_ADAPTIVE_SC_DOWNGRADES,
     MUTEX_ADAPTIVE_SC_ERROR_DOWNGRADES,
-    MUTEX_ADAPTIVE_SC_ERROR_CLEARBITS,
     MUTEX_ADAPTIVE_SC_ERROR_CLEARCONT,
+    MUTEX_ADAPTIVE_SC_ERROR_RESET,
     MUTEX_ADAPTIVE_SC_FAST_UNLOCKS,
     MUTEX_ADAPTIVE_SC_SLOW_UNLOCKS,
     MUTEX_ADAPTIVE_SC_EXTERNAL_UNLOCKS,
@@ -74,10 +74,10 @@ mutex_adaptive_setup_debug(void)
                                "mutex_adaptive_downgrades");
     mutex_adaptive_register_sc(MUTEX_ADAPTIVE_SC_ERROR_DOWNGRADES,
                                "mutex_adaptive_error_downgrades");
-    mutex_adaptive_register_sc(MUTEX_ADAPTIVE_SC_ERROR_CLEARBITS,
-                               "mutex_adaptive_error_clearbits");
     mutex_adaptive_register_sc(MUTEX_ADAPTIVE_SC_ERROR_CLEARCONT,
                                "mutex_adaptive_error_clearcont");
+    mutex_adaptive_register_sc(MUTEX_ADAPTIVE_SC_ERROR_RESET,
+                               "mutex_adaptive_error_reset");
     mutex_adaptive_register_sc(MUTEX_ADAPTIVE_SC_FAST_UNLOCKS,
                                "mutex_adaptive_fast_unlocks");
     mutex_adaptive_register_sc(MUTEX_ADAPTIVE_SC_SLOW_UNLOCKS,
@@ -197,7 +197,7 @@ mutex_adaptive_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
 
             /* If there is an owner, try to clear the contended bit */
             if (thread != NULL) {
-                mutex_adaptive_inc_sc(MUTEX_ADAPTIVE_SC_ERROR_CLEARBITS);
+                mutex_adaptive_inc_sc(MUTEX_ADAPTIVE_SC_ERROR_CLEARCONT);
                 owner = atomic_cas(&mutex->owner, owner,
                                    (uintptr_t)thread, ATOMIC_RELAXED);
                 assert(owner & MUTEX_ADAPTIVE_CONTENDED);
@@ -210,7 +210,7 @@ mutex_adaptive_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
              * value of the mutex to become different from the contended bit.
              */
             if (thread == NULL) {
-                mutex_adaptive_inc_sc(MUTEX_ADAPTIVE_SC_ERROR_CLEARCONT);
+                mutex_adaptive_inc_sc(MUTEX_ADAPTIVE_SC_ERROR_RESET);
                 owner = atomic_cas(&mutex->owner, owner, 0, ATOMIC_RELAXED);
                 assert(owner == MUTEX_ADAPTIVE_CONTENDED);
             }
