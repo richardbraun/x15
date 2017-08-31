@@ -31,12 +31,10 @@
 
 /*
  * Clock frequency.
- *
- * TODO Clock frequency selection.
  */
-#define CLOCK_FREQ 200
+#define CLOCK_FREQ X15_CLOCK_FREQ
 
-#if (1000 % CLOCK_FREQ) != 0
+#if (CLOCK_FREQ < 100) || (CLOCK_FREQ > 1000) || (1000 % CLOCK_FREQ) != 0
 #error "invalid clock frequency"
 #endif /* (1000 % CLOCK_FREQ) != 0 */
 

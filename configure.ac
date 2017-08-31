@@ -47,6 +47,12 @@ AC_ARG_WITH([max-cpus],
             [opt_max_cpus=$withval],
             [opt_max_cpus=128])
 
+AC_ARG_WITH([clock-freq],
+            [AS_HELP_STRING([--with-clock-freq=CLOCK_FREQ],
+                            [set the low resolution clock frequency])],
+            [opt_clock_freq=$withval],
+            [opt_clock_freq=200])
+
 AC_ARG_ENABLE([mutex-adaptive],
               [AS_HELP_STRING([--enable-mutex-adaptive],
                               [enable adaptive spinning mutexes])])
@@ -112,7 +118,10 @@ AM_CONDITIONAL([TEST_XCALL],
 
 AC_DEFINE_UNQUOTED([X15_MAX_CPUS], [$opt_max_cpus],
                    [maximum number of supported processors])
+AC_DEFINE_UNQUOTED([X15_CLOCK_FREQ], [$opt_clock_freq],
+                   [low resolution clock frequency])
 AC_MSG_NOTICE([maximum number of supported processors: $opt_max_cpus])
+AC_MSG_NOTICE([low resolution clock frequency: $opt_clock_freq Hz])
 
 AS_IF([test x"$enable_mutex_adaptive" = xyes -a x"$enable_mutex_pi" = xyes],
       [AC_MSG_ERROR([--enable-mutex-adaptive and --enable-mutex-pi are mutually exclusive])])
