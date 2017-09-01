@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Richard Braun.
+ * Copyright (c) 2010-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #define static_assert _Static_assert
 
 #ifdef NDEBUG
-#define assert(expression) ((void)(expression))
+#define assert(expression)
 #else /* NDEBUG */
 
 #include <kern/macros.h>

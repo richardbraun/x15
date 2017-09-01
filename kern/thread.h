@@ -43,6 +43,7 @@
 #include <kern/init.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
+#include <kern/macros.h>
 #include <kern/spinlock_types.h>
 #include <kern/turnstile_types.h>
 #include <machine/cpu.h>
@@ -281,7 +282,7 @@ void thread_pi_setscheduler(struct thread *thread, unsigned char policy,
 static inline void
 thread_ref(struct thread *thread)
 {
-    unsigned long nr_refs;
+    __unused unsigned long nr_refs;
 
     nr_refs = atomic_fetch_add(&thread->nr_refs, 1, ATOMIC_RELAXED);
     assert(nr_refs != (unsigned long)-1);

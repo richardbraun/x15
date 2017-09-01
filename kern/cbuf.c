@@ -72,7 +72,7 @@ cbuf_push(struct cbuf *cbuf, const void *buf, size_t size, bool erase)
 int
 cbuf_pop(struct cbuf *cbuf, void *buf, size_t *sizep)
 {
-    int error;
+    __unused int error;
 
     if (cbuf_size(cbuf) == 0) {
         return ERROR_AGAIN;

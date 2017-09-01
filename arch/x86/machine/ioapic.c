@@ -209,7 +209,7 @@ ioapic_create(unsigned int apic_id, uintptr_t addr, unsigned int gsi_base)
     return ioapic;
 }
 
-static bool
+__unused static bool
 ioapic_has_gsi(const struct ioapic *ioapic, unsigned int gsi)
 {
     return ((gsi >= ioapic->first_gsi) && (gsi <= ioapic->last_gsi));

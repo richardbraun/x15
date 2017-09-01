@@ -790,7 +790,7 @@ vm_page_lookup(phys_addr_t pa)
     return NULL;
 }
 
-static bool
+__unused static bool
 vm_page_block_referenced(const struct vm_page *page, unsigned int order)
 {
     unsigned int i, nr_pages;

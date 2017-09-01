@@ -475,7 +475,7 @@ thread_runq_add(struct thread_runq *runq, struct thread *thread)
     const struct thread_sched_ops *ops;
 
     assert(!cpu_intr_enabled());
-    spinlock_assert_locked(&runq->lock);
+    assert(spinlock_locked(&runq->lock));
     assert(!thread->in_runq);
 
     ops = thread_get_real_sched_ops(thread);
@@ -502,7 +502,7 @@ thread_runq_remove(struct thread_runq *runq, struct thread *thread)
     const struct thread_sched_ops *ops;
 
     assert(!cpu_intr_enabled());
-    spinlock_assert_locked(&runq->lock);
+    assert(spinlock_locked(&runq->lock));
     assert(thread->in_runq);
 
     runq->nr_threads--;
@@ -523,7 +523,7 @@ thread_runq_put_prev(struct thread_runq *runq, struct thread *thread)
     const struct thread_sched_ops *ops;
 
     assert(!cpu_intr_enabled());
-    spinlock_assert_locked(&runq->lock);
+    assert(spinlock_locked(&runq->lock));
 
     ops = thread_get_real_sched_ops(thread);
 
@@ -539,7 +539,7 @@ thread_runq_get_next(struct thread_runq *runq)
     unsigned int i;
 
     assert(!cpu_intr_enabled());
-    spinlock_assert_locked(&runq->lock);
+    assert(spinlock_locked(&runq->lock));
 
     for (i = 0; i < ARRAY_SIZE(thread_sched_ops); i++) {
         thread = thread_sched_ops[i].get_next(runq);
@@ -572,7 +572,7 @@ static void
 thread_runq_wakeup(struct thread_runq *runq, struct thread *thread)
 {
     assert(!cpu_intr_enabled());
-    spinlock_assert_locked(&runq->lock);
+    assert(spinlock_locked(&runq->lock));
     assert(thread->state == THREAD_RUNNING);
 
     thread_runq_add(runq, thread);
@@ -612,7 +612,7 @@ thread_runq_schedule(struct thread_runq *runq)
            && (__builtin_frame_address(0) < (prev->stack + TCB_STACK_SIZE)));
     assert(prev->preempt == THREAD_SUSPEND_PREEMPT_LEVEL);
     assert(!cpu_intr_enabled());
-    spinlock_assert_locked(&runq->lock);
+    assert(spinlock_locked(&runq->lock));
 
     llsync_report_context_switch();
 
@@ -657,7 +657,7 @@ thread_runq_schedule(struct thread_runq *runq)
 
     assert(prev->preempt == THREAD_SUSPEND_PREEMPT_LEVEL);
     assert(!cpu_intr_enabled());
-    spinlock_assert_locked(&runq->lock);
+    assert(spinlock_locked(&runq->lock));
     return runq;
 }
 
@@ -762,7 +762,8 @@ thread_sched_rt_get_next(struct thread_runq *runq)
 }
 
 static void
-thread_sched_rt_reset_priority(struct thread *thread, unsigned short priority)
+thread_sched_rt_reset_priority(struct thread *thread,
+                               __unused unsigned short priority)
 {
     assert(priority <= THREAD_SCHED_RT_PRIO_MAX);
     thread->rt_data.time_slice = THREAD_DEFAULT_RR_TIME_SLICE;
@@ -1888,12 +1889,12 @@ thread_unlock_runq(struct thread_runq *runq, unsigned long flags)
 static void *
 thread_alloc_stack(void)
 {
-    struct vm_page *first_page, *last_page;
+    __unused struct vm_page *first_page, *last_page;
     phys_addr_t first_pa, last_pa;
     size_t stack_size;
     uintptr_t va;
     void *mem;
-    int error;
+    __unused int error;
 
     stack_size = vm_page_round(TCB_STACK_SIZE);
     mem = vm_kmem_alloc((PAGE_SIZE * 2) + stack_size);
@@ -2546,7 +2547,7 @@ void
 thread_sleep(struct spinlock *interlock, const void *wchan_addr,
              const char *wchan_desc)
 {
-    int error;
+    __unused int error;
 
     error = thread_sleep_common(interlock, wchan_addr, wchan_desc, false, 0);
     assert(!error);
@@ -2776,14 +2777,14 @@ thread_pi_setscheduler(struct thread *thread, unsigned char policy,
                        unsigned short priority)
 {
     const struct thread_sched_ops *ops;
+    __unused struct turnstile_td *td;
     struct thread_runq *runq;
-    struct turnstile_td *td;
     unsigned int global_priority;
     unsigned long flags;
     bool requeue, current;
 
     td = thread_turnstile_td(thread);
-    turnstile_td_assert_lock(td);
+    assert(turnstile_td_locked(td));
 
     ops = thread_get_sched_ops(thread_policy_to_class(policy));
     global_priority = ops->get_global_priority(priority);
