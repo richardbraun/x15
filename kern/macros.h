@@ -98,4 +98,8 @@ moo_print(const char *s)
 #define __packed            __attribute__((packed))
 #endif
 
+#ifndef __unused
+#define __unused            __attribute__((unused))
+#endif
+
 #endif /* _KERN_MACROS_H */
