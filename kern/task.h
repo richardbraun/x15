@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/list.h>
+#include <kern/macros.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
 #include <vm/vm_map.h>
@@ -50,7 +51,7 @@ extern struct task *kernel_task;
 static inline void
 task_ref(struct task *task)
 {
-    unsigned long nr_refs;
+    __unused unsigned long nr_refs;
 
     nr_refs = atomic_fetch_add(&task->nr_refs, 1, ATOMIC_RELAXED);
     assert(nr_refs != (unsigned long)-1);

@@ -242,7 +242,7 @@ sref_queue_concat(struct sref_queue *queue1, struct sref_queue *queue2)
     queue1->size += queue2->size;
 }
 
-static inline bool
+__unused static inline bool
 sref_counter_aligned(const struct sref_counter *counter)
 {
     return (((uintptr_t)counter & (~SREF_WEAKREF_MASK)) == 0);

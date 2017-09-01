@@ -466,7 +466,9 @@ cpu_init(struct cpu *cpu)
     cpu->phys_addr_width = 0;
     cpu->virt_addr_width = 0;
 
-    assert(max_basic >= 1);
+    if (max_basic == 0) {
+        panic("cpu: unsupported maximum input value for basic information");
+    }
 
     eax = 1;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);

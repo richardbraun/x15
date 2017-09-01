@@ -24,6 +24,7 @@
 #include <kern/clock.h>
 #include <kern/error.h>
 #include <kern/init.h>
+#include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/mutex_types.h>
 #include <kern/sleepq.h>
@@ -235,7 +236,7 @@ out:
 void
 mutex_adaptive_lock_slow(struct mutex *mutex)
 {
-    int error;
+    __unused int error;
 
     error = mutex_adaptive_lock_slow_common(mutex, false, 0);
     assert(!error);
