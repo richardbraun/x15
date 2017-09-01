@@ -23,7 +23,6 @@
 
 #include <stdint.h>
 
-#include <kern/atomic.h>
 #include <kern/init.h>
 
 /*
@@ -44,11 +43,14 @@ typedef void (*timer_fn_t)(struct timer *);
 
 /*
  * Return the absolute expiration time of the timer, in ticks.
+ *
+ * This function may not be called while another thread is scheduling the
+ * timer.
  */
 static inline uint64_t
 timer_get_time(const struct timer *timer)
 {
-    return atomic_load(&timer->ticks, ATOMIC_RELAXED);
+    return timer->ticks;
 }
 
 /*

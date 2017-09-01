@@ -29,12 +29,7 @@
  * (c) cpu_data
  * (a) atomic
  *
- * (*) The ticks member represents the expiration date. It may be read without
- * locking the timer, in which case it must be accessed atomically. It
- * may only be updated when the timer is locked though, so reads at such
- * times don't need to be atomic.
- *
- * (**) The cpu member is used to determine which lock serializes access to
+ * (*) The cpu member is used to determine which lock serializes access to
  * the structure. It must be accessed atomically, but updated while the
  * timer is locked.
  */
@@ -44,12 +39,12 @@ struct timer {
         struct work work;
     };
 
-    uint64_t ticks;             /* (c,a,*)  */
+    uint64_t ticks;             /* (c)     */
     timer_fn_t fn;
-    unsigned int cpu;           /* (c,a,**) */
-    unsigned short state;       /* (c)      */
-    unsigned short flags;       /* (c)      */
-    struct thread *joiner;      /* (c)      */
+    unsigned int cpu;           /* (c,a,*) */
+    unsigned short state;       /* (c)     */
+    unsigned short flags;       /* (c)     */
+    struct thread *joiner;      /* (c)     */
 };
 
 #endif /* _KERN_TIMER_I_H */

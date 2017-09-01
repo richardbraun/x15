@@ -239,7 +239,7 @@ timer_set_canceled(struct timer *timer)
 static void
 timer_set_time(struct timer *timer, uint64_t ticks)
 {
-    atomic_store(&timer->ticks, ticks, ATOMIC_RELAXED);
+    timer->ticks = ticks;
 }
 
 static bool
