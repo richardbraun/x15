@@ -30,40 +30,13 @@ AX_APPEND_COMPILE_FLAGS([-no-pie -fno-pie])
 
 AC_HEADER_ASSERT()
 
-m4_include([arch/x86/configfrag.ac])
+# --enable options
 
-AS_IF([test x"$arch" = x], [AC_MSG_ERROR([unsupported architecture])])
-AC_SUBST([arch])
-
-AC_ARG_ENABLE([test-module],
-              [AS_HELP_STRING([--enable-test-module=TEST_MODULE],
-                              [run the given test module instead of booting])],
-              [enable_test_module=$enableval],
-              [enable_test_module=no])
-
-AC_ARG_WITH([max-cpus],
-            [AS_HELP_STRING([--with-max-cpus=MAX_CPUS],
-                            [set the maximum number of supported processors])],
-            [opt_max_cpus=$withval],
-            [opt_max_cpus=128])
-
-AC_ARG_WITH([clock-freq],
-            [AS_HELP_STRING([--with-clock-freq=CLOCK_FREQ],
-                            [set the low resolution clock frequency])],
-            [opt_clock_freq=$withval],
-            [opt_clock_freq=200])
-
-AC_ARG_ENABLE([mutex-adaptive],
-              [AS_HELP_STRING([--enable-mutex-adaptive],
-                              [enable adaptive spinning mutexes])])
-
-AC_ARG_ENABLE([mutex-pi],
-              [AS_HELP_STRING([--enable-mutex-pi],
-                              [enable priority inheritance for regular mutexes
-                               (note that priority inheritance is always
-                                enabled for real-time mutexes)])],
+AC_ARG_ENABLE([64bits],
+              [AS_HELP_STRING([--enable-64bits],
+                              [build for a 64-bits target processor])],
               [],
-              [enable_mutex_pi=no])
+              [enable_64bits=default])
 
 AC_ARG_ENABLE([shell],
               [AS_HELP_STRING([--enable-shell],
@@ -71,14 +44,62 @@ AC_ARG_ENABLE([shell],
               [],
               [enable_shell=no])
 
+AC_ARG_ENABLE([test-module],
+              [AS_HELP_STRING([--enable-test-module=TEST_MODULE],
+                              [run the given test module instead of booting])],
+              [enable_test_module=$enableval],
+              [enable_test_module=no])
+
 AC_ARG_ENABLE([thread-stack-guard],
               [AS_HELP_STRING([--enable-thread-stack-guard],
                               [enable kernel thread stack guard pages])],
               [],
               [enable_thread_stack_guard=no])
 
-AC_DEFINE([__KERNEL__], [1], [kernel code])
-AC_DEFINE_UNQUOTED([X15_ARCH], [$arch], [arch])
+# --with options
+
+AC_ARG_WITH([clock-freq],
+            [AS_HELP_STRING([--with-clock-freq=CLOCK_FREQ],
+                            [set the low resolution clock frequency (100-1000 Hz)])],
+            [opt_clock_freq=$withval],
+            [opt_clock_freq=200])
+
+AC_ARG_WITH([max-cpus],
+            [AS_HELP_STRING([--with-max-cpus=MAX_CPUS],
+                            [set the maximum number of supported processors])],
+            [opt_max_cpus=$withval],
+            [opt_max_cpus=128])
+
+AC_ARG_WITH([mutex-impl],
+            [AS_HELP_STRING([--with-mutex-impl=MUTEX_IMPL],
+                            [select the mutex implementation (adaptive, pi, or plain)])],
+            [opt_mutex_impl=$withval],
+            [opt_mutex_impl=plain])
+
+# 32/64-bits processor selection
+
+AS_IF([test -z "$enable_64bits"], [enable_64bits=yes],
+      [test x"$enable_64bits" = x"default"], [enable_64bits=],
+      [test x"$enable_64bits" != xyes -a x"$enable_64bits" != xno],
+      [AC_MSG_ERROR([target processor must be either 32-bits or 64-bits])])
+
+# Architecture-specific configuration
+
+m4_include([arch/x86/configfrag.ac])
+
+AS_IF([test x"$arch" = x], [AC_MSG_ERROR([unsupported architecture])])
+AC_SUBST([arch])
+
+# Shell selection
+
+AS_IF([test x"$enable_shell" = xyes],
+      [AC_DEFINE_UNQUOTED([X15_ENABLE_SHELL], [],
+                          [Enable the diagnostics shell])])
+AM_CONDITIONAL([ENABLE_SHELL],
+               [test x"$enable_shell" = xyes])
+AC_MSG_NOTICE([diagnostics shell: $enable_shell])
+
+# Test module selection
 
 m4_define([ENABLE_TEST_MODULE],
           [AS_CASE(["$enable_test_module"],
@@ -92,70 +113,79 @@ m4_define([ENABLE_TEST_MODULE],
                    [vm_page_fill], [test_vm_page_fill=yes],
                    [xcall], [test_xcall=yes],
                    [AC_MSG_ERROR([invalid test module])])
-          AC_DEFINE([X15_RUN_TEST_MODULE], [1],
-                    [run test module instead of booting])
+          AC_DEFINE_UNQUOTED([X15_RUN_TEST_MODULE], [],
+                             [run test module instead of booting])
           AC_MSG_NOTICE([test module enabled: $enable_test_module])])
 
 AS_IF([test x"$enable_test_module" != xno], [ENABLE_TEST_MODULE])
-AM_CONDITIONAL([TEST_LLSYNC_DEFER],
+AM_CONDITIONAL([ENABLE_TEST_LLSYNC_DEFER],
                [test x"$test_llsync_defer" = xyes])
-AM_CONDITIONAL([TEST_MUTEX],
+AM_CONDITIONAL([ENABLE_TEST_MUTEX],
                [test x"$test_mutex" = xyes])
-AM_CONDITIONAL([TEST_MUTEX_PI],
+AM_CONDITIONAL([ENABLE_TEST_MUTEX_PI],
                [test x"$test_mutex_pi" = xyes])
-AM_CONDITIONAL([TEST_PMAP_UPDATE_MP],
+AM_CONDITIONAL([ENABLE_TEST_PMAP_UPDATE_MP],
                [test x"$test_pmap_update_mp" = xyes])
-AM_CONDITIONAL([TEST_SREF_DIRTY_ZEROES],
+AM_CONDITIONAL([ENABLE_TEST_SREF_DIRTY_ZEROES],
                [test x"$test_sref_dirty_zeroes" = xyes])
-AM_CONDITIONAL([TEST_SREF_NOREF],
+AM_CONDITIONAL([ENABLE_TEST_SREF_NOREF],
                [test x"$test_sref_noref" = xyes])
-AM_CONDITIONAL([TEST_SREF_WEAKREF],
+AM_CONDITIONAL([ENABLE_TEST_SREF_WEAKREF],
                [test x"$test_sref_weakref" = xyes])
-AM_CONDITIONAL([TEST_VM_PAGE_FILL],
+AM_CONDITIONAL([ENABLE_TEST_VM_PAGE_FILL],
                [test x"$test_vm_page_fill" = xyes])
-AM_CONDITIONAL([TEST_XCALL],
+AM_CONDITIONAL([ENABLE_TEST_XCALL],
                [test x"$test_xcall" = xyes])
+
+# Thread stack guard selection
+
+AS_IF([test x"$enable_thread_stack_guard" = xyes],
+      [AC_DEFINE_UNQUOTED([X15_ENABLE_THREAD_STACK_GUARD], [],
+                          [Enable the use of guard pages for thread stacks])])
+AC_MSG_NOTICE([thread stack guard pages: $enable_thread_stack_guard])
+
+# Low resolution clock frequency
+
+AC_DEFINE_UNQUOTED([X15_CLOCK_FREQ], [$opt_clock_freq],
+                   [low resolution clock frequency])
+AC_MSG_NOTICE([low resolution clock frequency: $opt_clock_freq Hz])
+
+# Maximum number of supported processors
 
 AC_DEFINE_UNQUOTED([X15_MAX_CPUS], [$opt_max_cpus],
                    [maximum number of supported processors])
-AC_DEFINE_UNQUOTED([X15_CLOCK_FREQ], [$opt_clock_freq],
-                   [low resolution clock frequency])
 AC_MSG_NOTICE([maximum number of supported processors: $opt_max_cpus])
-AC_MSG_NOTICE([low resolution clock frequency: $opt_clock_freq Hz])
 
-AS_IF([test x"$enable_mutex_adaptive" = xyes -a x"$enable_mutex_pi" = xyes],
-      [AC_MSG_ERROR([--enable-mutex-adaptive and --enable-mutex-pi are mutually exclusive])])
+# Mutex implementation selection
 
-AS_IF([test x"$enable_mutex_adaptive" = xyes],
-      [mutex_impl="adaptive spinning"],
-      [test x"$enable_mutex_pi" = xyes],
-      [mutex_impl="priority inheritance"],
-      [mutex_impl=plain])
-AC_MSG_NOTICE([mutex implementation: $mutex_impl])
+m4_define([SELECT_MUTEX_IMPL],
+          [mutex_impl_desc="$2"
+           AC_DEFINE_UNQUOTED([$1], [], [$3])])
 
-AS_IF([test x"$enable_mutex_adaptive" = xyes],
-      [AC_DEFINE_UNQUOTED([X15_MUTEX_ADAPTIVE], [],
-                          [Enable adaptive mutexes])])
-AM_CONDITIONAL([MUTEX_ADAPTIVE],
-               [test x"$enable_mutex_adaptive" = xyes])
+AS_IF([test x"$opt_mutex_impl" = xadaptive],
+      [SELECT_MUTEX_IMPL([X15_USE_MUTEX_ADAPTIVE],
+                         [adaptive spinning],
+                         [Use adaptive spinning mutex implementation])],
+      [test x"$opt_mutex_impl" = xpi],
+      [SELECT_MUTEX_IMPL([X15_USE_MUTEX_PI],
+                         [priority inheritance],
+                         [Use priority inheritance mutex implementation])],
+      [test x"$opt_mutex_impl" = xplain],
+      [SELECT_MUTEX_IMPL([X15_USE_MUTEX_PLAIN],
+                         [plain],
+                         [Use plain mutex implementation])],
+      [AC_MSG_ERROR([invalid mutex implementation])])
+AM_CONDITIONAL([USE_MUTEX_ADAPTIVE],
+               [test x"$opt_mutex_impl" = xadaptive])
+AM_CONDITIONAL([USE_MUTEX_PI],
+               [test x"$opt_mutex_impl" = xpi])
+AM_CONDITIONAL([USE_MUTEX_PLAIN],
+               [test x"$opt_mutex_impl" = xplain])
+AC_MSG_NOTICE([mutex implementation: $mutex_impl_desc])
 
-AS_IF([test x"$enable_mutex_pi" = xyes],
-      [AC_DEFINE_UNQUOTED([X15_MUTEX_PI], [],
-                          [Enable priority inheritance for regular mutexes])])
-AM_CONDITIONAL([MUTEX_PI],
-               [test x"$enable_mutex_pi" = xyes])
+# Output generation
 
-AM_CONDITIONAL([X15_SHELL],
-               [test x"$enable_shell" = xyes])
-AS_IF([test x"$enable_shell" = xyes],
-      [AC_DEFINE_UNQUOTED([X15_SHELL], [],
-                          [Enable the diagnostics shell])])
-AC_MSG_NOTICE([diagnostics shell: $enable_shell])
-
-AS_IF([test x"$enable_thread_stack_guard" = xyes],
-      [AC_DEFINE_UNQUOTED([X15_THREAD_STACK_GUARD], [],
-                          [Enable the use of guard pages for thread stacks])])
-AC_MSG_NOTICE([thread stack guard pages: $enable_thread_stack_guard])
+AS_ECHO
 
 AH_BOTTOM([#include <kern/config.h>])
 AC_CONFIG_HEADER([config.h])

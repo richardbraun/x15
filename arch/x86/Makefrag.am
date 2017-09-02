@@ -12,16 +12,18 @@ AM_CFLAGS += -fno-omit-frame-pointer
 
 x15_LDFLAGS += -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
 
-if I386
-AM_CPPFLAGS += -m32
-x15_LDFLAGS += -m32
-endif I386
+if X86_64
 
-if AMD64
 AM_CPPFLAGS += -m64
 AM_CFLAGS += -mcmodel=kernel -mno-red-zone
 x15_LDFLAGS += -m64
-endif AMD64
+
+else !X86_64
+
+AM_CPPFLAGS += -m32
+x15_LDFLAGS += -m32
+
+endif !X86_64
 
 x15_SOURCES +=                          \
         arch/x86/machine/acpi.c         \

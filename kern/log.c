@@ -334,7 +334,7 @@ log_run(void *arg)
     }
 }
 
-#ifdef X15_SHELL
+#ifdef X15_ENABLE_SHELL
 
 static void
 log_dump(unsigned int level)
@@ -412,7 +412,7 @@ INIT_OP_DEFINE(log_setup_shell,
                INIT_OP_DEP(log_setup, true),
                INIT_OP_DEP(shell_setup, true));
 
-#endif /* X15_SHELL */
+#endif /* X15_ENABLE_SHELL */
 
 static int __init
 log_setup(void)

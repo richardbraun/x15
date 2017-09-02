@@ -123,19 +123,19 @@ x15_SOURCES +=                                              \
         kern/xcall.c                                        \
         kern/xcall.h
 
-if MUTEX_ADAPTIVE
+if USE_MUTEX_ADAPTIVE
         x15_SOURCES += kern/mutex/mutex_adaptive.c
 else
-if !MUTEX_PI
+if USE_MUTEX_PLAIN
         x15_SOURCES += kern/mutex/mutex_plain.c
 endif
 endif
 
-if X15_SHELL
+if ENABLE_SHELL
 x15_SOURCES +=                                              \
         kern/shell.c                                        \
         kern/shell.h
-endif X15_SHELL
+endif ENABLE_SHELL
 
 x15_SOURCES +=                                              \
         vm/vm_adv.h                                         \
@@ -154,38 +154,38 @@ x15_SOURCES +=                                              \
 x15_SOURCES +=                                              \
         test/test.h
 
-if TEST_LLSYNC_DEFER
+if ENABLE_TEST_LLSYNC_DEFER
 x15_SOURCES += test/test_llsync_defer.c
-endif TEST_LLSYNC_DEFER
+endif ENABLE_TEST_LLSYNC_DEFER
 
-if TEST_MUTEX
+if ENABLE_TEST_MUTEX
 x15_SOURCES += test/test_mutex.c
-endif TEST_MUTEX
+endif ENABLE_TEST_MUTEX
 
-if TEST_MUTEX_PI
+if ENABLE_TEST_MUTEX_PI
 x15_SOURCES += test/test_mutex_pi.c
-endif TEST_MUTEX_PI
+endif ENABLE_TEST_MUTEX_PI
 
-if TEST_PMAP_UPDATE_MP
+if ENABLE_TEST_PMAP_UPDATE_MP
 x15_SOURCES += test/test_pmap_update_mp.c
-endif TEST_PMAP_UPDATE_MP
+endif ENABLE_TEST_PMAP_UPDATE_MP
 
-if TEST_SREF_DIRTY_ZEROES
+if ENABLE_TEST_SREF_DIRTY_ZEROES
 x15_SOURCES += test/test_sref_dirty_zeroes.c
-endif TEST_SREF_DIRTY_ZEROES
+endif ENABLE_TEST_SREF_DIRTY_ZEROES
 
-if TEST_SREF_NOREF
+if ENABLE_TEST_SREF_NOREF
 x15_SOURCES += test/test_sref_noref.c
-endif TEST_SREF_NOREF
+endif ENABLE_TEST_SREF_NOREF
 
-if TEST_SREF_WEAKREF
+if ENABLE_TEST_SREF_WEAKREF
 x15_SOURCES += test/test_sref_weakref.c
-endif TEST_SREF_WEAKREF
+endif ENABLE_TEST_SREF_WEAKREF
 
-if TEST_VM_PAGE_FILL
+if ENABLE_TEST_VM_PAGE_FILL
 x15_SOURCES += test/test_vm_page_fill.c
-endif TEST_VM_PAGE_FILL
+endif ENABLE_TEST_VM_PAGE_FILL
 
-if TEST_XCALL
+if ENABLE_TEST_XCALL
 x15_SOURCES += test/test_xcall.c
-endif TEST_XCALL
+endif ENABLE_TEST_XCALL

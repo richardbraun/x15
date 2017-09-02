@@ -1123,7 +1123,7 @@ kmem_cache_info(struct kmem_cache *cache)
     mutex_unlock(&cache->lock);
 }
 
-#ifdef X15_SHELL
+#ifdef X15_ENABLE_SHELL
 
 static struct kmem_cache *
 kmem_lookup_cache(const char *name)
@@ -1184,7 +1184,7 @@ INIT_OP_DEFINE(kmem_setup_shell,
                INIT_OP_DEP(shell_setup, true),
                INIT_OP_DEP(thread_setup, true));
 
-#endif /* X15_SHELL */
+#endif /* X15_ENABLE_SHELL */
 
 static int __init
 kmem_bootstrap(void)
