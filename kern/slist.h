@@ -28,6 +28,10 @@
 #include <kern/macros.h>
 #include <kern/slist_types.h>
 
+struct slist;
+
+struct slist_node;
+
 /*
  * Static list initializer.
  */
