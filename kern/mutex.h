@@ -23,18 +23,16 @@
 #ifndef _KERN_MUTEX_H
 #define _KERN_MUTEX_H
 
-#if defined(X15_MUTEX_PI) && defined(X15_MUTEX_ADAPTIVE)
-#error "only one of X15_MUTEX_PI and X15_MUTEX_ADAPTIVE may be defined"
-#endif
-
 #include <stdint.h>
 
-#if defined(X15_MUTEX_PI)
-#include <kern/mutex/mutex_pi_i.h>
-#elif defined(X15_MUTEX_ADAPTIVE)
+#if defined(X15_USE_MUTEX_ADAPTIVE)
 #include <kern/mutex/mutex_adaptive_i.h>
-#else
+#elif defined(X15_USE_MUTEX_PI)
+#include <kern/mutex/mutex_pi_i.h>
+#elif defined(X15_USE_MUTEX_PLAIN)
 #include <kern/mutex/mutex_plain_i.h>
+#else
+#error "unknown mutex implementation"
 #endif
 
 #include <kern/init.h>

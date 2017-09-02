@@ -697,7 +697,7 @@ vm_map_init(struct vm_map *map, struct pmap *pmap,
     map->pmap = pmap;
 }
 
-#ifdef X15_SHELL
+#ifdef X15_ENABLE_SHELL
 
 static void
 vm_map_shell_info(int argc, char **argv)
@@ -742,7 +742,7 @@ INIT_OP_DEFINE(vm_map_setup_shell,
                INIT_OP_DEP(task_setup, true),
                INIT_OP_DEP(vm_map_setup, true));
 
-#endif /* X15_SHELL */
+#endif /* X15_ENABLE_SHELL */
 
 static int __init
 vm_map_bootstrap(void)

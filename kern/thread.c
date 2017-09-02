@@ -2185,7 +2185,7 @@ thread_setup_runq(struct thread_runq *runq)
     thread_setup_idler(runq);
 }
 
-#ifdef X15_SHELL
+#ifdef X15_ENABLE_SHELL
 
 /*
  * This function is meant for debugging only. As a result, it uses a weak
@@ -2261,7 +2261,7 @@ INIT_OP_DEFINE(thread_setup_shell,
                INIT_OP_DEP(task_setup, true),
                INIT_OP_DEP(thread_setup, true));
 
-#endif /* X15_SHELL */
+#endif /* X15_ENABLE_SHELL */
 
 static void __init
 thread_setup_common(unsigned int cpu)

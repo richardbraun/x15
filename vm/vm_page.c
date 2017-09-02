@@ -657,7 +657,7 @@ vm_page_info_common(int (*print_fn)(const char *format, ...))
     }
 }
 
-#ifdef X15_SHELL
+#ifdef X15_ENABLE_SHELL
 
 static void
 vm_page_info(void)
@@ -691,7 +691,7 @@ INIT_OP_DEFINE(vm_page_setup_shell,
                INIT_OP_DEP(shell_setup, true),
                INIT_OP_DEP(vm_page_setup, true));
 
-#endif /* X15_SHELL */
+#endif /* X15_ENABLE_SHELL */
 
 static int __init
 vm_page_setup(void)
