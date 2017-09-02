@@ -49,6 +49,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <kern/hlist.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
@@ -66,7 +67,7 @@
  */
 struct turnstile_bucket {
     alignas(CPU_L1_SIZE) struct spinlock lock;
-    struct list list;       /* (b) */
+    struct hlist turnstiles;    /* (b) */
 };
 
 /*
@@ -90,7 +91,7 @@ struct turnstile_bucket {
  */
 struct turnstile {
     struct turnstile_bucket *bucket;        /* (b*)  */
-    struct list node;                       /* (b)   */
+    struct hlist_node node;                 /* (b)   */
     const void *sync_obj;                   /* (b)   */
     struct plist waiters;                   /* (b,t) */
     struct turnstile *next_free;            /* (b)   */
@@ -441,7 +442,7 @@ static void
 turnstile_bucket_init(struct turnstile_bucket *bucket)
 {
     spinlock_init(&bucket->lock);
-    list_init(&bucket->list);
+    hlist_init(&bucket->turnstiles);
 }
 
 static struct turnstile_bucket *
@@ -460,7 +461,7 @@ turnstile_bucket_add(struct turnstile_bucket *bucket,
 {
     assert(turnstile->bucket == NULL);
     turnstile->bucket = bucket;
-    list_insert_tail(&bucket->list, &turnstile->node);
+    hlist_insert_head(&bucket->turnstiles, &turnstile->node);
 }
 
 static void
@@ -469,7 +470,7 @@ turnstile_bucket_remove(__unused struct turnstile_bucket *bucket,
 {
     assert(turnstile->bucket == bucket);
     turnstile->bucket = NULL;
-    list_remove(&turnstile->node);
+    hlist_remove(&turnstile->node);
 }
 
 static struct turnstile *
@@ -478,7 +479,7 @@ turnstile_bucket_lookup(const struct turnstile_bucket *bucket,
 {
     struct turnstile *turnstile;
 
-    list_for_each_entry(&bucket->list, turnstile, node) {
+    hlist_for_each_entry(&bucket->turnstiles, turnstile, node) {
         if (turnstile_in_use_by(turnstile, sync_obj)) {
             return turnstile;
         }
