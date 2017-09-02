@@ -62,12 +62,11 @@ LANGUAGES
 ---------
 
 The kernel is mostly written in the C programming language, conforming
-to ISO/IEC 9899:1999 (C99) and slowly transitioning to ISO/IEC 9899:2011
-(C11), with GNU extensions. While many GNU extensions are used, nested
-functions are forbidden. They are considered too specific to the GCC
-compiler. Note that X15 can currently be built with both GCC and Clang,
-and the latter has no support for nested functions. Also note that the
-kernel only expects the freestanding C environment from the compiler.
+to ISO/IEC 9899:2011 (C11), with GNU extensions. While many GNU extensions
+are used, nested functions are forbidden. They are considered too specific
+to the GCC compiler. Note that X15 can currently be built with both GCC
+and Clang, and the latter has no support for nested functions. Also note
+that the kernel only expects the freestanding C environment from the compiler.
 
 Since X15 is low level system software, processor-specific assembly is
 inevitable. Developers should always refrain from writing assembly code
