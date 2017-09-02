@@ -61,6 +61,8 @@ x15_SOURCES =
 x15_LDFLAGS = -nostdlib -Xlinker -T arch/$(arch)/x15.lds
 x15_LDADD = -lgcc
 
+.INTERMEDIATE: x15.sorted_init_ops
+
 include Makefrag.am
 
 x15.sorted_init_ops: $(filter %.c,$(x15_SOURCES))
