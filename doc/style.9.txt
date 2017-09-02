@@ -625,9 +625,8 @@ Boolean Coercion
 ~~~~~~~~~~~~~~~~
 
 Boolean coercion should only be used when the resulting text is semantically
-valid, i.e. it can be understood that the expression is either true, or false.
-
-checking error codes and pointers. For example :
+valid, i.e. it can be understood that the expression is either true or false.
+For example :
 
 [source,c]
 --------------------------------------------------------------------------------
