@@ -28,6 +28,10 @@
 #include <kern/llsync.h>
 #include <kern/macros.h>
 
+struct hlist;
+
+struct hlist_node;
+
 /*
  * Static list initializer.
  */
