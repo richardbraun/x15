@@ -570,6 +570,17 @@ thread_preempt_enabled(void)
 }
 
 static inline void
+thread_preempt_disable(void)
+{
+    struct thread *thread;
+
+    thread = thread_self();
+    thread->preempt++;
+    assert(thread->preempt != 0);
+    barrier();
+}
+
+static inline void
 thread_preempt_enable_no_resched(void)
 {
     struct thread *thread;
@@ -600,14 +611,17 @@ thread_preempt_enable(void)
 }
 
 static inline void
-thread_preempt_disable(void)
+thread_preempt_disable_intr_save(unsigned long *flags)
 {
-    struct thread *thread;
+    thread_preempt_disable();
+    cpu_intr_save(flags);
+}
 
-    thread = thread_self();
-    thread->preempt++;
-    assert(thread->preempt != 0);
-    barrier();
+static inline void
+thread_preempt_enable_intr_restore(unsigned long flags)
+{
+    cpu_intr_restore(flags);
+    thread_preempt_enable();
 }
 
 /*
