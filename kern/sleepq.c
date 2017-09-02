@@ -24,6 +24,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <kern/hlist.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
@@ -35,7 +36,7 @@
 
 struct sleepq_bucket {
     alignas(CPU_L1_SIZE) struct spinlock lock;
-    struct list list;
+    struct hlist sleepqs;
 };
 
 struct sleepq_waiter {
@@ -53,7 +54,7 @@ struct sleepq_waiter {
  */
 struct sleepq {
     alignas(CPU_L1_SIZE) struct sleepq_bucket *bucket;
-    struct list node;
+    struct hlist_node node;
     const void *sync_obj;
     struct list waiters;
     struct sleepq_waiter *oldest_waiter;
@@ -150,7 +151,7 @@ static void
 sleepq_bucket_init(struct sleepq_bucket *bucket)
 {
     spinlock_init(&bucket->lock);
-    list_init(&bucket->list);
+    hlist_init(&bucket->sleepqs);
 }
 
 static struct sleepq_bucket *
@@ -182,7 +183,7 @@ sleepq_bucket_add(struct sleepq_bucket *bucket, struct sleepq *sleepq)
 {
     assert(sleepq->bucket == NULL);
     sleepq->bucket = bucket;
-    list_insert_tail(&bucket->list, &sleepq->node);
+    hlist_insert_head(&bucket->sleepqs, &sleepq->node);
 }
 
 static void
@@ -191,7 +192,7 @@ sleepq_bucket_remove(__unused struct sleepq_bucket *bucket,
 {
     assert(sleepq->bucket == bucket);
     sleepq->bucket = NULL;
-    list_remove(&sleepq->node);
+    hlist_remove(&sleepq->node);
 }
 
 static struct sleepq *
@@ -199,7 +200,7 @@ sleepq_bucket_lookup(const struct sleepq_bucket *bucket, const void *sync_obj)
 {
     struct sleepq *sleepq;
 
-    list_for_each_entry(&bucket->list, sleepq, node) {
+    hlist_for_each_entry(&bucket->sleepqs, sleepq, node) {
         if (sleepq_in_use_by(sleepq, sync_obj)) {
             assert(sleepq->bucket == bucket);
             return sleepq;
