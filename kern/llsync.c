@@ -301,12 +301,10 @@ llsync_defer(struct work *work)
     struct llsync_cpu_data *cpu_data;
     unsigned long flags;
 
-    thread_preempt_disable();
-    cpu_intr_save(&flags);
+    thread_preempt_disable_intr_save(&flags);
     cpu_data = llsync_get_cpu_data();
     work_queue_push(&cpu_data->queue0, work);
-    cpu_intr_restore(flags);
-    thread_preempt_enable();
+    thread_preempt_enable_intr_restore(flags);
 }
 
 static void

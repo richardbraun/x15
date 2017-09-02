@@ -1277,8 +1277,7 @@ thread_sched_fs_balance_scan(struct thread_runq *runq,
 
     remote_runq = NULL;
 
-    thread_preempt_disable();
-    cpu_intr_save(&flags);
+    thread_preempt_disable_intr_save(&flags);
 
     cpumap_for_each(&thread_active_runqs, i) {
         tmp = percpu_ptr(thread_runq, i);
@@ -1312,8 +1311,7 @@ thread_sched_fs_balance_scan(struct thread_runq *runq,
         spinlock_unlock(&remote_runq->lock);
     }
 
-    cpu_intr_restore(flags);
-    thread_preempt_enable();
+    thread_preempt_enable_intr_restore(flags);
 
     return remote_runq;
 }
@@ -1444,8 +1442,7 @@ thread_sched_fs_balance(struct thread_runq *runq, unsigned long *flags)
     remote_runq = thread_sched_fs_balance_scan(runq, highest_round);
 
     if (remote_runq != NULL) {
-        thread_preempt_disable();
-        cpu_intr_save(flags);
+        thread_preempt_disable_intr_save(flags);
         thread_runq_double_lock(runq, remote_runq);
         nr_migrations = thread_sched_fs_balance_migrate(runq, remote_runq,
                                                         highest_round);
@@ -1472,8 +1469,7 @@ thread_sched_fs_balance(struct thread_runq *runq, unsigned long *flags)
             continue;
         }
 
-        thread_preempt_disable();
-        cpu_intr_save(flags);
+        thread_preempt_disable_intr_save(flags);
         thread_runq_double_lock(runq, remote_runq);
         nr_migrations = thread_sched_fs_balance_migrate(runq, remote_runq,
                                                         highest_round);
@@ -2452,8 +2448,7 @@ thread_wakeup_common(struct thread *thread, int error)
         thread_unlock_runq(runq, flags);
     }
 
-    thread_preempt_disable();
-    cpu_intr_save(&flags);
+    thread_preempt_disable_intr_save(&flags);
 
     if (!thread->pinned) {
         runq = thread_get_real_sched_ops(thread)->select_runq(thread);
@@ -2469,8 +2464,7 @@ thread_wakeup_common(struct thread *thread, int error)
     thread->wakeup_error = error;
     thread_runq_wakeup(runq, thread);
     spinlock_unlock(&runq->lock);
-    cpu_intr_restore(flags);
-    thread_preempt_enable();
+    thread_preempt_enable_intr_restore(flags);
 
     return 0;
 }

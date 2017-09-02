@@ -798,15 +798,13 @@ sref_manage(void *arg)
     cache = arg;
 
     for (;;) {
-        thread_preempt_disable();
-        cpu_intr_save(&flags);
+        thread_preempt_disable_intr_save(&flags);
 
         while (!sref_cache_is_dirty(cache)) {
             thread_sleep(NULL, cache, "sref");
         }
 
-        cpu_intr_restore(flags);
-        thread_preempt_enable();
+        thread_preempt_enable_intr_restore(flags);
 
         sref_cache_flush(cache, &queue);
         sref_review(&queue);

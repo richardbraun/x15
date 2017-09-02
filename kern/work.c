@@ -217,8 +217,7 @@ work_pool_acquire(struct work_pool *pool, unsigned long *flags)
     if (pool->flags & WORK_PF_GLOBAL) {
         spinlock_lock_intr_save(&pool->lock, flags);
     } else {
-        thread_preempt_disable();
-        cpu_intr_save(flags);
+        thread_preempt_disable_intr_save(flags);
     }
 }
 
@@ -228,8 +227,7 @@ work_pool_release(struct work_pool *pool, unsigned long flags)
     if (pool->flags & WORK_PF_GLOBAL) {
         spinlock_unlock_intr_restore(&pool->lock, flags);
     } else {
-        cpu_intr_restore(flags);
-        thread_preempt_enable();
+        thread_preempt_enable_intr_restore(flags);
     }
 }
 

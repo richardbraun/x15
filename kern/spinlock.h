@@ -33,7 +33,6 @@
 #include <kern/spinlock_i.h>
 #include <kern/spinlock_types.h>
 #include <kern/thread.h>
-#include <machine/cpu.h>
 
 struct spinlock;
 
@@ -121,13 +120,11 @@ spinlock_trylock_intr_save(struct spinlock *lock, unsigned long *flags)
 {
     int error;
 
-    thread_preempt_disable();
-    cpu_intr_save(flags);
+    thread_preempt_disable_intr_save(flags);
     error = spinlock_lock_fast(lock);
 
     if (unlikely(error)) {
-        cpu_intr_restore(*flags);
-        thread_preempt_enable();
+        thread_preempt_enable_intr_restore(*flags);
     }
 
     return error;
@@ -147,8 +144,7 @@ spinlock_trylock_intr_save(struct spinlock *lock, unsigned long *flags)
 static inline void
 spinlock_lock_intr_save(struct spinlock *lock, unsigned long *flags)
 {
-    thread_preempt_disable();
-    cpu_intr_save(flags);
+    thread_preempt_disable_intr_save(flags);
     spinlock_lock_common(lock);
 }
 
@@ -165,8 +161,7 @@ static inline void
 spinlock_unlock_intr_restore(struct spinlock *lock, unsigned long flags)
 {
     spinlock_unlock_common(lock);
-    cpu_intr_restore(flags);
-    thread_preempt_enable();
+    thread_preempt_enable_intr_restore(flags);
 }
 
 /*
