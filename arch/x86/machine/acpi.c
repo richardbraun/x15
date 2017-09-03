@@ -186,7 +186,7 @@ static struct acpi_gas acpi_reset_reg;
 static uint8_t acpi_reset_value;
 
 static void __init
-acpi_table_sig(const struct acpi_sdth *table, char sig[ACPI_SIG_SIZE])
+acpi_table_sig(const struct acpi_sdth *table, char *sig)
 {
     memcpy(sig, table->signature, sizeof(table->signature));
     sig[4] = '\0';
