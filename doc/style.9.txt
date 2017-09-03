@@ -557,8 +557,6 @@ operator may be used safely to get the size of the array, when it
 actually always returns the size of a pointer. Therefore, declaring
 arguments as arrays is strictly forbidden.
 
-TODO Fix historic array argument declarations.
-
 GIT COMMITS
 -----------
 
