@@ -120,6 +120,7 @@ x15_SOURCES +=                                              \
         kern/types.h                                        \
         kern/work.c                                         \
         kern/work.h                                         \
+        kern/work_i.h                                       \
         kern/xcall.c                                        \
         kern/xcall.h
 
