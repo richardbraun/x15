@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Richard Braun.
+ * Copyright (c) 2013-2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,35 +33,26 @@
  */
 #define WORK_HIGHPRIO   0x1 /* Use a high priority worker thread */
 
-struct work;
-
-/*
- * Type for work functions.
- */
-typedef void (*work_fn_t)(struct work *);
-
 /*
  * Deferred work.
  *
  * This structure should be embedded in objects related to the work. It
  * stores the work function and is passed to it as its only parameter.
  * The function can then find the containing object with the structof macro.
- *
- * TODO Make private.
  */
-struct work {
-    struct work *next;
-    work_fn_t fn;
-};
+struct work;
 
 /*
  * Queue of deferred works for batch scheduling.
  */
-struct work_queue {
-    struct work *first;
-    struct work *last;
-    unsigned int nr_works;
-};
+struct work_queue;
+
+/*
+ * Type for work functions.
+ */
+typedef void (*work_fn_t)(struct work *);
+
+#include <kern/work_i.h>
 
 static inline void
 work_queue_init(struct work_queue *queue)
