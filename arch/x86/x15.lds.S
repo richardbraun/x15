@@ -8,6 +8,7 @@ OUTPUT_ARCH(i386)
 
 ENTRY(_start)
 
+#include <kern/init.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/page.h>
@@ -45,7 +46,7 @@ SECTIONS
         *(.init.text)
         *(.init.data)
 
-        . = ALIGN(64);
+        . = ALIGN(INIT_OP_ALIGN);
         _init_ops = .;
         *(.init.ops)
         _init_ops_end = .;
