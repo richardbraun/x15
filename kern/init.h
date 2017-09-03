@@ -16,8 +16,6 @@
  *
  *
  * Init sections and operations.
- *
- * TODO Make the x86 linker script use macros from this header.
  */
 
 #ifndef _KERN_INIT_H
@@ -35,6 +33,12 @@
  * located inside the .init section.
  */
 #define INIT_OPS_SECTION    .init.ops
+
+/*
+ * Alignment is important to make sure initialization operations are
+ * stored as a C array in the reserved init op section.
+ */
+#define INIT_OP_ALIGN 64
 
 #ifndef __ASSEMBLER__
 

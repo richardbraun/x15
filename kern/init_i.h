@@ -18,12 +18,6 @@
 #ifndef _KERN_INIT_I_H
 #define _KERN_INIT_I_H
 
-/*
- * Alignment is important to make sure initialization operations are
- * stored as a C array in the reserved init op section.
- */
-#define INIT_OP_ALIGN 64
-
 #include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
