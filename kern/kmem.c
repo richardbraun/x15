@@ -232,7 +232,7 @@ kmem_bufctl_to_buf(union kmem_bufctl *bufctl, struct kmem_cache *cache)
 }
 
 static inline bool
-kmem_pagealloc_virtual(size_t size)
+kmem_pagealloc_is_virtual(size_t size)
 {
     return (size > PAGE_SIZE);
 }
@@ -240,7 +240,7 @@ kmem_pagealloc_virtual(size_t size)
 static void *
 kmem_pagealloc(size_t size)
 {
-    if (kmem_pagealloc_virtual(size)) {
+    if (kmem_pagealloc_is_virtual(size)) {
         return vm_kmem_alloc(size);
     } else {
         struct vm_page *page;
@@ -259,7 +259,7 @@ kmem_pagealloc(size_t size)
 static void
 kmem_pagefree(void *ptr, size_t size)
 {
-    if (kmem_pagealloc_virtual(size)) {
+    if (kmem_pagealloc_is_virtual(size)) {
         vm_kmem_free(ptr, size);
     } else {
         struct vm_page *page;
@@ -651,7 +651,7 @@ kmem_cache_register(struct kmem_cache *cache, struct kmem_slab *slab)
     assert(kmem_cache_registration_required(cache));
     assert(slab->nr_refs == 0);
 
-    virtual = kmem_pagealloc_virtual(cache->slab_size);
+    virtual = kmem_pagealloc_is_virtual(cache->slab_size);
 
     for (va = kmem_slab_buf(slab), end = va + cache->slab_size;
          va < end;
@@ -684,7 +684,7 @@ kmem_cache_lookup(struct kmem_cache *cache, void *buf)
 
     assert(kmem_cache_registration_required(cache));
 
-    virtual = kmem_pagealloc_virtual(cache->slab_size);
+    virtual = kmem_pagealloc_is_virtual(cache->slab_size);
     va = (uintptr_t)buf;
 
     if (virtual) {
@@ -1349,11 +1349,17 @@ kmem_free(void *ptr, size_t size)
 void
 kmem_info(void)
 {
-    size_t mem_usage, mem_reclaimable, total, total_reclaimable;
+    size_t total_reclaim, total_reclaim_physical, total_reclaim_virtual;
+    size_t total, total_physical, total_virtual;
+    size_t mem_usage, mem_reclaim;
     struct kmem_cache *cache;
 
     total = 0;
-    total_reclaimable = 0;
+    total_physical = 0;
+    total_virtual = 0;
+    total_reclaim = 0;
+    total_reclaim_physical = 0;
+    total_reclaim_virtual = 0;
 
     printf("kmem: cache                  obj slab  bufs   objs   bufs "
            "   total reclaimable\n"
@@ -1366,19 +1372,30 @@ kmem_info(void)
         mutex_lock(&cache->lock);
 
         mem_usage = (cache->nr_slabs * cache->slab_size) >> 10;
-        mem_reclaimable = (cache->nr_free_slabs * cache->slab_size) >> 10;
+        mem_reclaim = (cache->nr_free_slabs * cache->slab_size) >> 10;
         total += mem_usage;
-        total_reclaimable += mem_reclaimable;
+        total_reclaim += mem_reclaim;
+
+        if (kmem_pagealloc_is_virtual(cache->slab_size)) {
+            total_virtual += mem_usage;
+            total_reclaim_virtual += mem_reclaim;
+        } else {
+            total_physical += mem_usage;
+            total_reclaim_physical += mem_reclaim;
+        }
 
         printf("kmem: %-19s %6zu %3zuk  %4lu %6lu %6lu %7zuk %10zuk\n",
                cache->name, cache->obj_size, cache->slab_size >> 10,
                cache->bufs_per_slab, cache->nr_objs, cache->nr_bufs,
-               mem_usage, mem_reclaimable);
+               mem_usage, mem_reclaim);
 
         mutex_unlock(&cache->lock);
     }
 
     mutex_unlock(&kmem_cache_list_lock);
 
-    printf("total: %zuk reclaimable: %zuk\n", total, total_reclaimable);
+    printf("total: %zuk (phys: %zuk virt: %zuk), "
+           "reclaimable: %zuk phys: %zuk virt: %zuk\n",
+           total, total_physical, total_virtual,
+           total_reclaim, total_reclaim_physical, total_reclaim_virtual);
 }
