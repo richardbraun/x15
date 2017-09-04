@@ -26,7 +26,7 @@
 /*
  * Return the index of a node in the children array of its parent.
  *
- * The parent parameter must not be null, and must be the parent of the
+ * The parent parameter must not be NULL, and must be the parent of the
  * given node.
  */
 static inline int
@@ -175,7 +175,7 @@ void
 rbtree_insert_rebalance(struct rbtree *tree, struct rbtree_node *parent,
                         int index, struct rbtree_node *node)
 {
-    struct rbtree_node *grand_parent, *uncle, *tmp;
+    struct rbtree_node *grand_parent, *uncle;
     int left, right;
 
     assert(rbtree_node_check_alignment(parent));
@@ -226,9 +226,7 @@ rbtree_insert_rebalance(struct rbtree *tree, struct rbtree_node *parent,
          */
         if (parent->children[right] == node) {
             rbtree_rotate(tree, parent, left);
-            tmp = node;
-            node = parent;
-            parent = tmp;
+            parent = node;
         }
 
         /*
@@ -242,6 +240,40 @@ rbtree_insert_rebalance(struct rbtree *tree, struct rbtree_node *parent,
     }
 
     assert(rbtree_node_is_black(tree->root));
+}
+
+void *
+rbtree_replace_slot(struct rbtree *tree, rbtree_slot_t slot,
+                    struct rbtree_node *node)
+{
+    struct rbtree_node *parent, *prev;
+    int index;
+
+    parent = rbtree_slot_parent(slot);
+
+    if (!parent) {
+        prev = tree->root;
+        tree->root = node;
+    } else {
+        index = rbtree_slot_index(slot);
+        assert(rbtree_check_index(index));
+        prev = parent->children[index];
+        parent->children[index] = node;
+    }
+
+    assert(prev);
+    *node = *prev;
+
+    for (size_t i = 0; i < ARRAY_SIZE(node->children); i++) {
+        if (!node->children[i]) {
+            continue;
+        }
+
+
+        rbtree_node_set_parent(node->children[i], node);
+    }
+
+    return prev;
 }
 
 void
@@ -321,7 +353,7 @@ rbtree_remove(struct rbtree *tree, struct rbtree_node *node)
 
     /*
      * The node has been removed, update the colors. The child pointer can
-     * be null, in which case it is considered a black leaf.
+     * be NULL, in which case it is considered a black leaf.
      */
 update_color:
     if (color == RBTREE_COLOR_RED) {
@@ -354,6 +386,8 @@ update_color:
             brother = parent->children[right];
         }
 
+        assert(brother != NULL);
+
         /*
          * Brother has no red child. Recolor and repeat at parent.
          */
@@ -383,6 +417,7 @@ update_color:
          * (we already know brother is black), set brother's right child black,
          * rotate left at parent and leave.
          */
+        assert(brother->children[right] != NULL);
         rbtree_node_set_color(brother, rbtree_node_color(parent));
         rbtree_node_set_black(parent);
         rbtree_node_set_black(brother->children[right]);

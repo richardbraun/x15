@@ -54,7 +54,7 @@ struct rbtree {
  * Masks applied on the parent member of a node to obtain either the
  * color or the parent address.
  */
-#define RBTREE_COLOR_MASK   ((uintptr_t)1)
+#define RBTREE_COLOR_MASK   ((uintptr_t)0x1)
 #define RBTREE_PARENT_MASK  (~(uintptr_t)0x3)
 
 /*
@@ -67,7 +67,7 @@ struct rbtree {
  * Masks applied on slots to obtain either the child index or the parent
  * address.
  */
-#define RBTREE_SLOT_INDEX_MASK  ((uintptr_t)0x1)
+#define RBTREE_SLOT_INDEX_MASK  0x1UL
 #define RBTREE_SLOT_PARENT_MASK (~RBTREE_SLOT_INDEX_MASK)
 
 /*
@@ -142,7 +142,7 @@ rbtree_slot_index(rbtree_slot_t slot)
  * Insert a node in a tree, rebalancing it if necessary.
  *
  * The index parameter is the index in the children array of the parent where
- * the new node is to be inserted. It is ignored if the parent is null.
+ * the new node is to be inserted. It is ignored if the parent is NULL.
  *
  * This function is intended to be used by the rbtree_insert() macro only.
  */
