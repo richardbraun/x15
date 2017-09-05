@@ -127,21 +127,12 @@ xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu)
     struct xcall_cpu_data *local_data, *remote_data;
     struct xcall *call;
 
+    assert(cpu_intr_enabled());
     assert(fn != NULL);
 
     remote_data = percpu_ptr(xcall_cpu_data, cpu);
 
     thread_preempt_disable();
-
-    /* TODO Fix to match interrupt context semantics */
-    if (cpu == cpu_id()) {
-        unsigned long flags;
-
-        cpu_intr_save(&flags);
-        fn(arg);
-        cpu_intr_restore(flags);
-        goto out;
-    }
 
     local_data = xcall_cpu_data_get();
     call = xcall_cpu_data_get_send_call(local_data, cpu);
@@ -159,7 +150,6 @@ xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu)
 
     spinlock_unlock(&remote_data->lock);
 
-out:
     thread_preempt_enable();
 }
 
