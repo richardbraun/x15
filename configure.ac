@@ -48,7 +48,7 @@ AC_ARG_ENABLE([test-module],
               [AS_HELP_STRING([--enable-test-module=TEST_MODULE],
                               [run the given test module instead of booting])],
               [enable_test_module=$enableval],
-              [enable_test_module=no])
+              [enable_test_module=])
 
 AC_ARG_ENABLE([thread-stack-guard],
               [AS_HELP_STRING([--enable-thread-stack-guard],
@@ -101,41 +101,25 @@ AC_MSG_NOTICE([diagnostics shell: $enable_shell])
 
 # Test module selection
 
-m4_define([ENABLE_TEST_MODULE],
-          [AS_CASE(["$enable_test_module"],
-                   [llsync_defer], [test_llsync_defer=yes],
-                   [mutex], [test_mutex=yes],
-                   [mutex_pi], [test_mutex_pi=yes],
-                   [pmap_update_mp], [test_pmap_update_mp=yes],
-                   [sref_dirty_zeroes], [test_sref_dirty_zeroes=yes],
-                   [sref_noref], [test_sref_noref=yes],
-                   [sref_weakref], [test_sref_weakref=yes],
-                   [vm_page_fill], [test_vm_page_fill=yes],
-                   [xcall], [test_xcall=yes],
-                   [AC_MSG_ERROR([invalid test module])])
-          AC_DEFINE_UNQUOTED([X15_RUN_TEST_MODULE], [],
-                             [run test module instead of booting])
-          AC_MSG_NOTICE([test module enabled: $enable_test_module])])
+m4_define([DEFINE_TEST_MODULE],
+          [AM_CONDITIONAL([$1], [test x"$enable_test_module" = x"$2"])
+           AM_COND_IF([$1], [AC_DEFINE_UNQUOTED([X15_RUN_TEST_MODULE], [],
+                                                [run test module instead of booting])])])
 
-AS_IF([test x"$enable_test_module" != xno], [ENABLE_TEST_MODULE])
-AM_CONDITIONAL([ENABLE_TEST_LLSYNC_DEFER],
-               [test x"$test_llsync_defer" = xyes])
-AM_CONDITIONAL([ENABLE_TEST_MUTEX],
-               [test x"$test_mutex" = xyes])
-AM_CONDITIONAL([ENABLE_TEST_MUTEX_PI],
-               [test x"$test_mutex_pi" = xyes])
-AM_CONDITIONAL([ENABLE_TEST_PMAP_UPDATE_MP],
-               [test x"$test_pmap_update_mp" = xyes])
-AM_CONDITIONAL([ENABLE_TEST_SREF_DIRTY_ZEROES],
-               [test x"$test_sref_dirty_zeroes" = xyes])
-AM_CONDITIONAL([ENABLE_TEST_SREF_NOREF],
-               [test x"$test_sref_noref" = xyes])
-AM_CONDITIONAL([ENABLE_TEST_SREF_WEAKREF],
-               [test x"$test_sref_weakref" = xyes])
-AM_CONDITIONAL([ENABLE_TEST_VM_PAGE_FILL],
-               [test x"$test_vm_page_fill" = xyes])
-AM_CONDITIONAL([ENABLE_TEST_XCALL],
-               [test x"$test_xcall" = xyes])
+DEFINE_TEST_MODULE(ENABLE_TEST_LLSYNC_DEFER, llsync_defer)
+DEFINE_TEST_MODULE(ENABLE_TEST_MUTEX, mutex)
+DEFINE_TEST_MODULE(ENABLE_TEST_MUTEX_PI, mutex_pi)
+DEFINE_TEST_MODULE(ENABLE_TEST_PMAP_UPDATE_MP, pmap_update_mp)
+DEFINE_TEST_MODULE(ENABLE_TEST_SREF_DIRTY_ZEROES, sref_dirty_zeroes)
+DEFINE_TEST_MODULE(ENABLE_TEST_SREF_NOREF, sref_noref)
+DEFINE_TEST_MODULE(ENABLE_TEST_SREF_WEAKREF, sref_weakref)
+DEFINE_TEST_MODULE(ENABLE_TEST_VM_PAGE_FILL, vm_page_fill)
+DEFINE_TEST_MODULE(ENABLE_TEST_XCALL, xcall)
+
+AS_IF([test "$enable_test_module" -a -f test/test_$enable_test_module.c],
+      [AC_MSG_NOTICE([test module enabled: $enable_test_module])],
+      [test "$enable_test_module"],
+      [AC_MSG_ERROR([invalid test module])])
 
 # Thread stack guard selection
 
