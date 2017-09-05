@@ -511,12 +511,15 @@ for the most common operations.
 *setup*::
   This function is used for module initialization.
 *init*::
-  Object initialization, without memory allocation. Object initialization
-  should normally never fail.
+  Object initialization that may not fail (e.g. without memory allocation).
+*build*::
+  Object construction, i.e. initialization that may fail.
+*cleanup*::
+  Object clean-up, releasing internal resources but not the object itself.
 *create*::
-  Object creation, including both allocation and initialization.
+  Object creation, including both allocation and construction.
 *destroy*::
-  Object destruction.
+  Object destruction, releasing all resources including the object itself.
 *ref*::
   Add a reference to an object.
 *unref*::
