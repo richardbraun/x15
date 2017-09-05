@@ -35,22 +35,33 @@
 #define TCB_STACK_SIZE PAGE_SIZE
 
 /*
+ * Forward declaration.
+ */
+struct pmap_update_oplist;
+
+/*
  * Thread control block.
  */
 struct tcb {
     uintptr_t bp;
     uintptr_t sp;
+    struct pmap_update_oplist *oplist;
 };
 
 /*
- * Initialize a TCB.
+ * Build a TCB.
  *
  * Prepare the given stack for execution. The context is defined so that it
  * will call thread_main(fn, arg) with interrupts disabled when loaded.
  *
  * In addition, initialize any thread-local machine-specific data.
  */
-int tcb_init(struct tcb *tcb, void *stack, void (*fn)(void *), void *arg);
+int tcb_build(struct tcb *tcb, void *stack, void (*fn)(void *), void *arg);
+
+/*
+ * Release all resources held by a TCB.
+ */
+void tcb_cleanup(struct tcb *tcb);
 
 static inline struct tcb *
 tcb_current(void)
@@ -64,6 +75,18 @@ tcb_set_current(struct tcb *tcb)
 {
     extern struct tcb *tcb_current_ptr;
     cpu_local_assign(tcb_current_ptr, tcb);
+}
+
+static inline void
+tcb_set_pmap_update_oplist(struct tcb *tcb, struct pmap_update_oplist *oplist)
+{
+    tcb->oplist = oplist;
+}
+
+static inline struct pmap_update_oplist *
+tcb_get_pmap_update_oplist(struct tcb *tcb)
+{
+    return tcb->oplist;
 }
 
 /*

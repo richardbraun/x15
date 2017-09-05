@@ -1833,7 +1833,7 @@ thread_init(struct thread *thread, void *stack,
         thread->flags |= THREAD_DETACHED;
     }
 
-    error = tcb_init(&thread->tcb, stack, fn, arg);
+    error = tcb_build(&thread->tcb, stack, fn, arg);
 
     if (error) {
         goto error_tcb;
@@ -1964,6 +1964,7 @@ thread_destroy(struct thread *thread)
     turnstile_destroy(thread->priv_turnstile);
     sleepq_destroy(thread->priv_sleepq);
     thread_free_stack(thread->stack);
+    tcb_cleanup(&thread->tcb);
     kmem_cache_free(&thread_cache, thread);
 }
 

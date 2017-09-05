@@ -74,11 +74,11 @@ tcb_stack_forge(struct tcb *tcb, void (*fn)(void *), void *arg)
 #endif /* __LP64__ */
 
 int
-tcb_init(struct tcb *tcb, void *stack, void (*fn)(void *), void *arg)
+tcb_build(struct tcb *tcb, void *stack, void (*fn)(void *), void *arg)
 {
     int error;
 
-    error = pmap_thread_init(thread_from_tcb(tcb));
+    error = pmap_thread_build(thread_from_tcb(tcb));
 
     if (error) {
         return error;
@@ -88,6 +88,12 @@ tcb_init(struct tcb *tcb, void *stack, void (*fn)(void *), void *arg)
     tcb->sp = (uintptr_t)stack + TCB_STACK_SIZE;
     tcb_stack_forge(tcb, fn, arg);
     return 0;
+}
+
+void
+tcb_cleanup(struct tcb *tcb)
+{
+    pmap_thread_cleanup(thread_from_tcb(tcb));
 }
 
 void __init
