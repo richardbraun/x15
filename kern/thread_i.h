@@ -168,10 +168,9 @@ struct thread {
     };
 
     /*
-     * Thread-specific data should only be used by architecture-dependent code.
-     * For machine-independent code, new member variables should be added.
+     * Thread-specific data.
      *
-     * TODO move those to the TCB and remove.
+     * TODO Make optional.
      */
     void *tsd[THREAD_KEYS_MAX];
 

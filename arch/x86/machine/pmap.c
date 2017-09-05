@@ -42,6 +42,7 @@
 #include <machine/lapic.h>
 #include <machine/page.h>
 #include <machine/pmap.h>
+#include <machine/tcb.h>
 #include <machine/trap.h>
 #include <machine/types.h>
 #include <vm/vm_kmem.h>
@@ -190,8 +191,6 @@ struct pmap_update_oplist {
     unsigned int nr_ops;
     struct pmap_update_op ops[PMAP_UPDATE_MAX_OPS];
 };
-
-static unsigned int pmap_oplist_tsd_key __read_mostly;
 
 /*
  * Statically allocated data for the main booter thread.
@@ -676,11 +675,8 @@ pmap_update_oplist_create(struct pmap_update_oplist **oplistp)
 }
 
 static void
-pmap_update_oplist_destroy(void *arg)
+pmap_update_oplist_destroy(struct pmap_update_oplist *oplist)
 {
-    struct pmap_update_oplist *oplist;
-
-    oplist = arg;
     kmem_cache_free(&pmap_update_oplist_cache, oplist);
 }
 
@@ -689,7 +685,7 @@ pmap_update_oplist_get(void)
 {
     struct pmap_update_oplist *oplist;
 
-    oplist = thread_get_specific(pmap_oplist_tsd_key);
+    oplist = tcb_get_pmap_update_oplist(tcb_current());
     assert(oplist != NULL);
     return oplist;
 }
@@ -855,8 +851,7 @@ pmap_bootstrap(void)
     pmap_syncer_init(cpu_local_ptr(pmap_syncer), 0);
 
     pmap_update_oplist_ctor(&pmap_booter_oplist);
-    thread_key_create(&pmap_oplist_tsd_key, pmap_update_oplist_destroy);
-    thread_set_specific(pmap_oplist_tsd_key, &pmap_booter_oplist);
+    tcb_set_pmap_update_oplist(tcb_current(), &pmap_booter_oplist);
 
     cpumap_zero(&pmap_booter_cpumap);
     cpumap_set(&pmap_booter_cpumap, 0);
@@ -1035,6 +1030,7 @@ pmap_mp_setup(void)
     struct thread_attr attr;
     struct pmap_syncer *syncer;
     struct cpumap *cpumap;
+    struct tcb *tcb;
     unsigned int cpu;
     int error;
 
@@ -1064,8 +1060,9 @@ pmap_mp_setup(void)
             panic("pmap: unable to create syncer thread");
         }
 
-        oplist = thread_tsd_get(syncer->thread, pmap_oplist_tsd_key);
-        thread_tsd_set(syncer->thread, pmap_oplist_tsd_key, NULL);
+        tcb = thread_get_tcb(syncer->thread);
+        oplist = tcb_get_pmap_update_oplist(tcb);
+        tcb_set_pmap_update_oplist(tcb, NULL);
         kmem_cache_free(&pmap_update_oplist_cache, oplist);
     }
 
@@ -1079,7 +1076,7 @@ pmap_mp_setup(void)
 }
 
 int
-pmap_thread_init(struct thread *thread)
+pmap_thread_build(struct thread *thread)
 {
     struct pmap_update_oplist *oplist;
     int error;
@@ -1090,8 +1087,20 @@ pmap_thread_init(struct thread *thread)
         return error;
     }
 
-    thread_tsd_set(thread, pmap_oplist_tsd_key, oplist);
+    tcb_set_pmap_update_oplist(thread_get_tcb(thread), oplist);
     return 0;
+}
+
+void
+pmap_thread_cleanup(struct thread *thread)
+{
+    struct pmap_update_oplist *oplist;
+
+    oplist = tcb_get_pmap_update_oplist(thread_get_tcb(thread));
+
+    if (oplist) {
+        pmap_update_oplist_destroy(oplist);
+    }
 }
 
 int

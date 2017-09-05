@@ -221,9 +221,10 @@ void pmap_ap_setup(void);
 void pmap_mp_setup(void);
 
 /*
- * Initialize pmap thread-specific data for the given thread.
+ * Build/clean up pmap thread-local data for the given thread.
  */
-int pmap_thread_init(struct thread *thread);
+int pmap_thread_build(struct thread *thread);
+void pmap_thread_cleanup(struct thread *thread);
 
 /*
  * Extract a mapping from the kernel map.
