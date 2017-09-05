@@ -36,7 +36,8 @@ typedef void (*xcall_fn_t)(void *arg);
  * has finished running on the target processor, with the side effects of
  * the function visible.
  *
- * The function is run in interrupt context.
+ * The function is run in interrupt context. Interrupts must be enabled
+ * when calling this function.
  */
 void xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu);
 

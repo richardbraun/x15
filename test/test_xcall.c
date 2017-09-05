@@ -37,6 +37,8 @@ test_fn(void *arg)
 {
     (void)arg;
 
+    assert(thread_interrupted());
+
     printf("function called, running on cpu%u\n", cpu_id());
     test_done = 1;
 }
