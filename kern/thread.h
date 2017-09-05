@@ -392,6 +392,12 @@ thread_real_global_priority(const struct thread *thread)
  */
 const char * thread_sched_class_to_str(unsigned char sched_class);
 
+static inline struct tcb *
+thread_get_tcb(struct thread *thread)
+{
+    return &thread->tcb;
+}
+
 static inline struct thread *
 thread_from_tcb(struct tcb *tcb)
 {
