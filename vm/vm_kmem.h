@@ -28,9 +28,9 @@
  * The kernel space is required not to start at address 0, which is used to
  * report allocation errors.
  */
-#if PMAP_MIN_KMEM_ADDRESS == 0
+#if PMAP_START_KMEM_ADDRESS == 0
 #error "kernel space must not start at address 0"
-#endif /* PMAP_MIN_KMEM_ADDRESS == 0 */
+#endif /* PMAP_START_KMEM_ADDRESS == 0 */
 
 /*
  * Special kernel addresses.

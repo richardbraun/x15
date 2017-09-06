@@ -16,7 +16,6 @@
  *
  *
  * TODO Comment.
- * TODO Rename MIN/MAX to START/END.
  */
 
 #ifndef _X86_PMAP_H
@@ -31,34 +30,34 @@
 /*
  * User space boundaries.
  */
-#define PMAP_MIN_ADDRESS            DECL_CONST(0, UL)
+#define PMAP_START_ADDRESS              DECL_CONST(0, UL)
 
 #ifdef __LP64__
-#define PMAP_MAX_ADDRESS            DECL_CONST(0x800000000000, UL)
+#define PMAP_END_ADDRESS                DECL_CONST(0x800000000000, UL)
 #else /* __LP64__ */
-#define PMAP_MAX_ADDRESS            DECL_CONST(0xc0000000, UL)
+#define PMAP_END_ADDRESS                DECL_CONST(0xc0000000, UL)
 #endif/* __LP64__ */
 
 /*
  * Kernel space boundaries.
  */
 #ifdef __LP64__
-#define PMAP_MIN_KERNEL_ADDRESS     DECL_CONST(0xffff800000000000, UL)
-#define PMAP_MAX_KERNEL_ADDRESS     DECL_CONST(0xfffffffffffff000, UL)
+#define PMAP_START_KERNEL_ADDRESS       DECL_CONST(0xffff800000000000, UL)
+#define PMAP_END_KERNEL_ADDRESS         DECL_CONST(0xfffffffffffff000, UL)
 #else /* __LP64__ */
-#define PMAP_MIN_KERNEL_ADDRESS     PMAP_MAX_ADDRESS
-#define PMAP_MAX_KERNEL_ADDRESS     DECL_CONST(0xfffff000, UL)
+#define PMAP_START_KERNEL_ADDRESS       PMAP_END_ADDRESS
+#define PMAP_END_KERNEL_ADDRESS         DECL_CONST(0xfffff000, UL)
 #endif /* __LP64__ */
 
 /*
  * Direct physical mapping boundaries.
  */
 #ifdef __LP64__
-#define PMAP_MIN_DIRECTMAP_ADDRESS  PMAP_MIN_KERNEL_ADDRESS
-#define PMAP_MAX_DIRECTMAP_ADDRESS  DECL_CONST(0xffffc00000000000, UL)
+#define PMAP_START_DIRECTMAP_ADDRESS    PMAP_START_KERNEL_ADDRESS
+#define PMAP_END_DIRECTMAP_ADDRESS      DECL_CONST(0xffffc00000000000, UL)
 #else /* __LP64__ */
-#define PMAP_MIN_DIRECTMAP_ADDRESS  PMAP_MAX_ADDRESS
-#define PMAP_MAX_DIRECTMAP_ADDRESS  DECL_CONST(0xf8000000, UL)
+#define PMAP_START_DIRECTMAP_ADDRESS    PMAP_END_ADDRESS
+#define PMAP_END_DIRECTMAP_ADDRESS      DECL_CONST(0xf8000000, UL)
 #endif /* __LP64__ */
 
 /*
@@ -70,9 +69,9 @@
  * the -mcmodel=kernel gcc option).
  */
 #ifdef __LP64__
-#define PMAP_KERNEL_OFFSET          DECL_CONST(0xffffffff80000000, UL)
+#define PMAP_KERNEL_OFFSET              DECL_CONST(0xffffffff80000000, UL)
 #else /* __LP64__ */
-#define PMAP_KERNEL_OFFSET          PMAP_MIN_DIRECTMAP_ADDRESS
+#define PMAP_KERNEL_OFFSET              PMAP_START_DIRECTMAP_ADDRESS
 #endif /* __LP64__ */
 
 /*
@@ -81,12 +80,12 @@
  * In addition to the direct physical mapping, the kernel has its own virtual
  * memory space.
  */
-#define PMAP_MIN_KMEM_ADDRESS       PMAP_MAX_DIRECTMAP_ADDRESS
+#define PMAP_START_KMEM_ADDRESS         PMAP_END_DIRECTMAP_ADDRESS
 
 #ifdef __LP64__
-#define PMAP_MAX_KMEM_ADDRESS       PMAP_KERNEL_OFFSET
+#define PMAP_END_KMEM_ADDRESS           PMAP_KERNEL_OFFSET
 #else /* __LP64__ */
-#define PMAP_MAX_KMEM_ADDRESS       PMAP_MAX_KERNEL_ADDRESS
+#define PMAP_END_KMEM_ADDRESS           PMAP_END_KERNEL_ADDRESS
 #endif /* __LP64__ */
 
 /*

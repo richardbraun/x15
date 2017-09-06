@@ -748,7 +748,7 @@ static int __init
 vm_map_bootstrap(void)
 {
     vm_map_init(kernel_map, kernel_pmap,
-                PMAP_MIN_KMEM_ADDRESS, PMAP_MAX_KMEM_ADDRESS);
+                PMAP_START_KMEM_ADDRESS, PMAP_END_KMEM_ADDRESS);
     kmem_cache_init(&vm_map_entry_cache, "vm_map_entry",
                     sizeof(struct vm_map_entry), 0, NULL,
                     KMEM_CACHE_PAGE_ONLY);
@@ -792,7 +792,7 @@ vm_map_create(struct vm_map **mapp)
         goto error_pmap;
     }
 
-    vm_map_init(map, pmap, PMAP_MIN_ADDRESS, PMAP_MAX_ADDRESS);
+    vm_map_init(map, pmap, PMAP_START_ADDRESS, PMAP_END_ADDRESS);
     *mapp = map;
     return 0;
 

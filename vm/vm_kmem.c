@@ -44,8 +44,8 @@ static struct vm_object vm_kmem_kernel_object;
 static uint64_t
 vm_kmem_offset(uintptr_t va)
 {
-    assert(va >= PMAP_MIN_KMEM_ADDRESS);
-    return va - PMAP_MIN_KMEM_ADDRESS;
+    assert(va >= PMAP_START_KMEM_ADDRESS);
+    return va - PMAP_START_KMEM_ADDRESS;
 }
 
 static int __init
@@ -53,7 +53,7 @@ vm_kmem_setup(void)
 {
     uint64_t size;
 
-    size = vm_kmem_offset(PMAP_MAX_KMEM_ADDRESS);
+    size = vm_kmem_offset(PMAP_END_KMEM_ADDRESS);
     vm_object_init(&vm_kmem_kernel_object, size);
     return 0;
 }

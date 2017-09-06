@@ -447,12 +447,12 @@ pmap_setup_paging(void)
 
     directmap_end = biosmem_directmap_end();
 
-    if (directmap_end > (PMAP_MAX_DIRECTMAP_ADDRESS
-                         - PMAP_MIN_DIRECTMAP_ADDRESS)) {
+    if (directmap_end > (PMAP_END_DIRECTMAP_ADDRESS
+                         - PMAP_START_DIRECTMAP_ADDRESS)) {
         boot_panic(pmap_panic_directmap_msg);
     }
 
-    va = PMAP_MIN_DIRECTMAP_ADDRESS;
+    va = PMAP_START_DIRECTMAP_ADDRESS;
     pa = 0;
 
     for (i = 0; i < directmap_end; i += pgsize) {
@@ -510,14 +510,14 @@ pmap_ap_setup_paging(void)
 #define pmap_assert_range(pmap, start, end)             \
 MACRO_BEGIN                                             \
     assert((start) < (end));                            \
-    assert(((end) <= PMAP_MIN_DIRECTMAP_ADDRESS)        \
-           || ((start) >= PMAP_MAX_DIRECTMAP_ADDRESS)); \
+    assert(((end) <= PMAP_START_DIRECTMAP_ADDRESS)      \
+           || ((start) >= PMAP_END_DIRECTMAP_ADDRESS)); \
                                                         \
     if ((pmap) == kernel_pmap) {                        \
-        assert(((start) >= PMAP_MIN_KMEM_ADDRESS)       \
-               && ((end) <= PMAP_MAX_KMEM_ADDRESS));    \
+        assert(((start) >= PMAP_START_KMEM_ADDRESS)     \
+               && ((end) <= PMAP_END_KMEM_ADDRESS));    \
     } else {                                            \
-        assert((end) <= PMAP_MAX_ADDRESS);              \
+        assert((end) <= PMAP_END_ADDRESS);              \
     }                                                   \
 MACRO_END
 
@@ -584,7 +584,7 @@ pmap_walk_vas(uintptr_t start, uintptr_t end, pmap_walk_fn_t walk_fn)
     assert(vm_page_aligned(start));
     assert(start < end);
 #ifdef __LP64__
-    assert((start < PMAP_MAX_ADDRESS) || (start >= PMAP_MIN_KERNEL_ADDRESS));
+    assert((start < PMAP_END_ADDRESS) || (start >= PMAP_START_KERNEL_ADDRESS));
 #endif /* __LP64__ */
 
     va = start;
@@ -593,8 +593,8 @@ pmap_walk_vas(uintptr_t start, uintptr_t end, pmap_walk_fn_t walk_fn)
     do {
 #ifdef __LP64__
         /* Handle long mode canonical form */
-        if (va == PMAP_MAX_ADDRESS) {
-            va = PMAP_MIN_KERNEL_ADDRESS;
+        if (va == PMAP_END_ADDRESS) {
+            va = PMAP_START_KERNEL_ADDRESS;
         }
 #endif /* __LP64__ */
 
@@ -642,7 +642,7 @@ pmap_setup_global_page(phys_addr_t ptp_pa, unsigned int index,
 static void __init
 pmap_setup_global_pages(void)
 {
-    pmap_walk_vas(PMAP_MIN_KERNEL_ADDRESS, PMAP_MAX_KERNEL_ADDRESS,
+    pmap_walk_vas(PMAP_START_KERNEL_ADDRESS, PMAP_END_KERNEL_ADDRESS,
                   pmap_setup_global_page);
     pmap_pt_levels[0].mask |= PMAP_PTE_G;
     cpu_enable_global_pages();
@@ -894,7 +894,7 @@ pmap_setup_set_ptp_type(phys_addr_t ptp_pa, unsigned int index,
 static void __init
 pmap_setup_fix_ptps(void)
 {
-    pmap_walk_vas(PMAP_MIN_ADDRESS, PMAP_MAX_KERNEL_ADDRESS,
+    pmap_walk_vas(PMAP_START_ADDRESS, PMAP_END_KERNEL_ADDRESS,
                   pmap_setup_set_ptp_type);
 }
 
@@ -959,8 +959,8 @@ pmap_copy_cpu_table_recursive(const pmap_pte_t *sptp, unsigned int level,
          i++, va = P2END(va, 1UL << pt_level->skip)) {
 #ifdef __LP64__
         /* Handle long mode canonical form */
-        if (va == PMAP_MAX_ADDRESS) {
-            va = PMAP_MIN_KERNEL_ADDRESS;
+        if (va == PMAP_END_ADDRESS) {
+            va = PMAP_START_KERNEL_ADDRESS;
         }
 #endif /* __LP64__ */
 
@@ -1019,7 +1019,7 @@ pmap_copy_cpu_table(unsigned int cpu)
     dptp = vm_page_direct_ptr(page);
 #endif /* X15_X86_PAE */
 
-    pmap_copy_cpu_table_recursive(sptp, level, dptp, PMAP_MIN_ADDRESS);
+    pmap_copy_cpu_table_recursive(sptp, level, dptp, PMAP_START_ADDRESS);
 }
 
 void __init
