@@ -1395,7 +1395,7 @@ kmem_info(void)
     mutex_unlock(&kmem_cache_list_lock);
 
     printf("total: %zuk (phys: %zuk virt: %zuk), "
-           "reclaimable: %zuk phys: %zuk virt: %zuk\n",
+           "reclaim: %zuk (phys: %zuk virt: %zuk)\n",
            total, total_physical, total_virtual,
            total_reclaim, total_reclaim_physical, total_reclaim_virtual);
 }
