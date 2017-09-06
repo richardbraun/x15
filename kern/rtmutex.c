@@ -211,7 +211,7 @@ rtmutex_unlock_slow(struct rtmutex *rtmutex)
         owner = rtmutex_unlock_fast(rtmutex);
 
         if (!(owner & RTMUTEX_CONTENDED)) {
-            return;
+            goto out;
         }
     }
 
@@ -224,7 +224,7 @@ rtmutex_unlock_slow(struct rtmutex *rtmutex)
 
     turnstile_release(turnstile);
 
-    /* TODO Make private, use thread_set_priority_propagation_needed instead */
+out:
     thread_propagate_priority();
 }
 
