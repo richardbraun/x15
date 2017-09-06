@@ -423,8 +423,7 @@ intr_handle(unsigned int intr)
     struct intr_entry *entry;
     int error;
 
-    assert(!cpu_intr_enabled());
-    assert(thread_interrupted());
+    assert(thread_check_intr_context());
 
     entry = intr_get_entry(intr);
 

@@ -642,6 +642,14 @@ thread_interrupted(void)
     return (thread_self()->intr != 0);
 }
 
+static inline bool
+thread_check_intr_context(void)
+{
+    return thread_interrupted()
+           && !cpu_intr_enabled()
+           && !thread_preempt_enabled();
+}
+
 static inline void
 thread_intr_enter(void)
 {
@@ -671,15 +679,6 @@ thread_intr_leave(void)
     if (thread->intr == 0) {
         thread_preempt_enable_no_resched();
     }
-}
-
-/* TODO Use in interrupt handlers instead of manual interrupt/preemption checks */
-static inline void
-thread_assert_interrupted(void)
-{
-    assert(thread_interrupted());
-    assert(!cpu_intr_enabled());
-    assert(!thread_preempt_enabled());
 }
 
 /*

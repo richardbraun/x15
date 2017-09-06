@@ -537,8 +537,7 @@ work_report_periodic_event(void)
 {
     struct work_queue queue, highprio_queue;
 
-    assert(!cpu_intr_enabled());
-    assert(!thread_preempt_enabled());
+    assert(thread_check_intr_context());
 
     work_pool_shift_queues(cpu_local_ptr(work_pool_cpu_main), &queue);
     work_pool_shift_queues(cpu_local_ptr(work_pool_cpu_highprio),

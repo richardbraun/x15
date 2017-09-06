@@ -527,8 +527,7 @@ timer_report_periodic_event(void)
     struct hlist timers;
     uint64_t ticks, now;
 
-    assert(!cpu_intr_enabled());
-    assert(!thread_preempt_enabled());
+    assert(thread_check_intr_context());
 
     now = clock_get_time();
     hlist_init(&timers);

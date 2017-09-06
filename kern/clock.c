@@ -68,8 +68,7 @@ void clock_tick_intr(void)
 {
     struct clock_cpu_data *cpu_data;
 
-    assert(!cpu_intr_enabled());
-    assert(!thread_preempt_enabled());
+    assert(thread_check_intr_context());
 
     if (cpu_id() == 0) {
 #ifdef ATOMIC_HAVE_64B_OPS
