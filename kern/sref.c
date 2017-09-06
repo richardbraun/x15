@@ -984,8 +984,7 @@ sref_report_periodic_event(void)
 {
     struct sref_cache *cache;
 
-    assert(!cpu_intr_enabled());
-    assert(!thread_preempt_enabled());
+    assert(thread_check_intr_context());
 
     cache = sref_cache_get();
 

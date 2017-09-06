@@ -2630,7 +2630,7 @@ thread_schedule_intr(void)
 {
     struct thread_runq *runq;
 
-    thread_assert_interrupted();
+    assert(thread_check_intr_context());
 
     runq = thread_runq_local();
     syscnt_inc(&runq->sc_schedule_intrs);
@@ -2643,7 +2643,7 @@ thread_report_periodic_event(void)
     struct thread_runq *runq;
     struct thread *thread;
 
-    thread_assert_interrupted();
+    assert(thread_check_intr_context());
 
     runq = thread_runq_local();
     thread = thread_self();

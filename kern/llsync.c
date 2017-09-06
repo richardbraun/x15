@@ -255,8 +255,7 @@ llsync_report_periodic_event(void)
     struct llsync_cpu_data *cpu_data;
     unsigned int gcid;
 
-    assert(!cpu_intr_enabled());
-    assert(!thread_preempt_enabled());
+    assert(thread_check_intr_context());
 
     cpu_data = llsync_get_cpu_data();
 

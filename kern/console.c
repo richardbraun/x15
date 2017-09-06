@@ -173,7 +173,7 @@ console_register(struct console *console)
 void
 console_intr(struct console *console, const char *s)
 {
-    assert(!cpu_intr_enabled());
+    assert(thread_check_intr_context());
 
     if (*s == '\0') {
         return;
