@@ -41,6 +41,8 @@
 #include <kern/timer.h>
 #include <test/test.h>
 
+#define TEST_MIN_CPUS 3
+
 #define TEST_REPORT_INTERVAL 10000
 
 struct test {
@@ -164,8 +166,8 @@ test_setup(void)
 {
     uint64_t time;
 
-    if (cpu_count() < 3) {
-        panic("test: at least 3 processors are required");
+    if (cpu_count() < TEST_MIN_CPUS) {
+        panic("test: at least %u processors are required", TEST_MIN_CPUS);
     }
 
     test_create(1);
