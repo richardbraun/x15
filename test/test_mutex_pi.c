@@ -59,9 +59,6 @@
  * In order to artificially create priority inversions, all threads run on
  * separate processors, making this test require 5 processors.
  *
- * TODO Use timers instead of busy-waiting so that binding to processors
- * isn't required.
- *
  * The test should output a couple of messages about thread priorities
  * being boosted, and then frequent updates from each thread to show
  * they're all making progress. Thread B suffers from contention the most
@@ -89,6 +86,8 @@
 #include <kern/thread.h>
 #include <kern/turnstile.h>
 #include <test/test.h>
+
+#define TEST_MIN_CPUS 5
 
 #define TEST_PRIO_A (THREAD_SCHED_RT_PRIO_MIN + 1)
 #define TEST_PRIO_B (TEST_PRIO_A + 1)
@@ -136,9 +135,16 @@ test_get_name(void)
 }
 
 static void
-test_consume_cpu(void)
+test_delay(void)
 {
     volatile unsigned int i;
+
+    /*
+     * Put the thread to sleep to make some CPU time available, and then
+     * busy-wait to avoid synchronizing all threads on the clock tick.
+     */
+
+    thread_delay(1, false);
 
     for (i = 0; i < TEST_NR_CONSUME_CPU_LOOPS; i++);
 }
@@ -233,13 +239,13 @@ test_a(void *arg)
     for (i = 1; /* no condition */; i++) {
         for (j = 0; j < TEST_NR_LOCK_LOOPS; j++) {
             mutex_lock(&test_mutex_1);
-            test_consume_cpu();
+            test_delay();
             test_for_priority_boosted(&highest_priority);
             mutex_unlock(&test_mutex_1);
 
             test_for_priority_deboosted();
 
-            test_consume_cpu();
+            test_delay();
         }
 
         test_report_progress(i);
@@ -254,12 +260,12 @@ test_b(void *arg)
     mutex_lock(&test_mutex_3);
     mutex_lock(&test_mutex_2);
     mutex_lock(&test_mutex_1);
-    test_consume_cpu();
+    test_delay();
     test_for_priority_boosted(arg);
     mutex_unlock(&test_mutex_1);
-    test_consume_cpu();
+    test_delay();
     mutex_unlock(&test_mutex_2);
-    test_consume_cpu();
+    test_delay();
     mutex_unlock(&test_mutex_3);
 
     /*
@@ -301,7 +307,7 @@ test_manage_b(void *arg)
             error_check(error, "thread_create");
             thread_join(thread_b);
 
-            test_consume_cpu();
+            test_delay();
         }
 
         printf("b:%u ", i);
@@ -324,13 +330,13 @@ test_c(void *arg)
     for (i = 1; /* no condition */; i++) {
         for (j = 0; j < TEST_NR_LOCK_LOOPS; j++) {
             mutex_lock(&test_mutex_2);
-            test_consume_cpu();
+            test_delay();
             test_for_priority_boosted(&highest_priority);
             mutex_unlock(&test_mutex_2);
 
             test_for_priority_deboosted();
 
-            test_consume_cpu();
+            test_delay();
         }
 
         test_report_progress(i);
@@ -344,7 +350,7 @@ test_chprio_c(void *arg)
 
     thread_c = arg;
 
-    test_consume_cpu();
+    test_delay();
 
     for (;;) {
         thread_setscheduler(thread_c, THREAD_SCHED_POLICY_FIFO,
@@ -369,13 +375,13 @@ test_d(void *arg)
     for (i = 1; /* no condition */; i++) {
         for (j = 0; j < TEST_NR_LOCK_LOOPS; j++) {
             mutex_lock(&test_mutex_3);
-            test_consume_cpu();
+            test_delay();
             test_for_priority_boosted(&highest_priority);
             mutex_unlock(&test_mutex_3);
 
             test_for_priority_deboosted();
 
-            test_consume_cpu();
+            test_delay();
         }
 
         test_report_progress(i);
@@ -397,13 +403,13 @@ test_e(void *arg)
     for (i = 1; /* no condition */; i++) {
         for (j = 0; j < TEST_NR_LOCK_LOOPS; j++) {
             mutex_lock(&test_mutex_3);
-            test_consume_cpu();
+            test_delay();
             test_for_priority_boosted(&highest_priority);
             mutex_unlock(&test_mutex_3);
 
             test_for_priority_deboosted();
 
-            test_consume_cpu();
+            test_delay();
         }
 
         test_report_progress(i);
@@ -417,6 +423,10 @@ test_setup(void)
     struct thread *thread;
     struct cpumap *cpumap;
     int error;
+
+    if (cpu_count() < TEST_MIN_CPUS) {
+        panic("test: at least %u processors are required", TEST_MIN_CPUS);
+    }
 
     mutex_init(&test_mutex_1);
     mutex_init(&test_mutex_2);
