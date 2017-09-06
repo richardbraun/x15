@@ -18,6 +18,8 @@
  * This implementation is based on "Hashed and Hierarchical Timing Wheels:
  * Efficient Data Structures for Implementing a Timer Facility" by George
  * Varghese and Tony Lauck. Specifically, it implements scheme 6.1.2.
+ *
+ * TODO Analyse hash parameters.
  */
 
 #include <assert.h>
