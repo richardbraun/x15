@@ -120,15 +120,15 @@ static inline uintptr_t
 vm_page_direct_va(phys_addr_t pa)
 {
     assert(pa < PMEM_DIRECTMAP_LIMIT);
-    return ((uintptr_t)pa + PMAP_MIN_DIRECTMAP_ADDRESS);
+    return ((uintptr_t)pa + PMAP_START_DIRECTMAP_ADDRESS);
 }
 
 static inline phys_addr_t
 vm_page_direct_pa(uintptr_t va)
 {
-    assert(va >= PMAP_MIN_DIRECTMAP_ADDRESS);
-    assert(va < PMAP_MAX_DIRECTMAP_ADDRESS);
-    return (va - PMAP_MIN_DIRECTMAP_ADDRESS);
+    assert(va >= PMAP_START_DIRECTMAP_ADDRESS);
+    assert(va < PMAP_END_DIRECTMAP_ADDRESS);
+    return (va - PMAP_START_DIRECTMAP_ADDRESS);
 }
 
 static inline void *
