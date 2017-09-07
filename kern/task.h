@@ -43,10 +43,13 @@ struct task {
     char name[TASK_NAME_SIZE];
 };
 
-/*
- * The kernel task.
- */
-extern struct task *kernel_task;
+static inline struct task *
+task_get_kernel_task(void)
+{
+    extern struct task task_kernel_task;
+
+    return &task_kernel_task;
+}
 
 static inline void
 task_ref(struct task *task)

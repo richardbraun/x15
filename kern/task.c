@@ -28,7 +28,6 @@
 #include <kern/spinlock.h>
 #include <kern/task.h>
 #include <kern/thread.h>
-#include <vm/vm_kmem.h>
 #include <vm/vm_map.h>
 
 #ifdef __LP64__
@@ -37,11 +36,7 @@
 #define TASK_INFO_ADDR_FMT "%08lx"
 #endif /* __LP64__ */
 
-/*
- * Kernel task and storage.
- */
-static struct task kernel_task_store;
-struct task *kernel_task __read_mostly = &kernel_task_store;
+struct task task_kernel_task;
 
 /*
  * Cache for allocated tasks.
@@ -117,10 +112,13 @@ INIT_OP_DEFINE(task_setup_shell,
 static int __init
 task_setup(void)
 {
+    struct task *kernel_task;
+
+    kernel_task = task_get_kernel_task();
     kmem_cache_init(&task_cache, "task", sizeof(struct task), 0, NULL, 0);
     list_init(&task_list);
     spinlock_init(&task_list_lock);
-    task_init(kernel_task, "x15", kernel_map);
+    task_init(kernel_task, "x15", vm_map_get_kernel_map());
     list_insert_head(&task_list, &kernel_task->node);
     return 0;
 }

@@ -183,10 +183,13 @@ typedef phys_addr_t pmap_pte_t;
  */
 struct pmap;
 
-/*
- * The kernel pmap.
- */
-extern struct pmap *kernel_pmap;
+static inline struct pmap *
+pmap_get_kernel_pmap(void)
+{
+    extern struct pmap pmap_kernel_pmap;
+
+    return &pmap_kernel_pmap;
+}
 
 /*
  * Early initialization of the MMU.

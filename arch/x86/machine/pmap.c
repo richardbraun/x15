@@ -93,15 +93,14 @@ struct pmap {
 typedef void (*pmap_walk_fn_t)(phys_addr_t pa, unsigned int index,
                                unsigned int level);
 
-static struct pmap kernel_pmap_store __read_mostly;
-struct pmap *kernel_pmap __read_mostly = &kernel_pmap_store;
-
 /*
  * The kernel per-CPU page tables are used early enough during bootstrap
  * that using a percpu variable would actually become ugly. This array
  * is rather small anyway.
  */
-static struct pmap_cpu_table kernel_pmap_cpu_tables[X15_MAX_CPUS] __read_mostly;
+static struct pmap_cpu_table pmap_kernel_cpu_tables[X15_MAX_CPUS] __read_mostly;
+
+struct pmap pmap_kernel_pmap;
 
 struct pmap *pmap_current_ptr __percpu;
 
@@ -478,7 +477,7 @@ pmap_setup_paging(void)
     }
 #endif /* __LP64__ */
 
-    cpu_table = (void *)BOOT_VTOP((uintptr_t)&kernel_pmap_cpu_tables[0]);
+    cpu_table = (void *)BOOT_VTOP((uintptr_t)&pmap_kernel_cpu_tables[0]);
     cpu_table->root_ptp_pa = (uintptr_t)root_ptp;
 
     return root_ptp;
@@ -494,7 +493,7 @@ pmap_ap_setup_paging(void)
     pgsize = pmap_boot_get_pgsize();
     pmap_boot_enable_pgext(pgsize);
 
-    pmap = (void *)BOOT_VTOP((uintptr_t)&kernel_pmap_store);
+    pmap = (void *)BOOT_VTOP((uintptr_t)&pmap_kernel_pmap);
     cpu_table = (void *)BOOT_VTOP((uintptr_t)pmap->cpu_tables[boot_ap_id]);
 
 #ifdef X15_X86_PAE
@@ -513,7 +512,7 @@ MACRO_BEGIN                                             \
     assert(((end) <= PMAP_START_DIRECTMAP_ADDRESS)      \
            || ((start) >= PMAP_END_DIRECTMAP_ADDRESS)); \
                                                         \
-    if ((pmap) == kernel_pmap) {                        \
+    if ((pmap) == pmap_get_kernel_pmap()) {                        \
         assert(((start) >= PMAP_START_KMEM_ADDRESS)     \
                && ((end) <= PMAP_END_KMEM_ADDRESS));    \
     } else {                                            \
@@ -588,7 +587,7 @@ pmap_walk_vas(uintptr_t start, uintptr_t end, pmap_walk_fn_t walk_fn)
 #endif /* __LP64__ */
 
     va = start;
-    root_ptp_pa = kernel_pmap->cpu_tables[cpu_id()]->root_ptp_pa;
+    root_ptp_pa = pmap_get_kernel_pmap()->cpu_tables[cpu_id()]->root_ptp_pa;
 
     do {
 #ifdef __LP64__
@@ -830,12 +829,12 @@ pmap_bootstrap(void)
     struct pmap_cpu_table *cpu_table;
     unsigned int i;
 
-    for (i = 0; i < ARRAY_SIZE(kernel_pmap->cpu_tables); i++) {
-        cpu_table = &kernel_pmap_cpu_tables[i];
-        kernel_pmap->cpu_tables[i] = cpu_table;
+    for (i = 0; i < ARRAY_SIZE(pmap_get_kernel_pmap()->cpu_tables); i++) {
+        cpu_table = &pmap_kernel_cpu_tables[i];
+        pmap_get_kernel_pmap()->cpu_tables[i] = cpu_table;
     }
 
-    cpu_local_assign(pmap_current_ptr, kernel_pmap);
+    cpu_local_assign(pmap_current_ptr, pmap_get_kernel_pmap());
 
     pmap_prot_table[VM_PROT_NONE] = 0;
     pmap_prot_table[VM_PROT_READ] = 0;
@@ -918,7 +917,7 @@ INIT_OP_DEFINE(pmap_setup,
 void __init
 pmap_ap_setup(void)
 {
-    cpu_local_assign(pmap_current_ptr, kernel_pmap);
+    cpu_local_assign(pmap_current_ptr, pmap_get_kernel_pmap());
 
     if (cpu_has_global_pages()) {
         cpu_enable_global_pages();
@@ -993,14 +992,16 @@ static void __init
 pmap_copy_cpu_table(unsigned int cpu)
 {
     struct pmap_cpu_table *cpu_table;
+    struct pmap *kernel_pmap;
     unsigned int level;
     const pmap_pte_t *sptp;
     pmap_pte_t *dptp;
 
     assert(cpu != 0);
 
-    cpu_table = kernel_pmap->cpu_tables[cpu];
+    cpu_table = pmap_get_kernel_pmap()->cpu_tables[cpu];
     level = PMAP_NR_LEVELS - 1;
+    kernel_pmap = pmap_get_kernel_pmap();
     sptp = pmap_ptp_from_pa(kernel_pmap->cpu_tables[cpu_id()]->root_ptp_pa);
 
 #ifdef X15_X86_PAE
@@ -1107,10 +1108,12 @@ int
 pmap_kextract(uintptr_t va, phys_addr_t *pap)
 {
     const struct pmap_pt_level *pt_level;
+    struct pmap *kernel_pmap;
     pmap_pte_t *ptp, *pte;
     unsigned int level;
 
     level = PMAP_NR_LEVELS - 1;
+    kernel_pmap = pmap_get_kernel_pmap();
     ptp = pmap_ptp_from_pa(kernel_pmap->cpu_tables[cpu_id()]->root_ptp_pa);
 
     for (;;) {
@@ -1168,7 +1171,7 @@ pmap_enter_local(struct pmap *pmap, uintptr_t va, phys_addr_t pa,
 
     pte_bits = PMAP_PTE_RW;
 
-    if (pmap != kernel_pmap) {
+    if (pmap != pmap_get_kernel_pmap()) {
         pte_bits |= PMAP_PTE_US;
     }
 
@@ -1203,7 +1206,7 @@ pmap_enter_local(struct pmap *pmap, uintptr_t va, phys_addr_t pa,
     }
 
     assert(!pmap_pte_valid(*pte));
-    pte_bits = ((pmap == kernel_pmap) ? PMAP_PTE_G : PMAP_PTE_US)
+    pte_bits = ((pmap == pmap_get_kernel_pmap()) ? PMAP_PTE_G : PMAP_PTE_US)
                | pmap_prot_table[prot & VM_PROT_ALL];
     pmap_pte_set(pte, pa, pte_bits, pt_level);
     return 0;
@@ -1377,7 +1380,7 @@ pmap_protect(struct pmap *pmap, uintptr_t va, int prot,
 static void
 pmap_flush_tlb(struct pmap *pmap, uintptr_t start, uintptr_t end)
 {
-    if ((pmap != pmap_current()) && (pmap != kernel_pmap)) {
+    if ((pmap != pmap_current()) && (pmap != pmap_get_kernel_pmap())) {
         return;
     }
 
@@ -1390,11 +1393,11 @@ pmap_flush_tlb(struct pmap *pmap, uintptr_t start, uintptr_t end)
 static void
 pmap_flush_tlb_all(struct pmap *pmap)
 {
-    if ((pmap != pmap_current()) && (pmap != kernel_pmap)) {
+    if ((pmap != pmap_current()) && (pmap != pmap_get_kernel_pmap())) {
         return;
     }
 
-    if (pmap == kernel_pmap) {
+    if (pmap == pmap_get_kernel_pmap()) {
         cpu_tlb_flush_all();
     } else {
         cpu_tlb_flush();

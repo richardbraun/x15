@@ -116,6 +116,7 @@
 #include <machine/page.h>
 #include <machine/pmap.h>
 #include <machine/tcb.h>
+#include <vm/vm_kmem.h>
 #include <vm/vm_map.h>
 
 /*
@@ -1693,7 +1694,7 @@ thread_init_booter(unsigned int cpu)
     thread_set_user_priority(booter, 0);
     thread_reset_real_priority(booter);
     memset(booter->tsd, 0, sizeof(booter->tsd));
-    booter->task = kernel_task;
+    booter->task = task_get_kernel_task();
     snprintf(booter->name, sizeof(booter->name),
              THREAD_KERNEL_PREFIX "thread_boot/%u", cpu);
 }
@@ -1887,10 +1888,13 @@ thread_alloc_stack(void)
 {
     __unused struct vm_page *first_page, *last_page;
     phys_addr_t first_pa, last_pa;
+    struct pmap *kernel_pmap;
     size_t stack_size;
     uintptr_t va;
     void *mem;
     __unused int error;
+
+    kernel_pmap = pmap_get_kernel_pmap();
 
     stack_size = vm_page_round(TCB_STACK_SIZE);
     mem = vm_kmem_alloc((PAGE_SIZE * 2) + stack_size);
