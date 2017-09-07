@@ -263,12 +263,11 @@ module:arch/tcb::
 module:arch/trap::
   Interrupt and exception handling.
 
-X15 currently requires a memory management unit, but that may change in
-the future. In addition, the machine-independent code assumes an almost
-completely relaxed memory model, but still expects no reordering between
-dependent loads. This model closely matches the ARM family of processors.
+The machine-independent code assumes a completely relaxed memory model as
+allowed by the C11 specification.
 
-TODO Fix memory model description
+X15 currently requires a memory management unit, but that may change in
+the future.
 
 SEE
 ---
