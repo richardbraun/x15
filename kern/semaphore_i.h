@@ -33,7 +33,7 @@ semaphore_dec(struct semaphore *semaphore)
     unsigned int prev, value;
 
     do {
-        value = semaphore->value;
+        value = atomic_load(&semaphore->value, ATOMIC_RELAXED);
 
         if (value == 0) {
             break;
