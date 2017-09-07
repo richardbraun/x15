@@ -90,7 +90,7 @@ typedef int (*init_op_fn_t)(void);
         __VA_ARGS__                                                 \
     };                                                              \
                                                                     \
-    struct init_op INIT_OP(_fn) __initop = {                        \
+    struct init_op INIT_OP(_fn) __initop __used = {                 \
         .name = QUOTE(_fn),                                         \
         .fn = _fn,                                                  \
         .deps = INIT_OP_DEPS(_fn),                                  \
