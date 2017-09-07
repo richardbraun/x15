@@ -41,11 +41,6 @@ extern char _data;
 extern char _end;
 
 /*
- * The kernel map.
- */
-extern struct vm_map *kernel_map;
-
-/*
  * Allocate pure virtual kernel pages.
  *
  * The caller is reponsible for taking care of the underlying physical memory.

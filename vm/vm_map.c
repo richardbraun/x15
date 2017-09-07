@@ -76,6 +76,8 @@ static int vm_map_insert(struct vm_map *map, struct vm_map_entry *entry,
 static struct kmem_cache vm_map_entry_cache;
 static struct kmem_cache vm_map_cache;
 
+struct vm_map vm_map_kernel_map;
+
 static struct vm_map_entry *
 vm_map_entry_create(void)
 {
@@ -747,7 +749,7 @@ INIT_OP_DEFINE(vm_map_setup_shell,
 static int __init
 vm_map_bootstrap(void)
 {
-    vm_map_init(kernel_map, kernel_pmap,
+    vm_map_init(vm_map_get_kernel_map(), pmap_get_kernel_pmap(),
                 PMAP_START_KMEM_ADDRESS, PMAP_END_KMEM_ADDRESS);
     kmem_cache_init(&vm_map_entry_cache, "vm_map_entry",
                     sizeof(struct vm_map_entry), 0, NULL,
@@ -808,7 +810,7 @@ vm_map_info(struct vm_map *map)
     struct vm_map_entry *entry;
     const char *type, *name;
 
-    if (map == kernel_map) {
+    if (map == vm_map_get_kernel_map()) {
         name = "kernel map";
     } else {
         name = "map";

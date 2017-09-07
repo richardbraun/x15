@@ -92,6 +92,14 @@ struct vm_map {
     struct pmap *pmap;
 };
 
+static inline struct vm_map *
+vm_map_get_kernel_map(void)
+{
+    extern struct vm_map vm_map_kernel_map;
+
+    return &vm_map_kernel_map;
+}
+
 /*
  * Create a virtual mapping.
  */

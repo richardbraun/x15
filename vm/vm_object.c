@@ -31,6 +31,8 @@
 #include <vm/vm_page.h>
 #include <machine/page.h>
 
+struct vm_object vm_object_kernel_object;
+
 static int __init
 vm_object_setup(void)
 {
