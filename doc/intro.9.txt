@@ -12,8 +12,8 @@ intro - introduction to kernel interfaces
 DESCRIPTION
 -----------
 
-X15 is an open source microkernel. Its purpose is to provide a foundation
-for a Hurd-like operating system as well as real-time kernel applications.
+X15 is an open source real-time microkernel intended to provide a performant
+and scalable environment for cache-coherent multiprocessor machines.
 
 Section 9 of the manual describes kernel interfaces, both internal and
 provided to application code hosted in kernel mode.
@@ -26,7 +26,6 @@ Among the features provided are :
 * <<virtual_memoru,Virtual memory>>
 * <<real_time,Real-time>>
 * <<portability,Portability>>
-* <<posix_like_interface,POSIX-like interface>>
 
 Modules
 ~~~~~~~
@@ -270,18 +269,6 @@ completely relaxed memory model, but still expects no reordering between
 dependent loads. This model closely matches the ARM family of processors.
 
 TODO Fix memory model description
-
-[[posix_like_interface]]
-POSIX-LIKE INTERFACE
---------------------
-
-Many of the functions provided by the kernel match well-known POSIX
-interfaces. In particular, this is true for standard integer types,
-memory and string functions, and multithreading. While the thread module
-doesn't comply with POSIX, it was designed so that adding a lightweight
-wrapper could easily be done. Users must keep in mind that the behaviour
-of some interfaces are not meant to comply with POSIX regarding certain
-details; they are only meant to be POSIX-like.
 
 SEE
 ---
