@@ -102,4 +102,8 @@ moo_print(const char *s)
 #define __unused            __attribute__((unused))
 #endif
 
+#ifndef __used
+#define __used              __attribute__((used))
+#endif
+
 #endif /* _KERN_MACROS_H */
