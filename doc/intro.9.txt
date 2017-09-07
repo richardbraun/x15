@@ -151,16 +151,12 @@ module:kern/list::
   Doubly-linked list.
 module:kern/macros::
   Useful generic macros.
-module:kern/printf::
-  Formatted output functions.
 module:kern/rbtree::
   Red-black tree.
 module:kern/rdxtree::
   Radix tree (with integer keys).
 module:kern/slist::
   Singly-linked list.
-module:kern/sprintf::
-  Formatted string functions.
 module:kern/syscnt::
   Generic 64-bits counter.
 module:kern/timer::
@@ -171,8 +167,8 @@ often vary too much. Similarly, it doesn't provide a hash table interface.
 Instead, users can easily build specialized queues, hash tables and ring
 buffers on top of the provided facilities.
 
-TODO List supported standard C interfaces and remove the printf/sprintf
-modules from the list above.
+See manpage:cenv for information about the subset of standard C interfaces
+supported.
 
 [[multiprocessor_support]]
 MULTIPROCESSOR SUPPORT
@@ -272,8 +268,10 @@ the future.
 SEE
 ---
 
-manpage:style
+manpage:cenv
 
 manpage:init
+
+manpage:style
 
 {x15-operating-system}

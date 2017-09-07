@@ -1,0 +1,93 @@
+CENV(9)
+========
+:doctype:       manpage
+:man source:    X15
+:man manual:    X15 C environment
+
+NAME
+----
+
+cenv - C environment
+
+DESCRIPTION
+-----------
+
+This document describes the C environment of the kernel, including
+available standard headers and interfaces.
+
+Standard
+~~~~~~~~
+
+X15 must be built with a C compiler supporting the ISO/IEC 9899:2011
+(C11) specification with some GCC extensions. It can currently be built
+with the GCC and Clang compilers.
+
+Environment
+~~~~~~~~~~~
+
+The kernel uses the freestanding execution environment. This means the
+compiler is expected to provide the following headers :
+
+** cheader:float
+** cheader:iso646
+** cheader:limits
+** cheader:stdalign
+** cheader:stdarg
+** cheader:stdbool
+** cheader:stddef
+** cheader:stdint
+** cheader:stdnoreturn
+
+X15 augments the environment with a small subset of the functions provided
+in hosted environments. The additional headers are :
+
+** cheader:assert
+** cheader:limits
+** cheader:stdio
+** cheader:string
+
+Note that these headers do not provide the complete set of interfaces
+expected in a hosted environment.
+
+Formatting functions
+~~~~~~~~~~~~~~~~~~~~
+
+Of particular interest is the cheader:stdio header which provides a subset
+of the printf and scanf family of functions.
+
+The supported functions are :
+
+** cfunction:getchar
+** cfunction:putchar
+** cfunction:sprintf
+** cfunction:snprintf
+** cfunction:vsprintf
+** cfunction:vsnprintf
+** cfunction:sscanf
+** cfunction:vsscanf
+
+The *EOF* macro is also provided.
+
+The formatting functions only implement a subset of what the standard
+defines, namely :
+
+** cfunction:sprintf :
+*** flags: # 0 - ' ' (space) +
+*** field width is supported
+*** precision is supported
+** cfunction:sscanf :
+*** flags: *
+*** field width is supported
+** common to both :
+*** modifiers: hh h l ll z t
+*** specifiers: d i o u x X c s p n %
+
+Floating point conversions are currently not supported, but this may change
+in the future.
+
+SEE
+---
+
+manpage:intro
+
+{x15-operating-system}
