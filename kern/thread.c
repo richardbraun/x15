@@ -288,9 +288,9 @@ static struct thread thread_booters[X15_MAX_CPUS] __initdata;
 
 static struct kmem_cache thread_cache;
 
-#ifndef X15_THREAD_STACK_GUARD
+#ifndef X15_ENABLE_THREAD_STACK_GUARD
 static struct kmem_cache thread_stack_cache;
-#endif /* X15_THREAD_STACK_GUARD */
+#endif /* X15_ENABLE_THREAD_STACK_GUARD */
 
 static const unsigned char thread_policy_table[THREAD_NR_SCHED_POLICIES] = {
     [THREAD_SCHED_POLICY_FIFO] = THREAD_SCHED_CLASS_RT,
@@ -1876,7 +1876,7 @@ thread_unlock_runq(struct thread_runq *runq, unsigned long flags)
     spinlock_unlock_intr_restore(&runq->lock, flags);
 }
 
-#ifdef X15_THREAD_STACK_GUARD
+#ifdef X15_ENABLE_THREAD_STACK_GUARD
 
 #include <machine/pmap.h>
 #include <vm/vm_kmem.h>
@@ -1935,7 +1935,7 @@ thread_free_stack(void *stack)
     vm_kmem_free(va, (PAGE_SIZE * 2) + stack_size);
 }
 
-#else /* X15_THREAD_STACK_GUARD */
+#else /* X15_ENABLE_THREAD_STACK_GUARD */
 
 static void *
 thread_alloc_stack(void)
@@ -1949,7 +1949,7 @@ thread_free_stack(void *stack)
     kmem_cache_free(&thread_stack_cache, stack);
 }
 
-#endif /* X15_THREAD_STACK_GUARD */
+#endif /* X15_ENABLE_THREAD_STACK_GUARD */
 
 static void
 thread_destroy(struct thread *thread)
@@ -2284,10 +2284,10 @@ thread_setup(void)
 
     kmem_cache_init(&thread_cache, "thread", sizeof(struct thread),
                     CPU_L1_SIZE, NULL, 0);
-#ifndef X15_THREAD_STACK_GUARD
+#ifndef X15_ENABLE_THREAD_STACK_GUARD
     kmem_cache_init(&thread_stack_cache, "thread_stack", TCB_STACK_SIZE,
                     CPU_DATA_ALIGN, NULL, 0);
-#endif /* X15_THREAD_STACK_GUARD */
+#endif /* X15_ENABLE_THREAD_STACK_GUARD */
 
     cpumap_for_each(&thread_active_runqs, cpu) {
         thread_setup_runq(percpu_ptr(thread_runq, cpu));
@@ -2304,7 +2304,7 @@ INIT_OP_DEFINE(thread_setup,
                INIT_OP_DEP(task_setup, true),
                INIT_OP_DEP(thread_bootstrap, true),
                INIT_OP_DEP(turnstile_setup, true),
-#ifdef X15_THREAD_STACK_GUARD
+#ifdef X15_ENABLE_THREAD_STACK_GUARD
                INIT_OP_DEP(vm_kmem_setup, true),
                INIT_OP_DEP(vm_map_setup, true),
                INIT_OP_DEP(vm_page_setup, true),
