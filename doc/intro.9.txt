@@ -175,7 +175,7 @@ MULTIPROCESSOR SUPPORT
 ----------------------
 
 The X15 kernel is designed to support hardware with multiple processors.
-The scheduler should scale well up to one hundred processors, with one
+The scheduler should scale well up to 16-32 processors, with one
 run queue per processor. Threads can be bound to a specific set of
 processors, or temporarily pinned for short durations. Non real-time
 threads can be spontaneously migrated between processors in order to
