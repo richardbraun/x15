@@ -21,11 +21,11 @@
 #ifndef _KERN_MUTEX_TYPES_H
 #define _KERN_MUTEX_TYPES_H
 
-#if defined(X15_USE_MUTEX_ADAPTIVE)
+#if defined(CONFIG_MUTEX_ADAPTIVE)
 #include <kern/mutex/mutex_adaptive_types.h>
-#elif defined(X15_USE_MUTEX_PI)
+#elif defined(CONFIG_MUTEX_PI)
 #include <kern/mutex/mutex_pi_types.h>
-#elif defined(X15_USE_MUTEX_PLAIN)
+#elif defined(CONFIG_MUTEX_PLAIN)
 #include <kern/mutex/mutex_plain_types.h>
 #else
 #error "unknown mutex implementation"

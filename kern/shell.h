@@ -25,7 +25,7 @@
 #include <kern/error.h>
 #include <kern/macros.h>
 
-#ifdef X15_ENABLE_SHELL
+#ifdef CONFIG_SHELL
 
 #define SHELL_REGISTER_CMDS(cmds)                           \
 MACRO_BEGIN                                                 \
@@ -81,11 +81,11 @@ void shell_start(void);
  */
 int shell_cmd_register(struct shell_cmd *cmd);
 
-#else /* X15_ENABLE_SHELL */
+#else /* CONFIG_SHELL */
 #define SHELL_REGISTER_CMDS(cmds)
 #define shell_setup()
 #define shell_start()
-#endif /* X15_ENABLE_SHELL */
+#endif /* CONFIG_SHELL */
 
 /*
  * This init operation provides :

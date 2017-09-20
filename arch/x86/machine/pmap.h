@@ -132,7 +132,7 @@
 #define PMAP_L2_MASK    PMAP_L1_MASK
 #define PMAP_L3_MASK    PMAP_L1_MASK
 #else /* __LP64__ */
-#ifdef X15_X86_PAE
+#ifdef CONFIG_X86_PAE
 #define PMAP_NR_LEVELS  3
 #define PMAP_L0_BITS    9
 #define PMAP_L1_BITS    9
@@ -140,13 +140,13 @@
 #define PMAP_VA_MASK    DECL_CONST(0xffffffff, UL)
 #define PMAP_PA_MASK    DECL_CONST(0x000ffffffffff000, ULL)
 #define PMAP_L2_MASK    PMAP_PAE_L2_MASK
-#else /* X15_X86_PAE */
+#else /* CONFIG_X86_PAE */
 #define PMAP_NR_LEVELS  2
 #define PMAP_L0_BITS    10
 #define PMAP_L1_BITS    10
 #define PMAP_VA_MASK    DECL_CONST(0xffffffff, UL)
 #define PMAP_PA_MASK    DECL_CONST(0xfffff000, UL)
-#endif /* X15_X86_PAE */
+#endif /* CONFIG_X86_PAE */
 #endif /* __LP64__ */
 
 #define PMAP_L0_SKIP    12

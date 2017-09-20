@@ -30,9 +30,9 @@ kernel_main(void)
     init_setup();
     vm_page_log_info();
 
-#ifdef X15_RUN_TEST_MODULE
+#ifdef CONFIG_TEST_MODULE
     test_setup();
-#endif /* X15_RUN_TEST_MODULE */
+#endif /* CONFIG_TEST_MODULE */
 
     /*
      * Enabling application processors is done late in the boot process for

@@ -39,13 +39,13 @@
 #define PMEM_HIGHMEM_LIMIT      DECL_CONST(0x10000000000000, UL)
 #else /* __LP64__ */
 #define PMEM_DIRECTMAP_LIMIT    DECL_CONST(0x38000000, ULL)
-#ifdef X15_X86_PAE
+#ifdef CONFIG_X86_PAE
 #define PMEM_MAX_ZONES          3
 #define PMEM_HIGHMEM_LIMIT      DECL_CONST(0x10000000000000, ULL)
-#else /* X15_X86_PAE */
+#else /* CONFIG_X86_PAE */
 #define PMEM_MAX_ZONES          3
 #define PMEM_HIGHMEM_LIMIT      DECL_CONST(0xfffff000, UL)
-#endif /* X15_X86_PAE */
+#endif /* CONFIG_X86_PAE */
 #endif /* __LP64__ */
 
 /*

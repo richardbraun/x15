@@ -23,8 +23,8 @@
 /*
  * Kernel properties.
  */
-#define KERNEL_NAME     PACKAGE_NAME
-#define KERNEL_VERSION  PACKAGE_VERSION
+#define KERNEL_NAME     "x15"
+#define KERNEL_VERSION  CONFIG_KERNEL_VERSION
 
 /*
  * Machine-independent entry point.
