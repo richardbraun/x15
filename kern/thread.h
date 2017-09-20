@@ -43,6 +43,7 @@
 #include <kern/init.h>
 #include <kern/condition.h>
 #include <kern/cpumap.h>
+#include <kern/kernel.h>
 #include <kern/macros.h>
 #include <kern/spinlock_types.h>
 #include <kern/turnstile_types.h>
@@ -72,7 +73,7 @@ struct thread_sched_data {
 
 #include <kern/thread_i.h>
 
-#define THREAD_KERNEL_PREFIX PACKAGE "_"
+#define THREAD_KERNEL_PREFIX KERNEL_NAME "_"
 
 /*
  * Scheduling policies.

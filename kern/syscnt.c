@@ -33,7 +33,7 @@
 static struct list syscnt_list;
 static struct mutex syscnt_lock;
 
-#ifdef X15_ENABLE_SHELL
+#ifdef CONFIG_SHELL
 
 static void
 syscnt_shell_info(int argc, char **argv)
@@ -61,7 +61,7 @@ INIT_OP_DEFINE(syscnt_setup_shell,
                INIT_OP_DEP(shell_setup, true),
                INIT_OP_DEP(syscnt_setup, true));
 
-#endif /* X15_ENABLE_SHELL */
+#endif /* CONFIG_SHELL */
 
 static int __init
 syscnt_setup(void)

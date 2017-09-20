@@ -1,0 +1,41 @@
+menuconfig TEST_MODULE
+	bool "Test module"
+	default n
+	---help---
+	  Run a test module instead of booting the system.
+
+if TEST_MODULE
+
+choice
+	prompt "Select test module"
+
+config TEST_MODULE_LLSYNC_DEFER
+	bool "llsync_defer"
+
+config TEST_MODULE_MUTEX
+	bool "mutex"
+
+config TEST_MODULE_MUTEX_PI
+	bool "mutex_pi"
+
+config TEST_MODULE_PMAP_UPDATE_MP
+	bool "pmap_update_mp"
+
+config TEST_MODULE_SREF_DIRTY_ZEROES
+	bool "sref_dirty_zeroes"
+
+config TEST_MODULE_SREF_NOREF
+	bool "sref_noref"
+
+config TEST_MODULE_SREF_WEAKREF
+	bool "sref_weakref"
+
+config TEST_MODULE_VM_PAGE_FILL
+	bool "vm_page_fill"
+
+config TEST_MODULE_XCALL
+	bool "xcall"
+
+endchoice
+
+endif

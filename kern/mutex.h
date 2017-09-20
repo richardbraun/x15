@@ -25,11 +25,11 @@
 
 #include <stdint.h>
 
-#if defined(X15_USE_MUTEX_ADAPTIVE)
+#if defined(CONFIG_MUTEX_ADAPTIVE)
 #include <kern/mutex/mutex_adaptive_i.h>
-#elif defined(X15_USE_MUTEX_PI)
+#elif defined(CONFIG_MUTEX_PI)
 #include <kern/mutex/mutex_pi_i.h>
-#elif defined(X15_USE_MUTEX_PLAIN)
+#elif defined(CONFIG_MUTEX_PLAIN)
 #include <kern/mutex/mutex_plain_i.h>
 #else
 #error "unknown mutex implementation"

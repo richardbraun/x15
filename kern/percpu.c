@@ -30,7 +30,7 @@
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 
-void *percpu_areas[X15_MAX_CPUS] __read_mostly;
+void *percpu_areas[CONFIG_MAX_CPUS] __read_mostly;
 
 static void *percpu_area_content __initdata;
 static size_t percpu_area_size __initdata;
@@ -52,7 +52,7 @@ percpu_setup(void)
     unsigned int order;
 
     percpu_area_size = &_percpu_end - &_percpu;
-    log_info("percpu: max_cpus: %u, section size: %zuk", X15_MAX_CPUS,
+    log_info("percpu: max_cpus: %u, section size: %zuk", CONFIG_MAX_CPUS,
              percpu_area_size >> 10);
     assert(vm_page_aligned(percpu_area_size));
 

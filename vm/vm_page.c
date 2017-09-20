@@ -107,7 +107,7 @@ struct vm_page_free_list {
  * Zone of contiguous memory.
  */
 struct vm_page_zone {
-    struct vm_page_cpu_pool cpu_pools[X15_MAX_CPUS];
+    struct vm_page_cpu_pool cpu_pools[CONFIG_MAX_CPUS];
 
     phys_addr_t start;
     phys_addr_t end;
@@ -657,7 +657,7 @@ vm_page_info_common(int (*print_fn)(const char *format, ...))
     }
 }
 
-#ifdef X15_ENABLE_SHELL
+#ifdef CONFIG_SHELL
 
 static void
 vm_page_info(void)
@@ -691,7 +691,7 @@ INIT_OP_DEFINE(vm_page_setup_shell,
                INIT_OP_DEP(shell_setup, true),
                INIT_OP_DEP(vm_page_setup, true));
 
-#endif /* X15_ENABLE_SHELL */
+#endif /* CONFIG_SHELL */
 
 static int __init
 vm_page_setup(void)
