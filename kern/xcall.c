@@ -50,7 +50,7 @@ struct xcall {
  * between multiple cross-calls.
  */
 struct xcall_cpu_data {
-    alignas(CPU_L1_SIZE) struct xcall send_calls[X15_MAX_CPUS];
+    alignas(CPU_L1_SIZE) struct xcall send_calls[CONFIG_MAX_CPUS];
 
     struct xcall *recv_call;
     struct spinlock lock;

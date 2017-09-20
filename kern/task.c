@@ -59,7 +59,7 @@ task_init(struct task *task, const char *name, struct vm_map *map)
     strlcpy(task->name, name, sizeof(task->name));
 }
 
-#ifdef X15_ENABLE_SHELL
+#ifdef CONFIG_SHELL
 
 static void
 task_shell_info(int argc, char *argv[])
@@ -107,7 +107,7 @@ INIT_OP_DEFINE(task_setup_shell,
                INIT_OP_DEP(task_setup, true),
                INIT_OP_DEP(thread_setup, true));
 
-#endif /* X15_ENABLE_SHELL */
+#endif /* CONFIG_SHELL */
 
 static int __init
 task_setup(void)

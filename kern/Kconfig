@@ -1,0 +1,83 @@
+menu "General setup"
+
+config MULTIPROCESSOR
+	bool "Multiprocessor support"
+	default y
+	---help---
+	  Enable support for machines with multiple processors.
+
+config MAX_CPUS
+	int "Maximum number of supported CPUs" if MULTIPROCESSOR
+	range 2 512 if MULTIPROCESSOR
+	default "1" if !MULTIPROCESSOR
+	default "128" if MULTIPROCESSOR
+	---help---
+	  Maximum number of supported processors.
+
+config CLOCK_FREQ
+	int "Low resolution clock frequency"
+	range 100 1000
+	default 200
+	---help---
+	  The low resolution clock frequency determines how often low
+	  resolution clocks interrupt processors. These clocks drive
+	  the timer system. Low values increase throughput and latencies,
+	  whereas high values reduce throughput and latencies.
+
+	  The value must be usable as an integer divisor for 1000, with
+	  no remainder.
+
+	  Recommended values are 100 for throughput, 1000 for low
+	  latencies, and 200 or 250 for a good balance between throughput
+	  and latencies.
+
+choice
+	prompt "Mutex implementation"
+	default MUTEX_PLAIN
+	---help---
+	  A mutex is a sleeping synchronization object used throughout the
+	  kernel and available to kernel applications. As a result, this
+	  option affects all mutex users.
+
+	  If in doubt, choose the plain implementation.
+
+config MUTEX_ADAPTIVE
+	bool "Adaptive spinning mutex"
+	---help---
+	  Adaptive spinning mutex, spinning instead of sleeping if the owner
+	  is running, in the hope the critical section is short and the mutex
+	  will be unlocked soon, to avoid expensive sleep/wakeup operations.
+	  This implementation should improve overall performance at the cost
+	  of increased latencies.
+
+config MUTEX_PI
+	bool "Mutex with priority inheritance"
+	---help---
+	  Real-time mutex with priority inheritance. This implementation
+	  should improve latencies at the cost of overall performance.
+
+config MUTEX_PLAIN
+	bool "Plain mutex"
+	---help---
+	  Default implementation, immediately sleeping on contention.
+
+endchoice
+
+config SHELL
+	bool "Embedded shell"
+	default n
+	---help---
+	  Enable the embedded shell.
+
+	  The embedded shell is mostly used for diagnostics.
+
+config THREAD_STACK_GUARD
+	bool "Thread stack guard pages"
+	---help---
+	  Enable the use of guard pages around kernel thread stacks to catch
+	  overflows. Note that this feature wastes precious kernel virtual
+	  memory and has some overhead during thread creation and destruction.
+
+	  If unsure, disable.
+
+endmenu

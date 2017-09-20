@@ -353,10 +353,10 @@ boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
 void __init
 boot_log_info(void)
 {
-    log_info(KERNEL_NAME "/" QUOTE(X15_X86_SUBARCH) " " KERNEL_VERSION
-#ifdef X15_X86_PAE
+    log_info(KERNEL_NAME "/" CONFIG_SUBARCH " " KERNEL_VERSION
+#ifdef CONFIG_X86_PAE
              " PAE"
-#endif /* X15_X86_PAE */
+#endif /* CONFIG_X86_PAE */
              );
 }
 
