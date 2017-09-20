@@ -497,12 +497,13 @@ work_setup(void)
 
 INIT_OP_DEFINE(work_setup,
                INIT_OP_DEP(cpu_mp_probe, true),
+               INIT_OP_DEP(cpumap_setup, true),
                INIT_OP_DEP(kmem_setup, true),
                INIT_OP_DEP(log_setup, true),
                INIT_OP_DEP(panic_setup, true),
                INIT_OP_DEP(spinlock_setup, true),
                INIT_OP_DEP(syscnt_setup, true),
-               INIT_OP_DEP(thread_bootstrap, true));
+               INIT_OP_DEP(thread_setup, true));
 
 void
 work_schedule(struct work *work, int flags)
