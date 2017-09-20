@@ -2402,6 +2402,11 @@ thread_exit(void)
         work_schedule(&zombie.work, 0);
     }
 
+    /*
+     * Disable preemption before dropping the reference, as this may
+     * trigger the active state poll of the join operation. Doing so
+     * keeps the duration of that active wait minimum.
+     */
     thread_preempt_disable();
 
     thread_unref(thread);
