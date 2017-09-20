@@ -21,10 +21,10 @@
 
 void ssp_panic(void);
 
-void
+__used void
 ssp_panic(void)
 {
     panic("ssp: stack corruption detected");
 }
 
-void __stack_chk_fail(void) __attribute__((alias("ssp_panic")));
+__used void __stack_chk_fail(void) __attribute__((alias("ssp_panic")));
