@@ -1,0 +1,51 @@
+#
+# For a description of the syntax of this configuration file,
+# see doc/kbuild/kconfig-language.txt.
+#
+mainmenu "X15/$ARCH $VERSION Kernel Configuration"
+
+config ARCH
+	string
+	option env="ARCH"
+
+config VERSION
+	string
+	option env="VERSION"
+
+config KERNEL_VERSION
+	string
+	default VERSION
+
+config CC
+	string
+	option env="CC"
+
+config CFLAGS
+	string
+	option env="CFLAGS"
+
+menu "Build options"
+
+config CC_EXE
+	string "Compiler executable"
+	default CC
+	---help---
+	  Name of the compiler executable
+
+config CC_OPTIONS
+	string "Compilation options"
+	default CFLAGS
+	---help---
+	  Raw options passed to the compiler.
+
+config ASSERT
+	bool "Assertions"
+	default y
+	---help---
+	  Enable assert() code generation.
+
+endmenu
+
+source "arch/$ARCH/Kconfig"
+source "kern/Kconfig"
+source "test/Kconfig"

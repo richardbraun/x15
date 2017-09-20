@@ -151,11 +151,11 @@ test_report_syscnt(struct timer *timer)
 {
     uint64_t time;
 
-#ifdef X15_MUTEX_PI
+#ifdef CONFIG_MUTEX_PI
     syscnt_info("rtmutex");
-#else /* X15_MUTEX_PI */
+#else /* CONFIG_MUTEX_PI */
     syscnt_info("mutex");
-#endif /* X15_MUTEX_PI */
+#endif /* CONFIG_MUTEX_PI */
 
     time = timer_get_time(timer) + clock_ticks_from_ms(TEST_REPORT_INTERVAL);
     timer_schedule(timer, time);

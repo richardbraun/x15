@@ -1,0 +1,32 @@
+menu "Architecture-specific options"
+
+config 64BITS
+	bool "64-bits kernel" if ARCH = "x86"
+	default ARCH != "i386"
+	---help---
+	  Build a 64-bits kernel.
+
+config X86_PAE
+	bool "Enable PAE (Physical Address Extension)"
+	depends on X86_32
+	---help---
+	  PAE allows addressing physical memory beyond 4 GiB at the cost
+	  of more pagetable lookup and memory overhead.
+
+endmenu
+
+config X86_32
+	def_bool y
+	depends on !64BITS
+
+config X86_64
+	def_bool y
+	depends on 64BITS
+
+config X86
+	def_bool y
+
+config SUBARCH
+	string
+	default "i386" if X86_32
+	default "amd64" if X86_64

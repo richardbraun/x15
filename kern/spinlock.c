@@ -106,7 +106,7 @@
 #error "spinlock qid too large"
 #endif
 
-#if X15_MAX_CPUS > (1 << SPINLOCK_QID_CPU_BITS)
+#if CONFIG_MAX_CPUS > (1 << SPINLOCK_QID_CPU_BITS)
 #error "maximum number of supported processors too large"
 #endif
 

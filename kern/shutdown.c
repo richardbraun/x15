@@ -26,7 +26,7 @@
 
 static struct plist shutdown_ops_list;
 
-#ifdef X15_ENABLE_SHELL
+#ifdef CONFIG_SHELL
 
 static void
 shutdown_shell_halt(int argc, char **argv)
@@ -66,7 +66,7 @@ INIT_OP_DEFINE(shutdown_setup_shell,
                INIT_OP_DEP(shell_setup, true),
                INIT_OP_DEP(shutdown_setup, true));
 
-#endif /* X15_ENABLE_SHELL */
+#endif /* CONFIG_SHELL */
 
 static int __init
 shutdown_bootstrap(void)
