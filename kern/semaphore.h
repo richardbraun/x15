@@ -18,15 +18,27 @@
  * Semaphores are resource-counting sleeping synchronization objects.
  * They are used to synchronize access to resources and signal events.
  *
- * The main operations supported by semaphores are locking and unlocking.
+ * The main operations supported by semaphores are waiting and signalling.
  * A semaphore is implemented as an atomic integer with an initial value.
- * Locking a semaphore means decrementing that integer, whereas unlocking
- * means incrementing it. Locking can only succeed if the semaphore value
+ * Waiting on a semaphore means decrementing that integer, whereas signalling
+ * means incrementing it. Waiting can only succeed if the semaphore value
  * is strictly greater than 0.
  *
- * Semaphores should not be used to implement critical sections. Instead,
- * use mutexes, which are similar to binary semaphores but with additional
- * restrictions that can improve debugging.
+ * The use of semaphores is generally discouraged. Mutexes are recommended
+ * to implement preemptible critical sections, and spinlocks combined with
+ * calls to thread_sleep() and thread_wakeup() are recommended for
+ * non-preemptible critical sections. The reason is that a semaphore
+ * internally already uses a spinlock, but that internal lock may not be
+ * used to serialize access to anything else. This means that the only case
+ * where a semaphore may be an efficient synchronization mechanism is
+ * real-time signalling, e.g. an interrupt handler signalling a thread.
+ * Here, "real-time" means that there is a guarantee that the thread has
+ * always consumed the data produced by the interrupt handler before the
+ * latter runs again.
+ *
+ * Since the kernel is an incomplete program without applications, it is
+ * impossible to perform an analysis providing the real-time guarantee.
+ * As a result, semaphores may only be used by application code.
  */
 
 #ifndef _KERN_SEMAPHORE_H
@@ -55,7 +67,7 @@ semaphore_init(struct semaphore *semaphore, unsigned int value)
 }
 
 /*
- * Attempt to lock a semaphore.
+ * Attempt to decrement a semaphore.
  *
  * This function may not sleep.
  *
@@ -76,9 +88,9 @@ semaphore_trywait(struct semaphore *semaphore)
 }
 
 /*
- * Lock a semaphore.
+ * Wait on a semaphore.
  *
- * If the semaphore value doesn't allow locking, the calling thread sleeps
+ * If the semaphore value cannot be decremented, the calling thread sleeps
  * until the semaphore value is incremented.
  */
 static inline void
@@ -93,6 +105,13 @@ semaphore_wait(struct semaphore *semaphore)
     }
 }
 
+/*
+ * Wait on a semaphore, with a time boundary.
+ *
+ * The time boundary is an absolute time in ticks.
+ *
+ * If successful, the semaphore is decremented, otherwise an error is returned.
+ */
 static inline int
 semaphore_timedwait(struct semaphore *semaphore, uint64_t ticks)
 {
@@ -108,12 +127,12 @@ semaphore_timedwait(struct semaphore *semaphore, uint64_t ticks)
 }
 
 /*
- * Unlock a semaphore.
+ * Signal a semaphore.
  *
  * If the semaphore value becomes strictly greater than 0, a thread waiting
  * on the semaphore is awaken.
  *
- * A semaphore may be unlocked from interrupt context.
+ * A semaphore may be signalled from interrupt context.
  */
 static inline void
 semaphore_post(struct semaphore *semaphore)
