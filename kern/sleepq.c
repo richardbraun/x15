@@ -450,17 +450,23 @@ sleepq_wait_common(struct sleepq *sleepq, const char *wchan,
     sleepq_waiter_init(&waiter, thread);
     sleepq_add_waiter(sleepq, &waiter);
 
-    if (!timed) {
-        thread_sleep(&sleepq->bucket->lock, sleepq->sync_obj, wchan);
-        error = 0;
-    } else {
-        error = thread_timedsleep(&sleepq->bucket->lock, sleepq->sync_obj,
-                                  wchan, ticks);
-
-        if (error && sleepq_waiter_pending_wakeup(&waiter)) {
+	do {
+        if (!timed) {
+            thread_sleep(&sleepq->bucket->lock, sleepq->sync_obj, wchan);
             error = 0;
+        } else {
+            error = thread_timedsleep(&sleepq->bucket->lock, sleepq->sync_obj,
+                                      wchan, ticks);
+
+            if (error) {
+                if (sleepq_waiter_pending_wakeup(&waiter)) {
+                    error = 0;
+                } else {
+                    break;
+                }
+            }
         }
-    }
+    } while (!sleepq_waiter_pending_wakeup(&waiter));
 
     sleepq_remove_waiter(sleepq, &waiter);
 
