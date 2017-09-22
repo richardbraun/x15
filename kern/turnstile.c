@@ -743,7 +743,10 @@ turnstile_wait_common(struct turnstile *turnstile, const char *wchan,
             }
         }
 
-        assert(turnstile_waiter_awaken(&waiter));
+        /* Handle spurious wakeups */
+        if (!turnstile_waiter_awaken(&waiter)) {
+            continue;
+        }
 
         /*
          * The real priority of a thread may change between waking up
