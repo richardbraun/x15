@@ -159,10 +159,17 @@ help:
 	@printf '  all                      - Build all targets marked with [*]\n'
 	@printf '* x15                      - Build the kernel ELF image\n'
 	@printf '\n'
+	@printf 'Documentation targets:\n'
+	@printf '* docs                     - Build all documentation\n'
 	$(DOC_HELP)
+	@printf '\n'
 	@printf 'Installation targets:\n'
 	@printf '  install                  - Install the kernel and documentation\n'
 	@printf '  install-strip            - Same as install but also strip the kernel\n'
+	@printf '  install-x15              - Install the kernel only\n'
+	@printf '  install-strip-x15        - Same as install-x15 but also strip the kernel\n'
+	@printf '  install-docs             - Install documentation files\n'
+	$(DOC_INSTALL_HELP)
 	@printf '\n'
 	@printf 'Architecture specific targets ($(ARCH)):\n'
 	@$(if $(BOARDS), \
@@ -316,18 +323,26 @@ x15_DEPS := $(x15_LDS) .x15.sorted_init_ops
 x15: $(x15_OBJECTS) $(x15_DEPS)
 	$(call xbuild_link,$(x15_OBJECTS))
 
-.PHONY: install install-strip
-install: docs_install
+.PHONY: install-x15
+install-x15:
 	install -D -m 644 x15 $(DESTDIR)/boot/x15
 
-install-strip: docs_install
+.PHONY: install-strip-x15
+install-strip-x15:
 	install -s -D -m 644 x15 $(DESTDIR)/boot/x15
 
-.PHONY: clean distclean
-clean: docs_clean
+.PHONY: install
+install: install-x15 install-docs
+
+.PHONY: install-strip
+install-strip: install-strip-x15 install-docs
+
+.PHONY: clean
+clean: clean-docs
 	$(Q)$(MAKE) -f $(SRCDIR)/$(KCONFIG_PATH)/Makefile $@
 	$(call xbuild_clean)
 
-distclean: clean docs_distclean
+.PHONY: distclean
+distclean: clean distclean-docs
 	$(Q)$(MAKE) -f $(SRCDIR)/$(KCONFIG_PATH)/Makefile $@
 	$(call xbuild_distclean)
