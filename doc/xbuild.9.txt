@@ -1,0 +1,173 @@
+XBUILD(9)
+========
+:doctype:       manpage
+:man source:    X15
+:man manual:    X15 build system
+
+NAME
+----
+
+xbuild - The kernel build system
+
+DESCRIPTION
+-----------
+
+This document describes the build system of the kernel. The build system is
+the software used to generate the configuration, to build the kernel, its
+documentation, and install generated files.
+
+USAGE
+-----
+
+The build system is meant to be used directly from the root directory.
+
+Online help
+~~~~~~~~~~~
+
+In order to obtain online help from the build system, use the following
+command :
+
+[source,sh]
+--------------------------------------------------------------------------------
+$ make help
+--------------------------------------------------------------------------------
+
+The output of this command is a list of make targets to use to trigger
+specific actions, such as generating the kernel configuration, building
+the kernel, or the documentation.
+
+Configuration
+~~~~~~~~~~~~~
+
+Before building the kernel, its configuration must be generated. The current
+configuration is stored into a file named .config inside the root directory.
+Most configuration targets generate this .config file. Some such as *oldconfig*
+reuse an existing .config file placed by the user before invoking the build
+system.
+
+Default configurations
+^^^^^^^^^^^^^^^^^^^^^^
+
+A default configuration can be generated with the *defconfig* target. It
+selects a default configuration depending on the target architecture. In
+addition, each architecture may provide more predefined configurations,
+all reported by the online help.
+
+You may create your own default configuration with the *savedefconfig*
+target, which creates a file named defconfig inside the root directory.
+This file may then be renamed and added to the list of architecture-specific
+default configurations.
+
+Cleaning
+~~~~~~~~
+
+The following targets may be used to clean the working tree :
+
+*clean*::
+  This target removes most generated files, such as the kernel, any object
+  file used to build the kernel, as well as the generated documentation files.
+  It ignores the current configuration.
+*distclean*::
+  This target removes all generated files, including the configuration.
+
+Building
+~~~~~~~~
+
+If no target is passed, or if the target is *all* or *x15*, the kernel is
+built. There are several ways to influence a build in addition to the
+configuration. Builds are incremental, meaning that, when a source file
+is modified, the build system only rebuilds files that depend on the
+modified source. The build system itself as well as the configuration
+are considered global dependencies, so that any modification to either
+will make all generated files obsolete.
+
+Parallel builds
+^^^^^^^^^^^^^^^
+
+In order to speed up builds, it is possible to make them parallel. This
+only has a real effect if your machine has multiple processors. For example :
+
+[source,sh]
+--------------------------------------------------------------------------------
+make -j4
+--------------------------------------------------------------------------------
+
+If unsure about the value, use the number of available processors.
+
+Verbosity
+^^^^^^^^^
+
+By default, or if the _V_ variable is set to 0, the build is quiet, only
+reporting a short name of actions along with their target file. If the _V_
+variable is set to 1, the build is verbose, showing all commands with their
+arguments.
+
+Compiler and flags
+^^^^^^^^^^^^^^^^^^
+
+In order to make the kernel easy to integrate in meta builders such as
+distribution packaging systems, the compiler and its flags may be given
+at configuration time through the traditional _CC_ and _CFLAGS_ variables.
+For example :
+
+[source,sh]
+--------------------------------------------------------------------------------
+make i386_defconfig CC=clang CFLAGS="-Os -march=geode"
+--------------------------------------------------------------------------------
+
+Out-of-tree builds
+^^^^^^^^^^^^^^^^^^
+
+The kernel may be built outside the working tree. In order to perform such a
+build, simply use the -f make option with a path to the root Makefile.
+For example :
+
+[source,sh]
+--------------------------------------------------------------------------------
+mkdir build
+cd build
+make -f /path/to/x15/Makefile defconfig
+make -f /path/to/x15/Makefile -j4 x15
+--------------------------------------------------------------------------------
+
+Installation
+^^^^^^^^^^^^
+
+The various *install* targets are used to install the kernel and its
+documentation. The installation process can be altered with the _DESTDIR_
+and _PREFIX_ variables. The _DESTDIR_ variable is normally empty, but can
+be set to the root of a staging directory tree. This is particularly useful
+when building images for embedded systems. The _PREFIX_ variable has the
+value "/usr/local" by default, and may be changed to another insallation
+path relative to _DESTDIR_.
+
+DEVELOPMENT
+-----------
+
+Configuration
+~~~~~~~~~~~~~
+
+The configuration part of the build system is known as _kconfig_, originally
+imported from the Linux kernel. Description of the format used in Kconfig
+files can be found as part of the Linux kernel documentation. Module options
+are however not supported.
+
+Makefiles
+~~~~~~~~~
+
+When adding or removing source files to/from the project, the _x15_SOURCES-y_
+variable should be updated accordingly. The reason for such a name is that it
+makes conditional compilation very easy to achieve. When adding a source file
+that should be built only when an option is enabled, use the following syntax :
+
+[source,make]
+--------------------------------------------------------------------------------
+x15_SOURCES-$(CONFIG_OPTION) += path/to/source.c
+--------------------------------------------------------------------------------
+
+SEE
+---
+
+manpage:intro
+
+{the-kconfig-language}
