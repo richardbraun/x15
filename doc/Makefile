@@ -8,7 +8,8 @@ ASCIIDOC_SOURCES := \
         doc/cenv.9.txt \
         doc/init.9.txt \
         doc/intro.9.txt \
-        doc/style.9.txt
+        doc/style.9.txt \
+        doc/xbuild.9.txt
 
 ASCIIDOC_MANDOCS := $(patsubst %.9.txt,%.9,$(ASCIIDOC_SOURCES))
 ASCIIDOC_HTMLDOCS := $(patsubst %.9.txt,%.9.html,$(ASCIIDOC_SOURCES))
