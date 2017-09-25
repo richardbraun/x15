@@ -33,6 +33,7 @@ usage() {
 	echo "  -n    use allnoconfig instead of alldefconfig"
 	echo "  -r    list redundant entries when merging fragments"
 	echo "  -O    dir to put generated output files.  Consider setting \$KCONFIG_CONFIG instead."
+	echo "  -f    path to root Makefile"
 }
 
 RUNMAKE=true
@@ -68,6 +69,11 @@ while true; do
 			echo "output directory $2 does not exist" 1>&2
 			exit 1
 		fi
+		shift 2
+		continue
+		;;
+	"-f")
+		ROOT_MAKEFILE="-f $2"
 		shift 2
 		continue
 		;;
@@ -151,7 +157,7 @@ fi
 # Use the merged file as the starting point for:
 # alldefconfig: Fills in any missing symbols with Kconfig default
 # allnoconfig: Fills in any missing symbols with # CONFIG_* is not set
-make KCONFIG_ALLCONFIG=$TMP_FILE $OUTPUT_ARG $ALLTARGET
+make KCONFIG_ALLCONFIG=$TMP_FILE $OUTPUT_ARG $ROOT_MAKEFILE $ALLTARGET
 
 
 # Check all specified config values took (might have missed-dependency issues)
