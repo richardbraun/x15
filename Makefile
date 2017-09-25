@@ -48,14 +48,9 @@ endef
 
 define xbuild_gen_autoconf_h
 	$(call xbuild_action,GEN,$@)cat $< \
-		| sed -e 's/^\([^#]\)/#define CONFIG_\1/g' \
+		| sed -e 's/^\([^#]\)/#define \1/g' \
 		      -e 's/=/ /' \
 		| grep '^#define' > $@
-endef
-
-define xbuild_gen_autoconf_mk
-	$(call xbuild_action,GEN,$@)cat $< \
-		| sed -e 's/^\([^#]\)/CONFIG_\1/g' > $@
 endef
 
 # $(call xbuild_check_cc_option,<option>)
@@ -195,7 +190,8 @@ help:
 # Don't create a %config pattern rule as it would conflict with .config
 KCONFIG_TARGETS := config nconfig menuconfig xconfig gconfig \
                    allnoconfig allyesconfig alldefconfig randconfig \
-                   oldconfig defconfig savedefconfig listnewconfig
+                   oldconfig olddefconfig defconfig savedefconfig \
+                   listnewconfig
 
 .PHONY: $(KCONFIG_TARGETS)
 $(KCONFIG_TARGETS):
@@ -207,12 +203,7 @@ $(KCONFIG_TARGETS):
 include/generated/autoconf.h: .config $(ALL_MAKEFILES)
 	$(call xbuild_gen_autoconf_h)
 
-include/generated/autoconf.mk: .config $(ALL_MAKEFILES)
-	$(call xbuild_gen_autoconf_mk)
-
-ifneq ($(MAKECMDGOALS),help)
--include include/generated/autoconf.mk
-endif
+-include .config
 
 ifdef CONFIG_CC_EXE
 # Use printf to remove quotes

@@ -42,7 +42,7 @@ nconfig: $(obj)/nconf
 
 # These targets map 1:1 to the commandline options of 'conf'
 simple-targets := oldconfig allnoconfig allyesconfig \
-	alldefconfig randconfig listnewconfig
+	alldefconfig randconfig listnewconfig olddefconfig
 PHONY += $(simple-targets)
 
 $(simple-targets): $(obj)/conf
@@ -72,6 +72,8 @@ help:
 	@echo  '  alldefconfig             - New configuration - default values'
 	@echo  '  randconfig               - New configuration - random values'
 	@echo  '  oldconfig                - Reuse existing .config for configuration'
+	@echo  '  olddefconfig             - Same as oldconfig but sets new symbols to their'
+	@echo  '                             default value'
 	@echo  '  defconfig                - Default architecture-specific configuration'
 	@echo  '  savedefconfig            - Save configuration as ./defconfig (minimal config)'
 	@echo  '  listnewconfig            - List new options'
@@ -246,7 +248,7 @@ host-cxxmulti := $(addprefix $(obj)/,$(foreach m,$(__hostprogs),\
 host-cobjs := $(addprefix $(obj)/,$(sort $(foreach m,$(__hostprogs),$($(m)-objs))))
 host-cxxobjs := $(addprefix $(obj)/,$(sort $(foreach m,$(__hostprogs),$($(m)-cxxobjs))))
 
-HOST_EXTRACFLAGS += -I$(obj) -DCONFIG_=\"\"
+HOST_EXTRACFLAGS += -I$(obj)
 
 $(host-csingle): %: %.c
 	$(Q)mkdir -p $(@D)
