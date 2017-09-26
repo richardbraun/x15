@@ -3,19 +3,125 @@
 # Generate a large number of valid configurations, build them concurrently,
 # and report.
 
+import argparse
 import itertools
 import multiprocessing
 import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
+
+def print_fn(*args):
+    map(sys.stdout.write, args + tuple('\n'))
+    return None
 
 def quote_if_needed(value):
     if not isinstance(value, int) and value != 'y' and value != 'n':
         value = '"' + value + '"'
 
     return value
+
+def gen_configs_list(options_dict):
+    names = options_dict.keys()
+    product = itertools.product(*options_dict.itervalues())
+    return map(lambda x: dict(zip(names, x)), product)
+
+def gen_configs_values_str(options_dict):
+    return map(lambda x: ' '.join(x.values()), gen_configs_list(options_dict))
+
+# Check whether a filter prototype is valid.
+#
+# A filter prototype is a list of (name, value) pairs used to build a filter.
+# Keep in mind that a valid filter must match invalid configurations. As a
+# result, a filter prototype is valid if and only if the number of enabled
+# options is not 1.
+def check_exclusive_boolean_filter(filter_prototype):
+    return len(filter(lambda x: x[1] == 'y', filter_prototype)) != 1
+
+# Generate a list of filters on a list of boolean options.
+#
+# The resulting filters match configurations that don't have one and only
+# one of the given options enabled.
+def gen_exclusive_boolean_filters_list(options_list):
+    product = itertools.product(options_list, ['y', 'n'])
+    filters_prototypes = itertools.combinations(product, len(options_list))
+    return map(dict, filter(check_exclusive_boolean_filter, filters_prototypes))
+
+def gen_cc_options_list(options_dict):
+    return map(lambda x: x + ' -Werror', gen_configs_values_str(options_dict))
+
+# Dictionary of compiler options.
+#
+# Each entry describes a single compiler option. The key is mostly ignored
+# and serves as description, but must be present in order to reuse the
+# gen_configs_list() function. The value is a list of all values that may
+# be used for this compiler option when building a configuration.
+all_cc_options_dict = {
+    'O'         : ['-O0', '-O2', '-Os'],
+    'LTO'       : ['-flto', '-fno-lto'],
+    'SSP'       : ['-fno-stack-protector', '-fstack-protector'],
+}
+
+# Dictionaries of options.
+#
+# Each entry describes a single option. The key matches an option name
+# whereas the value is a list of all values that may be used for this
+# option when building a configuration.
+
+small_options_dict = {
+    'CONFIG_CC_EXE'                 : ['gcc', 'clang'],
+    'CONFIG_CC_OPTIONS'             : gen_cc_options_list(all_cc_options_dict),
+    'CONFIG_ASSERT'                 : ['y', 'n'],
+}
+
+large_options_dict = dict(small_options_dict)
+large_options_dict.update({
+    'CONFIG_64BITS'                 : ['y', 'n'],
+    'CONFIG_X86_PAE'                : ['y', 'n'],
+    'CONFIG_MULTIPROCESSOR'         : ['y', 'n'],
+    'CONFIG_MAX_CPUS'               : ['1', '128'],
+    'CONFIG_MUTEX_ADAPTIVE'         : ['y', 'n'],
+    'CONFIG_MUTEX_PI'               : ['y', 'n'],
+    'CONFIG_MUTEX_PLAIN'            : ['y', 'n'],
+    'CONFIG_SHELL'                  : ['y', 'n'],
+    'CONFIG_THREAD_STACK_GUARD'     : ['y', 'n'],
+})
+
+# TODO Test modules set of options and filters.
+
+all_options_sets = {
+    'small'                         : small_options_dict,
+    'large'                         : large_options_dict,
+}
+
+# List of filters used to determine valid configurations.
+#
+# Each entry is a dictionary of options. The key matches an option name
+# whereas the value is a [match_flag, string/regular expression] list.
+# The match flag is true if the matching expression must match, false
+# otherwise.
+all_filters_list = [
+    # XXX Clang currently cannot build the kernel with LTO.
+    {
+        'CONFIG_CC_EXE'             :   [True, 'clang'],
+        'CONFIG_CC_OPTIONS'         :   [True, re.compile('-flto')],
+    },
+    {
+        'CONFIG_MULTIPROCESSOR'     :   [True, 'n'],
+        'CONFIG_MAX_CPUS'           :   [False, re.compile('^0*1$')],
+    },
+    {
+        'CONFIG_64BITS'             :   [True, 'y'],
+        'CONFIG_X86_PAE'            :   [True, 'y'],
+    },
+]
+all_filters_list += gen_exclusive_boolean_filters_list([
+    'CONFIG_MUTEX_ADAPTIVE',
+    'CONFIG_MUTEX_PI',
+    'CONFIG_MUTEX_PLAIN'
+])
 
 def gen_config_line(name, value):
     return name + '=' + quote_if_needed(value)
@@ -33,60 +139,52 @@ def test_config_run(command, check, buildlog):
     buildlog.flush()
 
     if check:
-        return subprocess.check_call(command.split(), stdout = buildlog, stderr = subprocess.STDOUT)
+        return subprocess.check_call(command.split(), stdout = buildlog,
+                                     stderr = subprocess.STDOUT)
     else:
-        return subprocess.call(command.split(), stdout = buildlog, stderr = subprocess.STDOUT)
+        return subprocess.call(command.split(), stdout = buildlog,
+                               stderr = subprocess.STDOUT)
 
 def test_config(topbuilddir, config_dict):
+    srctree = os.path.abspath(os.getcwd())
+    buildtree = tempfile.mkdtemp(dir = topbuilddir)
+    os.chdir(buildtree)
+    buildlog = open('build.log', 'w')
+    f = open('.testconfig', 'w')
+    f.writelines(gen_config_content(config_dict))
+    f.close()
+
     try:
-        srctree = os.path.abspath(os.getcwd())
-        buildtree = tempfile.mkdtemp(dir = topbuilddir)
-        os.chdir(buildtree)
-        buildlog = open('build.log', 'w')
-        f = open('.testconfig', 'w')
-        f.writelines(gen_config_content(config_dict))
-        f.close()
-        test_config_run(srctree + '/tools/kconfig/merge_config.sh -f ' + srctree + '/Makefile .testconfig', True, buildlog)
-        test_config_run('make -f ' + srctree + '/Makefile olddefconfig', True, buildlog)
-        result = test_config_run('make -f ' + srctree + '/Makefile x15', False, buildlog)
-    except:
-        result = -1
-    finally:
+        test_config_run(srctree + '/tools/kconfig/merge_config.sh -f '
+                        + srctree + '/Makefile .testconfig', True, buildlog)
+        test_config_run('make -f ' + srctree + '/Makefile olddefconfig',
+                        True, buildlog)
+        retval = test_config_run('make -f ' + srctree + '/Makefile x15',
+                                 False, buildlog)
+    except KeyboardInterrupt:
         buildlog.close()
-        os.chdir(srctree)
+        return
+    except:
+        retval = 1
 
-        if result == 0:
-            shutil.rmtree(buildtree)
+    buildlog.close()
+    os.chdir(srctree)
 
-        return [result, buildtree]
+    if retval == 0:
+        shutil.rmtree(buildtree)
+
+    return [retval, buildtree]
 
 def test_config_star(args):
     return test_config(*args)
 
-def gen_all_configs_recursive(options_dict, config_dict = {}):
-    configs_list = []
-
-    if (len(options_dict) == 0):
-        return [config_dict]
-
-    options_dict_copy = options_dict.copy()
-    name, values = options_dict_copy.popitem()
-
-    for v in values:
-        config_dict_copy = config_dict.copy()
-        config_dict_copy[name] = v
-        configs_list += gen_all_configs_recursive(options_dict_copy, config_dict_copy)
-
-    return configs_list
-
-# TODO Better name.
 def check_filter(config_dict, filter_dict):
     for name, value in filter_dict.iteritems():
         if not name in config_dict:
             return True
 
-        if isinstance(value, str):
-            if config_dict[name] != value:
+        if isinstance(value[1], str):
+            if value[0] != (config_dict[name] == value[1]):
                 return True
         else:
             if value[0] != bool(value[1].match(config_dict[name])):
@@ -104,119 +202,82 @@ def check_filters(config_dict, filters_list):
 def gen_all_configs(options_dict, filters_list):
     configs_list = []
 
-    for config_dict in gen_all_configs_recursive(options_dict):
+    for config_dict in gen_configs_list(options_dict):
         if (check_filters(config_dict, filters_list)):
             configs_list.append(config_dict)
 
     return configs_list
 
-def gen_all_combinations_str(options_dict):
-    return [' '.join([value for value in config_dict.itervalues()])
-                     for config_dict in gen_all_configs_recursive(options_dict)]
+def find_options_dict(options_sets, name):
+    if name not in options_sets:
+        return None
 
-def gen_boolean_exclusive_filters_list(options_list):
-    filters_triplets = []
+    return options_sets[name]
 
-    # Forge all (name, value) triplet combinations, filter those where a name
-    # appears more than once, and then those where there isn't exactly one
-    # value 'y'.
-    for x in itertools.combinations(itertools.product(options_list, ['y', 'n']), 3):
-        if (len(x) == len(set([y[0] for y in x]))
-            and len(filter(lambda x: x == 'y', [y[1] for y in x])) != 1):
-            filters_triplets.append(x)
+def print_set(name, options_dict):
+    print name
+    map(lambda x: print_fn('  ' + x), sorted(iter(options_dict)))
 
-    filters_list = []
+class BuildConfigListSetsAction(argparse.Action):
+    def __init__(self, nargs=0, **kwargs):
+        if nargs != 0:
+            raise ValueError("nargs not allowed")
 
-    for filters_triplet in filters_triplets:
-        filters_list.append(dict(filters_triplet))
+        super(BuildConfigListSetsAction, self).__init__(nargs=nargs, **kwargs)
 
-    return filters_list
+    def __call__(self, parser, namespace, values, option_string=None):
+        map(print_set, all_options_sets.iterkeys(),
+            all_options_sets.itervalues())
+        sys.exit(0)
 
-# Dictionary of compiler options.
-#
-# Each entry describes a single compiler option. The key is mostly ignored
-# and serves as description, but must be present in order to reuse the
-# gen_all_configs_recursive() function. The value is a list of all values
-# that may be used for this compiler option when building a configuration.
-all_cc_options_dict = {
-    'O'         : ['-O0', '-O2', '-Os'],
-    'LTO'       : ['-flto', '-fno-lto'],
-    'SSP'       : ['-fno-stack-protector', '-fstack-protector'],
-}
+def main():
+    parser = argparse.ArgumentParser(description='Configuration builder')
+    parser.add_argument('-s', '--set', default='small',
+                        help='select a set of options to combine')
+    parser.add_argument('-l', '--list-sets', action=BuildConfigListSetsAction,
+                        help='print the list of options sets')
+    args = parser.parse_args()
 
-# Dictionary of options.
-#
-# Each entry describes a single option. The key matches an option name
-# whereas the value is a list of all values that may be used for this
-# option when building a configuration.
-all_options_dict = {
-    'CONFIG_CC_EXE'                 : ['gcc', 'clang'],
-    'CONFIG_CC_OPTIONS'             : gen_all_combinations_str(all_cc_options_dict),
-    'CONFIG_ASSERT'                 : ['y', 'n'],
-    'CONFIG_64BITS'                 : ['y', 'n'],
-    'CONFIG_X86_PAE'                : ['y', 'n'],
-    'CONFIG_MULTIPROCESSOR'         : ['y', 'n'],
-    'CONFIG_MAX_CPUS'               : ['1', '128'],
-    'CONFIG_MUTEX_ADAPTIVE'         : ['y', 'n'],
-    'CONFIG_MUTEX_PI'               : ['y', 'n'],
-    'CONFIG_MUTEX_PLAIN'            : ['y', 'n'],
-    'CONFIG_SHELL'                  : ['y', 'n'],
-    'CONFIG_THREAD_STACK_GUARD'     : ['y', 'n'],
-    # TODO Test modules.
-}
+    options_dict = find_options_dict(all_options_sets, args.set)
 
-# List of filters used to determine valid configurations.
-#
-# Each entry is a dictionary of options. The key matches an option name
-# whereas the value may either be a string for exact matching, or a regular
-# expression for more powerful matching.
-all_filters_list = [
-    # XXX Clang currently cannot build the kernel with LTO.
-    {
-        'CONFIG_CC_EXE'             :   'clang',
-        'CONFIG_CC_OPTIONS'         :   [True, re.compile('-flto')],
-    },
-    {
-        'CONFIG_MULTIPROCESSOR'     :   'n',
-        'CONFIG_MAX_CPUS'           :   [False, re.compile('^0*1$')],
-    },
-    {
-        'CONFIG_64BITS'             :   'y',
-        'CONFIG_X86_PAE'            :   'y',
-    },
-]
-all_filters_list += gen_boolean_exclusive_filters_list([
-    'CONFIG_MUTEX_ADAPTIVE',
-    'CONFIG_MUTEX_PI',
-    'CONFIG_MUTEX_PLAIN'
-])
+    if not options_dict:
+        print 'error: invalid set'
+        sys.exit(2);
 
-if __name__ == '__main__':
+    print 'set: ' + args.set
+    configs_list = gen_all_configs(options_dict, all_filters_list)
+    nr_configs = len(configs_list)
+    print 'total: ' + str(nr_configs)
+
     # This tool performs out-of-tree builds and requires a clean source tree
     print 'cleaning source tree...'
     subprocess.check_call(['make', 'distclean'])
     topbuilddir = os.path.abspath(tempfile.mkdtemp(prefix = 'build', dir = '.'))
-    print 'using ' + topbuilddir
+    print 'top build directory: ' + topbuilddir
 
     pool = multiprocessing.Pool()
-    configs_list = gen_all_configs(all_options_dict, all_filters_list)
-    nr_configs = len(configs_list)
-    print 'total: ' + str(nr_configs)
-    results = pool.map(test_config_star, [(topbuilddir, config_dict)
-                                          for config_dict in configs_list])
-    pool.close()
-    pool.join()
+    worker_args = map(lambda config_dict: (topbuilddir, config_dict),
+                      configs_list)
 
-    for result, buildtree in results:
-        if result != 0:
-            print 'failed: ' + buildtree + '/.config (' + buildtree + '/build.log)'
+    try:
+        results = pool.map(test_config_star, worker_args)
+    except KeyboardInterrupt:
+        pool.terminate()
+        pool.join()
+        shutil.rmtree(topbuilddir)
+        raise
 
-    nr_failures = len(filter(None, [result[0] for result in results]))
-    nr_successes = nr_configs - nr_failures
-    print 'passed: ' + str(nr_successes)
-    print 'failed: ' + str(nr_failures)
+    failures = filter(lambda x: x[0] != 0, results)
+    map(lambda buildtree: print_fn('failed: ' + buildtree + '/.config ('
+                                   + buildtree + '/build.log)'),
+        [buildtree for retval, buildtree in failures])
+    print 'passed: ' + str(nr_configs - len(failures))
+    print 'failed: ' + str(len(failures))
 
     try:
         os.rmdir(topbuilddir)
-    except:
-        pass
+    finally:
+        sys.exit(len(failures) != 0)
+
+if __name__ == '__main__':
+    main()
