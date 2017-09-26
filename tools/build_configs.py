@@ -31,26 +31,28 @@ def gen_configs_list(options_dict):
 def gen_configs_values_str(options_dict):
     return map(lambda x: ' '.join(x.values()), gen_configs_list(options_dict))
 
+def gen_cc_options_list(options_dict):
+    return map(lambda x: x + ' -Werror', gen_configs_values_str(options_dict))
+
 # Check whether a filter prototype is valid.
 #
 # A filter prototype is a list of (name, value) pairs used to build a filter.
 # Keep in mind that a valid filter must match invalid configurations. As a
-# result, a filter prototype is valid if and only if the number of enabled
-# options is not 1.
-def check_exclusive_boolean_filter(filter_prototype):
-    return len(filter(lambda x: x[1] == 'y', filter_prototype)) != 1
+# result, a filter prototype is valid if and only if
+#  - all options are included in the given list, and
+#  - the number of enabled options is not 1
+def check_exclusive_boolean_filter(prototype):
+    return (len(set(map(lambda x: x[0], prototype))) == len(prototype)
+            and len(filter(lambda x: x[1][1] == 'y', prototype)) != 1)
 
 # Generate a list of filters on a list of boolean options.
 #
 # The resulting filters match configurations that don't have one and only
 # one of the given options enabled.
 def gen_exclusive_boolean_filters_list(options_list):
-    product = itertools.product(options_list, ['y', 'n'])
-    filters_prototypes = itertools.combinations(product, len(options_list))
-    return map(dict, filter(check_exclusive_boolean_filter, filters_prototypes))
-
-def gen_cc_options_list(options_dict):
-    return map(lambda x: x + ' -Werror', gen_configs_values_str(options_dict))
+    product = itertools.product(options_list, [[True, 'y'], [True, 'n']])
+    prototypes = list(itertools.combinations(product, len(options_list)))
+    return map(dict, filter(check_exclusive_boolean_filter, prototypes))
 
 # Dictionary of compiler options.
 #
