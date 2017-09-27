@@ -19,20 +19,24 @@ def print_fn(*args):
 
 def quote_if_needed(value):
     if not value.isdigit() and value != 'y' and value != 'n':
-        value = '"' + value + '"'
+        value = '"%s"' % value
 
     return value
 
+# Generate a list of all possible combinations of options.
 def gen_configs_list(options_dict):
     names = options_dict.keys()
     product = itertools.product(*options_dict.itervalues())
     return map(lambda x: dict(zip(names, x)), product)
 
+# Generate a list of all possible combinations of options as strings.
 def gen_configs_values_str(options_dict):
     return map(lambda x: ' '.join(x.values()), gen_configs_list(options_dict))
 
+# Does the same as gen_configs_values_str() but adds the -Werror option
+# to all generated strings.
 def gen_cc_options_list(options_dict):
-    return map(lambda x: x + ' -Werror', gen_configs_values_str(options_dict))
+    return map(lambda x: '%s -Werror' % x, gen_configs_values_str(options_dict))
 
 # Check whether a filter prototype is valid.
 #
@@ -129,19 +133,15 @@ all_filters_list += gen_exclusive_boolean_filters_list([
     'CONFIG_MUTEX_PLAIN'
 ])
 
-def gen_config_line(name, value):
-    return name + '=' + quote_if_needed(value)
+def gen_config_line(config_entry):
+    name, value = config_entry
+    return '%s=%s\n' % (name, quote_if_needed(value))
 
 def gen_config_content(config_dict):
-    lines = []
-
-    for name, value in config_dict.iteritems():
-        lines.append(gen_config_line(name, value) + '\n')
-
-    return lines
+    return map(gen_config_line, config_dict.iteritems())
 
 def test_config_run(command, check, buildlog):
-    buildlog.writelines(['$ ' + command + '\n'])
+    buildlog.writelines(['$ %s\n' % command])
     buildlog.flush()
 
     if check:
@@ -151,7 +151,9 @@ def test_config_run(command, check, buildlog):
         return subprocess.call(command.split(), stdout = buildlog,
                                stderr = subprocess.STDOUT)
 
-def test_config(topbuilddir, config_dict):
+# This function is run in multiprocessing.Pool workers.
+def test_config(args):
+    topbuilddir, config_dict = args
     srctree = os.path.abspath(os.getcwd())
     buildtree = tempfile.mkdtemp(dir = topbuilddir)
     os.chdir(buildtree)
@@ -161,11 +163,12 @@ def test_config(topbuilddir, config_dict):
     f.close()
 
     try:
-        test_config_run(srctree + '/tools/kconfig/merge_config.sh -f '
-                        + srctree + '/Makefile .testconfig', True, buildlog)
-        test_config_run('make -f ' + srctree + '/Makefile olddefconfig',
+        test_config_run('%s/tools/kconfig/merge_config.sh'
+                        ' -f %s/Makefile .testconfig' % (srctree, srctree),
                         True, buildlog)
-        retval = test_config_run('make -f ' + srctree + '/Makefile x15',
+        test_config_run('make -f %s/Makefile olddefconfig' % srctree,
+                        True, buildlog)
+        retval = test_config_run('make -f %s/Makefile x15' % srctree,
                                  False, buildlog)
     except KeyboardInterrupt:
         buildlog.close()
@@ -181,9 +184,7 @@ def test_config(topbuilddir, config_dict):
 
     return [retval, buildtree]
 
-def test_config_star(args):
-    return test_config(*args)
-
+# Return true if a filter doesn't completely match a configuration.
 def check_filter(config_dict, filter_dict):
     for name, value in filter_dict.iteritems():
         if not name in config_dict:
@@ -198,21 +199,19 @@ def check_filter(config_dict, filter_dict):
 
     return False
 
-def check_filters(config_dict, filters_list):
+# Return true if a configuration passes all the given filters.
+def check_filters(args):
+    config_dict, filters_list = args
+
     for filter_dict in filters_list:
         if (not check_filter(config_dict, filter_dict)):
             return False
 
     return True
 
-def gen_all_configs(options_dict, filters_list):
-    configs_list = []
-
-    for config_dict in gen_configs_list(options_dict):
-        if (check_filters(config_dict, filters_list)):
-            configs_list.append(config_dict)
-
-    return configs_list
+def filter_configs_list(configs_list, filters_list):
+    configs_and_filters = map(lambda x: (x, filters_list), configs_list)
+    return map(lambda x: x[0], filter(check_filters, configs_and_filters))
 
 def find_options_dict(options_sets, name):
     if name not in options_sets:
@@ -251,7 +250,8 @@ def main():
         sys.exit(2);
 
     print 'set: ' + args.set
-    configs_list = gen_all_configs(options_dict, all_filters_list)
+    configs_list = filter_configs_list(gen_configs_list(options_dict),
+                                       all_filters_list)
     nr_configs = len(configs_list)
     print 'total: ' + str(nr_configs)
 
@@ -262,11 +262,10 @@ def main():
     print 'top build directory: ' + topbuilddir
 
     pool = multiprocessing.Pool()
-    worker_args = map(lambda config_dict: (topbuilddir, config_dict),
-                      configs_list)
+    worker_args = map(lambda x: (topbuilddir, x), configs_list)
 
     try:
-        results = pool.map(test_config_star, worker_args)
+        results = pool.map(test_config, worker_args)
     except KeyboardInterrupt:
         pool.terminate()
         pool.join()
@@ -274,8 +273,8 @@ def main():
         raise
 
     failures = filter(lambda x: x[0] != 0, results)
-    map(lambda buildtree: print_fn('failed: ' + buildtree + '/.config ('
-                                   + buildtree + '/build.log)'),
+    map(lambda buildtree: print_fn('failed: %s/.config (%s/build.log)'
+                                   % (buildtree, buildtree)),
         [buildtree for retval, buildtree in failures])
     print 'passed: ' + str(nr_configs - len(failures))
     print 'failed: ' + str(len(failures))
