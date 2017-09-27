@@ -73,17 +73,17 @@ all_cc_options_dict = {
 # option when building a configuration.
 
 small_options_dict = {
-    'CONFIG_CC_EXE'                 : ['gcc', 'clang'],
     'CONFIG_CC_OPTIONS'             : gen_cc_options_list(all_cc_options_dict),
+    'CONFIG_MULTIPROCESSOR'         : ['y', 'n'],
+    'CONFIG_MAX_CPUS'               : ['1', '128'],
     'CONFIG_ASSERT'                 : ['y', 'n'],
 }
 
 large_options_dict = dict(small_options_dict)
 large_options_dict.update({
+    'CONFIG_CC_EXE'                 : ['gcc', 'clang'],
     'CONFIG_64BITS'                 : ['y', 'n'],
     'CONFIG_X86_PAE'                : ['y', 'n'],
-    'CONFIG_MULTIPROCESSOR'         : ['y', 'n'],
-    'CONFIG_MAX_CPUS'               : ['1', '128'],
     'CONFIG_MUTEX_ADAPTIVE'         : ['y', 'n'],
     'CONFIG_MUTEX_PI'               : ['y', 'n'],
     'CONFIG_MUTEX_PLAIN'            : ['y', 'n'],
