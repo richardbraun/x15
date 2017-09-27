@@ -235,7 +235,7 @@ class BuildConfigListSetsAction(argparse.Action):
 def main():
     parser = argparse.ArgumentParser(description='Configuration builder')
     parser.add_argument('-s', '--set', default='small',
-                        help='select a set of options to combine')
+                        help='select a set of options (default=small)')
     parser.add_argument('-l', '--list-sets', action=BuildConfigListSetsAction,
                         help='print the list of options sets')
     args = parser.parse_args()
