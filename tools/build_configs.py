@@ -18,7 +18,7 @@ def print_fn(*args):
     return None
 
 def quote_if_needed(value):
-    if not isinstance(value, int) and value != 'y' and value != 'n':
+    if not value.isdigit() and value != 'y' and value != 'n':
         value = '"' + value + '"'
 
     return value
