@@ -111,8 +111,12 @@ all_filters_list = [
         'CONFIG_CC_OPTIONS'         :   [True, re.compile('-flto')],
     },
     {
+        'CONFIG_MULTIPROCESSOR'     :   [True, 'y'],
+        'CONFIG_MAX_CPUS'           :   [True, '1'],
+    },
+    {
         'CONFIG_MULTIPROCESSOR'     :   [True, 'n'],
-        'CONFIG_MAX_CPUS'           :   [False, re.compile('^0*1$')],
+        'CONFIG_MAX_CPUS'           :   [False, '1'],
     },
     {
         'CONFIG_64BITS'             :   [True, 'y'],
