@@ -999,9 +999,10 @@ pmap_copy_cpu_table(unsigned int cpu)
 
     assert(cpu != 0);
 
-    cpu_table = pmap_get_kernel_pmap()->cpu_tables[cpu];
-    level = PMAP_NR_LEVELS - 1;
     kernel_pmap = pmap_get_kernel_pmap();
+    assert(cpu < ARRAY_SIZE(kernel_pmap->cpu_tables));
+    cpu_table = kernel_pmap->cpu_tables[cpu];
+    level = PMAP_NR_LEVELS - 1;
     sptp = pmap_ptp_from_pa(kernel_pmap->cpu_tables[cpu_id()]->root_ptp_pa);
 
 #ifdef CONFIG_X86_PAE
