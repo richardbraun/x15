@@ -95,8 +95,6 @@ large_options_dict.update({
     'CONFIG_THREAD_STACK_GUARD'     : ['y', 'n'],
 })
 
-# TODO Test modules set of options and filters.
-
 all_options_sets = {
     'small'                         : small_options_dict,
     'large'                         : large_options_dict,
