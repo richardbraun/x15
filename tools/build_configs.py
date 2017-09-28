@@ -164,11 +164,11 @@ def test_config(args):
 
     try:
         test_config_run('%s/tools/kconfig/merge_config.sh'
-                        ' -f %s/Makefile .testconfig' % (srctree, srctree),
+                        ' -m -f %s/Makefile .testconfig' % (srctree, srctree),
                         True, buildlog)
-        test_config_run('make -f %s/Makefile olddefconfig' % srctree,
+        test_config_run('make -f %s/Makefile V=1 olddefconfig' % srctree,
                         True, buildlog)
-        retval = test_config_run('make -f %s/Makefile x15' % srctree,
+        retval = test_config_run('make -f %s/Makefile V=1 x15' % srctree,
                                  False, buildlog)
     except KeyboardInterrupt:
         buildlog.close()
