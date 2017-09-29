@@ -1,0 +1,19 @@
+menu "Architecture-specific options"
+
+config ARM
+	def_bool y
+
+choice
+	prompt "Board"
+	default QEMU_VIRT
+
+config QEMU_VIRT
+	bool "QEMU virtual machine"
+
+endchoice
+
+config SUBARCH
+	string
+	default "armv5tej" if X86_32
+
+endmenu

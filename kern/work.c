@@ -18,6 +18,7 @@
 #include <assert.h>
 #include <stdalign.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include <kern/bitmap.h>
 #include <kern/error.h>
