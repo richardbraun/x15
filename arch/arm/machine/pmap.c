@@ -34,6 +34,7 @@ pmap_kextract(uintptr_t va, phys_addr_t *pap)
 {
     (void)va;
     (void)pap;
+    return ERROR_AGAIN;
 }
 
 int

@@ -18,12 +18,7 @@
 #ifndef _ARM_PMAP_H
 #define _ARM_PMAP_H
 
-#include <stddef.h>
-#include <stdint.h>
-
-#include <kern/cpumap.h>
 #include <kern/macros.h>
-#include <machine/types.h>
 
 #define PMAP_START_ADDRESS              DECL_CONST(0, UL)
 #define PMAP_END_ADDRESS                DECL_CONST(0xc0000000, UL)
@@ -34,8 +29,18 @@
 #define PMAP_START_DIRECTMAP_ADDRESS    PMAP_END_ADDRESS
 #define PMAP_END_DIRECTMAP_ADDRESS      DECL_CONST(0xf8000000, UL)
 
+#define PMAP_KERNEL_OFFSET              PMAP_START_DIRECTMAP_ADDRESS
+
 #define PMAP_START_KMEM_ADDRESS         PMAP_END_DIRECTMAP_ADDRESS
 #define PMAP_END_KMEM_ADDRESS           PMAP_END_KERNEL_ADDRESS
+
+#ifndef __ASSEMBLER__
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include <kern/cpumap.h>
+#include <machine/types.h>
 
 /*
  * Mapping creation flags.
@@ -76,5 +81,7 @@ INIT_OP_DECLARE(pmap_bootstrap);
  *  - module fully initialized
  */
 INIT_OP_DECLARE(pmap_setup);
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ARM_PMAP_H */

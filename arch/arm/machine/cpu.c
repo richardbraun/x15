@@ -27,6 +27,10 @@ void cpu_log_info(const struct cpu *cpu)
     (void)cpu;
 }
 
+void cpu_mp_setup(void)
+{
+}
+
 static int __init
 cpu_setup(void)
 {

@@ -19,10 +19,6 @@
 #define _ARM_CPU_H
 
 #include <limits.h>
-#include <stdbool.h>
-#include <stdnoreturn.h>
-
-#include <kern/init.h>
 
 /*
  * L1 cache line size.
@@ -35,6 +31,13 @@
  * Data alignment, normally the word size.
  */
 #define CPU_DATA_ALIGN (LONG_BIT / 8)
+
+#ifndef __ASSEMBLER__
+
+#include <stdbool.h>
+#include <stdnoreturn.h>
+
+#include <kern/init.h>
 
 struct cpu {
 };
@@ -137,5 +140,7 @@ INIT_OP_DECLARE(cpu_setup);
  *  - cpu_count()
  */
 INIT_OP_DECLARE(cpu_mp_probe);
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ARM_CPU_H */

@@ -18,6 +18,15 @@
 #ifndef _ARM_BOOT_H
 #define _ARM_BOOT_H
 
+#include <kern/macros.h>
+#include <machine/pmap.h>
+
+#define BOOT_OFFSET DECL_CONST(0x0, UL)
+
+#define BOOT_VTOP(addr) ((addr) - PMAP_KERNEL_OFFSET)
+
+#ifndef __ASSEMBLER__
+
 #include <kern/init.h>
 
 /*
@@ -54,5 +63,7 @@ INIT_OP_DECLARE(boot_setup_intr);
  *  - all shutdown operations have been registered
  */
 INIT_OP_DECLARE(boot_setup_shutdown);
+
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ARM_BOOT_H */

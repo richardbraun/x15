@@ -16,6 +16,7 @@
  */
 
 #include <kern/init.h>
+#include <machine/boot.h>
 
 void __init
 boot_log_info(void)
@@ -43,7 +44,7 @@ boot_setup_console(void)
 INIT_OP_DEFINE(boot_setup_console);
 
 static int __init
-boot_setup_intr(void)
+boot_load_vm_page_zones(void)
 {
     return 0;
 }

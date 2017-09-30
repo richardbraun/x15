@@ -15,30 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <kern/error.h>
-#include <kern/init.h>
-#include <machine/tcb.h>
+.section .boot.hdr, "awx"
 
-int
-tcb_build(struct tcb *tcb, void *stack, void (*fn)(void *), void *arg)
-{
-    (void)tcb;
-    (void)stack;
-    (void)fn;
-    (void)arg;
-    return ERROR_AGAIN;
-}
+.long _start
 
-void
-tcb_cleanup(struct tcb *tcb)
-{
-    (void)tcb;
-}
-
-static int __init
-tcb_setup(void)
-{
-    return 0;
-}
-
-INIT_OP_DEFINE(tcb_setup);
+.global _start
+_start:
+ mov %r0, #0x12
+ b .
