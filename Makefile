@@ -71,9 +71,16 @@ define xbuild_compile
 		$(COMPILE) -MMD -MP -c -o $@ $<
 endef
 
+# $(call xbuild_gen_linker_script_depfile,<linker_script>)
+define xbuild_gen_linker_script_depfile
+$(call xbuild_replace_source_suffix,d,$(1))
+endef
+
 define xbuild_gen_linker_script
 	$(call xbuild_action,LDS,$@) \
-		$(CPP) $(XBUILD_CPPFLAGS) -P -o $@ $<
+		$(CPP) $(XBUILD_CPPFLAGS) -MMD -MP \
+		-MF $(call xbuild_gen_linker_script_depfile,$<) \
+		-MT $@ -P -o $@ $<
 endef
 
 # $(call xbuild_link,<objects>)
@@ -281,6 +288,7 @@ COMPILE := $(CC) $(XBUILD_CPPFLAGS) $(XBUILD_CFLAGS)
 x15_SOURCES := $(x15_SOURCES-y)
 x15_OBJDEPS := $(call xbuild_replace_source_suffix,d,$(x15_SOURCES))
 x15_OBJECTS := $(call xbuild_replace_source_suffix,o,$(x15_SOURCES))
+x15_LDS_D := $(call xbuild_gen_linker_script_depfile,$(x15_LDS_S))
 x15_LDS := $(basename $(x15_LDS_S))
 
 XBUILD_LDFLAGS += -Xlinker -T $(x15_LDS)
@@ -300,7 +308,7 @@ x15_DEPS := $(x15_LDS) .x15.sorted_init_ops
 # rules file doesn't exist, the main source file is enough to trigger a
 # rebuild. Afterwards, the dependency rules file is included here and the
 # rules provide correct incremental compilation.
--include $(x15_OBJDEPS)
+-include $(x15_OBJDEPS) $(x15_LDS_D)
 
 %.o: %.c include/generated/autoconf.h
 	$(xbuild_compile)
