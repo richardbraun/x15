@@ -15,8 +15,41 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdalign.h>
+#include <stddef.h>
+#include <stdint.h>
+
 #include <kern/init.h>
 #include <machine/boot.h>
+#include <machine/cpu.h>
+#include <machine/pmap.h>
+#include <vm/vm_kmem.h>
+
+alignas(CPU_DATA_ALIGN) char boot_stack[BOOT_STACK_SIZE] __bootdata;
+
+static char boot_hello_msg[] __bootdata = "Hello, world!\r\n";
+
+static void __boot
+boot_hello_world(void)
+{
+    volatile unsigned long *uart_data_reg = (volatile unsigned long *)0x9000000;
+    const char *s = boot_hello_msg;
+
+    while (*s != '\0') {
+        *uart_data_reg = *s;
+        s++;
+    }
+}
+
+void boot_setup_paging(void);
+
+void __boot
+boot_setup_paging(void)
+{
+    boot_hello_world();
+
+    for (;;);
+}
 
 void __init
 boot_log_info(void)

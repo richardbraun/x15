@@ -19,15 +19,32 @@
 #define _ARM_BOOT_H
 
 #include <kern/macros.h>
+#include <machine/page.h>
 #include <machine/pmap.h>
 
-#define BOOT_OFFSET DECL_CONST(0x0, UL)
+/*
+ * Size of the stack used when booting a processor.
+ */
+#define BOOT_STACK_SIZE PAGE_SIZE
 
-#define BOOT_VTOP(addr) ((addr) - PMAP_KERNEL_OFFSET)
+#define BOOT_LOAD_SECTION .boot.load
+#define BOOT_TEXT_SECTION .boot.text
+#define BOOT_DATA_SECTION .boot.data
+
+#define BOOT_RAM_START      0x40000000 /* XXX Specific to the Qemu virtual machine */
+#define BOOT_KERNEL_OFFSET  (PMAP_START_KERNEL_ADDRESS - BOOT_RAM_START)
+
+#define BOOT_RTOL(addr) ((addr) - BOOT_RAM_START)
+#define BOOT_VTOL(addr) ((addr) - PMAP_START_KERNEL_ADDRESS)
+
+#define BOOT_VTOP(addr) ((addr) - BOOT_RAM_START)
 
 #ifndef __ASSEMBLER__
 
 #include <kern/init.h>
+
+#define __boot     __section(QUOTE(BOOT_TEXT_SECTION))
+#define __bootdata __section(QUOTE(BOOT_DATA_SECTION)) __attribute__((used))
 
 /*
  * Log kernel version and other architecture-specific information.

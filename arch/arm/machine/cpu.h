@@ -29,8 +29,23 @@
 
 /*
  * Data alignment, normally the word size.
+ *
+ * TODO Check.
  */
-#define CPU_DATA_ALIGN (LONG_BIT / 8)
+#define CPU_DATA_SHIFT 2
+#define CPU_DATA_ALIGN (1 << CPU_DATA_SHIFT)
+
+/*
+ * Function alignment.
+ *
+ * Aligning functions improves instruction fetching.
+ *
+ * Used for assembly functions only.
+ *
+ * XXX Use this value until processor selection is available.
+ */
+#define CPU_TEXT_SHIFT 4
+#define CPU_TEXT_ALIGN (1 << CPU_TEXT_SHIFT)
 
 #ifndef __ASSEMBLER__
 

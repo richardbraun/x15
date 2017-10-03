@@ -15,11 +15,64 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-.section .boot.hdr, "awx"
+#include <machine/asm.h>
+#include <machine/boot.h>
+#include <machine/pmap.h>
 
-.long _start
+.section BOOT_LOAD_SECTION, "awx"
 
-.global _start
-_start:
- mov %r0, #0x12
- b .
+ASM_DATA(boot_exception_table):
+ .long _start   /* Reset */
+ .long 0        /* Undefined instruction */
+ .long 0        /* Software interrupt */
+ .long 0        /* Prefetch abort */
+ .long 0        /* Data abort */
+ .long 0        /* IRQ */
+ .long 0        /* FIQ */
+ASM_END(boot_exception_table)
+
+ASM_FUNC(_start):
+ /*
+  * Assume the code runs from flash. For the sake of simplicity, make
+  * the kernel run from RAM. This requires relocating it, and since the
+  * RAM size isn't known, we can't use it for a stack. As a result,
+  * perform the relocation in assembly without using a stack.
+  */
+ ldr %r5, =(BOOT_RAM_START)             /* Load RAM address in %r5 */
+ mov %r6, #0                            /* Load kernel address in %r6 */
+ ldr %r0, boot_kernel_end               /* Load kernel end virtual address
+                                           in %r0 */
+ ldr %r1, =(PMAP_START_KERNEL_ADDRESS)  /* Load kernel virtual address in %r1 */
+ sub %r7, %r0, %r1                      /* Compute kernel size in bytes */
+ lsr %r7, %r7, #2                       /* Compute kernel size in words */
+
+ sub %r5, %r5, #4                       /* Prepare for auto-increment */
+ sub %r6, %r6, #4
+
+1:
+ ldr %r0, [%r6, #4]!                    /* Load word with auto-increment */
+ str %r0, [%r5, #4]!                    /* Store word with auto-increment */
+ sub %r7, %r7, #4                       /* Account for the written word */
+ cmp %r7, #0                            /* Check the number of words left */
+ beq 1f                                 /* Break if copy complete */
+ b 1b                                   /* Continue otherwise */
+
+1:
+ /* TODO Invalidate all caches */
+
+ /* Set up the stack */
+ ldr %r13, boot_stack_addr
+ add %r13, %r13, #BOOT_STACK_SIZE
+
+ bl boot_setup_paging
+
+ /* Never reached */
+ nop
+
+ASM_END(_start)
+
+boot_kernel_end:
+ .long _end
+
+boot_stack_addr:
+ .long boot_stack

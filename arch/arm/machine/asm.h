@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012 Richard Braun.
+ * Copyright (c) 2011, 2012 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _ARM_ASM_H
-#define _ARM_ASM_H
+#ifndef _X86_ASM_H
+#define _X86_ASM_H
 
 #ifndef __ASSEMBLER__
 #warning "asm.h included from a C file"
@@ -24,19 +24,19 @@
 
 #include <machine/cpu.h>
 
-#define ASM_ENTRY(x)    \
-.align CPU_TEXT_ALIGN;  \
+#define ASM_FUNC(x)     \
+.align CPU_TEXT_SHIFT;  \
 .global x;              \
 .type x, STT_FUNC;      \
-x:
+x
 
 #define ASM_DATA(x)     \
-.align CPU_DATA_ALIGN;  \
+.align CPU_DATA_SHIFT;  \
 .global x;              \
 .type x, STT_OBJECT;    \
-x:
+x
 
-#define ASM_END(x)  \
+#define ASM_END(x) \
 .size x, . - x
 
-#endif /* _ARM_ASM_H */
+#endif /* _X86_ASM_H */
