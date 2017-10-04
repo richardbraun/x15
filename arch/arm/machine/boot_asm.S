@@ -58,7 +58,14 @@ ASM_FUNC(_start):
  b 1b                                   /* Continue otherwise */
 
 1:
- /* TODO Invalidate all caches */
+ /*
+  * Relocation is done. Make sure that the processor actually runs kernel
+  * code by flushing all the relevant caches.
+  */
+ mov %r0, #0
+ mcr p15, 0, %r0, c7, c7, 0               /* Clean all caches */
+ mcr p15, 0, %r0, c7, c10, 5              /* Data synchronization barrier */
+ mcr p15, 0, %r0, c7, c5, 4               /* Flush prefetch buffer */
 
  /* Set up the stack */
  ldr %r13, boot_stack_addr
