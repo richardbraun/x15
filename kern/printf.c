@@ -15,6 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
+
 #include <kern/console.h>
 #include <kern/fmt.h>
 #include <kern/init.h>

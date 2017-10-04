@@ -21,6 +21,7 @@
 #include <assert.h>
 #include <stdalign.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <kern/cpumap.h>

@@ -44,6 +44,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include <kern/condition.h>
 #include <kern/cpumap.h>
