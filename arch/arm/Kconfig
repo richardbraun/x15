@@ -5,10 +5,10 @@ config ARM
 
 choice
 	prompt "Board"
-	default QEMU_VIRT
+	default QEMU_VIRT_2_8
 
-config QEMU_VIRT
-	bool "QEMU virtual machine"
+config QEMU_VIRT_2_8
+	bool "QEMU 2.8 virtual machine"
 
 endchoice
 
