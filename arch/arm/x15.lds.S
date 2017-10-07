@@ -7,6 +7,7 @@ ENTRY(_start)
 #include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/page.h>
+#include <machine/pmem.h>
 
 PHDRS
 {
@@ -28,7 +29,7 @@ SECTIONS
         *(BOOT_LOAD_SECTION)
     } : load
 
-    . += BOOT_RAM_START;
+    . += PMEM_RAM_START;
     _boot = .;
 
     .boot ALIGN(PAGE_SIZE) : AT(BOOT_RTOL(ADDR(.boot))) {
@@ -39,7 +40,7 @@ SECTIONS
     . = ALIGN(PAGE_SIZE);
     _boot_end = .;
 
-    . += (PMAP_START_KERNEL_ADDRESS - BOOT_RAM_START);
+    . += (PMAP_START_KERNEL_ADDRESS - PMEM_RAM_START);
     _init = .;
 
     .init ALIGN(PAGE_SIZE) : AT(BOOT_VTOL(ADDR(.init))) {

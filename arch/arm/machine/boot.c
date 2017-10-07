@@ -20,33 +20,44 @@
 #include <stdint.h>
 
 #include <kern/init.h>
+#include <kern/bootmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
 #include <machine/pmap.h>
+#include <machine/pmem.h>
 #include <vm/vm_kmem.h>
+
+#define BOOT_UART_DATA_REG 0x9000000
 
 alignas(CPU_DATA_ALIGN) char boot_stack[BOOT_STACK_SIZE] __bootdata;
 
-static char boot_hello_msg[] __bootdata = "Hello, world!\r\n";
+void boot_setup_paging(void);
 
-static void __boot
-boot_hello_world(void)
+void __boot
+boot_panic(const char *s)
 {
-    volatile unsigned long *uart_data_reg = (volatile unsigned long *)0x9000000;
-    const char *s = boot_hello_msg;
+    volatile unsigned long *uart_data_reg;
+
+    uart_data_reg = (volatile unsigned long *)BOOT_UART_DATA_REG;
 
     while (*s != '\0') {
         *uart_data_reg = *s;
         s++;
     }
-}
 
-void boot_setup_paging(void);
+    for (;;);
+}
 
 void __boot
 boot_setup_paging(void)
 {
-    boot_hello_world();
+    bootmem_register_zone(PMEM_ZONE_DMA, true, PMEM_RAM_START, PMEM_DMA_LIMIT);
+    bootmem_setup(false);
+
+#if 1
+    void *page_addr1 = bootmem_alloc(3);
+    void *page_addr2 = bootmem_alloc(3);
+#endif
 
     for (;;);
 }

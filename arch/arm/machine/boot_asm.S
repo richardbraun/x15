@@ -18,6 +18,7 @@
 #include <machine/asm.h>
 #include <machine/boot.h>
 #include <machine/pmap.h>
+#include <machine/pmem.h>
 
 .section BOOT_LOAD_SECTION, "awx"
 
@@ -38,7 +39,7 @@ ASM_FUNC(_start):
   * RAM size isn't known, we can't use it for a stack. As a result,
   * perform the relocation in assembly without using a stack.
   */
- ldr %r5, =(BOOT_RAM_START)             /* Load RAM address in %r5 */
+ ldr %r5, =(PMEM_RAM_START)             /* Load RAM address in %r5 */
  mov %r6, #0                            /* Load kernel address in %r6 */
  ldr %r0, boot_kernel_end               /* Load kernel end virtual address
                                            in %r0 */

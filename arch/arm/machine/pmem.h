@@ -19,6 +19,8 @@
  *
  * This file is a top header in the inclusion hierarchy, and shouldn't include
  * other headers that may cause circular dependencies.
+ *
+ * XXX Specific to the Qemu virtual machine.
  */
 
 #ifndef _ARM_PMEM_H
@@ -30,21 +32,21 @@
  * Zone boundaries.
  */
 
-#define PMEM_DMA_LIMIT          DECL_CONST(0x1000000, UL)
-#define PMEM_DIRECTMAP_LIMIT    DECL_CONST(0x38000000, ULL)
-#define PMEM_HIGHMEM_LIMIT      DECL_CONST(0xfffff000, UL)
+#define PMEM_RAM_START          DECL_CONST(0x40000000, UL)
+#define PMEM_DMA_LIMIT          DECL_CONST(0x44000000, UL)
+#define PMEM_DMA32_LIMIT        PMEM_DMA_LIMIT
+#define PMEM_DIRECTMAP_LIMIT    PMEM_DMA_LIMIT
+#define PMEM_HIGHMEM_LIMIT      PMEM_DMA_LIMIT
 
-#define PMEM_MAX_ZONES          3
+#define PMEM_MAX_ZONES          1
 
 /*
  * Zone vm_page indexes.
  */
 
 #define PMEM_ZONE_DMA           0
-#define PMEM_ZONE_DMA32         1
-
-#define PMEM_ZONE_DMA32         1
-#define PMEM_ZONE_DIRECTMAP     1   /* Alias for the DMA32 zone */
-#define PMEM_ZONE_HIGHMEM       2
+#define PMEM_ZONE_DMA32         PMEM_ZONE_DMA
+#define PMEM_ZONE_DIRECTMAP     PMEM_ZONE_DMA
+#define PMEM_ZONE_HIGHMEM       PMEM_ZONE_DMA
 
 #endif /* _ARM_PMEM_H */
