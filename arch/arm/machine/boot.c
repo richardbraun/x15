@@ -31,7 +31,7 @@
 
 alignas(CPU_DATA_ALIGN) char boot_stack[BOOT_STACK_SIZE] __bootdata;
 
-void boot_setup_paging(void);
+pmap_pte_t * boot_setup_paging(void);
 
 void __boot
 boot_panic(const char *s)
@@ -48,18 +48,12 @@ boot_panic(const char *s)
     for (;;);
 }
 
-void __boot
+pmap_pte_t * __boot
 boot_setup_paging(void)
 {
     bootmem_register_zone(PMEM_ZONE_DMA, true, PMEM_RAM_START, PMEM_DMA_LIMIT);
     bootmem_setup(false);
-
-#if 1
-    void *page_addr1 = bootmem_alloc(3);
-    void *page_addr2 = bootmem_alloc(3);
-#endif
-
-    for (;;);
+    return pmap_setup_paging();
 }
 
 void __init

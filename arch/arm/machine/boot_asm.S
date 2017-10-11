@@ -53,7 +53,7 @@ ASM_FUNC(_start):
 1:
  ldr %r0, [%r6, #4]!                    /* Load word with auto-increment */
  str %r0, [%r5, #4]!                    /* Store word with auto-increment */
- sub %r7, %r7, #4                       /* Account for the written word */
+ sub %r7, %r7, #1                       /* Account for the written word */
  cmp %r7, #0                            /* Check the number of words left */
  beq 1f                                 /* Break if copy complete */
  b 1b                                   /* Continue otherwise */
@@ -62,25 +62,46 @@ ASM_FUNC(_start):
  /*
   * Relocation is done. Make sure that the processor actually runs kernel
   * code by flushing all the relevant caches.
+  *
+  * Also, in preparation for paging, disable all caches.
+  *
+  * The reference manual only suggests disabling the instruction cache
+  * (B4.2.3 Enabling and disabling the MMU) but the instruction cache may
+  * be unified.
   */
+ mrc p15, 0, %r0, c1, c0, 0             /* Read CP15 control register */
+ bic %r0, %r0, #0x2                     /* Clear the C bit */
+ bic %r0, %r0, #0x1000                  /* Clear the I bit */
+ mcr p15, 0, %r0, c1, c0, 0             /* Write CP15 control register */
  mov %r0, #0
- mcr p15, 0, %r0, c7, c7, 0               /* Clean all caches */
- mcr p15, 0, %r0, c7, c10, 5              /* Data synchronization barrier */
- mcr p15, 0, %r0, c7, c5, 4               /* Flush prefetch buffer */
+ mcr p15, 0, %r0, c7, c7, 0             /* Clean all caches */
+ mcr p15, 0, %r0, c7, c10, 5            /* Data synchronization barrier */
+ mcr p15, 0, %r0, c7, c5, 4             /* Flush prefetch buffer */
 
- /* Set up the stack */
- ldr %r13, boot_stack_addr
- add %r13, %r13, #BOOT_STACK_SIZE
-
- bl boot_setup_paging
-
- /* Never reached */
- nop
-
+ b boot_start_ram                       /* Branch to kernel code in RAM */
 ASM_END(_start)
 
 boot_kernel_end:
  .long _end
+
+.section BOOT_TEXT_SECTION, "awx"
+
+ASM_FUNC(boot_start_ram):
+ ldr %r13, boot_stack_addr              /* Set up the boot stack */
+ add %r13, %r13, #BOOT_STACK_SIZE
+
+ bl boot_setup_paging
+
+ mcr p15, 0, %r0, c2, c0, 0             /* Load the root page table address */
+ mov %r0, #1
+ mcr p15, 0, %r0, c3, c0, 0             /* Set domain 0 access to client */
+ mrc p15, 0, %r0, c1, c0, 0             /* Read CP15 control register */
+ orr %r0, %r0, #1                       /* Set the M bit */
+ mcr p15, 0, %r0, c1, c0, 0             /* Write CP15 control register */
+
+ /* Never reached */
+ b .
+ASM_END(boot_start_ram)
 
 boot_stack_addr:
  .long boot_stack
