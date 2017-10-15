@@ -106,4 +106,13 @@ moo_print(const char *s)
 #define __used              __attribute__((used))
 #endif
 
+#ifndef __fallthrough
+#if __GNUC__ >= 7
+#define __fallthrough       __attribute__((fallthrough))
+#else
+/* TODO: clang 6 might add support for -Wimplicit-fallthrough */
+#define __fallthrough
+#endif
+#endif
+
 #endif /* _KERN_MACROS_H */
