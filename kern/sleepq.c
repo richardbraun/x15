@@ -450,7 +450,7 @@ sleepq_wait_common(struct sleepq *sleepq, const char *wchan,
     sleepq_waiter_init(&waiter, thread);
     sleepq_add_waiter(sleepq, &waiter);
 
-	do {
+    do {
         if (!timed) {
             thread_sleep(&sleepq->bucket->lock, sleepq->sync_obj, wchan);
             error = 0;
