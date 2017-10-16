@@ -2641,6 +2641,8 @@ thread_schedule_intr(void)
 
     assert(thread_check_intr_context());
 
+    /* TODO Explain */
+
     runq = thread_runq_local();
     syscnt_inc(&runq->sc_schedule_intrs);
 }

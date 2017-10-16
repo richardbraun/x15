@@ -39,6 +39,9 @@
 
 #define BOOT_VTOP(addr) ((addr) - BOOT_KERNEL_OFFSET)
 
+#define BOOT_MEM_BLOCK_BITS     10
+#define BOOT_MEM_NR_FREE_LISTS  5
+
 #ifndef __ASSEMBLER__
 
 #include <stdnoreturn.h>

@@ -52,7 +52,7 @@ pmap_pte_t * __boot
 boot_setup_paging(void)
 {
     bootmem_register_zone(PMEM_ZONE_DMA, true, PMEM_RAM_START, PMEM_DMA_LIMIT);
-    bootmem_setup(false);
+    bootmem_setup();
     return pmap_setup_paging();
 }
 

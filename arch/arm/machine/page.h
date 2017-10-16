@@ -22,8 +22,9 @@
 #ifndef _ARM_PAGE_H
 #define _ARM_PAGE_H
 
-#define PAGE_SHIFT  12
-#define PAGE_SIZE   (1 << PAGE_SHIFT)
-#define PAGE_MASK   (PAGE_SIZE - 1)
+#define PAGE_BITS   12
+#define PAGE_SHIFT  PAGE_BITS
+#define PAGE_SIZE   (1 << PAGE_BITS)
+#define PAGE_MASK   (PAGE_BITS - 1)
 
 #endif /* _ARM_PAGE_H */

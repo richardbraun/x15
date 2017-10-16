@@ -25,12 +25,25 @@
 #include <kern/error.h>
 #include <kern/macros.h>
 #include <machine/boot.h>
+#include <machine/page.h>
 #include <machine/pmem.h>
 #include <machine/types.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
 
 #define BOOTMEM_MAX_RESERVED_RANGES 64
+
+#if BOOT_MEM_BLOCK_BITS > PAGE_BITS
+#error "block size too large"
+#endif
+
+#define BOOTMEM_BLOCK_SIZE (1 << BOOT_MEM_BLOCK_BITS)
+
+/*
+ * Special order value for pages that aren't in a free list. Such blocks are
+ * either allocated, or part of a free block of pages but not the head page.
+ */
+#define BOOTMEM_ORDER_UNLISTED ((unsigned short)-1)
 
 /*
  * Contiguous block of physical memory.
@@ -50,8 +63,8 @@ static struct bootmem_zone bootmem_zones[PMEM_MAX_ZONES] __bootdata;
 /*
  * Physical memory range descriptor.
  *
- * The start and end addresses must not be page-aligned, since there
- * could be more than one range inside a single page.
+ * The boundary addresses must not be fixed up, since ranges may overlap the
+ * same pages.
  */
 struct bootmem_range {
     phys_addr_t start;
@@ -66,16 +79,24 @@ static struct bootmem_range bootmem_reserved_ranges[BOOTMEM_MAX_RESERVED_RANGES]
     __bootdata;
 static unsigned int bootmem_nr_reserved_ranges __bootdata;
 
-/*
- * Top-down allocations are normally preferred to avoid unnecessarily
- * filling the DMA zone.
- */
+struct bootmem_block {
+    uintptr_t phys_addr;
+    struct bootmem_block *next;
+    struct bootmem_block **pprev;
+    unsigned short order;
+    bool allocated;
+};
+
+struct bootmem_free_list {
+    struct bootmem_block *blocks;
+};
+
 struct bootmem_heap {
     phys_addr_t start;
     phys_addr_t end;
-    phys_addr_t bottom;
-    phys_addr_t top;
-    bool topdown;
+    struct bootmem_block *blocks;
+    struct bootmem_block *blocks_end;
+    struct bootmem_free_list free_lists[BOOT_MEM_NR_FREE_LISTS];
 };
 
 static struct bootmem_heap bootmem_heap __bootdata;
@@ -407,52 +428,165 @@ bootmem_reserve_range(phys_addr_t start, phys_addr_t end, bool temporary)
     bootmem_nr_reserved_ranges++;
 }
 
-static void __boot
-bootmem_heap_init(struct bootmem_heap *heap, bool topdown,
-                  phys_addr_t start, phys_addr_t end)
+static uintptr_t __boot
+bootmem_block_round(uintptr_t size)
 {
-    heap->start = start;
-    heap->end = end;
-    heap->bottom = start;
-    heap->top = end;
-    heap->topdown = topdown;
+    return P2ROUND(size, BOOTMEM_BLOCK_SIZE);
+}
+
+static uintptr_t __boot
+bootmem_byte2block(uintptr_t byte)
+{
+    return byte >> BOOT_MEM_BLOCK_BITS;
+}
+
+static uintptr_t __boot
+bootmem_block2byte(uintptr_t block)
+{
+    return block << BOOT_MEM_BLOCK_BITS;
+}
+
+static uintptr_t __boot
+bootmem_compute_blocks(uintptr_t start, uintptr_t end)
+{
+    return bootmem_byte2block(end - start);
+}
+
+static uintptr_t __boot
+bootmem_compute_table_size(uintptr_t nr_blocks)
+{
+    return bootmem_block_round(nr_blocks * sizeof(struct bootmem_block));
+}
+
+static void __boot
+bootmem_block_init(struct bootmem_block *block, uintptr_t pa)
+{
+    block->phys_addr = pa;
+    block->order = BOOTMEM_ORDER_UNLISTED;
+    block->allocated = true;
+}
+
+static void __boot
+bootmem_free_list_init(struct bootmem_free_list *list)
+{
+    list->blocks = NULL;
+}
+
+static void __boot
+bootmem_free_list_insert(struct bootmem_free_list *list,
+                         struct bootmem_block *block)
+{
+    struct bootmem_block *blocks;
+
+    blocks = list->blocks;
+    block->next = blocks;
+    block->pprev = &list->blocks;
+
+    if (blocks != NULL) {
+        blocks->pprev = &block->next;
+    }
+
+    list->blocks = block;
+}
+
+static void __boot
+bootmem_free_list_remove(struct bootmem_free_list *list,
+                         struct bootmem_block *block)
+{
+    if (block->next != NULL) {
+        block->next->pprev = block->pprev;
+    }
+
+    *block->pprev = block->next;
+}
+
+static struct bootmem_block * __boot
+bootmem_heap_get_block(struct bootmem_heap *heap, uintptr_t pa)
+{
+    return &heap->blocks[bootmem_byte2block(pa - heap->start)];
+}
+
+static void __boot
+bootmem_heap_free(struct bootmem_heap *heap, struct bootmem_block *block,
+                  unsigned short order)
+{
+    struct bootmem_block *buddy;
+    uintptr_t pa, buddy_pa;
+
+    assert(block >= heap->blocks);
+    assert(block < heap->blocks_end);
+    assert(block->order == BOOTMEM_ORDER_UNLISTED);
+    assert(order < BOOTMEM_ORDER_UNLISTED);
+    assert(block->allocated);
+
+    block->allocated = false;
+    pa = block->phys_addr;
+
+    while (order < (BOOT_MEM_NR_FREE_LISTS - 1)) {
+        buddy_pa = pa ^ bootmem_block2byte(1 << order);
+
+        if ((buddy_pa < heap->start) || (buddy_pa >= heap->end)) {
+            break;
+        }
+
+        buddy = &heap->blocks[bootmem_byte2block(buddy_pa - heap->start)];
+
+        if (buddy->order != order) {
+            break;
+        }
+
+        bootmem_free_list_remove(&heap->free_lists[order], buddy);
+        buddy->order = BOOTMEM_ORDER_UNLISTED;
+        order++;
+        pa &= -bootmem_block2byte(1 << order); /* TODO Function */
+        block = &heap->blocks[bootmem_byte2block(pa - heap->start)];
+    }
+
+    bootmem_free_list_insert(&heap->free_lists[order], block);
+    block->order = order;
+}
+
+static void __boot
+bootmem_heap_init(struct bootmem_heap *heap, uintptr_t start, uintptr_t end)
+{
+    uintptr_t heap_blocks, table_size, table_blocks;
 
     bootmem_reserve_range(start, end, false);
+
+    heap->start = start;
+    heap->end = end;
+    heap_blocks = bootmem_compute_blocks(start, end);
+    table_size = bootmem_compute_table_size(heap_blocks);
+    assert((end - table_size) > start);
+    heap->blocks = (struct bootmem_block *)(end - table_size);
+    heap->blocks_end = &heap->blocks[heap_blocks];
+
+    for (size_t i = 0; i < ARRAY_SIZE(heap->free_lists); i++) {
+        bootmem_free_list_init(&heap->free_lists[i]);
+    }
+
+    for (phys_addr_t pa = start; pa < end; pa += BOOTMEM_BLOCK_SIZE) {
+        bootmem_block_init(bootmem_heap_get_block(heap, pa), pa);
+    }
+
+    table_blocks = bootmem_byte2block(table_size);
+    heap_blocks -= table_blocks;
+
+    for (size_t i = 0; i < heap_blocks; i++) {
+        bootmem_heap_free(heap, &heap->blocks[i], 0);
+    }
+
+    for (;;); /* TODO */
 }
 
 static void * __boot
-bootmem_heap_alloc(struct bootmem_heap *heap, unsigned int nr_pages)
+bootmem_heap_alloc(struct bootmem_heap *heap, size_t size)
 {
-    unsigned long addr, size;
-
-    size = vm_page_ptob(nr_pages);
-
-    if (size == 0) {
-        boot_panic(bootmem_panic_msg_invalid_argument);
-    }
-
-    if (heap->topdown) {
-        addr = heap->top - size;
-
-        if ((addr < heap->start) || (addr > heap->top)) {
-            boot_panic(bootmem_panic_msg_nomem);
-        }
-
-        heap->top = addr;
-    } else {
-        unsigned long end;
-
-        addr = heap->bottom;
-        end = addr + size;
-
-        if ((end > heap->end) || (end < heap->bottom)) {
-            boot_panic(bootmem_panic_msg_nomem);
-        }
-
-        heap->bottom = end;
-    }
-
+#if 0
     return bootmem_memset((void *)addr, 0, size);
+#else
+    return NULL;
+#endif
 }
 
 static struct bootmem_heap * __boot
@@ -503,7 +637,7 @@ bootmem_find_avail(phys_addr_t start, phys_addr_t end,
 }
 
 void __boot
-bootmem_setup(bool topdown)
+bootmem_setup(void)
 {
     phys_addr_t heap_start, heap_end, max_heap_start, max_heap_end;
     phys_addr_t start, end;
@@ -540,14 +674,15 @@ bootmem_setup(bool topdown)
         boot_panic(bootmem_panic_msg_setup);
     }
 
-    bootmem_heap_init(bootmem_get_heap(), topdown,
-                      max_heap_start, max_heap_end);
+    assert(max_heap_start == (uintptr_t)max_heap_start);
+    assert(max_heap_end == (uintptr_t)max_heap_end);
+    bootmem_heap_init(bootmem_get_heap(), max_heap_start, max_heap_end);
 }
 
 void * __boot
-bootmem_alloc(unsigned int nr_pages)
+bootmem_alloc(size_t size)
 {
-    return bootmem_heap_alloc(bootmem_get_heap(), nr_pages);
+    return bootmem_heap_alloc(bootmem_get_heap(), size);
 }
 
 phys_addr_t __boot

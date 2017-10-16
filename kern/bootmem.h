@@ -73,7 +73,7 @@ void bootmem_reserve_range(phys_addr_t start, phys_addr_t end, bool temporary);
  *
  * This function is called before paging is enabled.
  */
-void bootmem_setup(bool topdown);
+void bootmem_setup(void);
 
 /*
  * Allocate contiguous physical pages.
@@ -88,7 +88,7 @@ void bootmem_setup(bool topdown);
  *
  * This function is called before paging is enabled.
  */
-void * bootmem_alloc(unsigned int nr_pages);
+void * bootmem_alloc(size_t size);
 
 phys_addr_t bootmem_directmap_end(void);
 
