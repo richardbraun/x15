@@ -16,6 +16,9 @@
  *
  *
  * Integer base 2 logarithm operations.
+ *
+ * The functions provided by this module are always inlined so they may
+ * safely be used before paging is enabled.
  */
 
 #ifndef _KERN_LOG2_H
@@ -24,14 +27,16 @@
 #include <assert.h>
 #include <limits.h>
 
-static inline unsigned int
+#include <kern/macros.h>
+
+static __always_inline unsigned int
 ilog2(unsigned long x)
 {
     assert(x != 0);
     return LONG_BIT - __builtin_clzl(x) - 1;
 }
 
-static inline unsigned int
+static __always_inline unsigned int
 iorder2(unsigned long size)
 {
     assert(size != 0);

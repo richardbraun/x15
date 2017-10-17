@@ -336,7 +336,7 @@ pmap_boot_enter(pmap_pte_t *root_ptp, uintptr_t va, phys_addr_t pa,
         if (*pte != 0) {
             ptp = (void *)(uintptr_t)(*pte & PMAP_PA_L0_MASK); /* XXX */
         } else {
-            ptp = bootmem_alloc(1); /* XXX 1k needed only */
+            ptp = bootmem_alloc(sizeof(pmap_pte_t) * pt_level->ptes_per_pt);
             *pte = pt_level->make_pte_fn((uintptr_t)ptp, VM_PROT_ALL);
         }
 

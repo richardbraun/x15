@@ -472,6 +472,12 @@ bootmem_free_list_init(struct bootmem_free_list *list)
     list->blocks = NULL;
 }
 
+static bool __boot
+bootmem_free_list_empty(const struct bootmem_free_list *list)
+{
+    return list->blocks == NULL;
+}
+
 static void __boot
 bootmem_free_list_insert(struct bootmem_free_list *list,
                          struct bootmem_block *block)
@@ -490,14 +496,30 @@ bootmem_free_list_insert(struct bootmem_free_list *list,
 }
 
 static void __boot
-bootmem_free_list_remove(struct bootmem_free_list *list,
-                         struct bootmem_block *block)
+bootmem_free_list_remove(struct bootmem_block *block)
 {
     if (block->next != NULL) {
         block->next->pprev = block->pprev;
     }
 
     *block->pprev = block->next;
+}
+
+static struct bootmem_block * __boot
+bootmem_free_list_pop(struct bootmem_free_list *list)
+{
+    struct bootmem_block *block;
+
+    block = list->blocks;
+    bootmem_free_list_remove(block);
+    return block;
+}
+
+static struct bootmem_free_list * __boot
+bootmem_heap_get_free_list(struct bootmem_heap *heap, unsigned int index)
+{
+    assert(index < ARRAY_SIZE(heap->free_lists));
+    return &heap->free_lists[index];
 }
 
 static struct bootmem_block * __boot
@@ -535,7 +557,7 @@ bootmem_heap_free(struct bootmem_heap *heap, struct bootmem_block *block,
             break;
         }
 
-        bootmem_free_list_remove(&heap->free_lists[order], buddy);
+        bootmem_free_list_remove(buddy);
         buddy->order = BOOTMEM_ORDER_UNLISTED;
         order++;
         pa &= -bootmem_block2byte(1 << order); /* TODO Function */
@@ -544,6 +566,40 @@ bootmem_heap_free(struct bootmem_heap *heap, struct bootmem_block *block,
 
     bootmem_free_list_insert(&heap->free_lists[order], block);
     block->order = order;
+}
+
+static struct bootmem_block * __boot
+bootmem_heap_alloc(struct bootmem_heap *heap, unsigned short order)
+{
+    struct bootmem_free_list *free_list;
+    struct bootmem_block *block, *buddy;
+    unsigned int i;
+
+    assert(order < BOOT_MEM_NR_FREE_LISTS);
+
+    for (i = order; i < BOOT_MEM_NR_FREE_LISTS; i++) {
+        free_list = &heap->free_lists[i];
+
+        if (!bootmem_free_list_empty(free_list)) {
+            break;
+        }
+    }
+
+    if (i == BOOT_MEM_NR_FREE_LISTS) {
+        return NULL;
+    }
+
+    block = bootmem_free_list_pop(free_list);
+    block->order = BOOTMEM_ORDER_UNLISTED;
+
+    while (i > order) {
+        i--;
+        buddy = &block[1 << i];
+        bootmem_free_list_insert(bootmem_heap_get_free_list(heap, i), buddy);
+        buddy->order = i;
+    }
+
+    return block;
 }
 
 static void __boot
@@ -575,18 +631,6 @@ bootmem_heap_init(struct bootmem_heap *heap, uintptr_t start, uintptr_t end)
     for (size_t i = 0; i < heap_blocks; i++) {
         bootmem_heap_free(heap, &heap->blocks[i], 0);
     }
-
-    for (;;); /* TODO */
-}
-
-static void * __boot
-bootmem_heap_alloc(struct bootmem_heap *heap, size_t size)
-{
-#if 0
-    return bootmem_memset((void *)addr, 0, size);
-#else
-    return NULL;
-#endif
 }
 
 static struct bootmem_heap * __boot
@@ -679,10 +723,24 @@ bootmem_setup(void)
     bootmem_heap_init(bootmem_get_heap(), max_heap_start, max_heap_end);
 }
 
+static unsigned short __boot
+bootmem_alloc_order(size_t size)
+{
+    return iorder2(bootmem_byte2block(bootmem_block_round(size)));
+}
+
 void * __boot
 bootmem_alloc(size_t size)
 {
-    return bootmem_heap_alloc(bootmem_get_heap(), size);
+    struct bootmem_block *block;
+
+    block = bootmem_heap_alloc(bootmem_get_heap(), bootmem_alloc_order(size));
+
+    if (block == NULL) {
+        boot_panic(bootmem_panic_msg_nomem);
+    }
+
+    return (void *)block->phys_addr;
 }
 
 phys_addr_t __boot
