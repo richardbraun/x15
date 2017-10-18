@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,7 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * Early page allocator.
+ * This module provides memory-related services at bootstrap, before
+ * paging is enabled. In particular :
+ *  - zone registration
+ *  - memory allocation (mainly for page tables)
+ *  - boot data reservation
  */
 
 #ifndef _KERN_BOOTMEM_H
@@ -54,8 +58,8 @@ void bootmem_register_zone(unsigned int zone_index, bool direct_mapped,
  *
  * The kernel is automatically reserved.
  *
- * Once all reserved ranges have been registered, the user can initialize the
- * early page allocator.
+ * Once all reserved ranges have been registered, the user can initialize
+ * the module.
  *
  * If the range is marked temporary, it will be unregistered once
  * the boot data have been saved/consumed so that their backing
@@ -68,7 +72,7 @@ void bootmem_reserve_range(phys_addr_t start, phys_addr_t end, bool temporary);
 /*
  * Initialize the early page allocator.
  *
- * This function builds a heap based on the registered zones while carefuling
+ * This function builds a heap based on the registered zones while carefully
  * avoiding reserved data.
  *
  * This function is called before paging is enabled.
@@ -76,20 +80,19 @@ void bootmem_reserve_range(phys_addr_t start, phys_addr_t end, bool temporary);
 void bootmem_setup(void);
 
 /*
- * Allocate contiguous physical pages.
+ * Allocate memory.
  *
- * The pages returned are guaranteed to be part of the direct physical
- * mapping when paging is enabled.
- *
- * This function should only be used to allocate initial page table pages.
- * Those pages are later loaded into the VM system (as reserved pages)
- * which means they can be freed like other regular pages. Users should
- * fix up the type of those pages once the VM system is initialized.
+ * The size of the returned region is a power-of-two, and its address is
+ * aligned on that size. The region is guaranteed to be part of the direct
+ * physical mapping when paging is enabled.
  *
  * This function is called before paging is enabled.
  */
 void * bootmem_alloc(size_t size);
 
+/*
+ * Return the end address of the direct physical mapping.
+ */
 phys_addr_t bootmem_directmap_end(void);
 
 #endif /* _KERN_BOOTMEM_H */

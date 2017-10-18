@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 Richard Braun.
+ * Copyright (c) 2017 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,6 +13,15 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ *
+ * The purpose of this module is to provide all memory-related services
+ * required during bootstrap, before paging is enabled.
+ *
+ * In order to meet the requirements of the various supported page table
+ * formats, where some page tables may be smaller than a page while others
+ * may be bigger, but always aligned on the page table size, this module
+ * implements a buddy memory allocator similar to the vm_page module. 
  */
 
 #include <assert.h>
@@ -33,20 +42,13 @@
 
 #define BOOTMEM_MAX_RESERVED_RANGES 64
 
-#if BOOT_MEM_BLOCK_BITS > PAGE_BITS
-#error "block size too large"
-#endif
-
-#define BOOTMEM_BLOCK_SIZE (1 << BOOT_MEM_BLOCK_BITS)
-
-/*
- * Special order value for pages that aren't in a free list. Such blocks are
- * either allocated, or part of a free block of pages but not the head page.
- */
-#define BOOTMEM_ORDER_UNLISTED ((unsigned short)-1)
-
 /*
  * Contiguous block of physical memory.
+ *
+ * These are semantically the same as those used by the VM system, and are
+ * actually loaded into the VM system when it's enabled.
+ *
+ * The boundaries of a zone must be page-aligned and must not overlap.
  */
 struct bootmem_zone {
     phys_addr_t start;
@@ -55,16 +57,17 @@ struct bootmem_zone {
     bool direct_mapped;
 };
 
-/*
- * Physical zone boundaries.
- */
 static struct bootmem_zone bootmem_zones[PMEM_MAX_ZONES] __bootdata;
 
 /*
  * Physical memory range descriptor.
  *
- * The boundary addresses must not be fixed up, since ranges may overlap the
- * same pages.
+ * Such ranges are used to describe memory containing data that must be
+ * preserved during bootstrap. If temporary, a range is released to the
+ * VM system when it's enabled.
+ *
+ * The boundary addresses must not be fixed up (e.g. page-aligned), since
+ * ranges may overlap the same pages.
  */
 struct bootmem_range {
     phys_addr_t start;
@@ -73,12 +76,40 @@ struct bootmem_range {
 };
 
 /*
- * Sorted array of range descriptors.
+ * Sorted array of reserved range descriptors.
  */
 static struct bootmem_range bootmem_reserved_ranges[BOOTMEM_MAX_RESERVED_RANGES]
     __bootdata;
 static unsigned int bootmem_nr_reserved_ranges __bootdata;
 
+#if BOOT_MEM_BLOCK_BITS > PAGE_BITS
+#error "block size too large"
+#endif
+
+/*
+ * Basic block size.
+ *
+ * A block descriptor of order 0 describes a block of this size, also aligned
+ * to this value.
+ */
+#define BOOTMEM_BLOCK_SIZE (1 << BOOT_MEM_BLOCK_BITS)
+
+/*
+ * Special order value for blocks that aren't in a free list. Such blocks are
+ * either allocated, or part of a free block of pages but not the head page.
+ */
+#define BOOTMEM_ORDER_UNLISTED ((unsigned short)-1)
+
+/*
+ * Descriptor for a block in the buddy allocator heap.
+ *
+ * The physical address member doesn't have phys_addr_t type because the
+ * heap is used to return directly accessible blocks, and has uintptr_t
+ * type because that's the proper type for integers that may safely be
+ * converted to pointers.
+ *
+ * The size of a block is BOOTMEM_BLOCK_SIZE * 2^block->order.
+ */
 struct bootmem_block {
     uintptr_t phys_addr;
     struct bootmem_block *next;
@@ -92,8 +123,8 @@ struct bootmem_free_list {
 };
 
 struct bootmem_heap {
-    phys_addr_t start;
-    phys_addr_t end;
+    uintptr_t start;
+    uintptr_t end;
     struct bootmem_block *blocks;
     struct bootmem_block *blocks_end;
     struct bootmem_free_list free_lists[BOOT_MEM_NR_FREE_LISTS];
@@ -560,7 +591,7 @@ bootmem_heap_free(struct bootmem_heap *heap, struct bootmem_block *block,
         bootmem_free_list_remove(buddy);
         buddy->order = BOOTMEM_ORDER_UNLISTED;
         order++;
-        pa &= -bootmem_block2byte(1 << order); /* TODO Function */
+        pa &= -bootmem_block2byte(1 << order);
         block = &heap->blocks[bootmem_byte2block(pa - heap->start)];
     }
 
@@ -754,24 +785,3 @@ bootmem_directmap_end(void)
         return bootmem_zone_end(bootmem_get_zone(PMEM_ZONE_DMA));
     }
 }
-
-#if 0
-static void __init
-bootmem_map_show(void)
-{
-    const struct bootmem_map_entry *entry, *end;
-
-    log_debug("bootmem: physical memory map:");
-
-    for (entry = bootmem_map, end = entry + bootmem_map_size;
-         entry < end;
-         entry++)
-        log_debug("bootmem: %018llx:%018llx",
-                  (unsigned long long)entry->base_addr,
-                  (unsigned long long)(entry->base_addr + entry->length));
-
-    log_debug("bootmem: heap: %llx:%llx",
-              (unsigned long long)bootmem_heap_start,
-              (unsigned long long)bootmem_heap_end);
-}
-#endif
