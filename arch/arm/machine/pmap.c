@@ -360,9 +360,6 @@ pmap_boot_get_large_pgsize(void)
 
 #define pmap_boot_enable_pgext(pgsize) ((void)(pgsize))
 
-static alignas(PMAP_L1_PTES_PER_PT * sizeof(pmap_pte_t)) pmap_pte_t
-    pmap_kernel_pt[PMAP_L1_PTES_PER_PT] __bootdata;
-
 pmap_pte_t * __boot
 pmap_setup_paging(void)
 {
@@ -382,8 +379,7 @@ pmap_setup_paging(void)
      * direct physical mapping of physical memory.
      */
 
-    /* root_ptp = bootmem_alloc(1); TODO */
-    root_ptp = pmap_kernel_pt;
+    root_ptp = bootmem_alloc(PMAP_L1_PTES_PER_PT * sizeof(pmap_pte_t));
 
     va = vm_page_trunc((uintptr_t)&_boot);
     pa = va;
