@@ -47,20 +47,33 @@
 #include <machine/types.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
+#include <vm/vm_ptable.h>
 #include <vm/vm_prot.h>
 
-typedef pmap_pte_t (*pmap_make_pte_fn)(phys_addr_t pa, int prot);
+#define PMAP_PTE_B              0x00000004
+#define PMAP_PTE_C              0x00000008
+
+#define PMAP_PTE_L0_RW          0x00000030
+#define PMAP_PTE_L1_RW          0x00000c00
 
 /*
- * Properties of a page translation level.
+ * Page table level properties.
  */
-struct pmap_pt_level {
-    unsigned int skip;
-    unsigned int bits;
-    unsigned int ptes_per_pt;
-    pmap_make_pte_fn make_pte_fn;
-    pmap_make_pte_fn make_ll_pte_fn;
-};
+
+#define PMAP_NR_LEVELS          2
+#define PMAP_L0_BITS            8
+#define PMAP_L1_BITS            12
+
+#define PMAP_VA_MASK            0xffffffff
+
+#define PMAP_PA_L0_MASK         0xfffff000
+#define PMAP_PA_L1_MASK         0xfffffc00
+
+#define PMAP_L0_SKIP            12
+#define PMAP_L1_SKIP            (PMAP_L0_SKIP + PMAP_L0_BITS)
+
+#define PMAP_L0_PTES_PER_PT     (1 << PMAP_L0_BITS)
+#define PMAP_L1_PTES_PER_PT     (1 << PMAP_L1_BITS)
 
 static pmap_pte_t __boot
 pmap_make_coarse_pte(phys_addr_t pa, int prot)
@@ -90,9 +103,9 @@ pmap_make_section_pte(phys_addr_t pa, int prot)
 }
 
 /*
- * Table of page translation properties.
+ * Table of properties per page table level.
  */
-static struct pmap_pt_level pmap_pt_levels[] __read_mostly = {
+static const struct vm_ptable_level pmap_pt_levels[] = {
     {
         PMAP_L0_SKIP,
         PMAP_L0_BITS,
@@ -109,36 +122,11 @@ static struct pmap_pt_level pmap_pt_levels[] __read_mostly = {
     },
 };
 
-/*
- * Per-CPU page tables.
- */
-struct pmap_cpu_table {
-    struct list node;
-    phys_addr_t root_ptp_pa;
-};
-
 struct pmap {
-    struct pmap_cpu_table *cpu_tables[CONFIG_MAX_CPUS];
+    struct vm_ptable ptable;
 };
-
-/*
- * Type for page table walking functions.
- *
- * See pmap_walk_vas().
- */
-typedef void (*pmap_walk_fn_t)(phys_addr_t pa, unsigned int index,
-                               unsigned int level);
-
-/*
- * The kernel per-CPU page tables are used early enough during bootstrap
- * that using a percpu variable would actually become ugly. This array
- * is rather small anyway.
- */
-static struct pmap_cpu_table pmap_kernel_cpu_tables[CONFIG_MAX_CPUS] __read_mostly;
 
 struct pmap pmap_kernel_pmap;
-
-struct pmap *pmap_current_ptr __percpu;
 
 /*
  * Flags related to page protection.
@@ -151,227 +139,41 @@ struct pmap *pmap_current_ptr __percpu;
  */
 static pmap_pte_t pmap_prot_table[VM_PROT_ALL + 1] __read_mostly;
 
-/*
- * Structures related to inter-processor page table updates.
- */
-
-#define PMAP_UPDATE_OP_ENTER    1
-#define PMAP_UPDATE_OP_REMOVE   2
-#define PMAP_UPDATE_OP_PROTECT  3
-
-struct pmap_update_enter_args {
-    uintptr_t va;
-    phys_addr_t pa;
-    int prot;
-    int flags;
-};
-
-struct pmap_update_remove_args {
-    uintptr_t start;
-    uintptr_t end;
-};
-
-struct pmap_update_protect_args {
-    uintptr_t start;
-    uintptr_t end;
-    int prot;
-};
-
-struct pmap_update_op {
-    struct cpumap cpumap;
-    unsigned int operation;
-
-    union {
-        struct pmap_update_enter_args enter_args;
-        struct pmap_update_remove_args remove_args;
-        struct pmap_update_protect_args protect_args;
-    };
-};
-
-/*
- * Maximum number of operations that can be batched before an implicit
- * update.
- */
-#define PMAP_UPDATE_MAX_OPS 32
-
-/*
- * List of update operations.
- *
- * A list of update operations is a container of operations that are pending
- * for a pmap. Updating can be implicit, e.g. when a list has reached its
- * maximum size, or explicit, when pmap_update() is called. Operation lists
- * are thread-local objects.
- *
- * The cpumap is the union of all processors affected by at least one
- * operation.
- */
-struct pmap_update_oplist {
-    alignas(CPU_L1_SIZE) struct cpumap cpumap;
-    struct pmap *pmap;
-    unsigned int nr_ops;
-    struct pmap_update_op ops[PMAP_UPDATE_MAX_OPS];
-};
-
-/*
- * Statically allocated data for the main booter thread.
- */
-static struct cpumap pmap_booter_cpumap __initdata;
-static struct pmap_update_oplist pmap_booter_oplist __initdata;
-
-/*
- * Each regular thread gets an operation list from this cache.
- */
-static struct kmem_cache pmap_update_oplist_cache;
-
-/*
- * Queue holding update requests from remote processors.
- */
-struct pmap_update_queue {
-    struct spinlock lock;
-    struct list requests;
-};
-
-/*
- * Syncer thread.
- *
- * There is one such thread per processor. They are the recipients of
- * update requests, providing thread context for the mapping operations
- * they perform.
- */
-struct pmap_syncer {
-    alignas(CPU_L1_SIZE) struct thread *thread;
-    struct pmap_update_queue queue;
-    struct syscnt sc_updates;
-    struct syscnt sc_update_enters;
-    struct syscnt sc_update_removes;
-    struct syscnt sc_update_protects;
-};
-
-#if 0
-static void pmap_sync(void *arg);
-#endif
-
-static struct pmap_syncer pmap_syncer __percpu;
-
-/*
- * Maximum number of mappings for which individual TLB invalidations can be
- * performed. Global TLB flushes are done beyond this value.
- */
-#define PMAP_UPDATE_MAX_MAPPINGS 64
-
-/*
- * Per processor request, queued on a remote processor.
- *
- * The number of mappings is used to determine whether it's best to flush
- * individual TLB entries or globally flush the TLB.
- */
-struct pmap_update_request {
-    alignas(CPU_L1_SIZE) struct list node;
-    struct spinlock lock;
-    struct thread *sender;
-    const struct pmap_update_oplist *oplist;
-    unsigned int nr_mappings;
-    int done;
-    int error;
-};
-
-/*
- * Per processor array of requests.
- *
- * When an operation list is to be applied, the thread triggering the update
- * acquires the processor-local array of requests and uses it to queue requests
- * on remote processors.
- */
-struct pmap_update_request_array {
-    struct pmap_update_request requests[CONFIG_MAX_CPUS];
-    struct mutex lock;
-};
-
-static struct pmap_update_request_array pmap_update_request_array __percpu;
-
-static int pmap_do_remote_updates __read_mostly;
-
 static struct kmem_cache pmap_cache;
 
-static char pmap_panic_inval_msg[] __bootdata
-    = "pmap: invalid physical address";
 static char pmap_panic_directmap_msg[] __bootdata
-    = "pmap: invalid direct physical mapping";
-
-static __always_inline unsigned long
-pmap_pte_index(uintptr_t va, const struct pmap_pt_level *pt_level)
-{
-    return ((va >> pt_level->skip) & ((1UL << pt_level->bits) - 1));
-}
-
-static void __boot
-pmap_boot_enter(pmap_pte_t *root_ptp, uintptr_t va, phys_addr_t pa,
-                unsigned long pgsize)
-{
-    const struct pmap_pt_level *pt_level, *pt_levels;
-    unsigned int level, last_level;
-    pmap_pte_t *pt, *ptp, *pte;
-
-    if (pa != (pa & PMAP_PA_L0_MASK)) {
-        boot_panic(pmap_panic_inval_msg);
-    }
-
-    (void)pgsize;
-
-    switch (pgsize) {
-    case (1 << PMAP_L1_SKIP):
-        last_level = 1;
-        break;
-    default:
-        last_level = 0;
-    }
-
-    pt_levels = (void *)BOOT_VTOP((uintptr_t)pmap_pt_levels);
-    pt = root_ptp;
-
-    for (level = PMAP_NR_LEVELS - 1; level != last_level; level--) {
-        pt_level = &pt_levels[level];
-        pte = &pt[pmap_pte_index(va, pt_level)];
-
-        if (*pte != 0) {
-            ptp = (void *)(uintptr_t)(*pte & PMAP_PA_L0_MASK); /* XXX */
-        } else {
-            ptp = bootmem_alloc(sizeof(pmap_pte_t) * pt_level->ptes_per_pt);
-            *pte = pt_level->make_pte_fn((uintptr_t)ptp, VM_PROT_ALL);
-        }
-
-        pt = ptp;
-    }
-
-    pt_level = &pt_levels[last_level];
-    pte = &pt[pmap_pte_index(va, pt_level)];
-    *pte = pt_level->make_ll_pte_fn(pa, VM_PROT_ALL);
-}
+    = "vm_ptable: invalid direct physical mapping";
 
 static unsigned long __boot
 pmap_boot_get_large_pgsize(void)
 {
-#if 1
+#if 0
     return (1 << PMAP_L1_SKIP);
 #else
     return PAGE_SIZE;
 #endif
 }
 
-#define pmap_boot_enable_pgext(pgsize) ((void)(pgsize))
-
 pmap_pte_t * __boot
 pmap_setup_paging(void)
 {
-    struct pmap_cpu_table *cpu_table;
+    const struct vm_ptable_level *pt_levels;
     unsigned long i, size, pgsize;
     phys_addr_t pa, directmap_end;
-    pmap_pte_t *root_ptp;
+    struct vm_ptable *ptable;
+    struct pmap *kernel_pmap;
     uintptr_t va;
+
+    pt_levels = (void *)BOOT_VTOP((uintptr_t)&pmap_pt_levels);
+    kernel_pmap = (void *)BOOT_VTOP((uintptr_t)&pmap_kernel_pmap);
+    ptable = &kernel_pmap->ptable;
 
     /* Use large pages for the direct physical mapping when possible */
     pgsize = pmap_boot_get_large_pgsize();
-    pmap_boot_enable_pgext(pgsize);
+
+    /* TODO LPAE */
+
+    vm_ptable_init(ptable, pt_levels, ARRAY_SIZE(pmap_pt_levels));
 
     /*
      * Create the initial mappings. The first is for the .boot section
@@ -379,14 +181,12 @@ pmap_setup_paging(void)
      * direct physical mapping of physical memory.
      */
 
-    root_ptp = bootmem_alloc(PMAP_L1_PTES_PER_PT * sizeof(pmap_pte_t));
-
     va = vm_page_trunc((uintptr_t)&_boot);
     pa = va;
     size = vm_page_round((uintptr_t)&_boot_end) - va;
 
     for (i = 0; i < size; i += PAGE_SIZE) {
-        pmap_boot_enter(root_ptp, va, pa, PAGE_SIZE);
+        vm_ptable_boot_enter(ptable, va, pa, PAGE_SIZE);
         va += PAGE_SIZE;
         pa += PAGE_SIZE;
     }
@@ -402,15 +202,12 @@ pmap_setup_paging(void)
     pa = PMEM_RAM_START;
 
     for (i = PMEM_RAM_START; i < directmap_end; i += pgsize) {
-        pmap_boot_enter(root_ptp, va, pa, pgsize);
+        vm_ptable_boot_enter(ptable, va, pa, pgsize);
         va += pgsize;
         pa += pgsize;
     }
 
-    cpu_table = (void *)BOOT_VTOP((uintptr_t)&pmap_kernel_cpu_tables[0]);
-    cpu_table->root_ptp_pa = (uintptr_t)root_ptp;
-
-    return root_ptp;
+    return vm_ptable_boot_root(ptable);
 }
 
 #if 0

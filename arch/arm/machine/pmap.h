@@ -59,55 +59,9 @@
 #define PMAP_START_KMEM_ADDRESS         PMAP_END_DIRECTMAP_ADDRESS
 #define PMAP_END_KMEM_ADDRESS           PMAP_END_KERNEL_ADDRESS
 
-/*
- * Page table entry flags.
- */
-#define PMAP_PTE_TYPE_COARSE    0x00000001
-#define PMAP_PTE_TYPE_SMALL     0x00000002
-#define PMAP_PTE_TYPE_SECTION   0x00000002
-
-#define PMAP_PTE_B              0x00000004
-#define PMAP_PTE_C              0x00000008
-
-#define PMAP_PTE_L0_RW          0x00000030
-#define PMAP_PTE_L1_RW          0x00000c00
-
-/*
- * Page translation hierarchy properties.
- */
-
-#if 0
-/*
- * Masks define valid bits at each page translation level.
- *
- * Additional bits such as the global bit can be added at runtime for optional
- * features.
- */
-#define PMAP_L0_MASK            (PMAP_PA_MASK | PMAP_PTE_D | PMAP_PTE_A \
-                                 | PMAP_PTE_PCD | PMAP_PTE_PWT | PMAP_PTE_US \
-                                 | PMAP_PTE_RW | PMAP_PTE_P)
-#define PMAP_L1_MASK            (PMAP_PA_MASK | PMAP_PTE_A | PMAP_PTE_PCD \
-                                 | PMAP_PTE_PWT | PMAP_PTE_US | PMAP_PTE_RW \
-                                 | PMAP_PTE_P)
-#endif
-
-#define PMAP_NR_LEVELS          2
-#define PMAP_L0_BITS            8
-#define PMAP_L1_BITS            12
-
-#define PMAP_VA_MASK            DECL_CONST(0xffffffff, UL)
-
-#define PMAP_PA_L0_MASK         DECL_CONST(0xfffff000, UL)
-#define PMAP_PA_L1_MASK         DECL_CONST(0xfffffc00, UL)
-
-#define PMAP_L0_SKIP            12
-#define PMAP_L1_SKIP            (PMAP_L0_SKIP + PMAP_L0_BITS)
-
-#define PMAP_L0_PTES_PER_PT     (1 << PMAP_L0_BITS)
-#define PMAP_L1_PTES_PER_PT     (1 << PMAP_L1_BITS)
-
 #ifndef __ASSEMBLER__
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include <kern/cpumap.h>
@@ -117,6 +71,15 @@
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <machine/types.h>
+
+/*
+ * Page table entry types.
+ */
+#define PMAP_PTE_TYPE_FAULT     0x00000000
+#define PMAP_PTE_TYPE_COARSE    0x00000001
+#define PMAP_PTE_TYPE_SMALL     0x00000002
+#define PMAP_PTE_TYPE_SECTION   0x00000002
+#define PMAP_PTE_TYPE_MASK      0x00000003
 
 /*
  * Mapping creation flags.
@@ -129,6 +92,12 @@ typedef phys_addr_t pmap_pte_t;
  * Physical address map.
  */
 struct pmap;
+
+static __always_inline bool
+pmap_pte_valid(pmap_pte_t pte)
+{
+    return (pte & PMAP_PTE_TYPE_MASK) != PMAP_PTE_TYPE_FAULT;
+}
 
 static inline struct pmap *
 pmap_get_kernel_pmap(void)
