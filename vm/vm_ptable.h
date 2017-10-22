@@ -43,13 +43,12 @@ struct vm_ptable_level {
 
 struct vm_ptable {
     struct vm_ptable_cpu_pt *cpu_pts[CONFIG_MAX_CPUS];
-    const struct vm_ptable_level *pt_levels;
-    unsigned int nr_levels;
 };
 
-void vm_ptable_init(struct vm_ptable *ptable,
-                    const struct vm_ptable_level *pt_levels,
-                    unsigned int nr_levels);
+void vm_ptable_bootstrap(const struct vm_ptable_level *pt_levels,
+                         unsigned int nr_levels);
+
+void vm_ptable_build(struct vm_ptable *ptable);
 
 void vm_ptable_boot_enter(struct vm_ptable *ptable, uintptr_t va,
                           phys_addr_t pa, size_t pgsize);

@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
+ * TODO Define "page table".
  * TODO Review locking.
  */
 
@@ -49,6 +50,9 @@
 #include <vm/vm_page.h>
 #include <vm/vm_ptable.h>
 #include <vm/vm_prot.h>
+
+static const struct vm_ptable_level *vm_ptable_boot_pt_levels __bootdata;
+static unsigned int vm_ptable_boot_nr_levels __bootdata;
 
 static struct vm_ptable_cpu_pt vm_ptable_boot_cpu_pt __bootdata;
 
@@ -195,23 +199,60 @@ static int vm_ptable_do_remote_updates __read_mostly;
 static char vm_ptable_panic_inval_msg[] __bootdata
     = "vm_ptable: invalid physical address";
 
+void __boot
+vm_ptable_bootstrap(const struct vm_ptable_level *pt_levels,
+                    unsigned int nr_levels)
+{
+    assert(pt_levels);
+    assert(nr_levels != 0);
+
+    vm_ptable_boot_pt_levels = pt_levels;
+    vm_ptable_boot_nr_levels = nr_levels;
+}
+
+static const struct vm_ptable_level * __boot
+vm_ptable_boot_get_pt_level(unsigned int level)
+{
+    assert(level < vm_ptable_boot_nr_levels);
+    return &vm_ptable_boot_pt_levels[level];
+}
+
 static __always_inline unsigned long
-vm_ptable_pte_index(uintptr_t va, const struct vm_ptable_level *pt_level)
+vm_ptable_level_pte_index(const struct vm_ptable_level *pt_level, uintptr_t va)
 {
     return ((va >> pt_level->skip) & ((1UL << pt_level->bits) - 1));
 }
 
+static __always_inline phys_addr_t
+vm_ptable_level_pa_mask(const struct vm_ptable_level *pt_level)
+{
+    phys_addr_t size;
+
+    if (pt_level == vm_ptable_boot_pt_levels) {
+        return ~PAGE_MASK;
+    } else {
+        pt_level--;
+        size = ((phys_addr_t)1 << pt_level->bits) * sizeof(pmap_pte_t);
+        return ~(size - 1);
+    }
+}
+
+static __always_inline bool
+vm_ptable_pa_aligned(phys_addr_t pa)
+{
+    phys_addr_t mask;
+
+    mask = vm_ptable_level_pa_mask(vm_ptable_boot_get_pt_level(0));
+    return pa == (pa & mask);
+}
+
 void __boot
-vm_ptable_init(struct vm_ptable *ptable,
-               const struct vm_ptable_level *pt_levels,
-               unsigned int nr_levels)
+vm_ptable_build(struct vm_ptable *ptable)
 {
     const struct vm_ptable_level *pt_level;
     struct vm_ptable_cpu_pt *pt;
 
-    assert(nr_levels != 0);
-
-    pt_level = &pt_levels[nr_levels - 1];
+    pt_level = vm_ptable_boot_get_pt_level(vm_ptable_boot_nr_levels - 1);
     pt = &vm_ptable_boot_cpu_pt;
     pt->root = bootmem_alloc(pt_level->ptes_per_pt * sizeof(pmap_pte_t));
     ptable->cpu_pts[0] = pt;
@@ -219,29 +260,6 @@ vm_ptable_init(struct vm_ptable *ptable,
     for (size_t i = 1; i < ARRAY_SIZE(ptable->cpu_pts); i++) {
         ptable->cpu_pts[i] = NULL;
     }
-
-    ptable->pt_levels = pt_levels;
-    ptable->nr_levels = nr_levels;
-}
-
-static __always_inline phys_addr_t
-vm_ptable_pa_mask(const struct vm_ptable *ptable, unsigned int level)
-{
-    phys_addr_t size;
-
-    if (level == 0) {
-        return ~PAGE_MASK;
-    } else {
-        size = ((phys_addr_t)1 << ptable->pt_levels[level - 1].bits)
-               * sizeof(pmap_pte_t);
-        return ~(size - 1);
-    }
-}
-
-static __always_inline bool
-vm_ptable_pa_aligned(const struct vm_ptable *ptable, phys_addr_t pa)
-{
-    return pa == (pa & vm_ptable_pa_mask(ptable, 0));
 }
 
 void __boot
@@ -253,7 +271,7 @@ vm_ptable_boot_enter(struct vm_ptable *ptable, uintptr_t va,
     pmap_pte_t *pt, *next_pt, *pte;
     phys_addr_t mask;
 
-    if (!vm_ptable_pa_aligned(ptable, pa)) {
+    if (!vm_ptable_pa_aligned(pa)) {
         boot_panic(vm_ptable_panic_inval_msg);
     }
 
@@ -267,12 +285,12 @@ vm_ptable_boot_enter(struct vm_ptable *ptable, uintptr_t va,
     last_level = 0;
     pt = ptable->cpu_pts[0]->root;
 
-    for (level = ptable->nr_levels - 1; level != last_level; level--) {
-        pt_level = &ptable->pt_levels[level];
-        pte = &pt[vm_ptable_pte_index(va, pt_level)];
+    for (level = vm_ptable_boot_nr_levels - 1; level != last_level; level--) {
+        pt_level = vm_ptable_boot_get_pt_level(level);
+        pte = &pt[vm_ptable_level_pte_index(pt_level, va)];
 
         if (pmap_pte_valid(*pte)) {
-            mask = vm_ptable_pa_mask(ptable, level);
+            mask = vm_ptable_level_pa_mask(pt_level);
             next_pt = (void *)(uintptr_t)(*pte & mask);
         } else {
             next_pt = bootmem_alloc(pt_level->ptes_per_pt * sizeof(pmap_pte_t));
@@ -282,8 +300,8 @@ vm_ptable_boot_enter(struct vm_ptable *ptable, uintptr_t va,
         pt = next_pt;
     }
 
-    pt_level = &ptable->pt_levels[last_level];
-    pte = &pt[vm_ptable_pte_index(va, pt_level)];
+    pt_level = vm_ptable_boot_get_pt_level(last_level);
+    pte = &pt[vm_ptable_level_pte_index(pt_level, va)];
     *pte = pt_level->make_ll_pte_fn(pa, VM_PROT_ALL);
 }
 

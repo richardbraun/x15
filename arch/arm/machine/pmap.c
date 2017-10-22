@@ -105,7 +105,7 @@ pmap_make_section_pte(phys_addr_t pa, int prot)
 /*
  * Table of properties per page table level.
  */
-static const struct vm_ptable_level pmap_pt_levels[] = {
+static struct vm_ptable_level pmap_boot_pt_levels[] __bootdata = {
     {
         PMAP_L0_SKIP,
         PMAP_L0_BITS,
@@ -157,23 +157,23 @@ pmap_boot_get_large_pgsize(void)
 pmap_pte_t * __boot
 pmap_setup_paging(void)
 {
-    const struct vm_ptable_level *pt_levels;
     unsigned long i, size, pgsize;
     phys_addr_t pa, directmap_end;
     struct vm_ptable *ptable;
     struct pmap *kernel_pmap;
     uintptr_t va;
 
-    pt_levels = (void *)BOOT_VTOP((uintptr_t)&pmap_pt_levels);
     kernel_pmap = (void *)BOOT_VTOP((uintptr_t)&pmap_kernel_pmap);
-    ptable = &kernel_pmap->ptable;
 
     /* Use large pages for the direct physical mapping when possible */
     pgsize = pmap_boot_get_large_pgsize();
 
     /* TODO LPAE */
 
-    vm_ptable_init(ptable, pt_levels, ARRAY_SIZE(pmap_pt_levels));
+    vm_ptable_bootstrap(pmap_boot_pt_levels, ARRAY_SIZE(pmap_boot_pt_levels));
+
+    ptable = &kernel_pmap->ptable;
+    vm_ptable_build(ptable);
 
     /*
      * Create the initial mappings. The first is for the .boot section
