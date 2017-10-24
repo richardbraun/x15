@@ -38,6 +38,7 @@
 #define BOOT_VTOL(addr) ((addr) - PMAP_START_KERNEL_ADDRESS)
 
 #define BOOT_VTOP(addr) ((addr) - BOOT_KERNEL_OFFSET)
+#define BOOT_PTOV(addr) ((addr) + BOOT_KERNEL_OFFSET)
 
 #define BOOT_MEM_BLOCK_BITS     10
 #define BOOT_MEM_NR_FREE_LISTS  5

@@ -33,6 +33,8 @@ alignas(CPU_DATA_ALIGN) char boot_stack[BOOT_STACK_SIZE] __bootdata;
 
 pmap_pte_t * boot_setup_paging(void);
 
+void boot_main(void);
+
 void __boot
 boot_panic(const char *s)
 {
@@ -59,6 +61,12 @@ boot_setup_paging(void)
 void __init
 boot_log_info(void)
 {
+}
+
+void __init
+boot_main(void)
+{
+    for (;;);
 }
 
 /*

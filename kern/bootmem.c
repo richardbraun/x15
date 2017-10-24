@@ -774,7 +774,7 @@ bootmem_alloc(size_t size)
     return (void *)block->phys_addr;
 }
 
-phys_addr_t __boot
+size_t __boot
 bootmem_directmap_end(void)
 {
     if (bootmem_zone_size(bootmem_get_zone(PMEM_ZONE_DIRECTMAP)) != 0) {

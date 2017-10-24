@@ -247,14 +247,16 @@ vm_ptable_pa_aligned(phys_addr_t pa)
 }
 
 void __boot
-vm_ptable_build(struct vm_ptable *ptable)
+vm_ptable_boot_build(struct vm_ptable *ptable)
 {
     const struct vm_ptable_level *pt_level;
     struct vm_ptable_cpu_pt *pt;
+    void *ptr;
 
     pt_level = vm_ptable_boot_get_pt_level(vm_ptable_boot_nr_levels - 1);
     pt = &vm_ptable_boot_cpu_pt;
-    pt->root = bootmem_alloc(pt_level->ptes_per_pt * sizeof(pmap_pte_t));
+    ptr = bootmem_alloc(pt_level->ptes_per_pt * sizeof(pmap_pte_t));
+    pt->root = (void *)BOOT_PTOV((uintptr_t)ptr);
     ptable->cpu_pts[0] = pt;
 
     for (size_t i = 1; i < ARRAY_SIZE(ptable->cpu_pts); i++) {
@@ -264,7 +266,7 @@ vm_ptable_build(struct vm_ptable *ptable)
 
 void __boot
 vm_ptable_boot_enter(struct vm_ptable *ptable, uintptr_t va,
-                     phys_addr_t pa, size_t pgsize)
+                     phys_addr_t pa, size_t page_size)
 {
     const struct vm_ptable_level *pt_level;
     unsigned int level, last_level;
@@ -275,15 +277,8 @@ vm_ptable_boot_enter(struct vm_ptable *ptable, uintptr_t va,
         boot_panic(vm_ptable_panic_inval_msg);
     }
 
-#if 0
-    switch (pgsize) {
-    case (1 << PMAP_L1_SKIP):
-        last_level = 1;
-        break;
-    default:
-#endif
-    last_level = 0;
-    pt = ptable->cpu_pts[0]->root;
+    last_level = pmap_boot_get_last_level(page_size);
+    pt = (void *)BOOT_VTOP((uintptr_t)ptable->cpu_pts[0]->root);
 
     for (level = vm_ptable_boot_nr_levels - 1; level != last_level; level--) {
         pt_level = vm_ptable_boot_get_pt_level(level);
@@ -293,7 +288,7 @@ vm_ptable_boot_enter(struct vm_ptable *ptable, uintptr_t va,
             mask = vm_ptable_level_pa_mask(pt_level);
             next_pt = (void *)(uintptr_t)(*pte & mask);
         } else {
-            next_pt = bootmem_alloc(pt_level->ptes_per_pt * sizeof(pmap_pte_t));
+            next_pt = bootmem_alloc(pt_level[-1].ptes_per_pt * sizeof(pmap_pte_t));
             *pte = pt_level->make_pte_fn((uintptr_t)next_pt, VM_PROT_ALL);
         }
 
@@ -308,5 +303,5 @@ vm_ptable_boot_enter(struct vm_ptable *ptable, uintptr_t va,
 pmap_pte_t * __boot
 vm_ptable_boot_root(const struct vm_ptable *ptable)
 {
-    return ptable->cpu_pts[0]->root;
+    return (void *)BOOT_VTOP((uintptr_t)ptable->cpu_pts[0]->root);
 }

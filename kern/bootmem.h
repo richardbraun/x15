@@ -93,6 +93,6 @@ void * bootmem_alloc(size_t size);
 /*
  * Return the end address of the direct physical mapping.
  */
-phys_addr_t bootmem_directmap_end(void);
+size_t bootmem_directmap_end(void);
 
 #endif /* _KERN_BOOTMEM_H */

@@ -53,7 +53,7 @@
 #define PMAP_PTE_B              0x00000004
 #define PMAP_PTE_C              0x00000008
 
-#define PMAP_PTE_L0_RW          0x00000030
+#define PMAP_PTE_L0_RW          0x000000f0
 #define PMAP_PTE_L1_RW          0x00000c00
 
 /*
@@ -144,20 +144,27 @@ static struct kmem_cache pmap_cache;
 static char pmap_panic_directmap_msg[] __bootdata
     = "vm_ptable: invalid direct physical mapping";
 
-static unsigned long __boot
-pmap_boot_get_large_pgsize(void)
+unsigned int __boot
+pmap_boot_get_last_level(size_t page_size)
 {
-#if 0
+    switch (page_size) {
+    case (1 << PMAP_L1_SKIP):
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static size_t __boot
+pmap_boot_get_large_page_size(void)
+{
     return (1 << PMAP_L1_SKIP);
-#else
-    return PAGE_SIZE;
-#endif
 }
 
 pmap_pte_t * __boot
 pmap_setup_paging(void)
 {
-    unsigned long i, size, pgsize;
+    size_t size, page_size;
     phys_addr_t pa, directmap_end;
     struct vm_ptable *ptable;
     struct pmap *kernel_pmap;
@@ -166,26 +173,26 @@ pmap_setup_paging(void)
     kernel_pmap = (void *)BOOT_VTOP((uintptr_t)&pmap_kernel_pmap);
 
     /* Use large pages for the direct physical mapping when possible */
-    pgsize = pmap_boot_get_large_pgsize();
+    page_size = pmap_boot_get_large_page_size();
 
     /* TODO LPAE */
 
     vm_ptable_bootstrap(pmap_boot_pt_levels, ARRAY_SIZE(pmap_boot_pt_levels));
 
     ptable = &kernel_pmap->ptable;
-    vm_ptable_build(ptable);
+    vm_ptable_boot_build(ptable);
 
     /*
      * Create the initial mappings. The first is for the .boot section
      * and acts as the mandatory identity mapping. The second is the
-     * direct physical mapping of physical memory.
+     * direct mapping of physical memory.
      */
 
     va = vm_page_trunc((uintptr_t)&_boot);
     pa = va;
     size = vm_page_round((uintptr_t)&_boot_end) - va;
 
-    for (i = 0; i < size; i += PAGE_SIZE) {
+    for (size_t i = 0; i < size; i += PAGE_SIZE) {
         vm_ptable_boot_enter(ptable, va, pa, PAGE_SIZE);
         va += PAGE_SIZE;
         pa += PAGE_SIZE;
@@ -201,10 +208,10 @@ pmap_setup_paging(void)
     va = PMAP_START_DIRECTMAP_ADDRESS;
     pa = PMEM_RAM_START;
 
-    for (i = PMEM_RAM_START; i < directmap_end; i += pgsize) {
-        vm_ptable_boot_enter(ptable, va, pa, pgsize);
-        va += pgsize;
-        pa += pgsize;
+    for (size_t i = PMEM_RAM_START; i < directmap_end; i += page_size) {
+        vm_ptable_boot_enter(ptable, va, pa, page_size);
+        va += page_size;
+        pa += page_size;
     }
 
     return vm_ptable_boot_root(ptable);
@@ -216,10 +223,10 @@ pmap_ap_setup_paging(void)
 {
     struct pmap_cpu_table *cpu_table;
     struct pmap *pmap;
-    unsigned long pgsize;
+    unsigned long page_size;
 
-    pgsize = pmap_boot_get_pgsize();
-    pmap_boot_enable_pgext(pgsize);
+    page_size = pmap_boot_get_page_size();
+    pmap_boot_enable_pgext(page_size);
 
     pmap = (void *)BOOT_VTOP((uintptr_t)&pmap_kernel_pmap);
     cpu_table = (void *)BOOT_VTOP((uintptr_t)pmap->cpu_tables[boot_ap_id]);

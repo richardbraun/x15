@@ -107,6 +107,8 @@ pmap_get_kernel_pmap(void)
     return &pmap_kernel_pmap;
 }
 
+unsigned int pmap_boot_get_last_level(size_t page_size);
+
 /*
  * Early initialization of the MMU.
  *

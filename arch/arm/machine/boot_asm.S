@@ -99,6 +99,8 @@ ASM_FUNC(boot_start_ram):
  orr %r0, %r0, #1                       /* Set the M bit */
  mcr p15, 0, %r0, c1, c0, 0             /* Write CP15 control register */
 
+ blx boot_main
+
  /* Never reached */
  b .
 ASM_END(boot_start_ram)
