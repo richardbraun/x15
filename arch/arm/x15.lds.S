@@ -92,6 +92,9 @@ SECTIONS
         *(.data)
     } : data
 
+    . = ALIGN(PAGE_SIZE);
+    _bss = .;
+
     .bss ALIGN(CPU_DATA_ALIGN) : AT(BOOT_VTOL(ADDR(.bss))) {
         *(.bss)
     } : data

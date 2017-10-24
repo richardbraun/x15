@@ -70,8 +70,9 @@ ASM_FUNC(_start):
   * be unified.
   */
  mrc p15, 0, %r0, c1, c0, 0             /* Read CP15 control register */
- bic %r0, %r0, #0x2                     /* Clear the C bit */
- bic %r0, %r0, #0x1000                  /* Clear the I bit */
+ bic %r0, %r0, #0x2                     /* Clear the C bit (D-cache) */
+ bic %r0, %r0, #0x4                     /* Clear the W bit (write buffers) */
+ bic %r0, %r0, #0x1000                  /* Clear the I bit (I-cache) */
  mcr p15, 0, %r0, c1, c0, 0             /* Write CP15 control register */
  mov %r0, #0
  mcr p15, 0, %r0, c7, c7, 0             /* Clean all caches */
@@ -92,11 +93,18 @@ ASM_FUNC(boot_start_ram):
 
  bl boot_setup_paging
 
+ orr %r0, %r0, #0x01                    /* Set the C bit (cacheable) */
+ orr %r0, %r0, #0x02                    /* Set the S bit (shareable) */
+ orr %r0, %r0, #0x18                    /* Set the RGN bits to write-back */
  mcr p15, 0, %r0, c2, c0, 0             /* Load the root page table address */
  mov %r0, #1
  mcr p15, 0, %r0, c3, c0, 0             /* Set domain 0 access to client */
  mrc p15, 0, %r0, c1, c0, 0             /* Read CP15 control register */
- orr %r0, %r0, #1                       /* Set the M bit */
+ orr %r0, %r0, #0x1                     /* Set the M bit (MMU enabled) */
+ orr %r0, %r0, #0x2                     /* Set the A bit (check alignment) */
+ orr %r0, %r0, #0x4                     /* Set the C bit (D-cache) */
+ orr %r0, %r0, #0x8                     /* Set the W bit (write buffers) */
+ orr %r0, %r0, #0x1000                  /* Set the I bit (I-cache) */
  mcr p15, 0, %r0, c1, c0, 0             /* Write CP15 control register */
 
  blx boot_main

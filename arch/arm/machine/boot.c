@@ -18,6 +18,7 @@
 #include <stdalign.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <kern/init.h>
 #include <kern/bootmem.h>
@@ -63,9 +64,16 @@ boot_log_info(void)
 {
 }
 
+static void __init
+boot_clear_bss(void)
+{
+    memset(&_bss, 0, &_end - &_bss);
+}
+
 void __init
 boot_main(void)
 {
+    boot_clear_bss();
     for (;;);
 }
 
