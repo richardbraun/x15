@@ -22,11 +22,12 @@ KVM=
 
 X15=$PWD/x15
 TMPDIR=$(mktemp -d)
-FLASH=$TMPDIR/flash
+BIN=$TMPDIR/x15.bin
+IMG=$TMPDIR/flash.img
 
-arm-none-eabi-objcopy -O binary x15 x15.bin
-dd if=/dev/zero of=flash.img bs=1M count=64
-dd if=x15.bin of=flash.img conv=notrunc
+arm-none-eabi-objcopy -O binary x15 $BIN
+dd if=/dev/zero of=$IMG bs=1M seek=64 count=0
+dd if=$BIN of=$IMG conv=notrunc
 
 $QEMU_EXE $KVM \
           -M virt-2.8 \
@@ -35,6 +36,6 @@ $QEMU_EXE $KVM \
           -m $RAM \
           -smp $NR_CPUS \
           -monitor stdio \
-          -pflash flash.img
+          -drive file=$IMG,if=pflash,format=raw
 
 rm -rf $TMPDIR

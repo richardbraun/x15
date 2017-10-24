@@ -91,7 +91,7 @@ ASM_FUNC(boot_start_ram):
  ldr %r13, boot_stack_addr              /* Set up the boot stack */
  add %r13, %r13, #BOOT_STACK_SIZE
 
- bl boot_setup_paging
+ blx boot_setup_paging
 
  orr %r0, %r0, #0x01                    /* Set the C bit (cacheable) */
  orr %r0, %r0, #0x02                    /* Set the S bit (shareable) */
@@ -107,6 +107,7 @@ ASM_FUNC(boot_start_ram):
  orr %r0, %r0, #0x1000                  /* Set the I bit (I-cache) */
  mcr p15, 0, %r0, c1, c0, 0             /* Write CP15 control register */
 
+ mov %r11, #0
  blx boot_main
 
  /* Never reached */
