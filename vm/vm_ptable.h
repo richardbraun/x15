@@ -33,7 +33,10 @@ struct vm_ptable_cpu_pt {
 
 typedef pmap_pte_t (*vm_ptable_make_pte_fn)(phys_addr_t pa, int prot);
 
-struct vm_ptable_level {
+/*
+ * Translation level properties.
+ */
+struct vm_ptable_tlp {
     unsigned int skip;
     unsigned int bits;
     unsigned int ptes_per_pt;
@@ -45,13 +48,12 @@ struct vm_ptable {
     struct vm_ptable_cpu_pt *cpu_pts[CONFIG_MAX_CPUS];
 };
 
-void vm_ptable_bootstrap(const struct vm_ptable_level *pt_levels,
-                         unsigned int nr_levels);
+void vm_ptable_bootstrap(const struct vm_ptable_tlp *tlps, size_t nr_levels);
 
 void vm_ptable_boot_build(struct vm_ptable *ptable);
 
 void vm_ptable_boot_enter(struct vm_ptable *ptable, uintptr_t va,
-                          phys_addr_t pa, size_t pgsize);
+                          phys_addr_t pa, size_t page_size);
 
 pmap_pte_t * vm_ptable_boot_root(const struct vm_ptable *ptable);
 

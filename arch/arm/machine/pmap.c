@@ -52,13 +52,8 @@
 
 #define PMAP_PTE_B              0x00000004
 #define PMAP_PTE_C              0x00000008
-
 #define PMAP_PTE_L0_RW          0x000000f0
 #define PMAP_PTE_L1_RW          0x00000c00
-
-/*
- * Page table level properties.
- */
 
 #define PMAP_NR_LEVELS          2
 #define PMAP_L0_BITS            8
@@ -66,8 +61,8 @@
 
 #define PMAP_VA_MASK            0xffffffff
 
-#define PMAP_PA_L0_MASK         0xfffff000
-#define PMAP_PA_L1_MASK         0xfffffc00
+#define PMAP_L0_PA_MASK         0xfffff000
+#define PMAP_L1_PA_MASK         0xfffffc00
 
 #define PMAP_L0_SKIP            12
 #define PMAP_L1_SKIP            (PMAP_L0_SKIP + PMAP_L0_BITS)
@@ -80,7 +75,7 @@ pmap_make_coarse_pte(phys_addr_t pa, int prot)
 {
     (void)prot;
 
-    assert((pa & PMAP_PA_L1_MASK) == pa);
+    assert((pa & PMAP_L1_PA_MASK) == pa);
     return pa | PMAP_PTE_TYPE_COARSE;
 }
 
@@ -89,7 +84,7 @@ pmap_make_small_page_pte(phys_addr_t pa, int prot)
 {
     (void)prot;
 
-    assert((pa & PMAP_PA_L0_MASK) == pa);
+    assert((pa & PMAP_L0_PA_MASK) == pa);
     return pa | PMAP_PTE_L0_RW | PMAP_PTE_C | PMAP_PTE_B | PMAP_PTE_TYPE_SMALL;
 }
 
@@ -103,9 +98,9 @@ pmap_make_section_pte(phys_addr_t pa, int prot)
 }
 
 /*
- * Table of properties per page table level.
+ * Physical translation level properties.
  */
-static struct vm_ptable_level pmap_boot_pt_levels[] __bootdata = {
+static struct vm_ptable_tlp pmap_boot_tlps[] __bootdata = {
     {
         PMAP_L0_SKIP,
         PMAP_L0_BITS,
@@ -177,7 +172,7 @@ pmap_setup_paging(void)
 
     /* TODO LPAE */
 
-    vm_ptable_bootstrap(pmap_boot_pt_levels, ARRAY_SIZE(pmap_boot_pt_levels));
+    vm_ptable_bootstrap(pmap_boot_tlps, ARRAY_SIZE(pmap_boot_tlps));
 
     ptable = &kernel_pmap->ptable;
     vm_ptable_boot_build(ptable);

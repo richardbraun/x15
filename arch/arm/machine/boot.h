@@ -49,6 +49,13 @@
 
 #include <kern/init.h>
 
+/*
+ * Macros for boot code and data, respectively.
+ *
+ * Note that all boot data end up in the same section, which means they
+ * can't have conflicting qualifiers. As a result, boot data may not be
+ * declared const.
+ */
 #define __boot     __section(QUOTE(BOOT_TEXT_SECTION))
 #define __bootdata __section(QUOTE(BOOT_DATA_SECTION)) __attribute__((used))
 
