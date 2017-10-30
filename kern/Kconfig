@@ -1,16 +1,16 @@
 menu "General setup"
 
-config MULTIPROCESSOR
+config SMP
 	bool "Multiprocessor support"
 	default y
 	---help---
 	  Enable support for machines with multiple processors.
 
 config MAX_CPUS
-	int "Maximum number of supported CPUs" if MULTIPROCESSOR
-	range 2 512 if MULTIPROCESSOR
-	default "1" if !MULTIPROCESSOR
-	default "128" if MULTIPROCESSOR
+	int "Maximum number of supported CPUs" if SMP
+	range 2 512 if SMP
+	default "1" if !SMP
+	default "128" if SMP
 	---help---
 	  Maximum number of supported processors.
 
