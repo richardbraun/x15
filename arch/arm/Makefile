@@ -1,7 +1,6 @@
-KCONFIG_DEFCONFIG := qemu_virt_defconfig
+KCONFIG_DEFCONFIG := qemu_virt28_defconfig
 
-XBUILD_CFLAGS += -mcpu=cortex-a15
-XBUILD_CFLAGS += -fdelete-null-pointer-checks
+include arch/arm/board-qemu-virt28/Makefile
 
 x15_SOURCES-y += \
         arch/arm/machine/boot_asm.S \

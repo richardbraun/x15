@@ -74,7 +74,9 @@ void __init
 boot_main(void)
 {
     boot_clear_bss();
-    for (;;);
+    kernel_main();
+
+    /* Never reached */
 }
 
 /*

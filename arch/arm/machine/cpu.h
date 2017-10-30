@@ -20,6 +20,8 @@
 
 #include <limits.h>
 
+#include <machine/cpu_armv6.h>
+
 /*
  * L1 cache line size.
  *
@@ -47,6 +49,11 @@
 #define CPU_TEXT_SHIFT 4
 #define CPU_TEXT_ALIGN (1 << CPU_TEXT_SHIFT)
 
+/*
+ * PSR flags.
+ */
+#define CPU_PSR_I       0x00000080
+
 #ifndef __ASSEMBLER__
 
 #include <stdbool.h>
@@ -57,48 +64,56 @@
 struct cpu {
 };
 
-static __always_inline void
-cpu_intr_enable(void)
+/*
+ * Return the content of the CPSR register.
+ *
+ * Implies a compiler barrier.
+ */
+static __always_inline unsigned long
+cpu_get_cpsr(void)
 {
+    unsigned long cpsr;
+
+    asm volatile("mrs %0, cpsr"
+                 : "=r" (cpsr)
+                 : : "memory");
+
+    return cpsr;
 }
 
-static __always_inline void
-cpu_intr_disable(void)
-{
-}
-
+/*
+ * Restore the content of the CPSR register, possibly enabling interrupts.
+ *
+ * Implies a compiler barrier.
+ */
 static __always_inline void
 cpu_intr_restore(unsigned long flags)
 {
-    (void)flags;
+    asm volatile("msr cpsr_c, %0"
+                 : : "r" (flags)
+                 : "memory");
 }
 
+/*
+ * Disable local interrupts, returning the previous content of the CPSR
+ * register.
+ *
+ * Implies a compiler barrier.
+ */
 static __always_inline void
 cpu_intr_save(unsigned long *flags)
 {
-    (void)flags;
+    *flags = cpu_get_cpsr();
+    cpu_intr_disable();
 }
 
 static __always_inline bool
 cpu_intr_enabled(void)
 {
-    return false;
-}
+    unsigned long cpsr;
 
-static __always_inline void
-cpu_pause(void)
-{
-}
-
-static __always_inline void
-cpu_idle(void)
-{
-}
-
-noreturn static __always_inline void
-cpu_halt(void)
-{
-    for (;;);
+    cpsr = cpu_get_cpsr();
+    return cpsr & CPU_PSR_I;
 }
 
 void cpu_halt_broadcast(void);

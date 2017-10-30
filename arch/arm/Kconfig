@@ -3,17 +3,32 @@ menu "Architecture-specific options"
 config ARM
 	def_bool y
 
-choice
-	prompt "Board"
-	default QEMU_VIRT_2_8
+config ARMV7
+	bool
 
-config QEMU_VIRT_2_8
-	bool "QEMU 2.8 virtual machine"
+config ARMV7A
+	bool
+	select ARMV7
 
-endchoice
+config ARM_ARCH
+	int
+	default 7 if ARMV7
 
 config SUBARCH
 	string
-	default "armv5tej" if X86_32
+	default "armv7a" if ARMV7A
+
+choice
+	prompt "Board"
+	default BOARD_SELECT_QEMU_VIRT_2_8
+
+config BOARD_SELECT_QEMU_VIRT_2_8
+	bool "QEMU 2.8 virtual machine"
+	---help---
+	  This virtual board is used by the tools/qemu_arm.sh script.
+
+endchoice
+
+source "arch/arm/board-qemu-virt28/Kconfig"
 
 endmenu

@@ -17,6 +17,7 @@
 
 #include <kern/error.h>
 #include <kern/init.h>
+#include <machine/cpu.h>
 #include <machine/tcb.h>
 
 int
@@ -38,6 +39,7 @@ tcb_cleanup(struct tcb *tcb)
 static int __init
 tcb_setup(void)
 {
+    cpu_halt();
     return 0;
 }
 
