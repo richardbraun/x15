@@ -18,8 +18,6 @@ dd if=/dev/zero of=$IMG bs=1M seek=64 count=0
 dd if=$BIN of=$IMG conv=notrunc
 
 $QEMU_EXE \
--d int \
--D debug.log \
         -M virt-2.8 \
         -ctrl-grab \
         -gdb tcp::1234 \

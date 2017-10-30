@@ -113,7 +113,7 @@ cpu_intr_enabled(void)
     unsigned long cpsr;
 
     cpsr = cpu_get_cpsr();
-    return cpsr & CPU_PSR_I;
+    return !(cpsr & CPU_PSR_I);
 }
 
 void cpu_halt_broadcast(void);
