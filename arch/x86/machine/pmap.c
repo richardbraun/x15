@@ -40,7 +40,6 @@
 #include <machine/biosmem.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
-#include <machine/lapic.h>
 #include <machine/page.h>
 #include <machine/pmap.h>
 #include <machine/tcb.h>
