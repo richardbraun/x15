@@ -78,7 +78,7 @@ all_cc_options_dict = {
 
 small_options_dict = {
     'CONFIG_CC_OPTIONS'             : gen_cc_options_list(all_cc_options_dict),
-    'CONFIG_MULTIPROCESSOR'         : ['y', 'n'],
+    'CONFIG_SMP'                    : ['y', 'n'],
     'CONFIG_MAX_CPUS'               : ['1', '128'],
     'CONFIG_ASSERT'                 : ['y', 'n'],
 }
@@ -113,11 +113,11 @@ all_filters_list = [
         'CONFIG_CC_OPTIONS'         :   [True, re.compile('-flto')],
     },
     {
-        'CONFIG_MULTIPROCESSOR'     :   [True, 'y'],
+        'CONFIG_SMP'                :   [True, 'y'],
         'CONFIG_MAX_CPUS'           :   [True, '1'],
     },
     {
-        'CONFIG_MULTIPROCESSOR'     :   [True, 'n'],
+        'CONFIG_SMP'                :   [True, 'n'],
         'CONFIG_MAX_CPUS'           :   [False, '1'],
     },
     {
