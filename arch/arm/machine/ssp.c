@@ -15,35 +15,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <kern/error.h>
-#include <kern/init.h>
-#include <kern/percpu.h>
-#include <machine/cpu.h>
-#include <machine/tcb.h>
+#include <stdint.h>
 
-struct tcb *tcb_current_ptr __percpu;
+#include <kern/macros.h>
+#include <kern/panic.h>
 
-int
-tcb_build(struct tcb *tcb, void *stack, void (*fn)(void *), void *arg)
+#ifdef __LP64__
+#define SSP_GUARD_WORD 0xdeadd00ddeadd00d
+#else
+#define SSP_GUARD_WORD 0xdeadd00d
+#endif
+
+__used uintptr_t ssp_guard_word = SSP_GUARD_WORD;
+__used extern uintptr_t __stack_chk_guard __attribute__((alias("ssp_guard_word")));
+
+void ssp_panic(void);
+
+__used void
+ssp_panic(void)
 {
-    (void)tcb;
-    (void)stack;
-    (void)fn;
-    (void)arg;
-    return ERROR_AGAIN;
+    panic("ssp: stack corruption detected");
 }
 
-void
-tcb_cleanup(struct tcb *tcb)
-{
-    (void)tcb;
-}
-
-static int __init
-tcb_setup(void)
-{
-    return 0;
-}
-
-INIT_OP_DEFINE(tcb_setup,
-               INIT_OP_DEP(cpu_setup, true));
+__used void __stack_chk_fail(void) __attribute__((alias("ssp_panic")));

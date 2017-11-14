@@ -3,6 +3,7 @@ menu "General setup"
 config SMP
 	bool "Multiprocessor support"
 	default y
+	depends on ARCH_SMP
 	---help---
 	  Enable support for machines with multiple processors.
 

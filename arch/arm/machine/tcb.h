@@ -24,6 +24,7 @@
 #include <stdnoreturn.h>
 
 #include <kern/init.h>
+#include <machine/cpu.h>
 #include <machine/page.h>
 
 /*
@@ -41,13 +42,15 @@ void tcb_cleanup(struct tcb *tcb);
 static inline struct tcb *
 tcb_current(void)
 {
-    return NULL;
+    extern struct tcb *tcb_current_ptr;
+    return cpu_local_read(tcb_current_ptr);
 }
 
 static inline void
 tcb_set_current(struct tcb *tcb)
 {
-    (void)tcb;
+    extern struct tcb *tcb_current_ptr;
+    cpu_local_assign(tcb_current_ptr, tcb);
 }
 
 noreturn void tcb_load(struct tcb *tcb);

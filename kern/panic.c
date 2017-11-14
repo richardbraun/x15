@@ -29,6 +29,7 @@ static unsigned int panic_done;
 void
 panic(const char *format, ...)
 {
+cpu_halt();
     va_list list;
     unsigned long already_done;
 

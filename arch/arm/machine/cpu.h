@@ -21,6 +21,7 @@
 #include <limits.h>
 
 #include <machine/cpu_armv6.h>
+#include <machine/cpu_armv7.h>
 
 /*
  * L1 cache line size.
@@ -62,6 +63,7 @@
 #include <kern/init.h>
 
 struct cpu {
+    unsigned int id;
 };
 
 /*
@@ -117,8 +119,6 @@ cpu_intr_enabled(void)
 }
 
 void cpu_halt_broadcast(void);
-
-#define cpu_local_ptr(var) (&(var))
 
 static inline struct cpu *
 cpu_current(void)

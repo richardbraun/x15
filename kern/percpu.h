@@ -37,6 +37,7 @@
  * percpu variables from the local processor :
  *  - cpu_local_ptr()
  *  - cpu_local_var()
+ * TODO Document cpu_local_assign() and cpu_local_read().
  *
  * These accessors may generate optimized code.
  *

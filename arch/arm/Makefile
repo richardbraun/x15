@@ -7,6 +7,7 @@ x15_SOURCES-y += \
         arch/arm/machine/boot.c \
         arch/arm/machine/cpu.c \
         arch/arm/machine/pmap.c \
+        arch/arm/machine/ssp.c \
         arch/arm/machine/strace.c \
         arch/arm/machine/tcb_asm.S \
         arch/arm/machine/tcb.c

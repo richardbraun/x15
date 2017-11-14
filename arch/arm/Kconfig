@@ -18,6 +18,14 @@ config SUBARCH
 	string
 	default "armv7a" if ARMV7A
 
+config ARCH_SMP
+	bool
+	default y if ARMV7A
+
+config CPU_CORTEX_A15
+	bool
+	select ARMV7A
+
 choice
 	prompt "Board"
 	default BOARD_SELECT_QEMU_VIRT_2_8

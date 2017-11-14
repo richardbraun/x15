@@ -2,6 +2,6 @@ if BOARD_SELECT_QEMU_VIRT_2_8
 
 config BOARD_QEMU_VIRT_2_8
 	def_bool y
-	select ARMV7A
+	select CPU_CORTEX_A15
 
 endif

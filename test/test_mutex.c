@@ -80,6 +80,7 @@ test_run(void *arg)
         }
 
         if ((counter % 2) == 0) {
+            /* TODO Rework active-waiting interface */
             cpu_delay(clock_ticks_to_ms(1) * 1000);
         } else {
             thread_delay(1, false);

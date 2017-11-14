@@ -19,6 +19,7 @@ dd if=$BIN of=$IMG conv=notrunc
 
 $QEMU_EXE \
         -M virt-2.8 \
+        -cpu cortex-a15 \
         -ctrl-grab \
         -gdb tcp::1234 \
         -m $RAM \
