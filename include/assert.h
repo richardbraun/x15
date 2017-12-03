@@ -21,7 +21,14 @@
 #define static_assert _Static_assert
 
 #ifdef NDEBUG
-#define assert(expression) ((void)(expression))
+
+/*
+ * The assert() macro normally doesn't produce side effects when turned off,
+ * but this may result in many "set but not used" warnings. Using sizeof()
+ * silences these warnings without producing side effects.
+ */
+#define assert(expression) ((void)sizeof(expression))
+
 #else /* NDEBUG */
 
 #include <kern/macros.h>
