@@ -137,7 +137,7 @@ timer_unlock_cpu_data(struct timer_cpu_data *cpu_data, unsigned long flags)
  * Timer state functions.
  */
 
-__unused static bool
+static bool
 timer_ready(const struct timer *timer)
 {
     return timer->state == TIMER_TS_READY;

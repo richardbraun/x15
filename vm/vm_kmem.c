@@ -56,7 +56,7 @@ INIT_OP_DEFINE(vm_kmem_setup,
                INIT_OP_DEP(vm_object_setup, true),
                INIT_OP_DEP(vm_page_setup, true));
 
-__unused static int
+static int
 vm_kmem_alloc_check(size_t size)
 {
     if (!vm_page_aligned(size)
@@ -67,7 +67,7 @@ vm_kmem_alloc_check(size_t size)
     return 0;
 }
 
-__unused static int
+static int
 vm_kmem_free_check(uintptr_t va, size_t size)
 {
     if (!vm_page_aligned(va)) {

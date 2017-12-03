@@ -646,7 +646,7 @@ kmem_cache_register(struct kmem_cache *cache, struct kmem_slab *slab)
     uintptr_t va, end;
     phys_addr_t pa;
     bool virtual;
-    __unused int error;
+    int error;
 
     assert(kmem_cache_registration_required(cache));
     assert(slab->nr_refs == 0);

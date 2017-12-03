@@ -216,7 +216,7 @@ static void
 cga_bbuf_redraw(struct cga_bbuf *bbuf)
 {
     size_t size;
-    __unused int error;
+    int error;
 
     size = CGA_MEMORY_SIZE;
     error = cbuf_read(&bbuf->cbuf, bbuf->view, cga_memory, &size);
@@ -298,7 +298,7 @@ cga_bbuf_newline(struct cga_bbuf *bbuf)
 {
     uint16_t cursor = 0, spaces[CGA_COLUMNS];
     size_t i, nr_spaces, offset, size;
-    __unused int error;
+    int error;
 
     cga_bbuf_reset_view(bbuf);
 

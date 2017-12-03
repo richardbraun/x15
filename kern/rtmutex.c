@@ -183,7 +183,7 @@ out:
 void
 rtmutex_lock_slow(struct rtmutex *rtmutex)
 {
-    __unused int error;
+    int error;
 
     error = rtmutex_lock_slow_common(rtmutex, false, 0);
     assert(!error);

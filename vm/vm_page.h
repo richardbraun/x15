@@ -240,7 +240,7 @@ vm_page_referenced(const struct vm_page *page)
 static inline void
 vm_page_ref(struct vm_page *page)
 {
-    __unused unsigned int nr_refs;
+    unsigned int nr_refs;
 
     nr_refs = atomic_fetch_add(&page->nr_refs, 1, ATOMIC_RELAXED);
     assert(nr_refs != (unsigned int)-1);

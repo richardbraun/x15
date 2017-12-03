@@ -88,7 +88,7 @@ condition_wait_common(struct condition *condition, struct mutex *mutex,
 void
 condition_wait(struct condition *condition, struct mutex *mutex)
 {
-    __unused int error;
+    int error;
 
     error = condition_wait_common(condition, mutex, false, 0);
     assert(!error);

@@ -472,7 +472,7 @@ INIT_OP_DEFINE(log_start,
 static void
 log_write(const void *s, size_t size)
 {
-    __unused int error;
+    int error;
 
     error = cbuf_push(&log_cbuf, s, size, true);
     assert(!error);

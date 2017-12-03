@@ -20,7 +20,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <kern/macros.h>
 #include <kern/semaphore.h>
 #include <kern/semaphore_i.h>
 #include <kern/sleepq.h>
@@ -64,7 +63,7 @@ semaphore_wait_slow_common(struct semaphore *semaphore,
 void
 semaphore_wait_slow(struct semaphore *semaphore)
 {
-    __unused int error;
+    int error;
 
     error = semaphore_wait_slow_common(semaphore, false, 0);
     assert(!error);

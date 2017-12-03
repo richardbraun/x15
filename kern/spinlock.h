@@ -26,8 +26,6 @@
 #ifndef _KERN_SPINLOCK_H
 #define _KERN_SPINLOCK_H
 
-#include <stdbool.h>
-
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/spinlock_i.h>
@@ -36,16 +34,12 @@
 
 struct spinlock;
 
+#define spinlock_assert_locked(lock) assert((lock)->value != SPINLOCK_UNLOCKED)
+
 /*
  * Initialize a spin lock.
  */
 void spinlock_init(struct spinlock *lock);
-
-static inline bool
-spinlock_locked(const struct spinlock *lock)
-{
-    return lock->value != SPINLOCK_UNLOCKED;
-}
 
 /*
  * Attempt to lock the given spin lock.

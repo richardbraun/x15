@@ -283,7 +283,7 @@ void thread_pi_setscheduler(struct thread *thread, unsigned char policy,
 static inline void
 thread_ref(struct thread *thread)
 {
-    __unused unsigned long nr_refs;
+    unsigned long nr_refs;
 
     nr_refs = atomic_fetch_add(&thread->nr_refs, 1, ATOMIC_RELAXED);
     assert(nr_refs != (unsigned long)-1);

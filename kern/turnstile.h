@@ -43,6 +43,8 @@ struct turnstile;
  */
 struct turnstile_td;
 
+#define turnstile_td_assert_lock(td) spinlock_assert_locked(&(td)->lock)
+
 /*
  * Initialize turnstile thread data.
  */
@@ -59,12 +61,6 @@ turnstile_td_init(struct turnstile_td *td)
 /*
  * Turnstile thread data locking functions.
  */
-
-static inline bool
-turnstile_td_locked(struct turnstile_td *td)
-{
-    return spinlock_locked(&(td)->lock);
-}
 
 static inline void
 turnstile_td_lock(struct turnstile_td *td)
