@@ -25,8 +25,6 @@
 #include <kern/error.h>
 #include <kern/macros.h>
 
-#ifdef CONFIG_SHELL
-
 #define SHELL_REGISTER_CMDS(cmds)                           \
 MACRO_BEGIN                                                 \
     size_t ___i;                                            \
@@ -80,12 +78,6 @@ void shell_start(void);
  * the shell module and must persist in memory.
  */
 int shell_cmd_register(struct shell_cmd *cmd);
-
-#else /* CONFIG_SHELL */
-#define SHELL_REGISTER_CMDS(cmds)
-#define shell_setup()
-#define shell_start()
-#endif /* CONFIG_SHELL */
 
 /*
  * This init operation provides :

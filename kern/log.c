@@ -267,19 +267,38 @@ log_record_print(const struct log_record *record, unsigned int level)
     }
 }
 
+#ifdef CONFIG_SHELL
+
+static void
+log_start_shell(unsigned long *flags)
+{
+    static bool shell_started = false;
+
+    if (shell_started) {
+        return;
+    }
+
+    spinlock_unlock_intr_restore(&log_lock, *flags);
+    shell_start();
+    spinlock_lock_intr_save(&log_lock, flags);
+    shell_started = true;
+}
+
+#else /* CONFIG_SHELL */
+#define log_start_shell(flags)
+#endif /* CONFIG_SHELL*/
+
 static void
 log_run(void *arg)
 {
     unsigned long flags, nr_overruns;
     struct log_consume_ctx ctx;
     struct log_record record;
-    bool start_shell;
     int error;
 
     (void)arg;
 
     nr_overruns = 0;
-    start_shell = true;
 
     spinlock_lock_intr_save(&log_lock, &flags);
 
@@ -292,13 +311,7 @@ log_run(void *arg)
              * time cleanly serializes log messages and shell prompt, making
              * a clean ordered output.
              */
-            if (start_shell) {
-                spinlock_unlock_intr_restore(&log_lock, flags);
-                shell_start();
-                start_shell = false;
-                spinlock_lock_intr_save(&log_lock, &flags);
-            }
-
+            log_start_shell(&flags);
             log_index = log_consume_ctx_index(&ctx);
 
             thread_sleep(&log_lock, &log_cbuf, "log_cbuf");
