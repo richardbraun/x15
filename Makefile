@@ -260,6 +260,9 @@ XBUILD_CFLAGS += -Wshadow
 XBUILD_CFLAGS += -Wmissing-prototypes
 XBUILD_CFLAGS += -Wstrict-prototypes
 
+# XXX Temporary, until a single solution is adopted to silence these warnings.
+XBUILD_CFLAGS += -Wno-unneeded-internal-declaration
+
 XBUILD_CFLAGS += $(call xbuild_check_cc_option,-fno-PIE)
 XBUILD_CFLAGS += $(call xbuild_check_cc_option,-Qunused-arguments)
 
