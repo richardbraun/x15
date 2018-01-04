@@ -302,7 +302,7 @@ define gen_sorted_init_ops
 endef
 
 .INTERMEDIATE: .x15.sorted_init_ops
-.x15.sorted_init_ops: $(filter %.c,$(x15_SOURCES))
+.x15.sorted_init_ops: $(filter %.c,$(x15_SOURCES)) include/generated/autoconf.h
 	$(call gen_sorted_init_ops)
 
 x15_DEPS := $(x15_LDS) .x15.sorted_init_ops
