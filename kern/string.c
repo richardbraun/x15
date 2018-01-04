@@ -181,7 +181,8 @@ strcmp(const char *s1, const char *s2)
         s2++;
     }
 
-    return (int)c1 - (int)c2;
+    /* See C11 7.24.4 Comparison functions */
+    return (int)(unsigned char)c1 - (int)(unsigned char)c2;
 }
 #endif /* STRING_ARCH_STRCMP */
 
@@ -205,7 +206,8 @@ strncmp(const char *s1, const char *s2, size_t n)
         s2++;
     }
 
-    return (int)c1 - (int)c2;
+    /* See C11 7.24.4 Comparison functions */
+    return (int)(unsigned char)c1 - (int)(unsigned char)c2;
 }
 #endif /* STRING_ARCH_STRNCMP */
 
