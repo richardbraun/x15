@@ -18,6 +18,10 @@
 
 #include "lkc.h"
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 static void conf(struct menu *menu);
 static void check_conf(struct menu *menu);
 static void xfgets(char *str, int size, FILE *in);

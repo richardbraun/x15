@@ -22,6 +22,10 @@
 #include "lkc.h"
 #include "lxdialog/dialog.h"
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 static const char mconf_readme[] = N_(
 "Overview\n"
 "--------\n"
