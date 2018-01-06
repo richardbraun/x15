@@ -492,11 +492,13 @@ sleepq_signal(struct sleepq *sleepq)
 {
     struct sleepq_waiter *waiter;
 
-    if (list_empty(&sleepq->waiters)) {
+    waiter = sleepq->oldest_waiter;
+
+    if (!waiter) {
         return;
     }
 
-    waiter = list_last_entry(&sleepq->waiters, struct sleepq_waiter, node);
+    sleepq_shift_oldest_waiter(sleepq);
     sleepq_waiter_set_pending_wakeup(waiter);
     sleepq_waiter_wakeup(waiter);
 }

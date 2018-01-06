@@ -105,8 +105,6 @@ bool sleepq_empty(const struct sleepq *sleepq);
  * released, e.g. if a single thread is waiting and another signals
  * the queue, the queue is not immediately considered empty.
  *
- * Threads are queued in FIFO order.
- *
  * When bounding the duration of the wait, the caller must pass an absolute
  * time in ticks, and ERROR_TIMEDOUT is returned if that time is reached
  * before the sleep queue is signalled.
@@ -124,10 +122,8 @@ int sleepq_timedwait(struct sleepq *sleepq, const char *wchan, uint64_t ticks);
  * acquired) when waiting, and acquired in order to signal it,
  * wake-ups are serialized and cannot be missed.
  *
- * Threads are queued in FIFO order, which means signalling a sleep
- * queue multiple times always awakens the same thread, regardless
- * of new waiters, as long as that thread didn't reacquire the
- * sleep queue.
+ * At least one thread is awaken if any threads are waiting on the sleep
+ * queue.
  *
  * A broadcast differs only by also making all currently waiting threads
  * pending for wake-up. As with sleepq_signal, a single thread may be
