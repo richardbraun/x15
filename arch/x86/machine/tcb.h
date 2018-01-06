@@ -52,7 +52,7 @@ struct tcb {
  * Build a TCB.
  *
  * Prepare the given stack for execution. The context is defined so that it
- * will call thread_main(fn, arg) with interrupts disabled when loaded.
+ * will call thread_main(fn, arg) when loaded.
  *
  * In addition, initialize any thread-local machine-specific data.
  */

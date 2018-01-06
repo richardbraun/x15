@@ -49,7 +49,6 @@ tcb_stack_forge(struct tcb *tcb, void (*fn)(void *), void *arg)
     tcb_stack_push(tcb, (uintptr_t)arg);
     tcb_stack_push(tcb, (uintptr_t)fn);
     tcb_stack_push(tcb, (uintptr_t)tcb_start);  /* Return address */
-    tcb_stack_push(tcb, CPU_EFL_ONE);           /* RFLAGS */
     tcb_stack_push(tcb, 0);                     /* RBX */
     tcb_stack_push(tcb, 0);                     /* R12 */
     tcb_stack_push(tcb, 0);                     /* R13 */
@@ -65,7 +64,6 @@ tcb_stack_forge(struct tcb *tcb, void (*fn)(void *), void *arg)
     tcb_stack_push(tcb, (uintptr_t)arg);
     tcb_stack_push(tcb, (uintptr_t)fn);
     tcb_stack_push(tcb, (uintptr_t)tcb_start);  /* Return address */
-    tcb_stack_push(tcb, CPU_EFL_ONE);           /* EFLAGS */
     tcb_stack_push(tcb, 0);                     /* EBX */
     tcb_stack_push(tcb, 0);                     /* EDI */
     tcb_stack_push(tcb, 0);                     /* ESI */

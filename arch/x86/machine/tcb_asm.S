@@ -64,12 +64,12 @@ ASM_ENTRY(tcb_start)
 ASM_END(tcb_start)
 
 ASM_ENTRY(tcb_context_switch)
- pushfq                 /* store registers as required by ABI */
- pushq %rbx
+ pushq %rbx             /* store registers as required by ABI */
  pushq %r12
  pushq %r13
  pushq %r14
  pushq %r15
+
  movq %rbp, (%rdi)      /* store frame pointer into prev TCB */
  movq %rsp, 8(%rdi)     /* store stack pointer into prev TCB */
  movq (%rsi), %rbp      /* load frame pointer from next TCB */
@@ -82,7 +82,6 @@ tcb_context_restore:
  popq %r13
  popq %r12
  popq %rbx
- popfq
  ret
 ASM_END(tcb_context_switch)
 
@@ -101,10 +100,11 @@ ASM_END(tcb_start)
 ASM_ENTRY(tcb_context_switch)
  movl 4(%esp), %eax     /* load prev TCB address */
  movl 8(%esp), %ecx     /* load next TCB address */
- pushfl                 /* store registers as required by ABI */
- pushl %ebx
+
+ pushl %ebx             /* store registers as required by ABI */
  pushl %edi
  pushl %esi
+
  movl %ebp, (%eax)      /* store frame pointer into prev TCB */
  movl %esp, 4(%eax)     /* store stack pointer into prev TCB */
  movl (%ecx), %ebp      /* load frame pointer from next TCB */
@@ -120,7 +120,6 @@ tcb_context_restore:
  popl %esi
  popl %edi
  popl %ebx
- popfl
  ret
 ASM_END(tcb_context_switch)
 
