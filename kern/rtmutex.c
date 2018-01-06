@@ -29,11 +29,7 @@
 #include <kern/thread.h>
 #include <kern/turnstile.h>
 
-#ifndef RTMUTEX_DEBUG
-#define RTMUTEX_DEBUG 0
-#endif /* RTMUTEX_DEBUG */
-
-#if RTMUTEX_DEBUG
+#ifdef CONFIG_MUTEX_DEBUG
 
 enum {
     RTMUTEX_SC_WAIT_SUCCESSES,
@@ -75,10 +71,10 @@ rtmutex_inc_sc(unsigned int index)
     syscnt_inc(&rtmutex_sc_array[index]);
 }
 
-#else /* RTMUTEX_DEBUG */
+#else /* CONFIG_MUTEX_DEBUG */
 #define rtmutex_setup_debug()
 #define rtmutex_inc_sc(x)
-#endif /* RTMUTEX_DEBUG */
+#endif /* CONFIG_MUTEX_DEBUG */
 
 static struct thread *
 rtmutex_get_thread(uintptr_t owner)
@@ -236,7 +232,7 @@ rtmutex_setup(void)
 }
 
 INIT_OP_DEFINE(rtmutex_setup,
-#if RTMUTEX_DEBUG
+#ifdef CONFIG_MUTEX_DEBUG
                INIT_OP_DEP(syscnt_setup, true),
-#endif /* RTMUTEX_DEBUG */
+#endif /* CONFIG_MUTEX_DEBUG */
                );

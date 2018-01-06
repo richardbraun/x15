@@ -27,11 +27,7 @@
 #include <kern/sleepq.h>
 #include <kern/syscnt.h>
 
-#ifndef MUTEX_PLAIN_DEBUG
-#define MUTEX_PLAIN_DEBUG 0
-#endif /* MUTEX_PLAIN_DEBUG */
-
-#if MUTEX_PLAIN_DEBUG
+#ifdef CONFIG_MUTEX_DEBUG
 
 enum {
     MUTEX_PLAIN_SC_WAIT_SUCCESSES,
@@ -70,10 +66,10 @@ mutex_plain_inc_sc(unsigned int index)
     syscnt_inc(&mutex_plain_sc_array[index]);
 }
 
-#else /* MUTEX_PLAIN_DEBUG */
+#else /* CONFIG_MUTEX_DEBUG */
 #define mutex_plain_setup_debug()
 #define mutex_plain_inc_sc(x)
-#endif /* MUTEX_PLAIN_DEBUG */
+#endif /* CONFIG_MUTEX_DEBUG */
 
 static int
 mutex_plain_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
@@ -170,7 +166,7 @@ mutex_plain_setup(void)
 }
 
 INIT_OP_DEFINE(mutex_plain_setup,
-#if MUTEX_PLAIN_DEBUG
+#ifdef CONFIG_MUTEX_DEBUG
                INIT_OP_DEP(syscnt_setup, true),
-#endif /* MUTEX_PLAIN_DEBUG */
+#endif /* CONFIG_MUTEX_DEBUG */
 );

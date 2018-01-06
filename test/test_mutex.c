@@ -178,7 +178,4 @@ test_setup(void)
     timer_init(&test_timer, test_report_syscnt, TIMER_DETACHED);
     time = clock_get_time() + clock_ticks_from_ms(TEST_REPORT_INTERVAL);
     timer_schedule(&test_timer, time);
-
-    log_info("test: enable mutex debugging for the selected implementation");
-    log_info("test: and check the relevant system counters");
 }

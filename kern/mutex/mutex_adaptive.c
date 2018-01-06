@@ -31,11 +31,7 @@
 #include <kern/thread.h>
 #include <machine/cpu.h>
 
-#ifndef MUTEX_ADAPTIVE_DEBUG
-#define MUTEX_ADAPTIVE_DEBUG 0
-#endif /* MUTEX_ADAPTIVE_DEBUG */
-
-#if MUTEX_ADAPTIVE_DEBUG
+#ifdef CONFIG_MUTEX_DEBUG
 
 enum {
     MUTEX_ADAPTIVE_SC_SPINS,
@@ -95,10 +91,10 @@ mutex_adaptive_inc_sc(unsigned int index)
     syscnt_inc(&mutex_adaptive_sc_array[index]);
 }
 
-#else /* MUTEX_ADAPTIVE_DEBUG */
+#else /* CONFIG_MUTEX_DEBUG */
 #define mutex_adaptive_setup_debug()
 #define mutex_adaptive_inc_sc(x)
-#endif /* MUTEX_ADAPTIVE_DEBUG */
+#endif /* CONFIG_MUTEX_DEBUG */
 
 
 static struct thread *
@@ -329,7 +325,7 @@ mutex_adaptive_setup(void)
 }
 
 INIT_OP_DEFINE(mutex_adaptive_setup,
-#if MUTEX_ADAPTIVE_DEBUG
+#ifdef CONFIG_MUTEX_DEBUG
                INIT_OP_DEP(syscnt_setup, true),
-#endif /* MUTEX_ADAPTIVE_DEBUG */
+#endif /* CONFIG_MUTEX_DEBUG */
 );

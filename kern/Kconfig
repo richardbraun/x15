@@ -81,3 +81,13 @@ config THREAD_STACK_GUARD
 	  If unsure, disable.
 
 endmenu
+
+menu "Debugging"
+
+config MUTEX_DEBUG
+	bool "Mutex debugging"
+	default n
+	---help---
+	  Enable mutex debugging and instrumentation.
+
+endmenu
