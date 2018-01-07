@@ -92,8 +92,12 @@ test_run(void *arg)
 
     for (unsigned int i = 0; i < cpu_count(); i++) {
         /*
-         * FIXME There seems to be an initialization race of the local APIC when
-         * sending IPIs early from CPU 1 to CPU 2 or more.
+         * Send IPIs from CPU 1 first, in order to better trigger any
+         * initialization race that may prevent correct IPI transmission.
+         * This assumes CPUs are initialized sequentially, and that CPU 1
+         * may have finished initialization much earlier than the last CPU.
+         * CPU 0 isn't used since it's the one normally initializing remote
+         * CPUs.
          */
         cpu = (1 + i) % cpu_count();
 
