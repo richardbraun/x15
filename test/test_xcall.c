@@ -27,6 +27,7 @@
 
 #include <kern/error.h>
 #include <kern/cpumap.h>
+#include <kern/log.h>
 #include <kern/panic.h>
 #include <kern/thread.h>
 #include <kern/xcall.h>
@@ -47,7 +48,7 @@ test_fn(void *arg)
         panic("invalid cpu");
     }
 
-    printf("function called, running on cpu%u\n", cpu_id());
+    log_info("function called, running on cpu%u\n", cpu_id());
     test_done = true;
 }
 
@@ -56,7 +57,7 @@ test_once(unsigned int cpu)
 {
     test_done = false;
 
-    printf("cross-call: cpu%u -> cpu%u:\n", cpu_id(), cpu);
+    log_info("cross-call: cpu%u -> cpu%u:\n", cpu_id(), cpu);
     xcall_call(test_fn, (void *)(uintptr_t)cpu, cpu);
 
     if (!test_done) {
@@ -101,7 +102,7 @@ test_run(void *arg)
 
     cpumap_destroy(cpumap);
 
-    printf("done\n");
+    log_info("done\n");
 }
 
 void
