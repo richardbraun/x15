@@ -340,6 +340,15 @@ static unsigned int thread_nr_keys __read_mostly;
  */
 static thread_dtor_fn_t thread_dtors[THREAD_KEYS_MAX] __read_mostly;
 
+/*
+ * Number of processors which have requested the scheduler to run.
+ *
+ * This value is used to implement a global barrier across the entire
+ * system at boot time, so that inter-processor requests may not be
+ * lost in case a processor is slower to initialize.
+ */
+static unsigned int thread_nr_boot_cpus __initdata;
+
 struct thread_zombie {
     struct work work;
     struct thread *thread;
@@ -2578,6 +2587,26 @@ thread_delay(uint64_t ticks, bool absolute)
     thread_preempt_enable();
 }
 
+static void __init
+thread_boot_barrier(void)
+{
+    unsigned int nr_cpus;
+
+    assert(!cpu_intr_enabled());
+
+    atomic_add(&thread_nr_boot_cpus, 1, ATOMIC_RELAXED);
+
+    for (;;) {
+        nr_cpus = atomic_load(&thread_nr_boot_cpus, ATOMIC_SEQ_CST);
+
+        if (nr_cpus == cpu_count()) {
+            break;
+        }
+
+        cpu_pause();
+    }
+}
+
 void __init
 thread_run_scheduler(void)
 {
@@ -2585,6 +2614,8 @@ thread_run_scheduler(void)
     struct thread *thread;
 
     assert(!cpu_intr_enabled());
+
+    thread_boot_barrier();
 
     runq = thread_runq_local();
     thread = thread_self();
