@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Richard Braun.
+ * Copyright (c) 2014-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,11 +15,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * This is a simple test of the cross-call functionality. One thread is
- * created and bound to CPU 0. It makes two cross-calls, one on its local
- * processor, and another on a remote processor.
+ * This test creates a thread that tests cross-calls for all combinations
+ * of processors. This thread sequentially creates other threads that are
+ * bound to a single processor, and perform cross-calls to all processors,
+ * including the local one.
  */
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 
@@ -30,26 +32,32 @@
 #include <kern/xcall.h>
 #include <test/test.h>
 
-static int test_done;
+static bool test_done;
 
 static void
 test_fn(void *arg)
 {
-    (void)arg;
+    uintptr_t cpu;
 
     assert(thread_interrupted());
 
+    cpu = (uintptr_t)arg;
+
+    if (cpu != cpu_id()) {
+        panic("invalid cpu");
+    }
+
     printf("function called, running on cpu%u\n", cpu_id());
-    test_done = 1;
+    test_done = true;
 }
 
 static void
 test_once(unsigned int cpu)
 {
-    test_done = 0;
+    test_done = false;
 
-    printf("cross-call on cpu%u:\n", cpu);
-    xcall_call(test_fn, NULL, cpu);
+    printf("cross-call: cpu%u -> cpu%u:\n", cpu_id(), cpu);
+    xcall_call(test_fn, (void *)(uintptr_t)cpu, cpu);
 
     if (!test_done) {
         panic("test_done false");
@@ -57,12 +65,42 @@ test_once(unsigned int cpu)
 }
 
 static void
-test_run(void *arg)
+test_run_cpu(void *arg)
 {
     (void)arg;
 
-    test_once(0);
-    test_once(1);
+    for (unsigned int i = 0; i < cpu_count(); i++) {
+        test_once(i);
+    }
+}
+
+static void
+test_run(void *arg)
+{
+    char name[THREAD_NAME_SIZE];
+    struct thread_attr attr;
+    struct thread *thread;
+    struct cpumap *cpumap;
+    int error;
+
+    (void)arg;
+
+    error = cpumap_create(&cpumap);
+    error_check(error, "cpumap_create");
+
+    for (unsigned int i = 0; i < cpu_count(); i++) {
+        cpumap_zero(cpumap);
+        cpumap_set(cpumap, i);
+        snprintf(name, sizeof(name), THREAD_KERNEL_PREFIX "test_run/%u", i);
+        thread_attr_init(&attr, name);
+        thread_attr_set_cpumap(&attr, cpumap);
+        error = thread_create(&thread, &attr, test_run_cpu, NULL);
+        error_check(error, "thread_create");
+        thread_join(thread);
+    }
+
+    cpumap_destroy(cpumap);
+
     printf("done\n");
 }
 
@@ -71,19 +109,10 @@ test_setup(void)
 {
     struct thread_attr attr;
     struct thread *thread;
-    struct cpumap *cpumap;
     int error;
-
-    error = cpumap_create(&cpumap);
-    error_check(error, "cpumap_create");
-    cpumap_zero(cpumap);
-    cpumap_set(cpumap, 0);
 
     thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_run");
     thread_attr_set_detached(&attr);
-    thread_attr_set_cpumap(&attr, cpumap);
     error = thread_create(&thread, &attr, test_run, NULL);
     error_check(error, "thread_create");
-
-    cpumap_destroy(cpumap);
 }
