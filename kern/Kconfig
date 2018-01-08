@@ -84,6 +84,12 @@ endmenu
 
 menu "Debugging"
 
+config INIT_DEBUG
+	bool "Initialization debugging"
+	default n
+	---help---
+	  Enable the debugging of initialization operations.
+
 config MUTEX_DEBUG
 	bool "Mutex debugging"
 	default n

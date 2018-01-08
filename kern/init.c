@@ -35,8 +35,6 @@
 #include <kern/macros.h>
 #include <machine/cpu.h>
 
-#define INIT_DEBUG 1
-
 extern struct init_op _init_ops;
 extern struct init_op _init_ops_end;
 
@@ -201,7 +199,7 @@ init_op_run(struct init_op *op)
     init_op_set_complete(op);
 }
 
-#if INIT_DEBUG
+#ifdef CONFIG_INIT_DEBUG
 
 #define INIT_DEBUG_LOG_BUFFER_SIZE 8192
 
@@ -278,12 +276,12 @@ init_debug_scan_not_pending(void)
     }
 }
 
-#else /* INIT_DEBUG */
+#else /* CONFIG_INIT_DEBUG */
 #define init_debug_append_root(roots)
 #define init_debug_append_pending(op)
 #define init_debug_append_complete(op)
 #define init_debug_scan_not_pending()
-#endif /* INIT_DEBUG */
+#endif /* CONFIG_INIT_DEBUG */
 
 static void __init
 init_add_pending_op(struct init_ops_list *pending_ops, struct init_op *op)
