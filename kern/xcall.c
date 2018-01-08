@@ -18,12 +18,15 @@
 #include <assert.h>
 #include <stdalign.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include <kern/atomic.h>
 #include <kern/init.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
+#include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <kern/xcall.h>
 #include <machine/cpu.h>
@@ -52,6 +55,8 @@ struct xcall {
 struct xcall_cpu_data {
     alignas(CPU_L1_SIZE) struct xcall send_calls[CONFIG_MAX_CPUS];
 
+    struct syscnt sc_sent;
+    struct syscnt sc_received;
     struct xcall *recv_call;
     struct spinlock lock;
 };
@@ -66,8 +71,14 @@ xcall_set(struct xcall *call, xcall_fn_t fn, void *arg)
 }
 
 static void
-xcall_cpu_data_init(struct xcall_cpu_data *cpu_data)
+xcall_cpu_data_init(struct xcall_cpu_data *cpu_data, unsigned int cpu)
 {
+    char name[SYSCNT_NAME_SIZE];
+
+    snprintf(name, sizeof(name), "xcall_sent/%u", cpu);
+    syscnt_register(&cpu_data->sc_sent, name);
+    snprintf(name, sizeof(name), "xcall_received/%u", cpu);
+    syscnt_register(&cpu_data->sc_received, name);
     cpu_data->recv_call = NULL;
     spinlock_init(&cpu_data->lock);
 }
@@ -111,7 +122,7 @@ xcall_setup(void)
     unsigned int i;
 
     for (i = 0; i < cpu_count(); i++) {
-        xcall_cpu_data_init(percpu_ptr(xcall_cpu_data, i));
+        xcall_cpu_data_init(percpu_ptr(xcall_cpu_data, i), i);
     }
 
     return 0;
@@ -143,6 +154,7 @@ xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu)
     xcall_cpu_data_set_recv_call(remote_data, call);
 
     cpu_send_xcall(cpu);
+    syscnt_inc(&remote_data->sc_sent);
 
     while (xcall_cpu_data_get_recv_call(remote_data) != NULL) {
         cpu_pause();
@@ -162,7 +174,10 @@ xcall_intr(void)
     assert(thread_check_intr_context());
 
     cpu_data = xcall_cpu_data_get();
+
     call = xcall_cpu_data_get_recv_call(cpu_data);
     call->fn(call->arg);
+    syscnt_inc(&cpu_data->sc_received);
+
     xcall_cpu_data_clear_recv_call(cpu_data);
 }
