@@ -176,7 +176,13 @@ xcall_intr(void)
     cpu_data = xcall_cpu_data_get();
 
     call = xcall_cpu_data_get_recv_call(cpu_data);
-    call->fn(call->arg);
+
+    if (call) {
+        call->fn(call->arg);
+    } else {
+        log_warning("xcall: spurious interrupt on cpu%u", cpu_id());
+    }
+
     syscnt_inc(&cpu_data->sc_received);
 
     xcall_cpu_data_clear_recv_call(cpu_data);
