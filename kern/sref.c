@@ -109,7 +109,7 @@ struct sref_data {
     struct syscnt sc_dirty_zeroes;
     struct syscnt sc_revives;
     struct syscnt sc_true_zeroes;
-    int no_warning;
+    bool no_warning;
 };
 
 /*
@@ -162,8 +162,8 @@ struct sref_cache {
     struct syscnt sc_collisions;
     struct syscnt sc_flushes;
     struct thread *manager;
-    int registered;
-    int dirty;
+    bool registered;
+    bool dirty;
 };
 
 static struct sref_data sref_data;
@@ -188,16 +188,16 @@ sref_queue_init(struct sref_queue *queue)
     queue->size = 0;
 }
 
-static inline unsigned long
+static unsigned long
 sref_queue_size(const struct sref_queue *queue)
 {
     return queue->size;
 }
 
-static inline int
+static bool
 sref_queue_empty(const struct sref_queue *queue)
 {
-    return (queue->size == 0);
+    return queue->size == 0;
 }
 
 static void
@@ -212,7 +212,7 @@ sref_queue_pop(struct sref_queue *queue)
 {
     struct sref_counter *counter;
 
-    counter = slist_first_entry(&queue->counters, struct sref_counter, node);
+    counter = slist_first_entry(&queue->counters, typeof(*counter), node);
     slist_remove(&queue->counters, NULL);
     queue->size--;
     return counter;
@@ -232,10 +232,10 @@ sref_queue_concat(struct sref_queue *queue1, struct sref_queue *queue2)
     queue1->size += queue2->size;
 }
 
-static inline bool
+static bool
 sref_counter_aligned(const struct sref_counter *counter)
 {
-    return (((uintptr_t)counter & (~SREF_WEAKREF_MASK)) == 0);
+    return ((uintptr_t)counter & (~SREF_WEAKREF_MASK)) == 0;
 }
 
 static void
@@ -287,7 +287,7 @@ sref_weakref_tryget(struct sref_weakref *weakref)
     return (struct sref_counter *)newval;
 }
 
-static inline uintptr_t
+static uintptr_t
 sref_counter_hash(const struct sref_counter *counter)
 {
     uintptr_t va;
@@ -295,52 +295,52 @@ sref_counter_hash(const struct sref_counter *counter)
     va = (uintptr_t)counter;
 
     assert(P2ALIGNED(va, 1UL << SREF_HASH_SHIFT));
-    return (va >> SREF_HASH_SHIFT);
+    return va >> SREF_HASH_SHIFT;
 }
 
-static inline uintptr_t
+static uintptr_t
 sref_counter_index(const struct sref_counter *counter)
 {
-    return (sref_counter_hash(counter) & (SREF_MAX_DELTAS - 1));
+    return sref_counter_hash(counter) & (SREF_MAX_DELTAS - 1);
 }
 
-static inline int
+static bool
 sref_counter_is_queued(const struct sref_counter *counter)
 {
-    return (counter->flags & SREF_QUEUED);
+    return counter->flags & SREF_QUEUED;
 }
 
-static inline void
+static void
 sref_counter_mark_queued(struct sref_counter *counter)
 {
     counter->flags |= SREF_QUEUED;
 }
 
-static inline void
+static void
 sref_counter_clear_queued(struct sref_counter *counter)
 {
     counter->flags &= ~SREF_QUEUED;
 }
 
-static inline int
+static bool
 sref_counter_is_dirty(const struct sref_counter *counter)
 {
-    return (counter->flags & SREF_DIRTY);
+    return counter->flags & SREF_DIRTY;
 }
 
-static inline void
+static void
 sref_counter_mark_dirty(struct sref_counter *counter)
 {
     counter->flags |= SREF_DIRTY;
 }
 
-static inline void
+static void
 sref_counter_clear_dirty(struct sref_counter *counter)
 {
     counter->flags &= ~SREF_DIRTY;
 }
 
-static inline void
+static void
 sref_counter_mark_dying(struct sref_counter *counter)
 {
     if (counter->weakref == NULL) {
@@ -350,7 +350,7 @@ sref_counter_mark_dying(struct sref_counter *counter)
     sref_weakref_mark_dying(counter->weakref);
 }
 
-static inline void
+static void
 sref_counter_clear_dying(struct sref_counter *counter)
 {
     if (counter->weakref == NULL) {
@@ -360,7 +360,7 @@ sref_counter_clear_dying(struct sref_counter *counter)
     sref_weakref_clear_dying(counter->weakref);
 }
 
-static inline int
+static int
 sref_counter_kill_weakref(struct sref_counter *counter)
 {
     if (counter->weakref == NULL) {
@@ -409,39 +409,39 @@ sref_delta_init(struct sref_delta *delta)
     delta->value = 0;
 }
 
-static inline struct sref_counter *
+static struct sref_counter *
 sref_delta_counter(struct sref_delta *delta)
 {
     return delta->counter;
 }
 
-static inline void
+static void
 sref_delta_set_counter(struct sref_delta *delta, struct sref_counter *counter)
 {
     assert(delta->value == 0);
     delta->counter = counter;
 }
 
-static inline void
+static void
 sref_delta_clear(struct sref_delta *delta)
 {
     assert(delta->value == 0);
     delta->counter = NULL;
 }
 
-static inline void
+static void
 sref_delta_inc(struct sref_delta *delta)
 {
     delta->value++;
 }
 
-static inline void
+static void
 sref_delta_dec(struct sref_delta *delta)
 {
     delta->value--;
 }
 
-static inline bool
+static bool
 sref_delta_is_valid(const struct sref_delta *delta)
 {
     return delta->counter;
@@ -461,17 +461,17 @@ sref_delta_evict(struct sref_delta *delta)
     sref_delta_clear(delta);
 }
 
-static inline unsigned long
+static unsigned long
 sref_review_queue_size(void)
 {
-    return (sref_queue_size(&sref_data.queues[0])
-            + sref_queue_size(&sref_data.queues[1]));
+    return sref_queue_size(&sref_data.queues[0])
+           + sref_queue_size(&sref_data.queues[1]);
 }
 
-static inline int
+static bool
 sref_review_queue_empty(void)
 {
-    return (sref_review_queue_size() == 0);
+    return sref_review_queue_size() == 0;
 }
 
 static void
@@ -512,8 +512,8 @@ sref_end_epoch(struct sref_queue *queue)
     sref_reset_pending_flushes();
 }
 
-static inline struct sref_delta *
-sref_cache_delta(struct sref_cache *cache, unsigned long i)
+static struct sref_delta *
+sref_cache_delta(struct sref_cache *cache, size_t i)
 {
     assert(i < ARRAY_SIZE(cache->deltas));
     return &cache->deltas[i];
@@ -524,9 +524,8 @@ sref_cache_init(struct sref_cache *cache, unsigned int cpu)
 {
     char name[SYSCNT_NAME_SIZE];
     struct sref_delta *delta;
-    unsigned long i;
 
-    for (i = 0; i < ARRAY_SIZE(cache->deltas); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(cache->deltas); i++) {
         delta = sref_cache_delta(cache, i);
         sref_delta_init(delta);
     }
@@ -537,11 +536,11 @@ sref_cache_init(struct sref_cache *cache, unsigned int cpu)
     snprintf(name, sizeof(name), "sref_flushes/%u", cpu);
     syscnt_register(&cache->sc_flushes, name);
     cache->manager = NULL;
-    cache->registered = 0;
-    cache->dirty = 0;
+    cache->registered = false;
+    cache->dirty = false;
 }
 
-static inline struct sref_cache *
+static struct sref_cache *
 sref_cache_get(void)
 {
     return cpu_local_ptr(sref_cache);
@@ -563,40 +562,40 @@ sref_cache_release(void)
     thread_preempt_enable();
 }
 
-static inline int
+static bool
 sref_cache_is_registered(const struct sref_cache *cache)
 {
     return cache->registered;
 }
 
-static inline void
+static void
 sref_cache_mark_registered(struct sref_cache *cache)
 {
-    cache->registered = 1;
+    cache->registered = true;
 }
 
-static inline void
+static void
 sref_cache_clear_registered(struct sref_cache *cache)
 {
-    cache->registered = 0;
+    cache->registered = false;
 }
 
-static inline int
+static bool
 sref_cache_is_dirty(const struct sref_cache *cache)
 {
     return cache->dirty;
 }
 
-static inline void
+static void
 sref_cache_mark_dirty(struct sref_cache *cache)
 {
-    cache->dirty = 1;
+    cache->dirty = true;
 }
 
-static inline void
+static void
 sref_cache_clear_dirty(struct sref_cache *cache)
 {
-    cache->dirty = 0;
+    cache->dirty = false;
 }
 
 static void
@@ -709,15 +708,15 @@ sref_cache_manage(struct sref_cache *cache)
  *
  * Return true if the cache is dirty and requires maintenance.
  */
-static int
+static bool
 sref_cache_check(struct sref_cache *cache)
 {
     if (!sref_cache_is_dirty(cache)) {
-        return 0;
+        return false;
     }
 
     sref_cache_wakeup_manager(cache);
-    return 1;
+    return true;
 }
 
 static void
@@ -884,13 +883,11 @@ sref_setup_manager(struct sref_cache *cache, unsigned int cpu)
 static int __init
 sref_setup(void)
 {
-    unsigned int i;
-
-    for (i = 1; i < cpu_count(); i++) {
+    for (unsigned int i = 1; i < cpu_count(); i++) {
         sref_cache_init(percpu_ptr(sref_cache, i), i);
     }
 
-    for (i = 0; i < cpu_count(); i++) {
+    for (unsigned int i = 0; i < cpu_count(); i++) {
         sref_setup_manager(percpu_ptr(sref_cache, i), i);
     }
 
@@ -941,7 +938,8 @@ sref_unregister(void)
 {
     struct sref_cache *cache;
     unsigned int cpu;
-    int dirty, error;
+    bool dirty;
+    int error;
 
     assert(!thread_preempt_enabled());
 
@@ -1023,7 +1021,7 @@ sref_counter_init(struct sref_counter *counter,
     counter->value = 1;
     counter->weakref = weakref;
 
-    if (weakref != NULL) {
+    if (weakref) {
         sref_weakref_init(weakref, counter);
     }
 }
@@ -1071,7 +1069,7 @@ sref_weakref_get(struct sref_weakref *weakref)
 
     counter = sref_weakref_tryget(weakref);
 
-    if (counter != NULL) {
+    if (counter) {
         sref_counter_inc_common(counter, cache);
     }
 
