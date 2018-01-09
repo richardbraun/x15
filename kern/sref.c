@@ -55,6 +55,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
+#include <kern/slist.h>
 #include <kern/spinlock.h>
 #include <kern/sref.h>
 #include <kern/sref_i.h>
@@ -79,8 +80,7 @@
 #define SREF_NR_COUNTERS_WARN 10000
 
 struct sref_queue {
-    struct sref_counter *first;
-    struct sref_counter *last;
+    struct slist counters;
     unsigned long size;
 };
 
@@ -169,8 +169,7 @@ static struct sref_cache sref_cache __percpu;
 static void __init
 sref_queue_init(struct sref_queue *queue)
 {
-    queue->first = NULL;
-    queue->last = NULL;
+    slist_init(&queue->counters);
     queue->size = 0;
 }
 
@@ -189,15 +188,7 @@ sref_queue_empty(const struct sref_queue *queue)
 static void
 sref_queue_push(struct sref_queue *queue, struct sref_counter *counter)
 {
-    counter->next = NULL;
-
-    if (queue->last == NULL) {
-        queue->first = counter;
-    } else {
-        queue->last->next = counter;
-    }
-
-    queue->last = counter;
+    slist_insert_tail(&queue->counters, &counter->node);
     queue->size++;
 }
 
@@ -206,13 +197,8 @@ sref_queue_pop(struct sref_queue *queue)
 {
     struct sref_counter *counter;
 
-    counter = queue->first;
-    queue->first = counter->next;
-
-    if (queue->last == counter) {
-        queue->last = NULL;
-    }
-
+    counter = slist_first_entry(&queue->counters, struct sref_counter, node);
+    slist_remove(&queue->counters, NULL);
     queue->size--;
     return counter;
 }
@@ -220,23 +206,14 @@ sref_queue_pop(struct sref_queue *queue)
 static void
 sref_queue_transfer(struct sref_queue *dest, struct sref_queue *src)
 {
-    *dest = *src;
+    slist_set_head(&dest->counters, &src->counters);
+    dest->size = src->size;
 }
 
 static void
 sref_queue_concat(struct sref_queue *queue1, struct sref_queue *queue2)
 {
-    if (sref_queue_empty(queue2)) {
-        return;
-    }
-
-    if (sref_queue_empty(queue1)) {
-        sref_queue_transfer(queue1, queue2);
-        return;
-    }
-
-    queue1->last->next = queue2->first;
-    queue1->last = queue2->last;
+    slist_concat(&queue1->counters, &queue2->counters);
     queue1->size += queue2->size;
 }
 
