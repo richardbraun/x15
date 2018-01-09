@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 Richard Braun.
+ * Copyright (c) 2014-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +21,12 @@
  * the Refcache component described in the paper, with a few differences
  * outlined below.
  *
- * Refcache synchronizes access to delta caches by disabling preemption.
- * That behaviour is realtime-unfriendly because of the large number of
- * deltas in a cache. This module uses dedicated manager threads to
- * perform cache flushes and review queue processing, and mutexes to
- * synchronize cache access.
+ * Refcache flushes delta caches directly from an interrupt handler, and
+ * disables interrupts and preemption on cache access. That behaviour is
+ * realtime-unfriendly because of the potentially large number of deltas
+ * in a cache. This module uses dedicated manager threads to perform
+ * cache flushes and review queue processing, and only disables preemption
+ * on individual delta access.
  *
  * In addition, Refcache normally requires all processors to regularly
  * process their local data. That behaviour is dyntick-unfriendly. As a
@@ -52,7 +53,6 @@
 #include <kern/init.h>
 #include <kern/log.h>
 #include <kern/macros.h>
-#include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
 #include <kern/spinlock.h>
@@ -141,23 +141,20 @@ struct sref_delta {
  * prevent a race with the periodic event that drives regular flushes
  * (normally the periodic timer interrupt).
  *
- * Changing the registered flag is done with preemption disabled. The
- * periodic event handler checks whether the current processor is
- * registered, and can do so at any time. This race is harmless.
+ * Preemption must be disabled when accessing a delta cache.
  *
  * The dirty flag means there may be data to process, and is used to wake
  * up the manager thread. Marking a cache dirty is done either by regular
  * threads increasing or decreasing a delta, or the periodic event handler.
- * Clearing the dirty flag is only done by the manager thread. The cache
- * lock makes sure only one thread is accessing the cache at any time, but
- * it doesn't prevent the periodic handler from running. Since the handler
+ * Clearing the dirty flag is only done by the manager thread. Disabling
+ * preemption makes sure only one thread is accessing the cache at any time,
+ * but it doesn't prevent the periodic handler from running. Since the handler
  * as well as regular threads set that flag, a race between them is harmless.
  * On the other hand, the handler won't access the flag if it is run while
  * the manager thread is running. Since the manager thread is already running,
  * there is no need to wake it up anyway.
  */
 struct sref_cache {
-    struct mutex lock;
     struct sref_delta deltas[SREF_MAX_DELTAS];
     struct syscnt sc_collisions;
     struct syscnt sc_flushes;
@@ -452,10 +449,10 @@ sref_delta_dec(struct sref_delta *delta)
     delta->value--;
 }
 
-static inline int
+static inline bool
 sref_delta_is_valid(const struct sref_delta *delta)
 {
-    return (delta->counter != NULL);
+    return delta->counter;
 }
 
 static void
@@ -532,8 +529,6 @@ sref_cache_init(struct sref_cache *cache, unsigned int cpu)
     struct sref_delta *delta;
     unsigned long i;
 
-    mutex_init(&cache->lock);
-
     for (i = 0; i < ARRAY_SIZE(cache->deltas); i++) {
         delta = sref_cache_delta(cache, i);
         sref_delta_init(delta);
@@ -559,18 +554,15 @@ sref_cache_acquire(void)
 {
     struct sref_cache *cache;
 
-    thread_pin();
+    thread_preempt_disable();
     cache = sref_cache_get();
-
-    mutex_lock(&cache->lock);
     return cache;
 }
 
 static void
-sref_cache_release(struct sref_cache *cache)
+sref_cache_release(void)
 {
-    mutex_unlock(&cache->lock);
-    thread_unpin();
+    thread_preempt_enable();
 }
 
 static inline int
@@ -633,7 +625,7 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
     struct sref_delta *delta;
     unsigned int i, cpu;
 
-    mutex_lock(&cache->lock);
+    thread_preempt_disable();
 
     /* TODO Consider a list of valid deltas to speed things up */
     for (i = 0; i < ARRAY_SIZE(cache->deltas); i++) {
@@ -642,6 +634,9 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
         if (sref_delta_is_valid(delta)) {
             sref_delta_evict(delta);
         }
+
+        thread_preempt_enable();
+        thread_preempt_disable();
     }
 
     cpu = cpu_id();
@@ -669,7 +664,7 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
     sref_cache_clear_dirty(cache);
     syscnt_inc(&cache->sc_flushes);
 
-    mutex_unlock(&cache->lock);
+    thread_preempt_enable();
 }
 
 static void
@@ -883,7 +878,6 @@ sref_setup(void)
 INIT_OP_DEFINE(sref_setup,
                INIT_OP_DEP(cpu_mp_probe, true),
                INIT_OP_DEP(log_setup, true),
-               INIT_OP_DEP(mutex_setup, true),
                INIT_OP_DEP(panic_setup, true),
                INIT_OP_DEP(sref_bootstrap, true),
                INIT_OP_DEP(syscnt_setup, true),
@@ -1029,7 +1023,7 @@ sref_counter_inc(struct sref_counter *counter)
 
     cache = sref_cache_acquire();
     sref_counter_inc_common(counter, cache);
-    sref_cache_release(cache);
+    sref_cache_release();
 }
 
 void
@@ -1042,7 +1036,7 @@ sref_counter_dec(struct sref_counter *counter)
     sref_cache_mark_dirty(cache);
     delta = sref_cache_get_delta(cache, counter);
     sref_delta_dec(delta);
-    sref_cache_release(cache);
+    sref_cache_release();
 }
 
 struct sref_counter *
@@ -1059,7 +1053,7 @@ sref_weakref_get(struct sref_weakref *weakref)
         sref_counter_inc_common(counter, cache);
     }
 
-    sref_cache_release(cache);
+    sref_cache_release();
 
     return counter;
 }
