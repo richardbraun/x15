@@ -51,6 +51,7 @@
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/init.h>
+#include <kern/list.h>
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
@@ -124,6 +125,7 @@ struct sref_data {
  * reliably reported.
  */
 struct sref_delta {
+    struct list node;
     struct sref_counter *counter;
     unsigned long value;
 };
@@ -156,6 +158,7 @@ struct sref_delta {
  */
 struct sref_cache {
     struct sref_delta deltas[SREF_MAX_DELTAS];
+    struct list valid_deltas;
     struct syscnt sc_collisions;
     struct syscnt sc_flushes;
     struct thread *manager;
@@ -511,6 +514,7 @@ sref_cache_init(struct sref_cache *cache, unsigned int cpu)
         sref_delta_init(delta);
     }
 
+    list_init(&cache->valid_deltas);
     snprintf(name, sizeof(name), "sref_collisions/%u", cpu);
     syscnt_register(&cache->sc_collisions, name);
     snprintf(name, sizeof(name), "sref_flushes/%u", cpu);
@@ -578,6 +582,26 @@ sref_cache_clear_dirty(struct sref_cache *cache)
     cache->dirty = 0;
 }
 
+static void
+sref_cache_add_delta(struct sref_cache *cache, struct sref_delta *delta,
+                     struct sref_counter *counter)
+{
+    assert(!sref_delta_is_valid(delta));
+    assert(counter);
+
+    sref_delta_set_counter(delta, counter);
+    list_insert_tail(&cache->valid_deltas, &delta->node);
+}
+
+static void
+sref_cache_remove_delta(struct sref_delta *delta)
+{
+    assert(sref_delta_is_valid(delta));
+
+    sref_delta_evict(delta);
+    list_remove(&delta->node);
+}
+
 static struct sref_delta *
 sref_cache_get_delta(struct sref_cache *cache, struct sref_counter *counter)
 {
@@ -586,10 +610,10 @@ sref_cache_get_delta(struct sref_cache *cache, struct sref_counter *counter)
     delta = sref_cache_delta(cache, sref_counter_index(counter));
 
     if (!sref_delta_is_valid(delta)) {
-        sref_delta_set_counter(delta, counter);
+        sref_cache_add_delta(cache, delta, counter);
     } else if (sref_delta_counter(delta) != counter) {
-        sref_delta_flush(delta);
-        sref_delta_set_counter(delta, counter);
+        sref_cache_remove_delta(delta);
+        sref_cache_add_delta(cache, delta, counter);
         syscnt_inc(&cache->sc_collisions);
     }
 
@@ -600,20 +624,19 @@ static void
 sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
 {
     struct sref_delta *delta;
-    unsigned int i, cpu;
+    unsigned int cpu;
 
-    thread_preempt_disable();
+    for (;;) {
+        thread_preempt_disable();
 
-    /* TODO Consider a list of valid deltas to speed things up */
-    for (i = 0; i < ARRAY_SIZE(cache->deltas); i++) {
-        delta = sref_cache_delta(cache, i);
-
-        if (sref_delta_is_valid(delta)) {
-            sref_delta_evict(delta);
+        if (list_empty(&cache->valid_deltas)) {
+            break;
         }
 
+        delta = list_first_entry(&cache->valid_deltas, typeof(*delta), node);
+        sref_cache_remove_delta(delta);
+
         thread_preempt_enable();
-        thread_preempt_disable();
     }
 
     cpu = cpu_id();
