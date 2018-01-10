@@ -93,9 +93,9 @@ struct sref_queue {
  * if and only if no processor is registered, in which case the sref
  * module, and probably the whole system, is completely idle.
  *
- * The review queue is implemented with two queues of counters. Each
- * queue is named with a number that matches the number of epochs that
- * occurred since their counters were added.
+ * The review queue is implemented with two queues of counters, one for
+ * each of the last two epochs. The current queue ID is updated when a
+ * new epoch starts, and the queues are flipped.
  */
 struct sref_data {
     struct spinlock lock;
@@ -103,8 +103,8 @@ struct sref_data {
     unsigned int nr_registered_cpus;
     struct cpumap pending_flushes;
     unsigned int nr_pending_flushes;
-    struct sref_queue queue0;
-    struct sref_queue queue1;
+    unsigned int current_queue_id;
+    struct sref_queue queues[2];
     struct syscnt sc_epochs;
     struct syscnt sc_dirty_zeroes;
     struct syscnt sc_revives;
@@ -168,6 +168,18 @@ struct sref_cache {
 
 static struct sref_data sref_data;
 static struct sref_cache sref_cache __percpu;
+
+static struct sref_queue *
+sref_prev_queue(void)
+{
+    return &sref_data.queues[!sref_data.current_queue_id];
+}
+
+static struct sref_queue *
+sref_current_queue(void)
+{
+    return &sref_data.queues[sref_data.current_queue_id];
+}
 
 static void __init
 sref_queue_init(struct sref_queue *queue)
@@ -368,7 +380,7 @@ sref_counter_schedule_review(struct sref_counter *counter)
     sref_counter_mark_dying(counter);
 
     spinlock_lock(&sref_data.lock);
-    sref_queue_push(&sref_data.queue0, counter);
+    sref_queue_push(sref_current_queue(), counter);
     spinlock_unlock(&sref_data.lock);
 }
 
@@ -452,8 +464,8 @@ sref_delta_evict(struct sref_delta *delta)
 static inline unsigned long
 sref_review_queue_size(void)
 {
-    return (sref_queue_size(&sref_data.queue0)
-            + sref_queue_size(&sref_data.queue1));
+    return (sref_queue_size(&sref_data.queues[0])
+            + sref_queue_size(&sref_data.queues[1]));
 }
 
 static inline int
@@ -472,6 +484,8 @@ sref_reset_pending_flushes(void)
 static void
 sref_end_epoch(struct sref_queue *queue)
 {
+    struct sref_queue *prev_queue, *current_queue;
+
     assert(cpumap_find_first(&sref_data.registered_cpus) != -1);
     assert(sref_data.nr_registered_cpus != 0);
     assert(cpumap_find_first(&sref_data.pending_flushes) == -1);
@@ -483,14 +497,17 @@ sref_end_epoch(struct sref_queue *queue)
         log_warning("sref: large number of counters in review queue");
     }
 
+    prev_queue = sref_prev_queue();
+    current_queue = sref_current_queue();
+
     if (sref_data.nr_registered_cpus == 1) {
-        sref_queue_concat(&sref_data.queue1, &sref_data.queue0);
-        sref_queue_init(&sref_data.queue0);
+        sref_queue_concat(prev_queue, current_queue);
+        sref_queue_init(current_queue);
     }
 
-    sref_queue_transfer(queue, &sref_data.queue1);
-    sref_queue_transfer(&sref_data.queue1, &sref_data.queue0);
-    sref_queue_init(&sref_data.queue0);
+    sref_queue_transfer(queue, prev_queue);
+    sref_queue_init(prev_queue);
+    sref_data.current_queue_id = !sref_data.current_queue_id;
     syscnt_inc(&sref_data.sc_epochs);
     sref_reset_pending_flushes();
 }
@@ -813,8 +830,13 @@ static int __init
 sref_bootstrap(void)
 {
     spinlock_init(&sref_data.lock);
-    sref_queue_init(&sref_data.queue0);
-    sref_queue_init(&sref_data.queue1);
+
+    sref_data.current_queue_id = 0;
+
+    for (size_t i = 0; i < ARRAY_SIZE(sref_data.queues); i++) {
+        sref_queue_init(&sref_data.queues[i]);
+    }
+
     syscnt_register(&sref_data.sc_epochs, "sref_epochs");
     syscnt_register(&sref_data.sc_dirty_zeroes, "sref_dirty_zeroes");
     syscnt_register(&sref_data.sc_revives, "sref_revives");
