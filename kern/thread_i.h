@@ -135,17 +135,17 @@ struct thread {
     /* True if priority must be propagated when preemption is reenabled */
     bool propagate_priority;    /* (-) */
 
-    /* Preemption counter, preemption is enabled if 0 */
-    unsigned short preempt;     /* (-) */
+    /* Preemption level, preemption is enabled if 0 */
+    unsigned short preempt_level;   /* (-) */
 
-    /* Pinning counter, migration is allowed if 0 */
-    unsigned short pinned;      /* (-) */
+    /* Pin level, migration is allowed if 0 */
+    unsigned short pin_level;   /* (-) */
 
-    /* Interrupt level counter, in thread context if 0 */
-    unsigned short intr;        /* (-) */
+    /* Interrupt level, in thread context if 0 */
+    unsigned short intr_level;  /* (-) */
 
-    /* Read-side critical section counter, not in any if 0 */
-    unsigned short llsync_read; /* (-) */
+    /* Read-side critical section level, not in any if 0 */
+    unsigned short llsync_level; /* (-) */
 
     /* Processors on which this thread is allowed to run */
     struct cpumap cpumap;   /* (r) */

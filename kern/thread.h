@@ -539,7 +539,7 @@ void thread_propagate_priority(void);
 static inline int
 thread_pinned(void)
 {
-    return (thread_self()->pinned != 0);
+    return thread_self()->pin_level != 0;
 }
 
 static inline void
@@ -548,8 +548,8 @@ thread_pin(void)
     struct thread *thread;
 
     thread = thread_self();
-    thread->pinned++;
-    assert(thread->pinned != 0);
+    thread->pin_level++;
+    assert(thread->pin_level != 0);
     barrier();
 }
 
@@ -560,8 +560,8 @@ thread_unpin(void)
 
     barrier();
     thread = thread_self();
-    assert(thread->pinned != 0);
-    thread->pinned--;
+    assert(thread->pin_level != 0);
+    thread->pin_level--;
 }
 
 /*
@@ -573,7 +573,7 @@ thread_unpin(void)
 static inline int
 thread_preempt_enabled(void)
 {
-    return (thread_self()->preempt == 0);
+    return thread_self()->preempt_level == 0;
 }
 
 static inline void
@@ -582,8 +582,8 @@ thread_preempt_disable(void)
     struct thread *thread;
 
     thread = thread_self();
-    thread->preempt++;
-    assert(thread->preempt != 0);
+    thread->preempt_level++;
+    assert(thread->preempt_level != 0);
     barrier();
 }
 
@@ -594,8 +594,8 @@ thread_preempt_enable_no_resched(void)
 
     barrier();
     thread = thread_self();
-    assert(thread->preempt != 0);
-    thread->preempt--;
+    assert(thread->preempt_level != 0);
+    thread->preempt_level--;
 
     /*
      * Don't perform priority propagation here, because this function is
@@ -640,7 +640,7 @@ thread_preempt_enable_intr_restore(unsigned long flags)
 static inline bool
 thread_interrupted(void)
 {
-    return (thread_self()->intr != 0);
+    return thread_self()->intr_level != 0;
 }
 
 static inline bool
@@ -658,12 +658,12 @@ thread_intr_enter(void)
 
     thread = thread_self();
 
-    if (thread->intr == 0) {
+    if (thread->intr_level == 0) {
         thread_preempt_disable();
     }
 
-    thread->intr++;
-    assert(thread->intr != 0);
+    thread->intr_level++;
+    assert(thread->intr_level != 0);
     barrier();
 }
 
@@ -674,17 +674,16 @@ thread_intr_leave(void)
 
     barrier();
     thread = thread_self();
-    assert(thread->intr != 0);
-    thread->intr--;
+    assert(thread->intr_level != 0);
+    thread->intr_level--;
 
-    if (thread->intr == 0) {
+    if (thread->intr_level == 0) {
         thread_preempt_enable_no_resched();
     }
 }
 
 /*
- * Lockless synchronization read-side critical section nesting counter
- * control functions.
+ * Lockless synchronization read-side critical section level control functions.
  */
 
 static inline int
@@ -693,7 +692,7 @@ thread_llsync_in_read_cs(void)
     struct thread *thread;
 
     thread = thread_self();
-    return (thread->llsync_read != 0);
+    return thread->llsync_level != 0;
 }
 
 static inline void
@@ -702,8 +701,8 @@ thread_llsync_read_inc(void)
     struct thread *thread;
 
     thread = thread_self();
-    thread->llsync_read++;
-    assert(thread->llsync_read != 0);
+    thread->llsync_level++;
+    assert(thread->llsync_level != 0);
     barrier();
 }
 
@@ -714,8 +713,8 @@ thread_llsync_read_dec(void)
 
     barrier();
     thread = thread_self();
-    assert(thread->llsync_read != 0);
-    thread->llsync_read--;
+    assert(thread->llsync_level != 0);
+    thread->llsync_level--;
 }
 
 /*

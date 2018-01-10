@@ -128,7 +128,7 @@
  *  - preemption disabled
  *  - run queue locked
  *
- * Locking the run queue increases the preemption counter once more,
+ * Locking the run queue increases the preemption level once more,
  * making its value 2.
  */
 #define THREAD_SUSPEND_PREEMPT_LEVEL 2
@@ -620,7 +620,7 @@ thread_runq_schedule(struct thread_runq *runq)
 
     assert((__builtin_frame_address(0) >= prev->stack)
            && (__builtin_frame_address(0) < (prev->stack + TCB_STACK_SIZE)));
-    assert(prev->preempt == THREAD_SUSPEND_PREEMPT_LEVEL);
+    assert(prev->preempt_level == THREAD_SUSPEND_PREEMPT_LEVEL);
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
 
@@ -639,7 +639,7 @@ thread_runq_schedule(struct thread_runq *runq)
 
     next = thread_runq_get_next(runq);
     assert((next != runq->idler) || (runq->nr_threads == 0));
-    assert(next->preempt == THREAD_SUSPEND_PREEMPT_LEVEL);
+    assert(next->preempt_level == THREAD_SUSPEND_PREEMPT_LEVEL);
 
     if (likely(prev != next)) {
         /*
@@ -665,7 +665,7 @@ thread_runq_schedule(struct thread_runq *runq)
         thread_runq_schedule_prepare(prev);
     }
 
-    assert(prev->preempt == THREAD_SUSPEND_PREEMPT_LEVEL);
+    assert(prev->preempt_level == THREAD_SUSPEND_PREEMPT_LEVEL);
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
     return runq;
@@ -1343,15 +1343,17 @@ thread_sched_fs_balance_pull(struct thread_runq *runq,
         }
 
         /*
-         * The pinned counter is changed without explicit synchronization.
+         * The pin level is changed without explicit synchronization.
          * However, it can only be changed by its owning thread. As threads
          * currently running aren't considered for migration, the thread had
          * to be preempted and invoke the scheduler. Since balancer threads
          * acquire the run queue lock, there is strong ordering between
-         * changing the pinned counter and setting the current thread of a
+         * changing the pin level and setting the current thread of a
          * run queue.
+         *
+         * TODO Review comment.
          */
-        if (thread->pinned) {
+        if (thread->pin_level != 0) {
             continue;
         }
 
@@ -1694,8 +1696,8 @@ thread_init_booter(unsigned int cpu)
     booter = &thread_booters[cpu];
     booter->nr_refs = 0; /* Make sure booters aren't destroyed */
     booter->flags = 0;
-    booter->intr = 0;
-    booter->preempt = 1;
+    booter->intr_level = 0;
+    booter->preempt_level = 1;
     cpumap_fill(&booter->cpumap);
     thread_set_user_sched_policy(booter, THREAD_SCHED_POLICY_IDLE);
     thread_set_user_sched_class(booter, THREAD_SCHED_CLASS_IDLE);
@@ -1821,10 +1823,10 @@ thread_init(struct thread *thread, void *stack,
     turnstile_td_init(&thread->turnstile_td);
     thread->last_cond = NULL;
     thread->propagate_priority = false;
-    thread->intr = 0;
-    thread->preempt = THREAD_SUSPEND_PREEMPT_LEVEL;
-    thread->pinned = 0;
-    thread->llsync_read = 0;
+    thread->preempt_level = THREAD_SUSPEND_PREEMPT_LEVEL;
+    thread->pin_level = 0;
+    thread->intr_level = 0;
+    thread->llsync_level = 0;
     cpumap_copy(&thread->cpumap, cpumap);
     thread_set_user_sched_policy(thread, attr->policy);
     thread_set_user_sched_class(thread, thread_policy_to_class(attr->policy));
@@ -2468,7 +2470,7 @@ thread_wakeup_common(struct thread *thread, int error)
 
     thread_preempt_disable_intr_save(&flags);
 
-    if (!thread->pinned) {
+    if (thread->pin_level == 0) {
         runq = thread_get_real_sched_ops(thread)->select_runq(thread);
     } else {
         /*
@@ -2517,7 +2519,6 @@ thread_sleep_common(struct spinlock *interlock, const void *wchan_addr,
     unsigned long flags;
 
     thread = thread_self();
-    assert(thread->preempt == 1);
 
     if (timed) {
         waiter.thread = thread;
@@ -2549,8 +2550,6 @@ thread_sleep_common(struct spinlock *interlock, const void *wchan_addr,
         spinlock_lock(interlock);
         thread_preempt_enable_no_resched();
     }
-
-    assert(thread->preempt == 1);
 
     return thread->wakeup_error;
 }
@@ -2620,7 +2619,7 @@ thread_run_scheduler(void)
     runq = thread_runq_local();
     thread = thread_self();
     assert(thread == runq->current);
-    assert(thread->preempt == 1);
+    assert(thread->preempt_level == (THREAD_SUSPEND_PREEMPT_LEVEL - 1));
 
     llsync_register();
     sref_register();
