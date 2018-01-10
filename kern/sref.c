@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 Richard Braun.
+ * Copyright (c) 2014-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +21,12 @@
  * the Refcache component described in the paper, with a few differences
  * outlined below.
  *
- * Refcache synchronizes access to delta caches by disabling preemption.
- * That behaviour is realtime-unfriendly because of the large number of
- * deltas in a cache. This module uses dedicated manager threads to
- * perform cache flushes and review queue processing, and mutexes to
- * synchronize cache access.
+ * Refcache flushes delta caches directly from an interrupt handler, and
+ * disables interrupts and preemption on cache access. That behaviour is
+ * realtime-unfriendly because of the potentially large number of deltas
+ * in a cache. This module uses dedicated manager threads to perform
+ * cache flushes and review queue processing, and only disables preemption
+ * on individual delta access.
  *
  * In addition, Refcache normally requires all processors to regularly
  * process their local data. That behaviour is dyntick-unfriendly. As a
@@ -50,11 +51,12 @@
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/init.h>
+#include <kern/list.h>
 #include <kern/log.h>
 #include <kern/macros.h>
-#include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
+#include <kern/slist.h>
 #include <kern/spinlock.h>
 #include <kern/sref.h>
 #include <kern/sref_i.h>
@@ -79,8 +81,7 @@
 #define SREF_NR_COUNTERS_WARN 10000
 
 struct sref_queue {
-    struct sref_counter *first;
-    struct sref_counter *last;
+    struct slist counters;
     unsigned long size;
 };
 
@@ -92,9 +93,9 @@ struct sref_queue {
  * if and only if no processor is registered, in which case the sref
  * module, and probably the whole system, is completely idle.
  *
- * The review queue is implemented with two queues of counters. Each
- * queue is named with a number that matches the number of epochs that
- * occurred since their counters were added.
+ * The review queue is implemented with two queues of counters, one for
+ * each of the last two epochs. The current queue ID is updated when a
+ * new epoch starts, and the queues are flipped.
  */
 struct sref_data {
     struct spinlock lock;
@@ -102,13 +103,13 @@ struct sref_data {
     unsigned int nr_registered_cpus;
     struct cpumap pending_flushes;
     unsigned int nr_pending_flushes;
-    struct sref_queue queue0;
-    struct sref_queue queue1;
+    unsigned int current_queue_id;
+    struct sref_queue queues[2];
     struct syscnt sc_epochs;
     struct syscnt sc_dirty_zeroes;
     struct syscnt sc_revives;
     struct syscnt sc_true_zeroes;
-    int no_warning;
+    bool no_warning;
 };
 
 /*
@@ -124,6 +125,7 @@ struct sref_data {
  * reliably reported.
  */
 struct sref_delta {
+    struct list node;
     struct sref_counter *counter;
     unsigned long value;
 };
@@ -141,66 +143,67 @@ struct sref_delta {
  * prevent a race with the periodic event that drives regular flushes
  * (normally the periodic timer interrupt).
  *
- * Changing the registered flag is done with preemption disabled. The
- * periodic event handler checks whether the current processor is
- * registered, and can do so at any time. This race is harmless.
+ * Preemption must be disabled when accessing a delta cache.
  *
  * The dirty flag means there may be data to process, and is used to wake
  * up the manager thread. Marking a cache dirty is done either by regular
  * threads increasing or decreasing a delta, or the periodic event handler.
- * Clearing the dirty flag is only done by the manager thread. The cache
- * lock makes sure only one thread is accessing the cache at any time, but
- * it doesn't prevent the periodic handler from running. Since the handler
+ * Clearing the dirty flag is only done by the manager thread. Disabling
+ * preemption makes sure only one thread is accessing the cache at any time,
+ * but it doesn't prevent the periodic handler from running. Since the handler
  * as well as regular threads set that flag, a race between them is harmless.
  * On the other hand, the handler won't access the flag if it is run while
  * the manager thread is running. Since the manager thread is already running,
  * there is no need to wake it up anyway.
  */
 struct sref_cache {
-    struct mutex lock;
     struct sref_delta deltas[SREF_MAX_DELTAS];
+    struct list valid_deltas;
     struct syscnt sc_collisions;
     struct syscnt sc_flushes;
     struct thread *manager;
-    int registered;
-    int dirty;
+    bool registered;
+    bool dirty;
 };
 
 static struct sref_data sref_data;
 static struct sref_cache sref_cache __percpu;
 
+static struct sref_queue *
+sref_prev_queue(void)
+{
+    return &sref_data.queues[!sref_data.current_queue_id];
+}
+
+static struct sref_queue *
+sref_current_queue(void)
+{
+    return &sref_data.queues[sref_data.current_queue_id];
+}
+
 static void __init
 sref_queue_init(struct sref_queue *queue)
 {
-    queue->first = NULL;
-    queue->last = NULL;
+    slist_init(&queue->counters);
     queue->size = 0;
 }
 
-static inline unsigned long
+static unsigned long
 sref_queue_size(const struct sref_queue *queue)
 {
     return queue->size;
 }
 
-static inline int
+static bool
 sref_queue_empty(const struct sref_queue *queue)
 {
-    return (queue->size == 0);
+    return queue->size == 0;
 }
 
 static void
 sref_queue_push(struct sref_queue *queue, struct sref_counter *counter)
 {
-    counter->next = NULL;
-
-    if (queue->last == NULL) {
-        queue->first = counter;
-    } else {
-        queue->last->next = counter;
-    }
-
-    queue->last = counter;
+    slist_insert_tail(&queue->counters, &counter->node);
     queue->size++;
 }
 
@@ -209,13 +212,8 @@ sref_queue_pop(struct sref_queue *queue)
 {
     struct sref_counter *counter;
 
-    counter = queue->first;
-    queue->first = counter->next;
-
-    if (queue->last == counter) {
-        queue->last = NULL;
-    }
-
+    counter = slist_first_entry(&queue->counters, typeof(*counter), node);
+    slist_remove(&queue->counters, NULL);
     queue->size--;
     return counter;
 }
@@ -223,30 +221,21 @@ sref_queue_pop(struct sref_queue *queue)
 static void
 sref_queue_transfer(struct sref_queue *dest, struct sref_queue *src)
 {
-    *dest = *src;
+    slist_set_head(&dest->counters, &src->counters);
+    dest->size = src->size;
 }
 
 static void
 sref_queue_concat(struct sref_queue *queue1, struct sref_queue *queue2)
 {
-    if (sref_queue_empty(queue2)) {
-        return;
-    }
-
-    if (sref_queue_empty(queue1)) {
-        sref_queue_transfer(queue1, queue2);
-        return;
-    }
-
-    queue1->last->next = queue2->first;
-    queue1->last = queue2->last;
+    slist_concat(&queue1->counters, &queue2->counters);
     queue1->size += queue2->size;
 }
 
-static inline bool
+static bool
 sref_counter_aligned(const struct sref_counter *counter)
 {
-    return (((uintptr_t)counter & (~SREF_WEAKREF_MASK)) == 0);
+    return ((uintptr_t)counter & (~SREF_WEAKREF_MASK)) == 0;
 }
 
 static void
@@ -298,7 +287,7 @@ sref_weakref_tryget(struct sref_weakref *weakref)
     return (struct sref_counter *)newval;
 }
 
-static inline uintptr_t
+static uintptr_t
 sref_counter_hash(const struct sref_counter *counter)
 {
     uintptr_t va;
@@ -306,52 +295,52 @@ sref_counter_hash(const struct sref_counter *counter)
     va = (uintptr_t)counter;
 
     assert(P2ALIGNED(va, 1UL << SREF_HASH_SHIFT));
-    return (va >> SREF_HASH_SHIFT);
+    return va >> SREF_HASH_SHIFT;
 }
 
-static inline uintptr_t
+static uintptr_t
 sref_counter_index(const struct sref_counter *counter)
 {
-    return (sref_counter_hash(counter) & (SREF_MAX_DELTAS - 1));
+    return sref_counter_hash(counter) & (SREF_MAX_DELTAS - 1);
 }
 
-static inline int
+static bool
 sref_counter_is_queued(const struct sref_counter *counter)
 {
-    return (counter->flags & SREF_QUEUED);
+    return counter->flags & SREF_QUEUED;
 }
 
-static inline void
+static void
 sref_counter_mark_queued(struct sref_counter *counter)
 {
     counter->flags |= SREF_QUEUED;
 }
 
-static inline void
+static void
 sref_counter_clear_queued(struct sref_counter *counter)
 {
     counter->flags &= ~SREF_QUEUED;
 }
 
-static inline int
+static bool
 sref_counter_is_dirty(const struct sref_counter *counter)
 {
-    return (counter->flags & SREF_DIRTY);
+    return counter->flags & SREF_DIRTY;
 }
 
-static inline void
+static void
 sref_counter_mark_dirty(struct sref_counter *counter)
 {
     counter->flags |= SREF_DIRTY;
 }
 
-static inline void
+static void
 sref_counter_clear_dirty(struct sref_counter *counter)
 {
     counter->flags &= ~SREF_DIRTY;
 }
 
-static inline void
+static void
 sref_counter_mark_dying(struct sref_counter *counter)
 {
     if (counter->weakref == NULL) {
@@ -361,7 +350,7 @@ sref_counter_mark_dying(struct sref_counter *counter)
     sref_weakref_mark_dying(counter->weakref);
 }
 
-static inline void
+static void
 sref_counter_clear_dying(struct sref_counter *counter)
 {
     if (counter->weakref == NULL) {
@@ -371,7 +360,7 @@ sref_counter_clear_dying(struct sref_counter *counter)
     sref_weakref_clear_dying(counter->weakref);
 }
 
-static inline int
+static int
 sref_counter_kill_weakref(struct sref_counter *counter)
 {
     if (counter->weakref == NULL) {
@@ -391,7 +380,7 @@ sref_counter_schedule_review(struct sref_counter *counter)
     sref_counter_mark_dying(counter);
 
     spinlock_lock(&sref_data.lock);
-    sref_queue_push(&sref_data.queue0, counter);
+    sref_queue_push(sref_current_queue(), counter);
     spinlock_unlock(&sref_data.lock);
 }
 
@@ -420,42 +409,42 @@ sref_delta_init(struct sref_delta *delta)
     delta->value = 0;
 }
 
-static inline struct sref_counter *
+static struct sref_counter *
 sref_delta_counter(struct sref_delta *delta)
 {
     return delta->counter;
 }
 
-static inline void
+static void
 sref_delta_set_counter(struct sref_delta *delta, struct sref_counter *counter)
 {
     assert(delta->value == 0);
     delta->counter = counter;
 }
 
-static inline void
+static void
 sref_delta_clear(struct sref_delta *delta)
 {
     assert(delta->value == 0);
     delta->counter = NULL;
 }
 
-static inline void
+static void
 sref_delta_inc(struct sref_delta *delta)
 {
     delta->value++;
 }
 
-static inline void
+static void
 sref_delta_dec(struct sref_delta *delta)
 {
     delta->value--;
 }
 
-static inline int
+static bool
 sref_delta_is_valid(const struct sref_delta *delta)
 {
-    return (delta->counter != NULL);
+    return delta->counter;
 }
 
 static void
@@ -472,17 +461,17 @@ sref_delta_evict(struct sref_delta *delta)
     sref_delta_clear(delta);
 }
 
-static inline unsigned long
+static unsigned long
 sref_review_queue_size(void)
 {
-    return (sref_queue_size(&sref_data.queue0)
-            + sref_queue_size(&sref_data.queue1));
+    return sref_queue_size(&sref_data.queues[0])
+           + sref_queue_size(&sref_data.queues[1]);
 }
 
-static inline int
+static bool
 sref_review_queue_empty(void)
 {
-    return (sref_review_queue_size() == 0);
+    return sref_review_queue_size() == 0;
 }
 
 static void
@@ -495,6 +484,8 @@ sref_reset_pending_flushes(void)
 static void
 sref_end_epoch(struct sref_queue *queue)
 {
+    struct sref_queue *prev_queue, *current_queue;
+
     assert(cpumap_find_first(&sref_data.registered_cpus) != -1);
     assert(sref_data.nr_registered_cpus != 0);
     assert(cpumap_find_first(&sref_data.pending_flushes) == -1);
@@ -506,20 +497,23 @@ sref_end_epoch(struct sref_queue *queue)
         log_warning("sref: large number of counters in review queue");
     }
 
+    prev_queue = sref_prev_queue();
+    current_queue = sref_current_queue();
+
     if (sref_data.nr_registered_cpus == 1) {
-        sref_queue_concat(&sref_data.queue1, &sref_data.queue0);
-        sref_queue_init(&sref_data.queue0);
+        sref_queue_concat(prev_queue, current_queue);
+        sref_queue_init(current_queue);
     }
 
-    sref_queue_transfer(queue, &sref_data.queue1);
-    sref_queue_transfer(&sref_data.queue1, &sref_data.queue0);
-    sref_queue_init(&sref_data.queue0);
+    sref_queue_transfer(queue, prev_queue);
+    sref_queue_init(prev_queue);
+    sref_data.current_queue_id = !sref_data.current_queue_id;
     syscnt_inc(&sref_data.sc_epochs);
     sref_reset_pending_flushes();
 }
 
-static inline struct sref_delta *
-sref_cache_delta(struct sref_cache *cache, unsigned long i)
+static struct sref_delta *
+sref_cache_delta(struct sref_cache *cache, size_t i)
 {
     assert(i < ARRAY_SIZE(cache->deltas));
     return &cache->deltas[i];
@@ -530,25 +524,23 @@ sref_cache_init(struct sref_cache *cache, unsigned int cpu)
 {
     char name[SYSCNT_NAME_SIZE];
     struct sref_delta *delta;
-    unsigned long i;
 
-    mutex_init(&cache->lock);
-
-    for (i = 0; i < ARRAY_SIZE(cache->deltas); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(cache->deltas); i++) {
         delta = sref_cache_delta(cache, i);
         sref_delta_init(delta);
     }
 
+    list_init(&cache->valid_deltas);
     snprintf(name, sizeof(name), "sref_collisions/%u", cpu);
     syscnt_register(&cache->sc_collisions, name);
     snprintf(name, sizeof(name), "sref_flushes/%u", cpu);
     syscnt_register(&cache->sc_flushes, name);
     cache->manager = NULL;
-    cache->registered = 0;
-    cache->dirty = 0;
+    cache->registered = false;
+    cache->dirty = false;
 }
 
-static inline struct sref_cache *
+static struct sref_cache *
 sref_cache_get(void)
 {
     return cpu_local_ptr(sref_cache);
@@ -559,54 +551,71 @@ sref_cache_acquire(void)
 {
     struct sref_cache *cache;
 
-    thread_pin();
+    thread_preempt_disable();
     cache = sref_cache_get();
-
-    mutex_lock(&cache->lock);
     return cache;
 }
 
 static void
-sref_cache_release(struct sref_cache *cache)
+sref_cache_release(void)
 {
-    mutex_unlock(&cache->lock);
-    thread_unpin();
+    thread_preempt_enable();
 }
 
-static inline int
+static bool
 sref_cache_is_registered(const struct sref_cache *cache)
 {
     return cache->registered;
 }
 
-static inline void
+static void
 sref_cache_mark_registered(struct sref_cache *cache)
 {
-    cache->registered = 1;
+    cache->registered = true;
 }
 
-static inline void
+static void
 sref_cache_clear_registered(struct sref_cache *cache)
 {
-    cache->registered = 0;
+    cache->registered = false;
 }
 
-static inline int
+static bool
 sref_cache_is_dirty(const struct sref_cache *cache)
 {
     return cache->dirty;
 }
 
-static inline void
+static void
 sref_cache_mark_dirty(struct sref_cache *cache)
 {
-    cache->dirty = 1;
+    cache->dirty = true;
 }
 
-static inline void
+static void
 sref_cache_clear_dirty(struct sref_cache *cache)
 {
-    cache->dirty = 0;
+    cache->dirty = false;
+}
+
+static void
+sref_cache_add_delta(struct sref_cache *cache, struct sref_delta *delta,
+                     struct sref_counter *counter)
+{
+    assert(!sref_delta_is_valid(delta));
+    assert(counter);
+
+    sref_delta_set_counter(delta, counter);
+    list_insert_tail(&cache->valid_deltas, &delta->node);
+}
+
+static void
+sref_cache_remove_delta(struct sref_delta *delta)
+{
+    assert(sref_delta_is_valid(delta));
+
+    sref_delta_evict(delta);
+    list_remove(&delta->node);
 }
 
 static struct sref_delta *
@@ -617,10 +626,10 @@ sref_cache_get_delta(struct sref_cache *cache, struct sref_counter *counter)
     delta = sref_cache_delta(cache, sref_counter_index(counter));
 
     if (!sref_delta_is_valid(delta)) {
-        sref_delta_set_counter(delta, counter);
+        sref_cache_add_delta(cache, delta, counter);
     } else if (sref_delta_counter(delta) != counter) {
-        sref_delta_flush(delta);
-        sref_delta_set_counter(delta, counter);
+        sref_cache_remove_delta(delta);
+        sref_cache_add_delta(cache, delta, counter);
         syscnt_inc(&cache->sc_collisions);
     }
 
@@ -631,17 +640,19 @@ static void
 sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
 {
     struct sref_delta *delta;
-    unsigned int i, cpu;
+    unsigned int cpu;
 
-    mutex_lock(&cache->lock);
+    for (;;) {
+        thread_preempt_disable();
 
-    /* TODO Consider a list of valid deltas to speed things up */
-    for (i = 0; i < ARRAY_SIZE(cache->deltas); i++) {
-        delta = sref_cache_delta(cache, i);
-
-        if (sref_delta_is_valid(delta)) {
-            sref_delta_evict(delta);
+        if (list_empty(&cache->valid_deltas)) {
+            break;
         }
+
+        delta = list_first_entry(&cache->valid_deltas, typeof(*delta), node);
+        sref_cache_remove_delta(delta);
+
+        thread_preempt_enable();
     }
 
     cpu = cpu_id();
@@ -669,7 +680,7 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
     sref_cache_clear_dirty(cache);
     syscnt_inc(&cache->sc_flushes);
 
-    mutex_unlock(&cache->lock);
+    thread_preempt_enable();
 }
 
 static void
@@ -697,15 +708,15 @@ sref_cache_manage(struct sref_cache *cache)
  *
  * Return true if the cache is dirty and requires maintenance.
  */
-static int
+static bool
 sref_cache_check(struct sref_cache *cache)
 {
     if (!sref_cache_is_dirty(cache)) {
-        return 0;
+        return false;
     }
 
     sref_cache_wakeup_manager(cache);
-    return 1;
+    return true;
 }
 
 static void
@@ -818,8 +829,13 @@ static int __init
 sref_bootstrap(void)
 {
     spinlock_init(&sref_data.lock);
-    sref_queue_init(&sref_data.queue0);
-    sref_queue_init(&sref_data.queue1);
+
+    sref_data.current_queue_id = 0;
+
+    for (size_t i = 0; i < ARRAY_SIZE(sref_data.queues); i++) {
+        sref_queue_init(&sref_data.queues[i]);
+    }
+
     syscnt_register(&sref_data.sc_epochs, "sref_epochs");
     syscnt_register(&sref_data.sc_dirty_zeroes, "sref_dirty_zeroes");
     syscnt_register(&sref_data.sc_revives, "sref_revives");
@@ -867,13 +883,11 @@ sref_setup_manager(struct sref_cache *cache, unsigned int cpu)
 static int __init
 sref_setup(void)
 {
-    unsigned int i;
-
-    for (i = 1; i < cpu_count(); i++) {
+    for (unsigned int i = 1; i < cpu_count(); i++) {
         sref_cache_init(percpu_ptr(sref_cache, i), i);
     }
 
-    for (i = 0; i < cpu_count(); i++) {
+    for (unsigned int i = 0; i < cpu_count(); i++) {
         sref_setup_manager(percpu_ptr(sref_cache, i), i);
     }
 
@@ -883,7 +897,6 @@ sref_setup(void)
 INIT_OP_DEFINE(sref_setup,
                INIT_OP_DEP(cpu_mp_probe, true),
                INIT_OP_DEP(log_setup, true),
-               INIT_OP_DEP(mutex_setup, true),
                INIT_OP_DEP(panic_setup, true),
                INIT_OP_DEP(sref_bootstrap, true),
                INIT_OP_DEP(syscnt_setup, true),
@@ -925,7 +938,8 @@ sref_unregister(void)
 {
     struct sref_cache *cache;
     unsigned int cpu;
-    int dirty, error;
+    bool dirty;
+    int error;
 
     assert(!thread_preempt_enabled());
 
@@ -1007,7 +1021,7 @@ sref_counter_init(struct sref_counter *counter,
     counter->value = 1;
     counter->weakref = weakref;
 
-    if (weakref != NULL) {
+    if (weakref) {
         sref_weakref_init(weakref, counter);
     }
 }
@@ -1029,7 +1043,7 @@ sref_counter_inc(struct sref_counter *counter)
 
     cache = sref_cache_acquire();
     sref_counter_inc_common(counter, cache);
-    sref_cache_release(cache);
+    sref_cache_release();
 }
 
 void
@@ -1042,7 +1056,7 @@ sref_counter_dec(struct sref_counter *counter)
     sref_cache_mark_dirty(cache);
     delta = sref_cache_get_delta(cache, counter);
     sref_delta_dec(delta);
-    sref_cache_release(cache);
+    sref_cache_release();
 }
 
 struct sref_counter *
@@ -1055,11 +1069,11 @@ sref_weakref_get(struct sref_weakref *weakref)
 
     counter = sref_weakref_tryget(weakref);
 
-    if (counter != NULL) {
+    if (counter) {
         sref_counter_inc_common(counter, cache);
     }
 
-    sref_cache_release(cache);
+    sref_cache_release();
 
     return counter;
 }

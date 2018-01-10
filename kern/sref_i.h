@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 Richard Braun.
+ * Copyright (c) 2014-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 
+#include <kern/slist.h>
 #include <kern/spinlock.h>
 #include <kern/work.h>
 
@@ -44,15 +45,17 @@ struct sref_weakref {
 /*
  * Scalable reference counter.
  *
- * It's tempting to merge the flags into the next member, but since they're
+ * It's tempting to merge the flags into the node member, but since they're
  * not protected by the same lock, store them separately.
+ *
+ * TODO Locking keys.
  */
 struct sref_counter {
     sref_noref_fn_t noref_fn;
 
     union {
         struct {
-            struct sref_counter *next;
+            struct slist_node node;
             struct spinlock lock;
             int flags;
             unsigned long value;

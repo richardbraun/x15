@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 Richard Braun.
+ * Copyright (c) 2014-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -86,6 +86,8 @@ void sref_counter_init(struct sref_counter *counter,
 
 /*
  * Counter operations.
+ *
+ * These functions may safely be called with preemption disabled.
  */
 void sref_counter_inc(struct sref_counter *counter);
 void sref_counter_dec(struct sref_counter *counter);
@@ -95,6 +97,8 @@ void sref_counter_dec(struct sref_counter *counter);
  *
  * If successful, increment the reference counter before returning it.
  * Otherwise return NULL.
+ *
+ * This function may safely be called with preemption disabled.
  */
 struct sref_counter * sref_weakref_get(struct sref_weakref *weakref);
 
