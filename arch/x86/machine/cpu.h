@@ -434,7 +434,7 @@ extern void *cpu_local_area;
 MACRO_BEGIN                                 \
     typeof(var) *___ptr = &(var);           \
                                             \
-    asm volatile("add %%fs:%1, %0"          \
+    asm("add %%fs:%1, %0"                   \
                  : "+r" (___ptr)            \
                  : "m" (cpu_local_area));   \
                                             \
@@ -446,14 +446,14 @@ MACRO_END
 /* Interrupt-safe percpu accessors for basic types */
 
 #define cpu_local_assign(var, val)          \
-    asm volatile("mov %0, %%fs:%1"          \
+    asm("mov %0, %%fs:%1"                   \
                  : : "r" (val), "m" (var));
 
 #define cpu_local_read(var)         \
 MACRO_BEGIN                         \
     typeof(var) ___val;             \
                                     \
-    asm volatile("mov %%fs:%1, %0"  \
+    asm("mov %%fs:%1, %0"           \
                  : "=r" (___val)    \
                  : "m" (var));      \
                                     \
