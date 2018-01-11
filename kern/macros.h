@@ -99,10 +99,9 @@
 #ifndef __fallthrough
 #if __GNUC__ >= 7
 #define __fallthrough       __attribute__((fallthrough))
-#else
-/* TODO: clang 6 might add support for -Wimplicit-fallthrough */
+#else /* __GNUC__ >= 7 */
 #define __fallthrough
-#endif
+#endif /* __GNUC__ >= 7 */
 #endif
 
 #endif /* _KERN_MACROS_H */
