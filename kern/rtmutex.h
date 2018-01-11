@@ -75,6 +75,8 @@ rtmutex_trylock(struct rtmutex *rtmutex)
  * unbounded priority inversion.
  *
  * A mutex can only be locked once.
+ *
+ * This function may sleep.
  */
 static inline void
 rtmutex_lock(struct rtmutex *rtmutex)
@@ -88,6 +90,16 @@ rtmutex_lock(struct rtmutex *rtmutex)
     }
 }
 
+/*
+ * Lock a real-time mutex, with a time boundary.
+ *
+ * The time boundary is an absolute time in ticks.
+ *
+ * If successful, the mutex is locked, otherwise an error is returned.
+ * A mutex can only be locked once.
+ *
+ * This function may sleep.
+ */
 static inline int
 rtmutex_timedlock(struct rtmutex *rtmutex, uint64_t ticks)
 {
