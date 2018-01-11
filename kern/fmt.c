@@ -666,8 +666,6 @@ fmt_sprintf_state_produce_str(struct fmt_sprintf_state *state)
         s = "(null)";
     }
 
-    len = 0;
-
     for (len = 0; s[len] != '\0'; len++) {
         if (len == state->precision) {
             break;
