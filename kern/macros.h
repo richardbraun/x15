@@ -43,16 +43,6 @@
 #define DECL_CONST(x, s)    x
 #else /* __ASSEMBLER__ */
 #define __DECL_CONST(x, s)  x##s
-void cga_putc(char c);
-
-static inline void
-moo_print(const char *s)
-{
-    while (*s != '\0') {
-        cga_putc(*s);
-        s++;
-    }
-}
 #define DECL_CONST(x, s)    __DECL_CONST(x, s)
 #endif /* __ASSEMBLER__ */
 
