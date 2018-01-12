@@ -32,8 +32,11 @@
  *
  * A weak reference is a pointer to a reference counter in which the
  * least-significant bit is used to indicate whether the counter is
- * "dying", i.e. about to be destroyed. It must be accessed with atomic
- * instructions.
+ * "dying", i.e. about to be destroyed.
+ *
+ * It must be accessed with atomic instructions. There is no need to
+ * enforce memory order on access since the only data that depends on
+ * the weak reference are cpu-local deltas.
  */
 struct sref_weakref {
     uintptr_t addr;

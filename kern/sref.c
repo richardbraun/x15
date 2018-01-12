@@ -248,13 +248,13 @@ sref_weakref_init(struct sref_weakref *weakref, struct sref_counter *counter)
 static void
 sref_weakref_mark_dying(struct sref_weakref *weakref)
 {
-    atomic_or(&weakref->addr, SREF_WEAKREF_DYING, ATOMIC_RELEASE);
+    atomic_or(&weakref->addr, SREF_WEAKREF_DYING, ATOMIC_RELAXED);
 }
 
 static void
 sref_weakref_clear_dying(struct sref_weakref *weakref)
 {
-    atomic_and(&weakref->addr, SREF_WEAKREF_MASK, ATOMIC_RELEASE);
+    atomic_and(&weakref->addr, SREF_WEAKREF_MASK, ATOMIC_RELAXED);
 }
 
 static int
