@@ -51,17 +51,19 @@ struct sref_weakref {
  * It's tempting to merge the flags into the node member, but since they're
  * not protected by the same lock, store them separately.
  *
- * TODO Locking keys.
+ * Locking keys :
+ * (c) sref_counter
+ * (g) sref_data
  */
 struct sref_counter {
     sref_noref_fn_t noref_fn;
 
     union {
         struct {
-            struct slist_node node;
+            struct slist_node node;         /* (g) */
             struct spinlock lock;
-            int flags;
-            unsigned long value;
+            int flags;                      /* (c) */
+            unsigned long value;            /* (c) */
             struct sref_weakref *weakref;
         };
 
