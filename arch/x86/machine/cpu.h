@@ -693,6 +693,7 @@ INIT_OP_DECLARE(cpu_setup);
 /*
  * This init operation provides :
  *  - cpu_count()
+ *  - access to percpu variables on all processors
  */
 INIT_OP_DECLARE(cpu_mp_probe);
 

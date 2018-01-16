@@ -106,13 +106,16 @@ int percpu_add(unsigned int cpu);
 
 /*
  * This init operation provides :
- *  - percpu section is registered as the BSP percpu area
+ *  - access to percpu variables on processor 0
  */
 INIT_OP_DECLARE(percpu_bootstrap);
 
 /*
  * This init operation provides :
  *  - new percpu areas can be created
+ *
+ * The dependency that provides access to percpu variables on all processors
+ * is cpu_mp_probe.
  */
 INIT_OP_DECLARE(percpu_setup);
 

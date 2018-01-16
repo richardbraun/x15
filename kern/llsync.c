@@ -108,6 +108,7 @@ llsync_setup(void)
 }
 
 INIT_OP_DEFINE(llsync_setup,
+               INIT_OP_DEP(cpu_mp_probe, true),
                INIT_OP_DEP(log_setup, true),
                INIT_OP_DEP(mutex_setup, true),
                INIT_OP_DEP(spinlock_setup, true),
