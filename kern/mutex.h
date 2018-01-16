@@ -111,6 +111,15 @@ mutex_unlock(struct mutex *mutex)
 }
 
 /*
+ * Special init operation for syscnt_setup.
+ *
+ * This init operation only exists to avoid a circular dependency between
+ * syscnt_setup and mutex_setup, without giving syscnt_setup knowledge
+ * about the dependencies of mutex_setup.
+ */
+INIT_OP_DECLARE(mutex_bootstrap);
+
+/*
  * This init operation provides :
  *  - uncontended mutex locking
  *

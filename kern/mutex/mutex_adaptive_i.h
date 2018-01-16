@@ -133,8 +133,14 @@ mutex_impl_unlock(struct mutex *mutex)
     }
 }
 
-#define mutex_impl_setup mutex_adaptive_setup
+/*
+ * Mutex init operations. See kern/mutex.h.
+ */
 
+#define mutex_impl_bootstrap mutex_adaptive_bootstrap
+INIT_OP_DECLARE(mutex_adaptive_bootstrap);
+
+#define mutex_impl_setup mutex_adaptive_setup
 INIT_OP_DECLARE(mutex_adaptive_setup);
 
 #endif /* _KERN_MUTEX_ADAPTIVE_I_H */

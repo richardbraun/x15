@@ -76,7 +76,8 @@ syscnt_setup(void)
  * modules may use system counters for debugging.
  */
 INIT_OP_DEFINE(syscnt_setup,
-               INIT_OP_DEP(thread_setup_booter, true));
+               INIT_OP_DEP(mutex_bootstrap, true),
+               INIT_OP_DEP(spinlock_setup, true));
 
 void __init
 syscnt_register(struct syscnt *syscnt, const char *name)

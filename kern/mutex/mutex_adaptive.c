@@ -318,6 +318,15 @@ mutex_adaptive_unlock_slow(struct mutex *mutex)
 }
 
 static int
+mutex_adaptive_bootstrap(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(mutex_adaptive_bootstrap,
+               INIT_OP_DEP(thread_setup_booter, true));
+
+static int
 mutex_adaptive_setup(void)
 {
     mutex_adaptive_setup_debug();
@@ -325,6 +334,7 @@ mutex_adaptive_setup(void)
 }
 
 INIT_OP_DEFINE(mutex_adaptive_setup,
+               INIT_OP_DEP(mutex_adaptive_bootstrap, true),
 #ifdef CONFIG_MUTEX_DEBUG
                INIT_OP_DEP(syscnt_setup, true),
 #endif /* CONFIG_MUTEX_DEBUG */

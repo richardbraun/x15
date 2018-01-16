@@ -132,6 +132,10 @@ rtmutex_unlock(struct rtmutex *rtmutex)
     }
 }
 
+/*
+ * Mutex init operations. See kern/mutex.h.
+ */
+INIT_OP_DECLARE(rtmutex_bootstrap);
 INIT_OP_DECLARE(rtmutex_setup);
 
 #endif /* _KERN_RTMUTEX_H */

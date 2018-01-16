@@ -225,6 +225,15 @@ out:
 }
 
 static int
+rtmutex_bootstrap(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(rtmutex_bootstrap,
+               INIT_OP_DEP(thread_setup_booter, true));
+
+static int
 rtmutex_setup(void)
 {
     rtmutex_setup_debug();
@@ -232,7 +241,8 @@ rtmutex_setup(void)
 }
 
 INIT_OP_DEFINE(rtmutex_setup,
+               INIT_OP_DEP(rtmutex_bootstrap, true),
 #ifdef CONFIG_MUTEX_DEBUG
                INIT_OP_DEP(syscnt_setup, true),
 #endif /* CONFIG_MUTEX_DEBUG */
-               );
+);

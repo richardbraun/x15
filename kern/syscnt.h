@@ -114,6 +114,7 @@ void syscnt_info(const char *prefix);
 /*
  * This init operation provides :
  *  - registration of system counters
+ *  - module fully initialized
  */
 INIT_OP_DECLARE(syscnt_setup);
 

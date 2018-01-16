@@ -65,6 +65,11 @@ mutex_impl_unlock(struct mutex *mutex)
     rtmutex_unlock(&mutex->rtmutex);
 }
 
-#define mutex_impl_setup rtmutex_setup
+/*
+ * Mutex init operations. See kern/mutex.h.
+ */
+
+#define mutex_impl_bootstrap    rtmutex_bootstrap
+#define mutex_impl_setup        rtmutex_setup
 
 #endif /* _KERN_MUTEX_PI_I_H */

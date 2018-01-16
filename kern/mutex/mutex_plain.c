@@ -159,6 +159,14 @@ mutex_plain_unlock_slow(struct mutex *mutex)
 }
 
 static int
+mutex_plain_bootstrap(void)
+{
+    return 0;
+}
+
+INIT_OP_DEFINE(mutex_plain_bootstrap);
+
+static int
 mutex_plain_setup(void)
 {
     mutex_plain_setup_debug();
@@ -166,6 +174,7 @@ mutex_plain_setup(void)
 }
 
 INIT_OP_DEFINE(mutex_plain_setup,
+               INIT_OP_DEP(mutex_plain_bootstrap, true),
 #ifdef CONFIG_MUTEX_DEBUG
                INIT_OP_DEP(syscnt_setup, true),
 #endif /* CONFIG_MUTEX_DEBUG */
