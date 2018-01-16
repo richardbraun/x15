@@ -89,7 +89,7 @@ percpu_area(unsigned int cpu)
     extern void *percpu_areas[CONFIG_MAX_CPUS];
     void *area;
 
-    assert(cpu < CONFIG_MAX_CPUS);
+    assert(cpu < ARRAY_SIZE(percpu_areas));
     area = percpu_areas[cpu];
     assert(area != NULL);
     return area;
