@@ -95,7 +95,7 @@ struct lapic_register {
     uint32_t reserved0;
     uint32_t reserved1;
     uint32_t reserved2;
-} __packed;
+};
 
 /*
  * Local APIC register map.
@@ -171,7 +171,7 @@ struct lapic_map {
     const struct lapic_register reserved19;
     struct lapic_register timer_dcr;
     const struct lapic_register reserved20;
-} __packed;
+};
 
 /*
  * Address where local APIC registers are mapped.
