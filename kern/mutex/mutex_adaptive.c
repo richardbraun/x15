@@ -333,9 +333,14 @@ mutex_adaptive_setup(void)
     return 0;
 }
 
+#ifdef CONFIG_MUTEX_DEBUG
+#define MUTEX_ADAPTIVE_DEBUG_INIT_OP_DEPS       \
+               INIT_OP_DEP(syscnt_setup, true),
+#else /* CONFIG_MUTEX_DEBUG */
+#define MUTEX_ADAPTIVE_DEBUG_INIT_OP_DEPS
+#endif /* CONFIG_MUTEX_DEBUG */
+
 INIT_OP_DEFINE(mutex_adaptive_setup,
                INIT_OP_DEP(mutex_adaptive_bootstrap, true),
-#ifdef CONFIG_MUTEX_DEBUG
-               INIT_OP_DEP(syscnt_setup, true),
-#endif /* CONFIG_MUTEX_DEBUG */
+               MUTEX_ADAPTIVE_DEBUG_INIT_OP_DEPS
 );

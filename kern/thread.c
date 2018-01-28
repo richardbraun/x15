@@ -2310,6 +2310,15 @@ thread_setup(void)
     return 0;
 }
 
+#ifdef CONFIG_THREAD_STACK_GUARD
+#define THREAD_STACK_GUARD_INIT_OP_DEPS             \
+               INIT_OP_DEP(vm_kmem_setup, true),    \
+               INIT_OP_DEP(vm_map_setup, true),     \
+               INIT_OP_DEP(vm_page_setup, true),
+#else /* CONFIG_THREAD_STACK_GUARD */
+#define THREAD_STACK_GUARD_INIT_OP_DEPS
+#endif /* CONFIG_THREAD_STACK_GUARD */
+
 INIT_OP_DEFINE(thread_setup,
                INIT_OP_DEP(cpumap_setup, true),
                INIT_OP_DEP(kmem_setup, true),
@@ -2318,12 +2327,8 @@ INIT_OP_DEFINE(thread_setup,
                INIT_OP_DEP(task_setup, true),
                INIT_OP_DEP(thread_bootstrap, true),
                INIT_OP_DEP(turnstile_setup, true),
-#ifdef CONFIG_THREAD_STACK_GUARD
-               INIT_OP_DEP(vm_kmem_setup, true),
-               INIT_OP_DEP(vm_map_setup, true),
-               INIT_OP_DEP(vm_page_setup, true),
-#endif
-               );
+               THREAD_STACK_GUARD_INIT_OP_DEPS
+);
 
 void __init
 thread_ap_setup(void)

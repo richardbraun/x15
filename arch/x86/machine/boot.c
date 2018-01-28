@@ -350,14 +350,17 @@ boot_setup_paging(struct multiboot_raw_info *mbi, unsigned long eax)
     return pmap_setup_paging();
 }
 
+#ifdef CONFIG_X86_PAE
+#define BOOT_PAE_LABEL " PAE"
+#else /* CONFIG_X86_PAE */
+#define BOOT_PAE_LABEL
+#endif /* CONFIG_X86_PAE */
+
 void __init
 boot_log_info(void)
 {
     log_info(KERNEL_NAME "/" CONFIG_SUBARCH " " KERNEL_VERSION
-#ifdef CONFIG_X86_PAE
-             " PAE"
-#endif /* CONFIG_X86_PAE */
-             );
+             BOOT_PAE_LABEL);
 }
 
 static void * __init

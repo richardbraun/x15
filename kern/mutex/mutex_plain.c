@@ -173,9 +173,15 @@ mutex_plain_setup(void)
     return 0;
 }
 
+#ifdef CONFIG_MUTEX_DEBUG
+#define MUTEX_PLAIN_DEBUG_INIT_OP_DEPS          \
+               INIT_OP_DEP(syscnt_setup, true),
+#else /* CONFIG_MUTEX_DEBUG */
+#define MUTEX_PLAIN_DEBUG_INIT_OP_DEPS
+#endif /* CONFIG_MUTEX_DEBUG */
+
+
 INIT_OP_DEFINE(mutex_plain_setup,
                INIT_OP_DEP(mutex_plain_bootstrap, true),
-#ifdef CONFIG_MUTEX_DEBUG
-               INIT_OP_DEP(syscnt_setup, true),
-#endif /* CONFIG_MUTEX_DEBUG */
+               MUTEX_PLAIN_DEBUG_INIT_OP_DEPS
 );

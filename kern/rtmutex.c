@@ -240,9 +240,14 @@ rtmutex_setup(void)
     return 0;
 }
 
+#ifdef CONFIG_MUTEX_DEBUG
+#define RTMUTEX_DEBUG_INIT_OPS                  \
+               INIT_OP_DEP(syscnt_setup, true),
+#else /* CONFIG_MUTEX_DEBUG */
+#define RTMUTEX_DEBUG_INIT_OPS
+#endif /* CONFIG_MUTEX_DEBUG */
+
 INIT_OP_DEFINE(rtmutex_setup,
                INIT_OP_DEP(rtmutex_bootstrap, true),
-#ifdef CONFIG_MUTEX_DEBUG
-               INIT_OP_DEP(syscnt_setup, true),
-#endif /* CONFIG_MUTEX_DEBUG */
+               RTMUTEX_DEBUG_INIT_OPS
 );
