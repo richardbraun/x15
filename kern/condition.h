@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 Richard Braun.
+ * Copyright (c) 2013-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,17 +64,5 @@ int condition_timedwait(struct condition *condition,
  */
 void condition_signal(struct condition *condition);
 void condition_broadcast(struct condition *condition);
-
-/*
- * Wake up a pending thread.
- *
- * This function isn't part of the standard condition variable interface.
- * It is used to chain wake-ups to avoid the thundering herd effect.
- * When broadcasting a condition variable, a single thread is actually
- * awaken. Other threads become "pending waiters", still asleep but
- * eligible for wake-up when the mutex associated to the condition variable,
- * relocked when returning from condition_wait(), is finally unlocked.
- */
-void condition_wakeup(struct condition *condition);
 
 #endif /* _KERN_CONDITION_H */

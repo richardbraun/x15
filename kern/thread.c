@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 Richard Braun.
+ * Copyright (c) 2012-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,7 +92,6 @@
 
 #include <kern/atomic.h>
 #include <kern/clock.h>
-#include <kern/condition.h>
 #include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/init.h>
@@ -1821,7 +1820,6 @@ thread_init(struct thread *thread, void *stack,
     }
 
     turnstile_td_init(&thread->turnstile_td);
-    thread->last_cond = NULL;
     thread->propagate_priority = false;
     thread->preempt_level = THREAD_SUSPEND_PREEMPT_LEVEL;
     thread->pin_level = 0;

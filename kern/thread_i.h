@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include <stdbool.h>
 
 #include <kern/atomic.h>
-#include <kern/condition_types.h>
 #include <kern/cpumap.h>
 #include <kern/list_types.h>
 #include <kern/spinlock_types.h>
@@ -120,15 +119,6 @@ struct thread {
 
     /* Turnstile available for lending */
     struct turnstile *priv_turnstile;   /* (-) */
-
-    /*
-     * When a thread wakes up after waiting for a condition variable,
-     * it sets this variable so that other waiters are only awaken
-     * after the associated mutex has actually been released.
-     *
-     * This member is thread-local.
-     */
-    struct condition *last_cond;        /* (-) */
 
     struct turnstile_td turnstile_td;   /* (t) */
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 Richard Braun.
+ * Copyright (c) 2013-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,55 +27,26 @@
 #include <kern/condition_types.h>
 #include <kern/mutex.h>
 #include <kern/sleepq.h>
-#include <kern/thread.h>
 
 static int
 condition_wait_common(struct condition *condition, struct mutex *mutex,
                       bool timed, uint64_t ticks)
 {
-    struct condition *last_cond;
     struct sleepq *sleepq;
     unsigned long flags;
     int error;
 
     mutex_assert_locked(mutex);
 
-    /*
-     * Special case :
-     *
-     * mutex_lock(lock);
-     *
-     * for (;;) {
-     *     while (!done) {
-     *         condition_wait(condition, lock);
-     *     }
-     *
-     *     do_something();
-     * }
-     *
-     * Pull the last condition before unlocking the mutex to prevent
-     * mutex_unlock() from reacquiring the condition sleep queue.
-     */
-    last_cond = thread_pull_last_cond();
-
     sleepq = sleepq_lend(condition, true, &flags);
 
     mutex_unlock(mutex);
-
-    if (last_cond != NULL) {
-        assert(last_cond == condition);
-        sleepq_wakeup(sleepq);
-    }
 
     if (timed) {
         error = sleepq_timedwait(sleepq, "cond", ticks);
     } else {
         sleepq_wait(sleepq, "cond");
         error = 0;
-    }
-
-    if (!error) {
-        thread_set_last_cond(condition);
     }
 
     sleepq_return(sleepq, flags);
@@ -131,23 +102,6 @@ condition_broadcast(struct condition *condition)
     }
 
     sleepq_broadcast(sleepq);
-
-    sleepq_release(sleepq, flags);
-}
-
-void
-condition_wakeup(struct condition *condition)
-{
-    struct sleepq *sleepq;
-    unsigned long flags;
-
-    sleepq = sleepq_acquire(condition, true, &flags);
-
-    if (sleepq == NULL) {
-        return;
-    }
-
-    sleepq_wakeup(sleepq);
 
     sleepq_release(sleepq, flags);
 }

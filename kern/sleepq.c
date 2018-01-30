@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -503,46 +503,23 @@ sleepq_signal(struct sleepq *sleepq)
     sleepq_waiter_wakeup(waiter);
 }
 
-static void
-sleepq_wakeup_common(struct sleepq *sleepq)
-{
-    struct sleepq_waiter *waiter;
-
-    assert(!list_empty(&sleepq->waiters));
-
-    waiter = list_last_entry(&sleepq->waiters, struct sleepq_waiter, node);
-    sleepq_waiter_wakeup(waiter);
-}
-
 void
 sleepq_broadcast(struct sleepq *sleepq)
 {
     struct sleepq_waiter *waiter;
 
     if (sleepq->oldest_waiter == NULL) {
-        goto out;
+        return;
     }
+
+    sleepq->oldest_waiter = NULL;
 
     list_for_each_entry(&sleepq->waiters, waiter, node) {
         sleepq_waiter_set_pending_wakeup(waiter);
+        sleepq_waiter_wakeup(waiter);
 
         if (waiter == sleepq->oldest_waiter) {
             break;
         }
     }
-
-    sleepq->oldest_waiter = NULL;
-
-out:
-    sleepq_wakeup_common(sleepq);
-}
-
-void
-sleepq_wakeup(struct sleepq *sleepq)
-{
-    if (list_empty(&sleepq->waiters)) {
-        return;
-    }
-
-    sleepq_wakeup_common(sleepq);
 }

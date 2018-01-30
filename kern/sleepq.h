@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -125,23 +125,10 @@ int sleepq_timedwait(struct sleepq *sleepq, const char *wchan, uint64_t ticks);
  * At least one thread is awaken if any threads are waiting on the sleep
  * queue.
  *
- * A broadcast differs only by also making all currently waiting threads
- * pending for wake-up. As with sleepq_signal, a single thread may be
- * awaken. The rationale is to force users to implement "chained waking"
- * in order to avoid the thundering herd effect.
+ * Broadcasting a sleep queue wakes up all waiting threads.
  */
 void sleepq_signal(struct sleepq *sleepq);
 void sleepq_broadcast(struct sleepq *sleepq);
-
-/*
- * Wake up a pending thread.
- *
- * This function may only wake up a thread pending for wake-up after a
- * broadcast. It is used to chain wake-ups to avoid the thundering herd
- * effect. If there are no threads pending for wake-up, this function
- * does nothing.
- */
-void sleepq_wakeup(struct sleepq *sleepq);
 
 /*
  * This init operation provides :

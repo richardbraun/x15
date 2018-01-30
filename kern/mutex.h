@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 Richard Braun.
+ * Copyright (c) 2013-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,7 +37,6 @@
 
 #include <kern/init.h>
 #include <kern/mutex_types.h>
-#include <kern/thread.h>
 
 /*
  * Initialize a mutex.
@@ -102,12 +101,6 @@ static inline void
 mutex_unlock(struct mutex *mutex)
 {
     mutex_impl_unlock(mutex);
-
-    /*
-     * If this mutex was used along with a condition variable, wake up
-     * a potential pending waiter.
-     */
-    thread_wakeup_last_cond();
 }
 
 /*
