@@ -431,6 +431,16 @@ sleepq_remove_waiter(struct sleepq *sleepq, struct sleepq_waiter *waiter)
     list_remove(&waiter->node);
 }
 
+static struct sleepq_waiter *
+sleepq_get_last_waiter(struct sleepq *sleepq)
+{
+    if (list_empty(&sleepq->waiters)) {
+        return NULL;
+    }
+
+    return list_last_entry(&sleepq->waiters, struct sleepq_waiter, node);
+}
+
 bool
 sleepq_empty(const struct sleepq *sleepq)
 {
@@ -441,7 +451,7 @@ static int
 sleepq_wait_common(struct sleepq *sleepq, const char *wchan,
                    bool timed, uint64_t ticks)
 {
-    struct sleepq_waiter waiter;
+    struct sleepq_waiter waiter, *next;
     struct thread *thread;
     int error;
 
@@ -468,6 +478,17 @@ sleepq_wait_common(struct sleepq *sleepq, const char *wchan,
     } while (!sleepq_waiter_pending_wakeup(&waiter));
 
     sleepq_remove_waiter(sleepq, &waiter);
+
+    /*
+     * Chain wake-ups here to prevent broadacasting from walking a list
+     * with preemption disabled. Note that this doesn't guard against
+     * the thundering herd effect for condition variables.
+     */
+    next = sleepq_get_last_waiter(sleepq);
+
+    if (next) {
+        sleepq_waiter_wakeup(next);
+    }
 
     return error;
 }
@@ -508,18 +529,13 @@ sleepq_broadcast(struct sleepq *sleepq)
 {
     struct sleepq_waiter *waiter;
 
-    if (sleepq->oldest_waiter == NULL) {
+    waiter = sleepq->oldest_waiter;
+
+    if (!waiter) {
         return;
     }
 
     sleepq->oldest_waiter = NULL;
-
-    list_for_each_entry(&sleepq->waiters, waiter, node) {
-        sleepq_waiter_set_pending_wakeup(waiter);
-        sleepq_waiter_wakeup(waiter);
-
-        if (waiter == sleepq->oldest_waiter) {
-            break;
-        }
-    }
+    sleepq_waiter_set_pending_wakeup(waiter);
+    sleepq_waiter_wakeup(waiter);
 }
