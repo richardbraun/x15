@@ -131,6 +131,9 @@ work_init(struct work *work, work_fn_t fn)
 /*
  * Schedule work for deferred processing.
  *
+ * After being scheduled, a work queue must be reinitialized before
+ * it can be reused.
+ *
  * This function may be called from interrupt context.
  */
 void work_schedule(struct work *work, int flags);
