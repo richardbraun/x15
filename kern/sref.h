@@ -31,6 +31,8 @@
 #ifndef _KERN_SREF_H
 #define _KERN_SREF_H
 
+#include <kern/init.h>
+
 /*
  * Scalable reference counter.
  */
@@ -104,5 +106,11 @@ void sref_counter_dec(struct sref_counter *counter);
  * This function may safely be called in interrupt context.
  */
 struct sref_counter * sref_weakref_get(struct sref_weakref *weakref);
+
+/*
+ * This init operation provides :
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(sref_setup);
 
 #endif /* _KERN_SREF_H */
