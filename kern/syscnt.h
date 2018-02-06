@@ -53,6 +53,12 @@ void syscnt_register(struct syscnt *syscnt, const char *name);
 #ifdef ATOMIC_HAVE_64B_OPS
 
 static inline void
+syscnt_set(struct syscnt *syscnt, uint64_t value)
+{
+    atomic_store(&syscnt->value, value, ATOMIC_RELAXED);
+}
+
+static inline void
 syscnt_add(struct syscnt *syscnt, int64_t delta)
 {
     atomic_add(&syscnt->value, delta, ATOMIC_RELAXED);
@@ -65,6 +71,16 @@ syscnt_read(const struct syscnt *syscnt)
 }
 
 #else /* ATOMIC_HAVE_64B_OPS */
+
+static inline void
+syscnt_set(struct syscnt *syscnt, uint64_t value)
+{
+    unsigned long flags;
+
+    spinlock_lock_intr_save(&syscnt->lock, &flags);
+    syscnt->value = value;
+    spinlock_unlock_intr_restore(&syscnt->lock, flags);
+}
 
 static inline void
 syscnt_add(struct syscnt *syscnt, int64_t delta)
