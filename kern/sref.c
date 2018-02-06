@@ -991,13 +991,16 @@ sref_report_periodic_event(void)
 
 void
 sref_counter_init(struct sref_counter *counter,
+                  unsigned long init_value,
                   struct sref_weakref *weakref,
                   sref_noref_fn_t noref_fn)
 {
+    assert(init_value != 0);
+
     counter->noref_fn = noref_fn;
     spinlock_init(&counter->lock);
     counter->flags = 0;
-    counter->value = 1;
+    counter->value = init_value;
     counter->weakref = weakref;
 
     if (weakref) {

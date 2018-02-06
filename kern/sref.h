@@ -77,10 +77,11 @@ void sref_report_periodic_event(void);
 /*
  * Initialize a scalable reference counter.
  *
- * The counter is set to 1. The no-reference function is called (from thread
- * context) when it is certain that the true number of references is 0.
+ * The no-reference function is called (from thread context) when it is
+ * certain that the true number of references is 0.
  */
 void sref_counter_init(struct sref_counter *counter,
+                       unsigned long init_value,
                        struct sref_weakref *weakref,
                        sref_noref_fn_t noref_fn);
 
