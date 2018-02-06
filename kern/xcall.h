@@ -24,6 +24,8 @@
 #ifndef _KERN_XCALL_H
 #define _KERN_XCALL_H
 
+#include <kern/init.h>
+
 /*
  * Type for cross-call functions.
  */
@@ -47,5 +49,12 @@ void xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu);
  * Called from interrupt context.
  */
 void xcall_intr(void);
+
+/*
+ * This init operation provides :
+ *  - cross-calls are usable
+ *  - module fully initialized
+ */
+INIT_OP_DECLARE(xcall_setup);
 
 #endif /* _KERN_XCALL_H */
