@@ -54,6 +54,8 @@ struct sref_weakref {
  * Locking keys :
  * (c) sref_counter
  * (g) sref_data
+ *
+ * Interrupts must be disabled when accessing a global counter.
  */
 struct sref_counter {
     sref_noref_fn_t noref_fn;

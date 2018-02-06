@@ -99,9 +99,9 @@ struct sref_queue {
  */
 struct sref_data {
     struct spinlock lock;
-    struct cpumap registered_cpus;
+    struct cpumap registered_cpus;      /* TODO Review usage */
     unsigned int nr_registered_cpus;
-    struct cpumap pending_flushes;
+    struct cpumap pending_flushes;      /* TODO Review usage */
     unsigned int nr_pending_flushes;
     unsigned int current_queue_id;
     struct sref_queue queues[2];
@@ -143,18 +143,7 @@ struct sref_delta {
  * prevent a race with the periodic event that drives regular flushes
  * (normally the periodic timer interrupt).
  *
- * Preemption must be disabled when accessing a delta cache.
- *
- * The dirty flag means there may be data to process, and is used to wake
- * up the manager thread. Marking a cache dirty is done either by regular
- * threads increasing or decreasing a delta, or the periodic event handler.
- * Clearing the dirty flag is only done by the manager thread. Disabling
- * preemption makes sure only one thread is accessing the cache at any time,
- * but it doesn't prevent the periodic handler from running. Since the handler
- * as well as regular threads set that flag, a race between them is harmless.
- * On the other hand, the handler won't access the flag if it is run while
- * the manager thread is running. Since the manager thread is already running,
- * there is no need to wake it up anyway.
+ * Interrupts and preemption must be disabled when accessing a delta cache.
  */
 struct sref_cache {
     struct sref_delta deltas[SREF_MAX_DELTAS];
@@ -387,6 +376,8 @@ sref_counter_schedule_review(struct sref_counter *counter)
 static void
 sref_counter_add(struct sref_counter *counter, unsigned long delta)
 {
+    assert(!cpu_intr_enabled());
+
     spinlock_lock(&counter->lock);
 
     counter->value += delta;
@@ -547,19 +538,19 @@ sref_cache_get(void)
 }
 
 static struct sref_cache *
-sref_cache_acquire(void)
+sref_cache_acquire(unsigned long *flags)
 {
     struct sref_cache *cache;
 
-    thread_preempt_disable();
+    thread_preempt_disable_intr_save(flags);
     cache = sref_cache_get();
     return cache;
 }
 
 static void
-sref_cache_release(void)
+sref_cache_release(unsigned long flags)
 {
-    thread_preempt_enable();
+    thread_preempt_enable_intr_restore(flags);
 }
 
 static bool
@@ -640,10 +631,11 @@ static void
 sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
 {
     struct sref_delta *delta;
+    unsigned long flags;
     unsigned int cpu;
 
     for (;;) {
-        thread_preempt_disable();
+        thread_preempt_disable_intr_save(&flags);
 
         if (list_empty(&cache->valid_deltas)) {
             break;
@@ -652,8 +644,10 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
         delta = list_first_entry(&cache->valid_deltas, typeof(*delta), node);
         sref_cache_remove_delta(delta);
 
-        thread_preempt_enable();
+        thread_preempt_enable_intr_restore(flags);
     }
+
+    cpu_intr_restore(flags);
 
     cpu = cpu_id();
 
@@ -684,30 +678,15 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
 }
 
 static void
-sref_cache_wakeup_manager(struct sref_cache *cache)
-{
-    unsigned long flags;
-
-    cpu_intr_save(&flags);
-    thread_wakeup(cache->manager);
-    cpu_intr_restore(flags);
-}
-
-/*
- * Force the manager thread of a cache to run.
- */
-static void
 sref_cache_manage(struct sref_cache *cache)
 {
+    assert(!cpu_intr_enabled());
+    assert(!thread_preempt_enabled());
+
     sref_cache_mark_dirty(cache);
-    sref_cache_wakeup_manager(cache);
+    thread_wakeup(cache->manager);
 }
 
-/*
- * Check if a cache is dirty and wake up its manager thread if it is.
- *
- * Return true if the cache is dirty and requires maintenance.
- */
 static bool
 sref_cache_check(struct sref_cache *cache)
 {
@@ -715,7 +694,7 @@ sref_cache_check(struct sref_cache *cache)
         return false;
     }
 
-    sref_cache_wakeup_manager(cache);
+    sref_cache_manage(cache);
     return true;
 }
 
@@ -734,6 +713,7 @@ sref_review(struct sref_queue *queue)
     int64_t nr_dirty, nr_revive, nr_true;
     struct sref_counter *counter;
     struct work_queue works;
+    unsigned long flags;
     bool requeue;
     int error;
 
@@ -745,7 +725,7 @@ sref_review(struct sref_queue *queue)
     while (!sref_queue_empty(queue)) {
         counter = sref_queue_pop(queue);
 
-        spinlock_lock(&counter->lock);
+        spinlock_lock_intr_save(&counter->lock, &flags);
 
         assert(sref_counter_is_queued(counter));
         sref_counter_clear_queued(counter);
@@ -753,7 +733,7 @@ sref_review(struct sref_queue *queue)
         if (counter->value != 0) {
             sref_counter_clear_dirty(counter);
             sref_counter_clear_dying(counter);
-            spinlock_unlock(&counter->lock);
+            spinlock_unlock_intr_restore(&counter->lock, flags);
         } else {
             if (sref_counter_is_dirty(counter)) {
                 requeue = true;
@@ -772,14 +752,14 @@ sref_review(struct sref_queue *queue)
 
             if (requeue) {
                 sref_counter_schedule_review(counter);
-                spinlock_unlock(&counter->lock);
+                spinlock_unlock_intr_restore(&counter->lock, flags);
             } else {
                 /*
                  * Keep in mind that the work structure shares memory with
                  * the counter data. Unlocking isn't needed here, since this
                  * counter is now really at 0, but do it for consistency.
                  */
-                spinlock_unlock(&counter->lock);
+                spinlock_unlock_intr_restore(&counter->lock, flags);
                 nr_true++;
                 work_init(&counter->work, sref_noref);
                 work_queue_push(&works, &counter->work);
@@ -937,6 +917,7 @@ int
 sref_unregister(void)
 {
     struct sref_cache *cache;
+    unsigned long flags;
     unsigned int cpu;
     bool dirty;
     int error;
@@ -944,22 +925,17 @@ sref_unregister(void)
     assert(!thread_preempt_enabled());
 
     cache = sref_cache_get();
-    assert(sref_cache_is_registered(cache));
 
-    /*
-     * Check the dirty flag after clearing the registered flag. The
-     * periodic event handler won't set the dirty flag if the processor
-     * is unregistered. It is then safe to test if that flag is set.
-     * Everything involved is processor-local, therefore a simple compiler
-     * barrier is enough to enforce ordering.
-     */
+    cpu_intr_save(&flags);
+
+    assert(sref_cache_is_registered(cache));
     sref_cache_clear_registered(cache);
-    barrier();
     dirty = sref_cache_check(cache);
 
     if (dirty) {
         sref_cache_mark_registered(cache);
-        return ERROR_BUSY;
+        error = ERROR_BUSY;
+        goto out;
     }
 
     cpu = cpu_id();
@@ -990,6 +966,9 @@ sref_unregister(void)
     }
 
     spinlock_unlock(&sref_data.lock);
+
+out:
+    cpu_intr_restore(flags);
 
     return error;
 }
@@ -1040,10 +1019,11 @@ void
 sref_counter_inc(struct sref_counter *counter)
 {
     struct sref_cache *cache;
+    unsigned long flags;
 
-    cache = sref_cache_acquire();
+    cache = sref_cache_acquire(&flags);
     sref_counter_inc_common(counter, cache);
-    sref_cache_release();
+    sref_cache_release(flags);
 }
 
 void
@@ -1051,12 +1031,13 @@ sref_counter_dec(struct sref_counter *counter)
 {
     struct sref_cache *cache;
     struct sref_delta *delta;
+    unsigned long flags;
 
-    cache = sref_cache_acquire();
+    cache = sref_cache_acquire(&flags);
     sref_cache_mark_dirty(cache);
     delta = sref_cache_get_delta(cache, counter);
     sref_delta_dec(delta);
-    sref_cache_release();
+    sref_cache_release(flags);
 }
 
 struct sref_counter *
@@ -1064,8 +1045,9 @@ sref_weakref_get(struct sref_weakref *weakref)
 {
     struct sref_counter *counter;
     struct sref_cache *cache;
+    unsigned long flags;
 
-    cache = sref_cache_acquire();
+    cache = sref_cache_acquire(&flags);
 
     counter = sref_weakref_tryget(weakref);
 
@@ -1073,7 +1055,7 @@ sref_weakref_get(struct sref_weakref *weakref)
         sref_counter_inc_common(counter, cache);
     }
 
-    sref_cache_release();
+    sref_cache_release(flags);
 
     return counter;
 }

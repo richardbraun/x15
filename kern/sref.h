@@ -87,7 +87,9 @@ void sref_counter_init(struct sref_counter *counter,
 /*
  * Counter operations.
  *
- * These functions may safely be called with preemption disabled.
+ * These functions may safely be called in interrupt context.
+ *
+ * These functions imply a compiler barrier.
  */
 void sref_counter_inc(struct sref_counter *counter);
 void sref_counter_dec(struct sref_counter *counter);
@@ -98,7 +100,7 @@ void sref_counter_dec(struct sref_counter *counter);
  * If successful, increment the reference counter before returning it.
  * Otherwise return NULL.
  *
- * This function may safely be called with preemption disabled.
+ * This function may safely be called in interrupt context.
  */
 struct sref_counter * sref_weakref_get(struct sref_weakref *weakref);
 
