@@ -118,6 +118,7 @@ MACRO_END
 
 #define atomic_fence_acquire()  __atomic_thread_fence(ATOMIC_ACQUIRE)
 #define atomic_fence_release()  __atomic_thread_fence(ATOMIC_RELEASE)
+#define atomic_fence_acq_rel()  __atomic_thread_fence(ATOMIC_ACQ_REL)
 #define atomic_fence_seq_cst()  __atomic_thread_fence(ATOMIC_SEQ_CST)
 
 /*
