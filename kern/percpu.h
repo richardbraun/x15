@@ -116,6 +116,8 @@ INIT_OP_DECLARE(percpu_bootstrap);
  *
  * The dependency that provides access to percpu variables on all processors
  * is cpu_mp_probe.
+ *
+ * TODO Add percpu alias to cpu_mp_probe.
  */
 INIT_OP_DECLARE(percpu_setup);
 
