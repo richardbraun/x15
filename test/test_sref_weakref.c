@@ -67,7 +67,7 @@ test_run(void *arg)
             continue;
         }
 
-        sref_counter_init(counter, &test_weakref, test_noref);
+        sref_counter_init(counter, 1, &test_weakref, test_noref);
         sref_counter_dec(counter);
 
         for (j = 0; j < 0x20000000; j++);
