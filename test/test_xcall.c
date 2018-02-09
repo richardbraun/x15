@@ -33,35 +33,41 @@
 #include <kern/xcall.h>
 #include <test/test.h>
 
-static bool test_done;
+struct test_data {
+    unsigned int cpu;
+    bool done;
+};
 
 static void
 test_fn(void *arg)
 {
-    uintptr_t cpu;
+    struct test_data *data;
 
     assert(thread_interrupted());
 
-    cpu = (uintptr_t)arg;
+    data = arg;
 
-    if (cpu != cpu_id()) {
-        panic("invalid cpu");
+    if (data->cpu != cpu_id()) {
+        panic("test: invalid cpu");
     }
 
     log_info("function called, running on cpu%u\n", cpu_id());
-    test_done = true;
+    data->done = true;
 }
 
 static void
 test_once(unsigned int cpu)
 {
-    test_done = false;
+    struct test_data data;
+
+    data.cpu = cpu;
+    data.done = false;
 
     log_info("cross-call: cpu%u -> cpu%u:\n", cpu_id(), cpu);
-    xcall_call(test_fn, (void *)(uintptr_t)cpu, cpu);
+    xcall_call(test_fn, &data, cpu);
 
-    if (!test_done) {
-        panic("test_done false");
+    if (!data.done) {
+        panic("test: xcall failed");
     }
 }
 
@@ -70,7 +76,7 @@ test_run_cpu(void *arg)
 {
     (void)arg;
 
-    for (unsigned int i = (cpu_count() - 1); i < cpu_count(); i++) {
+    for (unsigned int i = (cpu_count() - 1); i < cpu_count(); i--) {
         test_once(i);
     }
 }
