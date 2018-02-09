@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Richard Braun.
+ * Copyright (c) 2014-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
  *
  * This module provides the ability to run functions, called cross-calls,
  * on specific processors.
+ *
+ * TODO Asynchronous cross-calls.
  */
 
 #ifndef _KERN_XCALL_H
@@ -35,16 +37,18 @@ typedef void (*xcall_fn_t)(void *arg);
  * Run the given cross-call function on a specific processor.
  *
  * The operation is completely synchronous, returning only when the function
- * has finished running on the target processor, with the side effects of
- * the function visible.
+ * has finished running on the target processor. Release-acquire ordering is
+ * enforced both before and after the function runs on the target processor,
+ * so that side effects produced by the caller are visible to the function,
+ * and vice-versa on return.
  *
- * The function is run in interrupt context. Interrupts must be enabled
+ * The callback function runs in interrupt context. Interrupts must be enabled
  * when calling this function.
  */
 void xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu);
 
 /*
- * Report a cross-call interrupt from a remote processor.
+ * Handle a cross-call interrupt from a remote processor.
  *
  * Called from interrupt context.
  */

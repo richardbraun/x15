@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 Richard Braun.
+ * Copyright (c) 2014-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,42 +32,55 @@
 #include <machine/cpu.h>
 
 struct xcall {
-    alignas(CPU_L1_SIZE) xcall_fn_t fn;
+    xcall_fn_t fn;
     void *arg;
 };
 
 /*
  * Per-CPU data.
  *
- * Send calls are sent to remote processors. Their access is synchronized
- * by disabling preemption.
+ * The lock is used to serialize cross-calls from different processors
+ * to the same processor. It is held during the complete cross-call
+ * sequence. Inside the critical section, accesses to the receive call
+ * are used to enforce release-acquire ordering between the sending
+ * and receiving processors.
  *
- * The received call points to either NULL if there is no call to process,
- * or a remote send call otherwise. The lock serializes the complete
- * inter-processor operation, i.e. setting the received call pointer,
- * communication through an IPI, and waiting for the processor to
- * acknowledge execution. By serializing interrupts, it is certain that
- * there is a 1:1 mapping between interrupts and cross-calls, allowing
- * the handler to process only one cross-call instead of iterating over
- * a queue. This way, interrupts with higher priority can be handled
- * between multiple cross-calls.
+ * Locking keys :
+ * (a) atomic
+ * (c) cpu_data
  */
 struct xcall_cpu_data {
-    alignas(CPU_L1_SIZE) struct xcall send_calls[CONFIG_MAX_CPUS];
-
-    struct syscnt sc_sent;
-    struct syscnt sc_received;
-    struct xcall *recv_call;
-    struct spinlock lock;
+    alignas(CPU_L1_SIZE) struct spinlock lock;
+    struct xcall *recv_call;    /* (c) */
+    struct syscnt sc_sent;      /* (a) */
+    struct syscnt sc_received;  /* (a) */
 };
 
 static struct xcall_cpu_data xcall_cpu_data __percpu;
 
-static inline void
-xcall_set(struct xcall *call, xcall_fn_t fn, void *arg)
+static struct xcall_cpu_data *
+xcall_get_local_cpu_data(void)
+{
+    return cpu_local_ptr(xcall_cpu_data);
+}
+
+static struct xcall_cpu_data *
+xcall_get_cpu_data(unsigned int cpu)
+{
+    return percpu_ptr(xcall_cpu_data, cpu);
+}
+
+static void
+xcall_init(struct xcall *call, xcall_fn_t fn, void *arg)
 {
     call->fn = fn;
     call->arg = arg;
+}
+
+static void
+xcall_process(struct xcall *call)
+{
+    call->fn(call->arg);
 }
 
 static void
@@ -81,20 +94,6 @@ xcall_cpu_data_init(struct xcall_cpu_data *cpu_data, unsigned int cpu)
     syscnt_register(&cpu_data->sc_received, name);
     cpu_data->recv_call = NULL;
     spinlock_init(&cpu_data->lock);
-}
-
-static struct xcall_cpu_data *
-xcall_cpu_data_get(void)
-{
-    assert(!thread_preempt_enabled());
-    return cpu_local_ptr(xcall_cpu_data);
-}
-
-static struct xcall *
-xcall_cpu_data_get_send_call(struct xcall_cpu_data *cpu_data, unsigned int cpu)
-{
-    assert(cpu < ARRAY_SIZE(cpu_data->send_calls));
-    return &cpu_data->send_calls[cpu];
 }
 
 static struct xcall *
@@ -122,7 +121,7 @@ xcall_setup(void)
     unsigned int i;
 
     for (i = 0; i < cpu_count(); i++) {
-        xcall_cpu_data_init(percpu_ptr(xcall_cpu_data, i), i);
+        xcall_cpu_data_init(xcall_get_cpu_data(i), i);
     }
 
     return 0;
@@ -136,34 +135,30 @@ INIT_OP_DEFINE(xcall_setup,
 void
 xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu)
 {
-    struct xcall_cpu_data *local_data, *remote_data;
-    struct xcall *call;
+    struct xcall_cpu_data *cpu_data;
+    struct xcall call;
 
     assert(cpu_intr_enabled());
-    assert(fn != NULL);
+    assert(fn);
 
-    remote_data = percpu_ptr(xcall_cpu_data, cpu);
+    xcall_init(&call, fn, arg);
+    cpu_data = xcall_get_cpu_data(cpu);
 
-    thread_preempt_disable();
+    spinlock_lock(&cpu_data->lock);
 
-    local_data = xcall_cpu_data_get();
-    call = xcall_cpu_data_get_send_call(local_data, cpu);
-    xcall_set(call, fn, arg);
-
-    spinlock_lock(&remote_data->lock);
-
-    xcall_cpu_data_set_recv_call(remote_data, call);
+    /* Enforce release ordering on the receive call */
+    xcall_cpu_data_set_recv_call(cpu_data, &call);
 
     cpu_send_xcall(cpu);
-    syscnt_inc(&remote_data->sc_sent);
 
-    while (xcall_cpu_data_get_recv_call(remote_data) != NULL) {
+    /* Enforce acquire ordering on the receive call */
+    while (xcall_cpu_data_get_recv_call(cpu_data) != NULL) {
         cpu_pause();
     }
 
-    spinlock_unlock(&remote_data->lock);
+    spinlock_unlock(&cpu_data->lock);
 
-    thread_preempt_enable();
+    syscnt_inc(&cpu_data->sc_sent);
 }
 
 void
@@ -174,17 +169,19 @@ xcall_intr(void)
 
     assert(thread_check_intr_context());
 
-    cpu_data = xcall_cpu_data_get();
+    cpu_data = xcall_get_local_cpu_data();
 
+    /* Enforce acquire ordering on the receive call */
     call = xcall_cpu_data_get_recv_call(cpu_data);
 
     if (call) {
-        call->fn(call->arg);
+        xcall_process(call);
     } else {
         log_warning("xcall: spurious interrupt on cpu%u", cpu_id());
     }
 
     syscnt_inc(&cpu_data->sc_received);
 
+    /* Enforce release ordering on the receive call */
     xcall_cpu_data_clear_recv_call(cpu_data);
 }
