@@ -95,9 +95,27 @@ large_options_dict.update({
     'CONFIG_THREAD_STACK_GUARD'     : ['y', 'n'],
 })
 
+test_list = [
+    'CONFIG_TEST_MODULE_LLSYNC_DEFER',
+    'CONFIG_TEST_MODULE_MUTEX',
+    'CONFIG_TEST_MODULE_MUTEX_PI',
+    'CONFIG_TEST_MODULE_PMAP_UPDATE_MP',
+    'CONFIG_TEST_MODULE_SREF_DIRTY_ZEROES',
+    'CONFIG_TEST_MODULE_SREF_NOREF',
+    'CONFIG_TEST_MODULE_SREF_WEAKREF',
+    'CONFIG_TEST_MODULE_VM_PAGE_FILL',
+    'CONFIG_TEST_MODULE_XCALL',
+]
+
+test_options_dict = dict(small_options_dict)
+
+for test in test_list:
+    test_options_dict.update({test : ['y', 'n']})
+
 all_options_sets = {
     'small'                         : small_options_dict,
     'large'                         : large_options_dict,
+    'test'                          : test_options_dict,
 }
 
 # List of filters used to determine valid configurations.
@@ -130,6 +148,9 @@ all_filters_list += gen_exclusive_boolean_filters_list([
     'CONFIG_MUTEX_PI',
     'CONFIG_MUTEX_PLAIN'
 ])
+
+# TODO Have both passing and blocking filters to reduce generation complexity.
+all_filters_list += gen_exclusive_boolean_filters_list(test_list)
 
 def gen_config_line(config_entry):
     name, value = config_entry
