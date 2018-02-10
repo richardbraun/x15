@@ -31,6 +31,7 @@
 
 #include <kern/condition.h>
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
@@ -101,7 +102,7 @@ test_noref(struct sref_counter *counter)
     panic("0 references, page released\n");
 }
 
-void
+void __init
 test_setup(void)
 {
     struct thread_attr attr;

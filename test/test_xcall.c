@@ -25,8 +25,9 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include <kern/error.h>
 #include <kern/cpumap.h>
+#include <kern/error.h>
+#include <kern/init.h>
 #include <kern/log.h>
 #include <kern/panic.h>
 #include <kern/thread.h>
@@ -122,7 +123,7 @@ test_run(void *arg)
     log_info("done\n");
 }
 
-void
+void __init
 test_setup(void)
 {
     struct thread_attr attr;

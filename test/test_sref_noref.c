@@ -37,6 +37,7 @@
 
 #include <kern/condition.h>
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
@@ -168,7 +169,7 @@ test_run(void *arg)
     kmem_free(threads, sizeof(*threads) * nr_threads);
 }
 
-void
+void __init
 test_setup(void)
 {
     struct thread_attr attr;

@@ -28,6 +28,7 @@
 
 #include <kern/cpumap.h>
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/list.h>
 #include <kern/thread.h>
 #include <machine/page.h>
@@ -134,7 +135,7 @@ test_run(void *arg)
     }
 }
 
-void
+void __init
 test_setup(void)
 {
     struct thread_attr attr;

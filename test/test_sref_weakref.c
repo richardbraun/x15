@@ -36,6 +36,7 @@
 #include <stdio.h>
 
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/sref.h>
 #include <kern/syscnt.h>
@@ -101,7 +102,7 @@ test_ref(void *arg)
     }
 }
 
-void
+void __init
 test_setup(void)
 {
     struct thread_attr attr;

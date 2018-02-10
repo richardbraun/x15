@@ -33,6 +33,7 @@
 #include <kern/atomic.h>
 #include <kern/clock.h>
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/log.h>
 #include <kern/mutex.h>
@@ -161,7 +162,7 @@ test_report_syscnt(struct timer *timer)
     timer_schedule(timer, time);
 }
 
-void
+void __init
 test_setup(void)
 {
     uint64_t time;

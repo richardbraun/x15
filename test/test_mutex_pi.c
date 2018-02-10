@@ -80,6 +80,7 @@
 
 #include <kern/cpumap.h>
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
 #include <kern/syscnt.h>
@@ -416,7 +417,7 @@ test_e(void *arg)
     }
 }
 
-void
+void __init
 test_setup(void)
 {
     struct thread_attr attr;

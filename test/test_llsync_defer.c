@@ -34,6 +34,7 @@
 
 #include <kern/condition.h>
 #include <kern/error.h>
+#include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/llsync.h>
 #include <kern/macros.h>
@@ -185,7 +186,7 @@ test_read(void *arg)
     }
 }
 
-void
+void __init
 test_setup(void)
 {
     struct thread_attr attr;
