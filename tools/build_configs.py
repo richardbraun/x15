@@ -38,25 +38,33 @@ def gen_configs_values_str(options_dict):
 def gen_cc_options_list(options_dict):
     return map(lambda x: '%s -Werror' % x, gen_configs_values_str(options_dict))
 
-# Check whether a filter prototype is valid.
-#
-# A filter prototype is a list of (name, value) pairs used to build a filter.
-# Keep in mind that a valid filter must match invalid configurations. As a
-# result, a filter prototype is valid if and only if
-#  - all options are included in the given list, and
-#  - the number of enabled options is not 1
-def check_exclusive_boolean_filter(prototype):
-    return (len(set(map(lambda x: x[0], prototype))) == len(prototype)
-            and len(filter(lambda x: x[1][1] == 'y', prototype)) != 1)
+def gen_exclusive_boolean_filter(args):
+    enabled_option, options_list = args
+    filter = dict()
 
-# Generate a list of filters on a list of boolean options.
+    for option in options_list:
+        if option == enabled_option:
+            value = [True, 'y']
+        else:
+            value = [True, 'n']
+
+        filter.update({option : value})
+
+    return filter
+
+# Generate a list of passing filters on a list of boolean options.
 #
-# The resulting filters match configurations that don't have one and only
-# one of the given options enabled.
-def gen_exclusive_boolean_filters_list(options_list):
-    product = itertools.product(options_list, [[True, 'y'], [True, 'n']])
-    prototypes = list(itertools.combinations(product, len(options_list)))
-    return map(dict, filter(check_exclusive_boolean_filter, prototypes))
+# The resulting filters match configurations that have only one of the given
+# options enabled, unless all_disabled is true, in which case an additional
+# filter is generated to match configurations where none of the options
+# are enabled.
+def gen_exclusive_boolean_filters_list(options_list, all_disabled=False):
+    option_and_options = map(lambda x: (x, options_list), options_list)
+
+    if all_disabled:
+        option_and_options += [(None, options_list)]
+
+    return map(gen_exclusive_boolean_filter, option_and_options)
 
 # Dictionary of compiler options.
 #
@@ -118,13 +126,25 @@ all_options_sets = {
     'test'                          : test_options_dict,
 }
 
-# List of filters used to determine valid configurations.
+# Filters.
 #
-# Each entry is a dictionary of options. The key matches an option name
-# whereas the value is a [match_flag, string/regular expression] list.
-# The match flag is true if the matching expression must match, false
-# otherwise.
-all_filters_list = [
+# A filter is a list of dictionaries of options. For each dictionary, the
+# key matches an option name whereas the value is a
+# [match_flag, string/regular expression] list. The match flag is true if
+# the matching expression must match, false otherwise.
+#
+# Passing filters are used to allow configurations that match the filters,
+# whereras blocking filters allow configurations that do not match.
+
+passing_filters_list = gen_exclusive_boolean_filters_list([
+    'CONFIG_MUTEX_ADAPTIVE',
+    'CONFIG_MUTEX_PI',
+    'CONFIG_MUTEX_PLAIN',
+])
+passing_filters_list += gen_exclusive_boolean_filters_list(test_list,
+                                                           all_disabled=True)
+
+blocking_filters_list = [
     # XXX Clang currently cannot build the kernel with LTO.
     {
         'CONFIG_CC_EXE'             :   [True, 'clang'],
@@ -143,14 +163,6 @@ all_filters_list = [
         'CONFIG_X86_PAE'            :   [True, 'y'],
     },
 ]
-all_filters_list += gen_exclusive_boolean_filters_list([
-    'CONFIG_MUTEX_ADAPTIVE',
-    'CONFIG_MUTEX_PI',
-    'CONFIG_MUTEX_PLAIN'
-])
-
-# TODO Have both passing and blocking filters to reduce generation complexity.
-all_filters_list += gen_exclusive_boolean_filters_list(test_list)
 
 def gen_config_line(config_entry):
     name, value = config_entry
@@ -203,34 +215,73 @@ def test_config(args):
 
     return [retval, buildtree]
 
-# Return true if a filter doesn't completely match a configuration.
+# Return true if a filter completely matches a configuration.
 def check_filter(config_dict, filter_dict):
     for name, value in filter_dict.iteritems():
         if not name in config_dict:
-            return True
+            return False
 
         if isinstance(value[1], str):
             if value[0] != (config_dict[name] == value[1]):
-                return True
+                return False
         else:
             if value[0] != bool(value[1].match(config_dict[name])):
-                return True
+                return False
+
+    return True
+
+def check_filter_relevant(config_dict, filter_dict):
+    for name, value in filter_dict.iteritems():
+        if name in config_dict:
+            return True
+
+    return False
+
+def check_filters_list_relevant(config_dict, filters_list):
+    for filter_dict in filters_list:
+        if check_filter_relevant(config_dict, filter_dict):
+            return True
+
+    return False
+
+# Return true if a configuration doesn't pass any given filter.
+#
+# If the given filters list is irrelevant, i.e. it applies to none of
+# the options in the given configuration, the filters are considered
+# to match.
+def check_passing_filters(args):
+    config_dict, filters_list = args
+
+    if not check_filters_list_relevant(config_dict, filters_list):
+        return True
+
+    for filter_dict in filters_list:
+        if check_filter(config_dict, filter_dict):
+            return True
 
     return False
 
 # Return true if a configuration passes all the given filters.
-def check_filters(args):
+def check_blocking_filters(args):
     config_dict, filters_list = args
 
     for filter_dict in filters_list:
-        if (not check_filter(config_dict, filter_dict)):
+        if check_filter(config_dict, filter_dict):
             return False
 
     return True
 
-def filter_configs_list(configs_list, filters_list):
-    configs_and_filters = map(lambda x: (x, filters_list), configs_list)
-    return map(lambda x: x[0], filter(check_filters, configs_and_filters))
+def filter_configs_list(configs_list, passing_filters_list,
+                        blocking_filters_list):
+    configs_and_filters = map(lambda x: (x, passing_filters_list),
+                              configs_list)
+    configs_list = map(lambda x: x[0], filter(check_passing_filters,
+                                              configs_and_filters))
+    configs_and_filters = map(lambda x: (x, blocking_filters_list),
+                              configs_list)
+    configs_list = map(lambda x: x[0], filter(check_blocking_filters,
+                                              configs_and_filters))
+    return configs_list
 
 def find_options_dict(options_sets, name):
     if name not in options_sets:
@@ -270,7 +321,8 @@ def main():
 
     print 'set: ' + args.set
     configs_list = filter_configs_list(gen_configs_list(options_dict),
-                                       all_filters_list)
+                                       passing_filters_list,
+                                       blocking_filters_list)
     nr_configs = len(configs_list)
     print 'total: ' + str(nr_configs)
 
