@@ -16,6 +16,8 @@
  *
  *
  * Stack tracing.
+ *
+ * TODO Make it possible to debug without the frame pointer.
  */
 
 #ifndef _X86_STRACE_H

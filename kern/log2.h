@@ -16,6 +16,8 @@
  *
  *
  * Integer base 2 logarithm operations.
+ *
+ * TODO Fix naming.
  */
 
 #ifndef _KERN_LOG2_H

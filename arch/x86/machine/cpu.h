@@ -24,6 +24,9 @@
  * L1 cache line size.
  *
  * XXX Use this value until processor selection is available.
+ *
+ * TODO Add macros to specifically align to the cache line size, and to
+ * do so only in SMP configurations.
  */
 #define CPU_L1_SIZE 64
 

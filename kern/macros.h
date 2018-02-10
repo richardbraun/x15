@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2010, 2013 Richard Braun.
+ * Copyright (c) 2009-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
  *
  * This file is a top header in the inclusion hierarchy, and shouldn't include
  * other headers that may cause circular dependencies.
+ *
+ * TODO Improve documentation.
  */
 
 #ifndef _KERN_MACROS_H
@@ -28,10 +30,14 @@
 #error "GCC 4+ required"
 #endif
 
+#ifndef __ASSEMBLER__
+#include <stddef.h>
+#endif
+
 /*
  * Attributes for variables that are mostly read and seldom changed.
  */
-#define __read_mostly __section(".data.read_mostly")
+#define __read_mostly       __section(".data.read_mostly")
 
 #define MACRO_BEGIN         ({
 #define MACRO_END           })

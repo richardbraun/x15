@@ -16,6 +16,9 @@
  *
  *
  * Type-generic memory-model aware atomic operations.
+ *
+ * TODO Replace mentions of "memory barriers" throughout the code with
+ * C11 memory model terminology.
  */
 
 #ifndef _KERN_ATOMIC_H
