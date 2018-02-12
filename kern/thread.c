@@ -653,15 +653,18 @@ thread_runq_schedule(struct thread_runq *runq)
          * The thread is dispatched on a processor once again.
          *
          * Keep in mind the system state may have changed a lot since this
-         * function was called. In particular, the next thread may have been
-         * destroyed, and must not be referenced any more.
+         * function was called. In particular :
+         *  - The next thread may have been destroyed, and must not be
+         *    referenced any more.
+         *  - The current thread may have been migrated to another processor.
          */
         barrier();
-
-        /* The thread might have been moved to another processor */
+        next = NULL;
         runq = thread_runq_local();
 
         thread_runq_schedule_prepare(prev);
+    } else {
+        next = NULL;
     }
 
     assert(prev->preempt_level == THREAD_SUSPEND_PREEMPT_LEVEL);

@@ -228,6 +228,8 @@ int thread_timedsleep(struct spinlock *interlock, const void *wchan_addr,
  *
  * If the target thread is NULL, the calling thread, or already in the
  * running state, no action is performed and ERROR_INVAL is returned.
+ *
+ * TODO Describe memory ordering with regard to thread_sleep().
  */
 int thread_wakeup(struct thread *thread);
 
@@ -249,6 +251,8 @@ noreturn void thread_run_scheduler(void);
  * This call does nothing if preemption is disabled, or the scheduler
  * determines the caller should continue to run (e.g. it's currently the only
  * runnable thread).
+ *
+ * Implies a full memory barrier if a context switch occurred.
  */
 void thread_yield(void);
 
