@@ -88,10 +88,10 @@ module:kern/condition::
 module:arch/cpu::
   Architecture-specific processor interface which provides interrupt
   control functions.
-module:kern/llsync::
-  Lockless synchronization, similar to Linux Read-Copy Update (RCU).
 module:kern/mutex::
   Mutual exclusion lock.
+module:kern/rcu::
+  Read-Copy Update (RCU) lockless synchronization.
 module:kern/semaphore::
   Semaphore.
 module:kern/sleepq::
