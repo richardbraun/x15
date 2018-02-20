@@ -423,7 +423,8 @@ INIT_OP_DEFINE(timer_setup,
                INIT_OP_DEP(boot_setup_intr, true),
                INIT_OP_DEP(cpu_mp_probe, true));
 
-void timer_init(struct timer *timer, timer_fn_t fn, int flags)
+void
+timer_init(struct timer *timer, timer_fn_t fn, int flags)
 {
     timer->fn = fn;
     timer->cpu = TIMER_INVALID_CPU;
