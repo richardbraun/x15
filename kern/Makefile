@@ -20,6 +20,7 @@ x15_SOURCES-y += \
         kern/plist.c \
         kern/printf.c \
         kern/rbtree.c \
+        kern/rcu.c \
         kern/rdxtree.c \
         kern/rtmutex.c \
         kern/semaphore.c \

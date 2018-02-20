@@ -24,6 +24,7 @@
 #include <kern/atomic.h>
 #include <kern/cpumap.h>
 #include <kern/list_types.h>
+#include <kern/rcu_types.h>
 #include <kern/spinlock_types.h>
 #include <kern/turnstile_types.h>
 #include <machine/cpu.h>
@@ -136,6 +137,8 @@ struct thread {
 
     /* Read-side critical section level, not in any if 0 */
     unsigned short llsync_level; /* (-) */
+
+    struct rcu_reader rcu_reader;   /* (-) */
 
     /* Processors on which this thread is allowed to run */
     struct cpumap cpumap;   /* (r) */
