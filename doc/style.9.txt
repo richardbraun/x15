@@ -587,7 +587,7 @@ The first line being a short description, usable as an email subject,
 there is no need for a final dot. This also keeps it slightly shorter.
 
 --------------------------------------------------------------------------------
-kern/{llsync,rdxtree}: don't use llsync until it's ready
+kern/{sleepq,turnstile}: handle spurious wakeups
 --------------------------------------------------------------------------------
 
 This format is based on brace expansion in the bash shell.
