@@ -679,6 +679,16 @@ thread_llsync_read_dec(void)
 }
 
 /*
+ * RCU functions.
+ */
+
+static inline struct rcu_reader *
+thread_rcu_reader(struct thread *thread)
+{
+    return &thread->rcu_reader;
+}
+
+/*
  * Type for thread-specific data destructor.
  */
 typedef void (*thread_dtor_fn_t)(void *);

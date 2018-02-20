@@ -101,6 +101,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
+#include <kern/rcu.h>
 #include <kern/shell.h>
 #include <kern/sleepq.h>
 #include <kern/spinlock.h>
@@ -641,6 +642,8 @@ thread_runq_schedule(struct thread_runq *runq)
     assert(next->preempt_level == THREAD_SUSPEND_PREEMPT_LEVEL);
 
     if (likely(prev != next)) {
+        rcu_report_context_switch(thread_rcu_reader(prev));
+
         /*
          * That's where the true context switch occurs. The next thread must
          * unlock the run queue and reenable preemption. Note that unlocking
@@ -1700,6 +1703,7 @@ thread_init_booter(unsigned int cpu)
     booter->flags = 0;
     booter->intr_level = 0;
     booter->preempt_level = 1;
+    rcu_reader_init(&booter->rcu_reader);
     cpumap_fill(&booter->cpumap);
     thread_set_user_sched_policy(booter, THREAD_SCHED_POLICY_IDLE);
     thread_set_user_sched_class(booter, THREAD_SCHED_CLASS_IDLE);
@@ -1828,6 +1832,7 @@ thread_init(struct thread *thread, void *stack,
     thread->pin_level = 0;
     thread->intr_level = 0;
     thread->llsync_level = 0;
+    rcu_reader_init(&thread->rcu_reader);
     cpumap_copy(&thread->cpumap, cpumap);
     thread_set_user_sched_policy(thread, attr->policy);
     thread_set_user_sched_class(thread, thread_policy_to_class(attr->policy));
