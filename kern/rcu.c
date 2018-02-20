@@ -767,7 +767,7 @@ INIT_OP_DEFINE(rcu_bootstrap,
 static int __init
 rcu_setup(void)
 {
-    for (size_t i = 1; i < cpu_count(); i++) {
+    for (unsigned int i = 1; i < cpu_count(); i++) {
         rcu_cpu_data_init(percpu_ptr(rcu_cpu_data, i), i);
     }
 
