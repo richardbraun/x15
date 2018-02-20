@@ -61,7 +61,6 @@ clock_setup(void)
 }
 
 INIT_OP_DEFINE(clock_setup,
-               INIT_OP_DEP(boot_setup_intr, true),
                INIT_OP_DEP(cpu_mp_probe, true),
                INIT_OP_DEP(syscnt_setup, true));
 

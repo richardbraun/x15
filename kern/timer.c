@@ -410,9 +410,20 @@ timer_bucket_filter(struct timer_bucket *bucket, uint64_t now,
 }
 
 static int __init
+timer_bootstrap(void)
+{
+    timer_cpu_data_init(cpu_local_ptr(timer_cpu_data), 0);
+    return 0;
+}
+
+INIT_OP_DEFINE(timer_bootstrap,
+               INIT_OP_DEP(cpu_setup, true),
+               INIT_OP_DEP(spinlock_setup, true));
+
+static int __init
 timer_setup(void)
 {
-    for (unsigned int cpu = 0; cpu < cpu_count(); cpu++) {
+    for (unsigned int cpu = 1; cpu < cpu_count(); cpu++) {
         timer_cpu_data_init(percpu_ptr(timer_cpu_data, cpu), cpu);
     }
 
@@ -420,8 +431,8 @@ timer_setup(void)
 }
 
 INIT_OP_DEFINE(timer_setup,
-               INIT_OP_DEP(boot_setup_intr, true),
-               INIT_OP_DEP(cpu_mp_probe, true));
+               INIT_OP_DEP(cpu_mp_probe, true),
+               INIT_OP_DEP(spinlock_setup, true));
 
 void
 timer_init(struct timer *timer, timer_fn_t fn, int flags)

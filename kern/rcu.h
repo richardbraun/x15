@@ -138,9 +138,8 @@ void rcu_wait(void);
 
 /*
  * This init operation provides :
- *  - read-side critical sections may be used
- *  - module fully initialized
+ *  - read-side critical sections usable
  */
-INIT_OP_DECLARE(rcu_setup);
+INIT_OP_DECLARE(rcu_bootstrap);
 
 #endif /* _KERN_RCU_H */

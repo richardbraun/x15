@@ -827,6 +827,8 @@ sref_bootstrap(void)
 }
 
 INIT_OP_DEFINE(sref_bootstrap,
+               INIT_OP_DEP(cpu_setup, true),
+               INIT_OP_DEP(spinlock_setup, true),
                INIT_OP_DEP(syscnt_setup, true));
 
 static void __init
@@ -876,10 +878,10 @@ sref_setup(void)
 
 INIT_OP_DEFINE(sref_setup,
                INIT_OP_DEP(cpu_mp_probe, true),
+               INIT_OP_DEP(cpumap_setup, true),
                INIT_OP_DEP(log_setup, true),
                INIT_OP_DEP(panic_setup, true),
                INIT_OP_DEP(sref_bootstrap, true),
-               INIT_OP_DEP(syscnt_setup, true),
                INIT_OP_DEP(thread_setup, true));
 
 void

@@ -113,8 +113,7 @@ INIT_OP_DEFINE(llsync_setup,
                INIT_OP_DEP(mutex_setup, true),
                INIT_OP_DEP(spinlock_setup, true),
                INIT_OP_DEP(syscnt_setup, true),
-               INIT_OP_DEP(thread_bootstrap, true),
-               INIT_OP_DEP(work_setup, true));
+               INIT_OP_DEP(thread_bootstrap, true));
 
 static void
 llsync_process_global_checkpoint(void)

@@ -109,8 +109,8 @@ struct sref_counter * sref_weakref_get(struct sref_weakref *weakref);
 
 /*
  * This init operation provides :
- *  - module fully initialized
+ *  - sref counter and weakref initialization and usage
  */
-INIT_OP_DECLARE(sref_setup);
+INIT_OP_DECLARE(sref_bootstrap);
 
 #endif /* _KERN_SREF_H */

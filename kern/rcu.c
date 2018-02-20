@@ -750,11 +750,24 @@ rcu_wait(void)
 }
 
 static int __init
-rcu_setup(void)
+rcu_bootstrap(void)
 {
     rcu_data_init(&rcu_data);
+    rcu_cpu_data_init(cpu_local_ptr(rcu_cpu_data), 0);
+    return 0;
+}
 
-    for (size_t i = 0; i < cpu_count(); i++) {
+INIT_OP_DEFINE(rcu_bootstrap,
+               INIT_OP_DEP(spinlock_setup, true),
+               INIT_OP_DEP(sref_bootstrap, true),
+               INIT_OP_DEP(syscnt_setup, true),
+               INIT_OP_DEP(thread_bootstrap, true),
+               INIT_OP_DEP(timer_bootstrap, true));
+
+static int __init
+rcu_setup(void)
+{
+    for (size_t i = 1; i < cpu_count(); i++) {
         rcu_cpu_data_init(percpu_ptr(rcu_cpu_data, i), i);
     }
 
@@ -762,11 +775,5 @@ rcu_setup(void)
 }
 
 INIT_OP_DEFINE(rcu_setup,
-               INIT_OP_DEP(clock_setup, true),
                INIT_OP_DEP(cpu_mp_probe, true),
-               INIT_OP_DEP(spinlock_setup, true),
-               INIT_OP_DEP(sref_setup, true),
-               INIT_OP_DEP(syscnt_setup, true),
-               INIT_OP_DEP(thread_bootstrap, true),
-               INIT_OP_DEP(timer_setup, true),
-               INIT_OP_DEP(work_setup, true));
+               INIT_OP_DEP(rcu_bootstrap, true));

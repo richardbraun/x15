@@ -99,8 +99,7 @@ void timer_report_periodic_event(void);
 /*
  * This init operation provides :
  *  - timer initialization and scheduling
- *  - module fully initialized
  */
-INIT_OP_DECLARE(timer_setup);
+INIT_OP_DECLARE(timer_bootstrap);
 
 #endif /* _KERN_TIMER_H */

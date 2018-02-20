@@ -102,7 +102,6 @@ struct work_pool {
 };
 
 static int work_thread_create(struct work_pool *pool, unsigned int id);
-static void work_thread_destroy(struct work_thread *worker);
 
 static struct work_pool work_pool_cpu_main __percpu;
 static struct work_pool work_pool_cpu_highprio __percpu;
@@ -158,7 +157,16 @@ work_pool_compute_max_threads(unsigned int nr_cpus)
 }
 
 static void __init
-work_pool_init(struct work_pool *pool, unsigned int cpu, int flags)
+work_pool_init(struct work_pool *pool)
+{
+    spinlock_init(&pool->lock);
+    work_queue_init(&pool->queue0);
+    work_queue_init(&pool->queue1);
+    pool->manager = NULL;
+}
+
+static void __init
+work_pool_build(struct work_pool *pool, unsigned int cpu, int flags)
 {
     char name[SYSCNT_NAME_SIZE];
     const char *suffix;
@@ -180,10 +188,6 @@ work_pool_init(struct work_pool *pool, unsigned int cpu, int flags)
 
     max_threads = work_pool_compute_max_threads(nr_cpus);
 
-    spinlock_init(&pool->lock);
-    work_queue_init(&pool->queue0);
-    work_queue_init(&pool->queue1);
-    pool->manager = NULL;
     pool->max_threads = max_threads;
     pool->nr_threads = 0;
     pool->nr_available_threads = 0;
@@ -289,6 +293,13 @@ work_pool_concat_queue(struct work_pool *pool, struct work_queue *queue)
 {
     work_queue_concat(&pool->queue0, queue);
     work_pool_wakeup_manager(pool);
+}
+
+static void
+work_thread_destroy(struct work_thread *worker)
+{
+    thread_join(worker->thread);
+    kmem_cache_free(&work_thread_cache, worker);
 }
 
 static void
@@ -464,30 +475,42 @@ error_cpumap:
     return error;
 }
 
-static void
-work_thread_destroy(struct work_thread *worker)
+static int __init
+work_bootstrap(void)
 {
-    thread_join(worker->thread);
-    kmem_cache_free(&work_thread_cache, worker);
+    work_pool_init(cpu_local_ptr(work_pool_cpu_main));
+    work_pool_init(cpu_local_ptr(work_pool_cpu_highprio));
+    return 0;
 }
+
+INIT_OP_DEFINE(work_bootstrap,
+               INIT_OP_DEP(cpu_setup, true),
+               INIT_OP_DEP(spinlock_setup, true),
+               INIT_OP_DEP(thread_bootstrap, true));
 
 static int __init
 work_setup(void)
 {
-    unsigned int i;
-
     kmem_cache_init(&work_thread_cache, "work_thread",
                     sizeof(struct work_thread), 0, NULL, 0);
 
-    for (i = 0; i < cpu_count(); i++) {
-        work_pool_init(percpu_ptr(work_pool_cpu_main, i), i, 0);
-        work_pool_init(percpu_ptr(work_pool_cpu_highprio, i), i,
-                       WORK_PF_HIGHPRIO);
+    for (unsigned int i = 1; i < cpu_count(); i++) {
+        work_pool_init(percpu_ptr(work_pool_cpu_main, i));
+        work_pool_init(percpu_ptr(work_pool_cpu_highprio, i));
     }
 
-    work_pool_init(&work_pool_main, WORK_INVALID_CPU, WORK_PF_GLOBAL);
-    work_pool_init(&work_pool_highprio, WORK_INVALID_CPU,
-                   WORK_PF_GLOBAL | WORK_PF_HIGHPRIO);
+    work_pool_init(&work_pool_main);
+    work_pool_init(&work_pool_highprio);
+
+    for (unsigned int i = 0; i < cpu_count(); i++) {
+        work_pool_build(percpu_ptr(work_pool_cpu_main, i), i, 0);
+        work_pool_build(percpu_ptr(work_pool_cpu_highprio, i), i,
+                        WORK_PF_HIGHPRIO);
+    }
+
+    work_pool_build(&work_pool_main, WORK_INVALID_CPU, WORK_PF_GLOBAL);
+    work_pool_build(&work_pool_highprio, WORK_INVALID_CPU,
+                    WORK_PF_GLOBAL | WORK_PF_HIGHPRIO);
 
     log_info("work: threads per pool (per-cpu/global): %u/%u, spare: %u",
              percpu_var(work_pool_cpu_main.max_threads, 0),
@@ -504,7 +527,8 @@ INIT_OP_DEFINE(work_setup,
                INIT_OP_DEP(panic_setup, true),
                INIT_OP_DEP(spinlock_setup, true),
                INIT_OP_DEP(syscnt_setup, true),
-               INIT_OP_DEP(thread_setup, true));
+               INIT_OP_DEP(thread_setup, true),
+               INIT_OP_DEP(work_bootstrap, true));
 
 void
 work_schedule(struct work *work, int flags)

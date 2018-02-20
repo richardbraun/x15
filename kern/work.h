@@ -151,9 +151,8 @@ void work_report_periodic_event(void);
 
 /*
  * This init operation provides :
- *  - works can be scheduled
- *  - module fully initialized
+ *  - work / work queue initialization and scheduling
  */
-INIT_OP_DECLARE(work_setup);
+INIT_OP_DECLARE(work_bootstrap);
 
 #endif /* _KERN_WORK_H */

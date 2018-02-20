@@ -116,6 +116,4 @@ clock_time_occurred(uint64_t t, uint64_t ref)
 
 void clock_tick_intr(void);
 
-INIT_OP_DECLARE(clock_setup);
-
 #endif /* _KERN_CLOCK_H */
