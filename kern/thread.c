@@ -2108,7 +2108,6 @@ static void
 thread_idle(void *arg)
 {
     struct thread *self;
-    int error;
 
     (void)arg;
 
@@ -2116,13 +2115,6 @@ thread_idle(void *arg)
 
     for (;;) {
         thread_preempt_disable();
-        error = sref_unregister();
-
-        if (error) {
-            assert(error == ERROR_BUSY);
-            goto error_sref;
-        }
-
         llsync_unregister();
 
         for (;;) {
@@ -2137,9 +2129,6 @@ thread_idle(void *arg)
         }
 
         llsync_register();
-        sref_register();
-
-error_sref:
         thread_preempt_enable();
     }
 }
