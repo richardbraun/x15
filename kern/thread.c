@@ -97,7 +97,6 @@
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
-#include <kern/llsync.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
@@ -623,8 +622,6 @@ thread_runq_schedule(struct thread_runq *runq)
     assert(prev->preempt_level == THREAD_SUSPEND_PREEMPT_LEVEL);
     assert(!cpu_intr_enabled());
     spinlock_assert_locked(&runq->lock);
-
-    llsync_report_context_switch();
 
     thread_clear_flag(prev, THREAD_YIELD);
     thread_runq_put_prev(runq, prev);
@@ -1831,7 +1828,6 @@ thread_init(struct thread *thread, void *stack,
     thread->preempt_level = THREAD_SUSPEND_PREEMPT_LEVEL;
     thread->pin_level = 0;
     thread->intr_level = 0;
-    thread->llsync_level = 0;
     rcu_reader_init(&thread->rcu_reader);
     cpumap_copy(&thread->cpumap, cpumap);
     thread_set_user_sched_policy(thread, attr->policy);
@@ -2120,7 +2116,6 @@ thread_idle(void *arg)
 
     for (;;) {
         thread_preempt_disable();
-        llsync_unregister();
 
         for (;;) {
             cpu_intr_disable();
@@ -2133,7 +2128,6 @@ thread_idle(void *arg)
             cpu_idle();
         }
 
-        llsync_register();
         thread_preempt_enable();
     }
 }
@@ -2621,7 +2615,6 @@ thread_run_scheduler(void)
     assert(thread == runq->current);
     assert(thread->preempt_level == (THREAD_SUSPEND_PREEMPT_LEVEL - 1));
 
-    llsync_register();
     sref_register();
 
     spinlock_lock(&runq->lock);

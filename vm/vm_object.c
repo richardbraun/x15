@@ -24,8 +24,8 @@
 #include <stdint.h>
 
 #include <kern/init.h>
-#include <kern/llsync.h>
 #include <kern/mutex.h>
+#include <kern/rcu.h>
 #include <kern/rdxtree.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -132,7 +132,7 @@ vm_object_lookup(struct vm_object *object, uint64_t offset)
     struct vm_page *page;
     int error;
 
-    llsync_read_enter();
+    rcu_read_enter();
 
     do {
         page = rdxtree_lookup(&object->pages, vm_page_btop(offset));
@@ -144,7 +144,7 @@ vm_object_lookup(struct vm_object *object, uint64_t offset)
         error = vm_page_tryref(page);
     } while (error);
 
-    llsync_read_exit();
+    rcu_read_leave();
 
     return page;
 }

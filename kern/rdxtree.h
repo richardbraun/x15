@@ -19,8 +19,7 @@
  *
  * In addition to the standard insertion operation, this implementation can
  * allocate keys for the caller at insertion time. It also allows lookups to
- * occur concurrently with updates through the use of lockless synchronization
- * (see the llsync module).
+ * occur concurrently with updates using RCU.
  */
 
 #ifndef _KERN_RDXTREE_H
@@ -30,7 +29,7 @@
 #include <stdint.h>
 
 #include <kern/init.h>
-#include <kern/llsync.h>
+#include <kern/rcu.h>
 
 typedef uint64_t rdxtree_key_t;
 
@@ -160,7 +159,7 @@ rdxtree_lookup_slot(const struct rdxtree *tree, rdxtree_key_t key)
 static inline void *
 rdxtree_load_slot(void **slot)
 {
-    return llsync_load_ptr(*slot);
+    return rcu_load_ptr(*slot);
 }
 
 /*

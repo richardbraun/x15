@@ -22,7 +22,6 @@
 #include <kern/clock.h>
 #include <kern/clock_i.h>
 #include <kern/init.h>
-#include <kern/llsync.h>
 #include <kern/percpu.h>
 #include <kern/rcu.h>
 #include <kern/sref.h>
@@ -90,7 +89,6 @@ void clock_tick_intr(void)
     }
 
     timer_report_periodic_event();
-    llsync_report_periodic_event();
     rcu_report_periodic_event();
     sref_report_periodic_event();
     work_report_periodic_event();

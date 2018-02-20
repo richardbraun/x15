@@ -644,41 +644,6 @@ thread_intr_leave(void)
 }
 
 /*
- * Lockless synchronization read-side critical section level control functions.
- */
-
-static inline int
-thread_llsync_in_read_cs(void)
-{
-    struct thread *thread;
-
-    thread = thread_self();
-    return thread->llsync_level != 0;
-}
-
-static inline void
-thread_llsync_read_inc(void)
-{
-    struct thread *thread;
-
-    thread = thread_self();
-    thread->llsync_level++;
-    assert(thread->llsync_level != 0);
-    barrier();
-}
-
-static inline void
-thread_llsync_read_dec(void)
-{
-    struct thread *thread;
-
-    barrier();
-    thread = thread_self();
-    assert(thread->llsync_level != 0);
-    thread->llsync_level--;
-}
-
-/*
  * RCU functions.
  */
 

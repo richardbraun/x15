@@ -25,8 +25,8 @@
 #include <stddef.h>
 
 #include <kern/hlist_types.h>
-#include <kern/llsync.h>
 #include <kern/macros.h>
+#include <kern/rcu.h>
 
 struct hlist;
 
@@ -266,25 +266,25 @@ for (entry = hlist_first_entry(list, typeof(*entry), member),           \
  * Return the first node of a list.
  */
 static inline struct hlist_node *
-hlist_llsync_first(const struct hlist *list)
+hlist_rcu_first(const struct hlist *list)
 {
-    return llsync_load_ptr(list->first);
+    return rcu_load_ptr(list->first);
 }
 
 /*
  * Return the node next to the given node.
  */
 static inline struct hlist_node *
-hlist_llsync_next(const struct hlist_node *node)
+hlist_rcu_next(const struct hlist_node *node)
 {
-    return llsync_load_ptr(node->next);
+    return rcu_load_ptr(node->next);
 }
 
 /*
  * Insert a node at the head of a list.
  */
 static inline void
-hlist_llsync_insert_head(struct hlist *list, struct hlist_node *node)
+hlist_rcu_insert_head(struct hlist *list, struct hlist_node *node)
 {
     struct hlist_node *first;
 
@@ -296,26 +296,26 @@ hlist_llsync_insert_head(struct hlist *list, struct hlist_node *node)
         first->pprev = &node->next;
     }
 
-    llsync_store_ptr(list->first, node);
+    rcu_store_ptr(list->first, node);
 }
 
 /*
  * Insert a node before another node.
  */
 static inline void
-hlist_llsync_insert_before(struct hlist_node *next, struct hlist_node *node)
+hlist_rcu_insert_before(struct hlist_node *next, struct hlist_node *node)
 {
     node->next = next;
     node->pprev = next->pprev;
     next->pprev = &node->next;
-    llsync_store_ptr(*node->pprev, node);
+    rcu_store_ptr(*node->pprev, node);
 }
 
 /*
  * Insert a node after another node.
  */
 static inline void
-hlist_llsync_insert_after(struct hlist_node *prev, struct hlist_node *node)
+hlist_rcu_insert_after(struct hlist_node *prev, struct hlist_node *node)
 {
     node->next = prev->next;
     node->pprev = &prev->next;
@@ -324,48 +324,48 @@ hlist_llsync_insert_after(struct hlist_node *prev, struct hlist_node *node)
         node->next->pprev = &node->next;
     }
 
-    llsync_store_ptr(prev->next, node);
+    rcu_store_ptr(prev->next, node);
 }
 
 /*
  * Remove a node from a list.
  */
 static inline void
-hlist_llsync_remove(struct hlist_node *node)
+hlist_rcu_remove(struct hlist_node *node)
 {
     if (node->next != NULL) {
         node->next->pprev = node->pprev;
     }
 
-    llsync_store_ptr(*node->pprev, node->next);
+    rcu_store_ptr(*node->pprev, node->next);
 }
 
 /*
  * Macro that evaluates to the address of the structure containing the
  * given node based on the given type and member.
  */
-#define hlist_llsync_entry(node, type, member) \
-    structof(llsync_load_ptr(node), type, member)
+#define hlist_rcu_entry(node, type, member) \
+    structof(rcu_load_ptr(node), type, member)
 
 /*
  * Get the first entry of a list.
  */
-#define hlist_llsync_first_entry(list, type, member)                    \
+#define hlist_rcu_first_entry(list, type, member)                       \
 MACRO_BEGIN                                                             \
     struct hlist_node *___first;                                        \
                                                                         \
-    ___first = hlist_llsync_first(list);                                \
+    ___first = hlist_rcu_first(list);                                   \
     hlist_end(___first) ? NULL : hlist_entry(___first, type, member);   \
 MACRO_END
 
 /*
  * Get the entry next to the given entry.
  */
-#define hlist_llsync_next_entry(entry, member)                          \
+#define hlist_rcu_next_entry(entry, member)                             \
 MACRO_BEGIN                                                             \
     struct hlist_node *___next;                                         \
                                                                         \
-    ___next = hlist_llsync_next(&entry->member);                        \
+    ___next = hlist_rcu_next(&entry->member);                           \
     hlist_end(___next)                                                  \
         ? NULL                                                          \
         : hlist_entry(___next, typeof(*entry), member);                 \
@@ -374,17 +374,17 @@ MACRO_END
 /*
  * Forge a loop to process all nodes of a list.
  */
-#define hlist_llsync_for_each(list, node)   \
-for (node = hlist_llsync_first(list);       \
+#define hlist_rcu_for_each(list, node)      \
+for (node = hlist_rcu_first(list);          \
      !hlist_end(node);                      \
-     node = hlist_llsync_next(node))
+     node = hlist_rcu_next(node))
 
 /*
  * Forge a loop to process all entries of a list.
  */
-#define hlist_llsync_for_each_entry(list, entry, member)                \
-for (entry = hlist_llsync_first_entry(list, typeof(*entry), member);    \
+#define hlist_rcu_for_each_entry(list, entry, member)                   \
+for (entry = hlist_rcu_first_entry(list, typeof(*entry), member);       \
      entry != NULL;                                                     \
-     entry = hlist_llsync_next_entry(entry, member))
+     entry = hlist_rcu_next_entry(entry, member))
 
 #endif /* _KERN_HLIST_H */

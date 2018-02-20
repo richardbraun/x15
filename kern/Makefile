@@ -12,7 +12,6 @@ x15_SOURCES-y += \
         kern/intr.c \
         kern/kernel.c \
         kern/kmem.c \
-        kern/llsync.c \
         kern/log.c \
         kern/mutex.c \
         kern/panic.c \

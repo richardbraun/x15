@@ -135,9 +135,7 @@ struct thread {
     /* Interrupt level, in thread context if 0 */
     unsigned short intr_level;  /* (-) */
 
-    /* Read-side critical section level, not in any if 0 */
-    unsigned short llsync_level; /* (-) */
-
+    /* RCU per-thread data */
     struct rcu_reader rcu_reader;   /* (-) */
 
     /* Processors on which this thread is allowed to run */
