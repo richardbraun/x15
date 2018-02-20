@@ -18,6 +18,7 @@
 #ifndef _KERN_CLOCK_I_H
 #define _KERN_CLOCK_I_H
 
+#include <stdalign.h>
 #include <stdint.h>
 
 #include <machine/cpu.h>
