@@ -638,13 +638,21 @@ rcu_cpu_data_check_gp_state(struct rcu_cpu_data *cpu_data)
 
     data = &rcu_data;
 
-    for (;;) {
+    /*
+     * A loop is used to optimize the case where a processor is the last to
+     * acknowledge a grace period state change, in which case the latter
+     * also immediately changes and can be acknowleged right away. As a
+     * result, this loop may never run more than twice.
+     */
+    for (unsigned int i = 0; /* no condition */; i++) {
         local_gp_state = cpu_data->gp_state;
         diff = rcu_data_check_gp_state(data, local_gp_state, &global_gp_state);
 
         if (!diff) {
             break;
         }
+
+        assert(i < 2);
 
         switch (global_gp_state) {
         case RCU_GP_STATE_WORK_WINDOW_FLIP:
