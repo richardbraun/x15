@@ -1546,6 +1546,7 @@ pmap_update(struct pmap *pmap)
         spinlock_unlock(&queue->lock);
     }
 
+    /* TODO Improve scalability */
     cpumap_for_each(&oplist->cpumap, cpu) {
         request = &array->requests[cpu];
 
