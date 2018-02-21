@@ -33,7 +33,6 @@
 #include <string.h>
 
 #include <kern/condition.h>
-#include <kern/cpumap.h>
 #include <kern/error.h>
 #include <kern/kmem.h>
 #include <kern/macros.h>
@@ -191,41 +190,26 @@ test_setup(void)
 {
     struct thread_attr attr;
     struct thread *thread;
-    struct cpumap *cpumap;
     int error;
 
     condition_init(&test_condition);
     mutex_init(&test_lock);
-
-    error = cpumap_create(&cpumap);
-    error_check(error, "cpumap_create");
 
     kmem_cache_init(&test_pdsc_cache, "test_pdsc",
                     sizeof(struct test_pdsc), 0, NULL, 0);
 
     thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_alloc");
     thread_attr_set_detached(&attr);
-    cpumap_zero(cpumap);
-    cpumap_set(cpumap, cpu_count() - 1);
-    thread_attr_set_cpumap(&attr, cpumap);
     error = thread_create(&thread, &attr, test_alloc, NULL);
     error_check(error, "thread_create");
 
     thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_free");
     thread_attr_set_detached(&attr);
-    cpumap_zero(cpumap);
-    cpumap_set(cpumap, cpu_count() - 1);
-    thread_attr_set_cpumap(&attr, cpumap);
     error = thread_create(&thread, &attr, test_free, NULL);
     error_check(error, "thread_create");
 
     thread_attr_init(&attr, THREAD_KERNEL_PREFIX "test_read");
     thread_attr_set_detached(&attr);
-    cpumap_zero(cpumap);
-    cpumap_set(cpumap, 0);
-    thread_attr_set_cpumap(&attr, cpumap);
     error = thread_create(&thread, &attr, test_read, NULL);
     error_check(error, "thread_create");
-
-    cpumap_destroy(cpumap);
 }
