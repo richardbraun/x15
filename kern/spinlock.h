@@ -36,6 +36,21 @@ struct spinlock;
 
 #define spinlock_assert_locked(lock) assert((lock)->value != SPINLOCK_UNLOCKED)
 
+#ifdef SPINLOCK_TRACK_OWNER
+
+static inline void
+spinlock_transfer_owner(struct spinlock *lock, struct thread *owner)
+{
+    assert(lock->owner == thread_self());
+    lock->owner = owner;
+}
+
+#else /* SPINLOCK_TRACK_OWNER */
+
+#define spinlock_transfer_owner(lock, owner)
+
+#endif /* SPINLOCK_TRACK_OWNER */
+
 /*
  * Initialize a spin lock.
  */

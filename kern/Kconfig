@@ -96,4 +96,10 @@ config MUTEX_DEBUG
 	---help---
 	  Enable mutex debugging and instrumentation.
 
+config SPINLOCK_DEBUG
+	bool "Spinlock debugging"
+	default n
+	---help---
+	  Enable spinlock ownership tracking.
+
 endmenu

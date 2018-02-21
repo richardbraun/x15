@@ -26,6 +26,7 @@
 #include <kern/error.h>
 #include <kern/macros.h>
 #include <kern/spinlock_types.h>
+#include <kern/thread.h>
 #include <machine/cpu.h>
 
 /*
@@ -35,6 +36,33 @@
  */
 #define SPINLOCK_UNLOCKED   0
 #define SPINLOCK_LOCKED     1
+
+#ifdef CONFIG_SPINLOCK_DEBUG
+#define SPINLOCK_TRACK_OWNER
+#endif
+
+#ifdef SPINLOCK_TRACK_OWNER
+
+static inline void
+spinlock_own(struct spinlock *lock)
+{
+    assert(!lock->owner);
+    lock->owner = thread_self();
+}
+
+static inline void
+spinlock_disown(struct spinlock *lock)
+{
+    assert(lock->owner == thread_self());
+    lock->owner = NULL;
+}
+
+#else /* SPINLOCK_TRACK_OWNER */
+
+#define spinlock_own(lock)
+#define spinlock_disown(lock)
+
+#endif /* SPINLOCK_TRACK_OWNER */
 
 static inline int
 spinlock_lock_fast(struct spinlock *lock)
@@ -47,6 +75,7 @@ spinlock_lock_fast(struct spinlock *lock)
         return ERROR_BUSY;
     }
 
+    spinlock_own(lock);
     return 0;
 }
 
@@ -55,6 +84,7 @@ spinlock_unlock_fast(struct spinlock *lock)
 {
     unsigned int prev;
 
+    spinlock_disown(lock);
     prev = atomic_cas_release(&lock->value, SPINLOCK_LOCKED, SPINLOCK_UNLOCKED);
 
     if (unlikely(prev != SPINLOCK_LOCKED)) {

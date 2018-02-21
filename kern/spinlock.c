@@ -139,6 +139,10 @@ void
 spinlock_init(struct spinlock *lock)
 {
     lock->value = SPINLOCK_UNLOCKED;
+
+#ifdef SPINLOCK_TRACK_OWNER
+    lock->owner = NULL;
+#endif /* SPINLOCK_TRACK_OWNER */
 }
 
 static unsigned int
@@ -292,6 +296,7 @@ spinlock_lock_slow(struct spinlock *lock)
         spinlock_store_first_qid(lock, SPINLOCK_QID_NULL);
     }
 
+    spinlock_own(lock);
     error = spinlock_try_downgrade(lock, qid);
 
     if (!error) {

@@ -21,8 +21,14 @@
 #ifndef _KERN_SPINLOCK_TYPES_H
 #define _KERN_SPINLOCK_TYPES_H
 
+struct thread;
+
 struct spinlock {
     unsigned int value;
+
+#ifdef CONFIG_SPINLOCK_DEBUG
+    struct thread *owner;
+#endif /* CONFIG_SPINLOCK_DEBUG */
 };
 
 #endif /* _KERN_SPINLOCK_TYPES_H */

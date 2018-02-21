@@ -640,6 +640,7 @@ thread_runq_schedule(struct thread_runq *runq)
 
     if (likely(prev != next)) {
         rcu_report_context_switch(thread_rcu_reader(prev));
+        spinlock_transfer_owner(&runq->lock, next);
 
         /*
          * That's where the true context switch occurs. The next thread must
@@ -2619,6 +2620,7 @@ thread_run_scheduler(void)
 
     spinlock_lock(&runq->lock);
     thread = thread_runq_get_next(thread_runq_local());
+    spinlock_transfer_owner(&runq->lock, thread);
 
     tcb_load(&thread->tcb);
 }
