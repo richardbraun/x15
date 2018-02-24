@@ -6,6 +6,7 @@ Generate a large number of valid configurations, build them concurrently,
 and report.
 '''
 
+import argparse
 import itertools
 import multiprocessing
 import os
@@ -14,9 +15,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-
-from argparse import Action, ArgumentParser, RawDescriptionHelpFormatter
-
 
 def print_fn(*args):
     for arg in args:
@@ -308,21 +306,13 @@ def filter_configs_list(configs_list, passing, blocking):
                                          configs_and_filters)]
     return list(configs_list)
 
-
 def find_options_dict(options_sets, name):
     if name not in options_sets:
         return None
 
     return options_sets[name]
 
-
-def print_set(name, options_dict):
-    print(name)
-    for opt in sorted(iter(options_dict)):
-        print_fn('  ' + opt)
-
-
-class BuildConfigListSetsAction(Action):
+class BuildConfigListSetsAction(argparse.Action):
     def __init__(self, nargs=0, **kwargs):
         if nargs != 0:
             raise ValueError("nargs not allowed")
@@ -330,14 +320,17 @@ class BuildConfigListSetsAction(Action):
         super(BuildConfigListSetsAction, self).__init__(nargs=nargs, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        map(print_set, all_options_sets.keys(),
-            all_options_sets.values())
+        for key in sorted(all_options_sets.keys()):
+            print(key)
+
+            for option in sorted(all_options_sets[key]):
+                print('  ' + option)
+
         sys.exit(0)
 
-
 def main():
-    parser = ArgumentParser(description=__doc__,
-                            formatter_class=RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-s', '--set', default='small',
                         help='select a set of options (default=small)')
     parser.add_argument('-l', '--list-sets', action=BuildConfigListSetsAction,
