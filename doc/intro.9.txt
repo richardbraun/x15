@@ -136,7 +136,7 @@ other development tools :
 module:kern/bitmap::
   Arbitrary-length bit array.
 module:kern/cbuf::
-  Circular character buffer.
+  Circular byte buffer.
 module:kern/clock::
   Low resolution clock.
 module:kern/error::
