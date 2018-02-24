@@ -254,6 +254,8 @@ strerror(int error)
         return "no such process";
     case ETIMEDOUT:
         return "timeout error";
+    case ENOENT:
+        return "no such file or directory";
     default:
         return "unknown error";
     }

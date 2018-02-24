@@ -28,5 +28,6 @@
 #define EIO                 8
 #define ESRCH               9
 #define ETIMEDOUT           10
+#define ENOENT              11
 
 #endif /* ERRNO_H */
