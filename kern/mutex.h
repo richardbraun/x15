@@ -20,8 +20,8 @@
  * Unlike spin locks, acquiring a mutex may make the calling thread sleep.
  */
 
-#ifndef _KERN_MUTEX_H
-#define _KERN_MUTEX_H
+#ifndef KERN_MUTEX_H
+#define KERN_MUTEX_H
 
 #include <stdint.h>
 
@@ -120,4 +120,4 @@ INIT_OP_DECLARE(mutex_bootstrap);
  */
 INIT_OP_DECLARE(mutex_setup);
 
-#endif /* _KERN_MUTEX_H */
+#endif /* KERN_MUTEX_H */

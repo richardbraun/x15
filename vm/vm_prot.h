@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _VM_VM_PROT_H
-#define _VM_VM_PROT_H
+#ifndef VM_VM_PROT_H
+#define VM_VM_PROT_H
 
 /*
  * Protection flags.
@@ -28,4 +28,4 @@
 #define VM_PROT_DEFAULT (VM_PROT_READ | VM_PROT_WRITE)
 #define VM_PROT_ALL     (VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE)
 
-#endif /* _VM_VM_PROT_H */
+#endif /* VM_VM_PROT_H */

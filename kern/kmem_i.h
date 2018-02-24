@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_KMEM_I_H
-#define _KERN_KMEM_I_H
+#ifndef KERN_KMEM_I_H
+#define KERN_KMEM_I_H
 
 #include <stdalign.h>
 #include <stddef.h>
@@ -197,4 +197,4 @@ struct kmem_cache {
     size_t redzone_pad; /* Bytes from end of object to redzone word */
 };
 
-#endif /* _KERN_KMEM_I_H */
+#endif /* KERN_KMEM_I_H */

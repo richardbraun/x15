@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_KERNEL_H
-#define _KERN_KERNEL_H
+#ifndef KERN_KERNEL_H
+#define KERN_KERNEL_H
 
 #include <stdnoreturn.h>
 
@@ -40,4 +40,4 @@ noreturn void kernel_main(void);
  */
 noreturn void kernel_ap_main(void);
 
-#endif /* _KERN_KERNEL_H */
+#endif /* KERN_KERNEL_H */

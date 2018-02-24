@@ -28,8 +28,8 @@
  * allows preventing deadlocks while keeping overall complexity low.
  */
 
-#ifndef _KERN_SLEEPQ_H
-#define _KERN_SLEEPQ_H
+#ifndef KERN_SLEEPQ_H
+#define KERN_SLEEPQ_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -137,4 +137,4 @@ void sleepq_broadcast(struct sleepq *sleepq);
  */
 INIT_OP_DECLARE(sleepq_setup);
 
-#endif /* _KERN_SLEEPQ_H */
+#endif /* KERN_SLEEPQ_H */

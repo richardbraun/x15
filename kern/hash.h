@@ -36,8 +36,8 @@
  * HASH_ALLBITS macro.
  */
 
-#ifndef _KERN_HASH_H
-#define _KERN_HASH_H
+#ifndef KERN_HASH_H
+#define KERN_HASH_H
 
 #include <assert.h>
 #include <stdint.h>
@@ -113,4 +113,4 @@ hash_str(const char *str, unsigned int bits)
     return hash & ((1 << bits) - 1);
 }
 
-#endif /* _KERN_HASH_H */
+#endif /* KERN_HASH_H */

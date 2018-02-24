@@ -18,10 +18,10 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_MUTEX_ADAPTIVE_TYPES_H
-#define _KERN_MUTEX_ADAPTIVE_TYPES_H
+#ifndef KERN_MUTEX_ADAPTIVE_TYPES_H
+#define KERN_MUTEX_ADAPTIVE_TYPES_H
 
-#ifndef _KERN_MUTEX_TYPES_H
+#ifndef KERN_MUTEX_TYPES_H
 #error "don't include <kern/mutex/mutex_adaptive_types.h> directly," \
        " use <kern/mutex_types.h> instead"
 #endif
@@ -32,4 +32,4 @@ struct mutex {
     uintptr_t owner;
 };
 
-#endif /* _KERN_MUTEX_ADAPTIVE_TYPES_H */
+#endif /* KERN_MUTEX_ADAPTIVE_TYPES_H */

@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _VM_VM_KMEM_H
-#define _VM_VM_KMEM_H
+#ifndef VM_VM_KMEM_H
+#define VM_VM_KMEM_H
 
 #include <stdint.h>
 
@@ -91,4 +91,4 @@ void vm_kmem_unmap_pa(uintptr_t map_va, size_t map_size);
  */
 INIT_OP_DECLARE(vm_kmem_setup);
 
-#endif /* _VM_VM_KMEM_H */
+#endif /* VM_VM_KMEM_H */

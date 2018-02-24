@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_RCU_I_H
-#define _KERN_RCU_I_H
+#ifndef KERN_RCU_I_H
+#define KERN_RCU_I_H
 
 #include <assert.h>
 #include <stdbool.h>
@@ -58,4 +58,4 @@ rcu_reader_dec(struct rcu_reader *reader)
     }
 }
 
-#endif /* _KERN_RCU_I_H */
+#endif /* KERN_RCU_I_H */

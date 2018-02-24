@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_IOAPIC_H
-#define _KERN_IOAPIC_H
+#ifndef KERN_IOAPIC_H
+#define KERN_IOAPIC_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -38,4 +38,4 @@ void ioapic_register(unsigned int apic_id, uintptr_t addr,
 void ioapic_override(uint8_t source, uint32_t gsi,
                      bool active_high, bool edge_triggered);
 
-#endif /* _KERN_IOAPIC_H */
+#endif /* KERN_IOAPIC_H */

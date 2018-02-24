@@ -18,8 +18,8 @@
  * Red-black tree.
  */
 
-#ifndef _KERN_RBTREE_H
-#define _KERN_RBTREE_H
+#ifndef KERN_RBTREE_H
+#define KERN_RBTREE_H
 
 #include <assert.h>
 #include <stddef.h>
@@ -117,22 +117,22 @@ rbtree_empty(const struct rbtree *tree)
  */
 #define rbtree_lookup(tree, key, cmp_fn)                \
 MACRO_BEGIN                                             \
-    struct rbtree_node *___cur;                         \
-    int ___diff;                                        \
+    struct rbtree_node *cur___;                         \
+    int diff___;                                        \
                                                         \
-    ___cur = (tree)->root;                              \
+    cur___ = (tree)->root;                              \
                                                         \
-    while (___cur != NULL) {                            \
-        ___diff = cmp_fn(key, ___cur);                  \
+    while (cur___ != NULL) {                            \
+        diff___ = cmp_fn(key, cur___);                  \
                                                         \
-        if (___diff == 0) {                             \
+        if (diff___ == 0) {                             \
             break;                                      \
         }                                               \
                                                         \
-        ___cur = ___cur->children[rbtree_d2i(___diff)]; \
+        cur___ = cur___->children[rbtree_d2i(diff___)]; \
     }                                                   \
                                                         \
-    ___cur;                                             \
+    cur___;                                             \
 MACRO_END
 
 /*
@@ -147,30 +147,30 @@ MACRO_END
  */
 #define rbtree_lookup_nearest(tree, key, cmp_fn, dir)       \
 MACRO_BEGIN                                                 \
-    struct rbtree_node *___cur, *___prev;                   \
-    int ___diff, ___index;                                  \
+    struct rbtree_node *cur___, *prev___;                   \
+    int diff___, index___;                                  \
                                                             \
-    ___prev = NULL;                                         \
-    ___index = -1;                                          \
-    ___cur = (tree)->root;                                  \
+    prev___ = NULL;                                         \
+    index___ = -1;                                          \
+    cur___ = (tree)->root;                                  \
                                                             \
-    while (___cur != NULL) {                                \
-        ___diff = cmp_fn(key, ___cur);                      \
+    while (cur___ != NULL) {                                \
+        diff___ = cmp_fn(key, cur___);                      \
                                                             \
-        if (___diff == 0) {                                 \
+        if (diff___ == 0) {                                 \
             break;                                          \
         }                                                   \
                                                             \
-        ___prev = ___cur;                                   \
-        ___index = rbtree_d2i(___diff);                     \
-        ___cur = ___cur->children[___index];                \
+        prev___ = cur___;                                   \
+        index___ = rbtree_d2i(diff___);                     \
+        cur___ = cur___->children[index___];                \
     }                                                       \
                                                             \
-    if (___cur == NULL) {                                   \
-        ___cur = rbtree_nearest(___prev, ___index, dir);    \
+    if (cur___ == NULL) {                                   \
+        cur___ = rbtree_nearest(prev___, index___, dir);    \
     }                                                       \
                                                             \
-    ___cur;                                                 \
+    cur___;                                                 \
 MACRO_END
 
 /*
@@ -191,22 +191,22 @@ MACRO_END
  */
 #define rbtree_insert(tree, node, cmp_fn)                   \
 MACRO_BEGIN                                                 \
-    struct rbtree_node *___cur, *___prev;                   \
-    int ___diff, ___index;                                  \
+    struct rbtree_node *cur___, *prev___;                   \
+    int diff___, index___;                                  \
                                                             \
-    ___prev = NULL;                                         \
-    ___index = -1;                                          \
-    ___cur = (tree)->root;                                  \
+    prev___ = NULL;                                         \
+    index___ = -1;                                          \
+    cur___ = (tree)->root;                                  \
                                                             \
-    while (___cur != NULL) {                                \
-        ___diff = cmp_fn(node, ___cur);                     \
-        assert(___diff != 0);                               \
-        ___prev = ___cur;                                   \
-        ___index = rbtree_d2i(___diff);                     \
-        ___cur = ___cur->children[___index];                \
+    while (cur___ != NULL) {                                \
+        diff___ = cmp_fn(node, cur___);                     \
+        assert(diff___ != 0);                               \
+        prev___ = cur___;                                   \
+        index___ = rbtree_d2i(diff___);                     \
+        cur___ = cur___->children[index___];                \
     }                                                       \
                                                             \
-    rbtree_insert_rebalance(tree, ___prev, ___index, node); \
+    rbtree_insert_rebalance(tree, prev___, index___, node); \
 MACRO_END
 
 /*
@@ -222,27 +222,27 @@ MACRO_END
  */
 #define rbtree_lookup_slot(tree, key, cmp_fn, slot) \
 MACRO_BEGIN                                         \
-    struct rbtree_node *___cur, *___prev;           \
-    int ___diff, ___index;                          \
+    struct rbtree_node *cur___, *prev___;           \
+    int diff___, index___;                          \
                                                     \
-    ___prev = NULL;                                 \
-    ___index = 0;                                   \
-    ___cur = (tree)->root;                          \
+    prev___ = NULL;                                 \
+    index___ = 0;                                   \
+    cur___ = (tree)->root;                          \
                                                     \
-    while (___cur != NULL) {                        \
-        ___diff = cmp_fn(key, ___cur);              \
+    while (cur___ != NULL) {                        \
+        diff___ = cmp_fn(key, cur___);              \
                                                     \
-        if (___diff == 0) {                         \
+        if (diff___ == 0) {                         \
             break;                                  \
         }                                           \
                                                     \
-        ___prev = ___cur;                           \
-        ___index = rbtree_d2i(___diff);             \
-        ___cur = ___cur->children[___index];        \
+        prev___ = cur___;                           \
+        index___ = rbtree_d2i(diff___);             \
+        cur___ = cur___->children[index___];        \
     }                                               \
                                                     \
-    (slot) = rbtree_slot(___prev, ___index);        \
-    ___cur;                                         \
+    (slot) = rbtree_slot(prev___, index___);        \
+    cur___;                                         \
 MACRO_END
 
 /*
@@ -317,4 +317,4 @@ for (node = rbtree_postwalk_deepest(tree),              \
      node != NULL;                                      \
      node = tmp, tmp = rbtree_postwalk_unlink(node))
 
-#endif /* _KERN_RBTREE_H */
+#endif /* KERN_RBTREE_H */

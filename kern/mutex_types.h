@@ -18,8 +18,8 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_MUTEX_TYPES_H
-#define _KERN_MUTEX_TYPES_H
+#ifndef KERN_MUTEX_TYPES_H
+#define KERN_MUTEX_TYPES_H
 
 #if defined(CONFIG_MUTEX_ADAPTIVE)
 #include <kern/mutex/mutex_adaptive_types.h>
@@ -31,4 +31,4 @@
 #error "unknown mutex implementation"
 #endif
 
-#endif /* _KERN_MUTEX_TYPES_H */
+#endif /* KERN_MUTEX_TYPES_H */

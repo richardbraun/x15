@@ -18,8 +18,8 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_PLIST_TYPES_H
-#define _KERN_PLIST_TYPES_H
+#ifndef KERN_PLIST_TYPES_H
+#define KERN_PLIST_TYPES_H
 
 #include <kern/list_types.h>
 
@@ -47,4 +47,4 @@ struct plist_node {
     struct list prio_node;
 };
 
-#endif /* _KERN_PLIST_TYPES_H */
+#endif /* KERN_PLIST_TYPES_H */

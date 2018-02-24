@@ -15,10 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_MUTEX_PLAIN_I_H
-#define _KERN_MUTEX_PLAIN_I_H
+#ifndef KERN_MUTEX_PLAIN_I_H
+#define KERN_MUTEX_PLAIN_I_H
 
-#ifndef _KERN_MUTEX_H
+#ifndef KERN_MUTEX_H
 #error "don't include <kern/mutex/mutex_plain_i.h> directly," \
        " use <kern/mutex.h> instead"
 #endif
@@ -137,4 +137,4 @@ INIT_OP_DECLARE(mutex_plain_bootstrap);
 #define mutex_impl_setup mutex_plain_setup
 INIT_OP_DECLARE(mutex_plain_setup);
 
-#endif /* _KERN_MUTEX_PLAIN_I_H */
+#endif /* KERN_MUTEX_PLAIN_I_H */

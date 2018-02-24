@@ -24,8 +24,8 @@
  * with a mutex.
  */
 
-#ifndef _KERN_CONDITION_H
-#define _KERN_CONDITION_H
+#ifndef KERN_CONDITION_H
+#define KERN_CONDITION_H
 
 #include <stdint.h>
 
@@ -65,4 +65,4 @@ int condition_timedwait(struct condition *condition,
 void condition_signal(struct condition *condition);
 void condition_broadcast(struct condition *condition);
 
-#endif /* _KERN_CONDITION_H */
+#endif /* KERN_CONDITION_H */

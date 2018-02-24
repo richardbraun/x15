@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_SEMAPHORE_I_H
-#define _KERN_SEMAPHORE_I_H
+#ifndef KERN_SEMAPHORE_I_H
+#define KERN_SEMAPHORE_I_H
 
 #include <assert.h>
 #include <stdint.h>
@@ -61,4 +61,4 @@ int semaphore_timedwait_slow(struct semaphore *semaphore, uint64_t ticks);
 
 void semaphore_post_slow(struct semaphore *semaphore);
 
-#endif /* _KERN_SEMAPHORE_I_H */
+#endif /* KERN_SEMAPHORE_I_H */

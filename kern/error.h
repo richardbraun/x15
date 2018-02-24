@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_ERROR_H
-#define _KERN_ERROR_H
+#ifndef KERN_ERROR_H
+#define KERN_ERROR_H
 
 #define ERROR_NOMEM     1
 #define ERROR_AGAIN     2
@@ -40,4 +40,4 @@ const char * error_str(int error);
  */
 void error_check(int error, const char *prefix);
 
-#endif /* _KERN_ERROR_H */
+#endif /* KERN_ERROR_H */

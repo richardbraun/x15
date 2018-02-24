@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_BITMAP_I_H
-#define _KERN_BITMAP_I_H
+#ifndef KERN_BITMAP_I_H
+#define KERN_BITMAP_I_H
 
 #include <limits.h>
 
@@ -54,4 +54,4 @@ bitmap_mask(int bit)
 int bitmap_find_next_bit(const unsigned long *bm, int nr_bits, int bit,
                          int complement);
 
-#endif /* _KERN_BITMAP_I_H */
+#endif /* KERN_BITMAP_I_H */

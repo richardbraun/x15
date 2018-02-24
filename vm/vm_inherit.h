@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _VM_VM_INHERIT_H
-#define _VM_VM_INHERIT_H
+#ifndef VM_VM_INHERIT_H
+#define VM_VM_INHERIT_H
 
 /*
  * Inheritance values.
@@ -26,4 +26,4 @@
 #define VM_INHERIT_COPY     2
 #define VM_INHERIT_DEFAULT  VM_INHERIT_COPY
 
-#endif /* _VM_VM_INHERIT_H */
+#endif /* VM_VM_INHERIT_H */

@@ -18,8 +18,8 @@
  * Object caching and general purpose memory allocator.
  */
 
-#ifndef _KERN_KMEM_H
-#define _KERN_KMEM_H
+#ifndef KERN_KMEM_H
+#define KERN_KMEM_H
 
 #include <stddef.h>
 
@@ -112,4 +112,4 @@ INIT_OP_DECLARE(kmem_bootstrap);
  */
 INIT_OP_DECLARE(kmem_setup);
 
-#endif /* _KERN_KMEM_H */
+#endif /* KERN_KMEM_H */

@@ -30,8 +30,8 @@ process()
     done
 }
 
-# Define _KERN_INIT_H so that the INIT_XXX macros aren't expanded.
-$compile -E -D_KERN_INIT_H "$@" \
+# Define KERN_INIT_H so that the INIT_XXX macros aren't expanded.
+$compile -E -DKERN_INIT_H "$@" \
      | sed -e 's/#.*$//' \
      | tr '\n' ' ' \
      | tr -s ' ' \

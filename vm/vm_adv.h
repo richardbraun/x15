@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _VM_VM_ADV_H
-#define _VM_VM_ADV_H
+#ifndef VM_VM_ADV_H
+#define VM_VM_ADV_H
 
 /*
  * Advice values.
@@ -28,4 +28,4 @@
 #define VM_ADV_DONTNEED     4
 #define VM_ADV_DEFAULT      VM_ADV_NORMAL
 
-#endif /* _VM_VM_ADV_H */
+#endif /* VM_VM_ADV_H */

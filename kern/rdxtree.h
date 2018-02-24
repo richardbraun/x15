@@ -22,8 +22,8 @@
  * occur concurrently with updates using RCU.
  */
 
-#ifndef _KERN_RDXTREE_H
-#define _KERN_RDXTREE_H
+#ifndef KERN_RDXTREE_H
+#define KERN_RDXTREE_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -205,4 +205,4 @@ void rdxtree_remove_all(struct rdxtree *tree);
  */
 INIT_OP_DECLARE(rdxtree_setup);
 
-#endif /* _KERN_RDXTREE_H */
+#endif /* KERN_RDXTREE_H */

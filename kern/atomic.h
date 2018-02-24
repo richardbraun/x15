@@ -21,8 +21,8 @@
  * C11 memory model terminology.
  */
 
-#ifndef _KERN_ATOMIC_H
-#define _KERN_ATOMIC_H
+#ifndef KERN_ATOMIC_H
+#define KERN_ATOMIC_H
 
 #include <stdbool.h>
 
@@ -91,13 +91,13 @@
  */
 #define atomic_cas(ptr, oval, nval, mo)                           \
 MACRO_BEGIN                                                       \
-    typeof(*(ptr)) ___oval, ___nval;                              \
+    typeof(*(ptr)) oval___, nval___;                              \
                                                                   \
-    ___oval = (oval);                                             \
-    ___nval = (nval);                                             \
-    __atomic_compare_exchange_n(ptr, &___oval, ___nval, false,    \
+    oval___ = (oval);                                             \
+    nval___ = (nval);                                             \
+    __atomic_compare_exchange_n(ptr, &oval___, nval___, false,    \
                                 mo, ATOMIC_RELAXED);              \
-    ___oval;                                                      \
+    oval___;                                                      \
 MACRO_END
 
 /*
@@ -147,4 +147,4 @@ MACRO_END
 #define atomic_fetch_sub_acq_rel(ptr, val) \
     atomic_fetch_sub(ptr, val, ATOMIC_ACQ_REL)
 
-#endif /* _KERN_ATOMIC_H */
+#endif /* KERN_ATOMIC_H */

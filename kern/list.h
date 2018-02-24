@@ -18,8 +18,8 @@
  * Doubly-linked list.
  */
 
-#ifndef _KERN_LIST_H
-#define _KERN_LIST_H
+#ifndef KERN_LIST_H
+#define KERN_LIST_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -477,14 +477,14 @@ list_rcu_remove(struct list *node)
  */
 #define list_rcu_first_entry(list, type, member)            \
 MACRO_BEGIN                                                 \
-    struct list *___list;                                   \
-    struct list *___first;                                  \
+    struct list *list___;                                   \
+    struct list *first___;                                  \
                                                             \
-    ___list = (list);                                       \
-    ___first = list_rcu_first(___list);                     \
-    list_end(___list, ___first)                             \
+    list___ = (list);                                       \
+    first___ = list_rcu_first(list___);                     \
+    list_end(list___, first___)                             \
         ? NULL                                              \
-        : list_entry(___first, type, member);               \
+        : list_entry(first___, type, member);               \
 MACRO_END
 
 /*
@@ -519,4 +519,4 @@ for (entry = list_rcu_entry(list_first(list),               \
      entry = list_rcu_entry(list_next(&entry->member),      \
                                typeof(*entry), member))
 
-#endif /* _KERN_LIST_H */
+#endif /* KERN_LIST_H */

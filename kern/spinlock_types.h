@@ -18,8 +18,8 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_SPINLOCK_TYPES_H
-#define _KERN_SPINLOCK_TYPES_H
+#ifndef KERN_SPINLOCK_TYPES_H
+#define KERN_SPINLOCK_TYPES_H
 
 struct thread;
 
@@ -31,4 +31,4 @@ struct spinlock {
 #endif /* CONFIG_SPINLOCK_DEBUG */
 };
 
-#endif /* _KERN_SPINLOCK_TYPES_H */
+#endif /* KERN_SPINLOCK_TYPES_H */

@@ -50,8 +50,8 @@
  * interrupt-safe.
  */
 
-#ifndef _KERN_PERCPU_H
-#define _KERN_PERCPU_H
+#ifndef KERN_PERCPU_H
+#define KERN_PERCPU_H
 
 #include <assert.h>
 #include <stddef.h>
@@ -121,4 +121,4 @@ INIT_OP_DECLARE(percpu_bootstrap);
  */
 INIT_OP_DECLARE(percpu_setup);
 
-#endif /* _KERN_PERCPU_H */
+#endif /* KERN_PERCPU_H */

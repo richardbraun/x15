@@ -21,8 +21,8 @@
  * case there is at least one reference to it.
  */
 
-#ifndef _VM_VM_PAGE_H
-#define _VM_VM_PAGE_H
+#ifndef VM_VM_PAGE_H
+#define VM_VM_PAGE_H
 
 #include <assert.h>
 #include <stdbool.h>
@@ -283,4 +283,4 @@ vm_page_tryref(struct vm_page *page)
  */
 INIT_OP_DECLARE(vm_page_setup);
 
-#endif /* _VM_VM_PAGE_H */
+#endif /* VM_VM_PAGE_H */

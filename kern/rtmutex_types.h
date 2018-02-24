@@ -18,8 +18,8 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_RTMUTEX_TYPES_H
-#define _KERN_RTMUTEX_TYPES_H
+#ifndef KERN_RTMUTEX_TYPES_H
+#define KERN_RTMUTEX_TYPES_H
 
 #include <stdint.h>
 
@@ -27,4 +27,4 @@ struct rtmutex {
     uintptr_t owner;
 };
 
-#endif /* _KERN_RTMUTEX_TYPES_H */
+#endif /* KERN_RTMUTEX_TYPES_H */

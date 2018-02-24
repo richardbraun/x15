@@ -18,10 +18,10 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_MUTEX_PI_TYPES_H
-#define _KERN_MUTEX_PI_TYPES_H
+#ifndef KERN_MUTEX_PI_TYPES_H
+#define KERN_MUTEX_PI_TYPES_H
 
-#ifndef _KERN_MUTEX_TYPES_H
+#ifndef KERN_MUTEX_TYPES_H
 #error "don't include <kern/mutex/mutex_pi_types.h> directly," \
        " use <kern/mutex_types.h> instead"
 #endif
@@ -36,4 +36,4 @@ struct mutex {
     struct rtmutex rtmutex;
 };
 
-#endif /* _KERN_MUTEX_PI_TYPES_H */
+#endif /* KERN_MUTEX_PI_TYPES_H */

@@ -18,8 +18,8 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_HLIST_TYPES_H
-#define _KERN_HLIST_TYPES_H
+#ifndef KERN_HLIST_TYPES_H
+#define KERN_HLIST_TYPES_H
 
 /*
  * List node.
@@ -37,4 +37,4 @@ struct hlist {
     struct hlist_node *first;
 };
 
-#endif /* _KERN_HLIST_TYPES_H */
+#endif /* KERN_HLIST_TYPES_H */

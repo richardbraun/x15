@@ -18,8 +18,8 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_SLIST_TYPES_H
-#define _KERN_SLIST_TYPES_H
+#ifndef KERN_SLIST_TYPES_H
+#define KERN_SLIST_TYPES_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -35,4 +35,4 @@ struct slist {
     struct slist_node *last;
 };
 
-#endif /* _KERN_SLIST_TYPES_H */
+#endif /* KERN_SLIST_TYPES_H */

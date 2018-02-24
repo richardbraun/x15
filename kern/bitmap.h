@@ -21,8 +21,8 @@
  * is the responsibility of the caller.
  */
 
-#ifndef _KERN_BITMAP_H
-#define _KERN_BITMAP_H
+#ifndef KERN_BITMAP_H
+#define KERN_BITMAP_H
 
 #include <limits.h>
 #include <string.h>
@@ -193,4 +193,4 @@ for ((bit) = 0;                                                     \
      && (((bit) = bitmap_find_next_zero(bm, nr_bits, bit)) != -1);  \
      (bit)++)
 
-#endif /* _KERN_BITMAP_H */
+#endif /* KERN_BITMAP_H */

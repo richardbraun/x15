@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_RDXTREE_I_H
-#define _KERN_RDXTREE_I_H
+#ifndef KERN_RDXTREE_I_H
+#define KERN_RDXTREE_I_H
 
 /*
  * Radix tree.
@@ -60,4 +60,4 @@ void * rdxtree_lookup_common(const struct rdxtree *tree, rdxtree_key_t key,
 
 void * rdxtree_walk(struct rdxtree *tree, struct rdxtree_iter *iter);
 
-#endif /* _KERN_RDXTREE_I_H */
+#endif /* KERN_RDXTREE_I_H */

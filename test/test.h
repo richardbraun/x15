@@ -15,9 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _TEST_TEST_H
-#define _TEST_TEST_H
+#ifndef TEST_TEST_H
+#define TEST_TEST_H
 
 void test_setup(void);
 
-#endif /* _TEST_TEST_H */
+#endif /* TEST_TEST_H */

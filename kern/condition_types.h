@@ -18,11 +18,11 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_CONDITION_TYPES_H
-#define _KERN_CONDITION_TYPES_H
+#ifndef KERN_CONDITION_TYPES_H
+#define KERN_CONDITION_TYPES_H
 
 struct condition {
     unsigned int _unused;
 };
 
-#endif /* _KERN_CONDITION_TYPES_H */
+#endif /* KERN_CONDITION_TYPES_H */

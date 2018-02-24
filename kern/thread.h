@@ -30,8 +30,8 @@
  * balancer thread of the second processor.
  */
 
-#ifndef _KERN_THREAD_H
-#define _KERN_THREAD_H
+#ifndef KERN_THREAD_H
+#define KERN_THREAD_H
 
 #include <assert.h>
 #include <stdbool.h>
@@ -730,4 +730,4 @@ INIT_OP_DECLARE(thread_bootstrap);
  */
 INIT_OP_DECLARE(thread_setup);
 
-#endif /* _KERN_THREAD_H */
+#endif /* KERN_THREAD_H */

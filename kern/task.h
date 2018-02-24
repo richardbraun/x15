@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_TASK_H
-#define _KERN_TASK_H
+#ifndef KERN_TASK_H
+#define KERN_TASK_H
 
 #include <kern/atomic.h>
 #include <kern/init.h>
@@ -125,4 +125,4 @@ void task_info(struct task *task);
  */
 INIT_OP_DECLARE(task_setup);
 
-#endif /* _KERN_TASK_H */
+#endif /* KERN_TASK_H */

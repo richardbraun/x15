@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_WORK_I_H
-#define _KERN_WORK_I_H
+#ifndef KERN_WORK_I_H
+#define KERN_WORK_I_H
 
 struct work {
     struct work *next;
@@ -29,4 +29,4 @@ struct work_queue {
     unsigned int nr_works;
 };
 
-#endif /* _KERN_WORK_I_H */
+#endif /* KERN_WORK_I_H */

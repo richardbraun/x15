@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_CLOCK_I_H
-#define _KERN_CLOCK_I_H
+#ifndef KERN_CLOCK_I_H
+#define KERN_CLOCK_I_H
 
 #include <stdalign.h>
 #include <stdint.h>
@@ -40,4 +40,4 @@ union clock_global_time {
 #endif /* ATOMIC_HAVE_64B_OPS */
 };
 
-#endif /* _KERN_CLOCK_I_H */
+#endif /* KERN_CLOCK_I_H */

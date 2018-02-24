@@ -23,8 +23,8 @@
  * among the entries.
  */
 
-#ifndef _KERN_PLIST_H
-#define _KERN_PLIST_H
+#ifndef KERN_PLIST_H
+#define KERN_PLIST_H
 
 #include <stdbool.h>
 
@@ -267,4 +267,4 @@ for (pnode = plist_last(plist), tmp = plist_prev(pnode);    \
 #define plist_for_each_entry_reverse_safe(plist, entry, tmp, member) \
     list_for_each_entry_reverse_safe(&(plist)->list, entry, tmp, member.node)
 
-#endif /* _KERN_PLIST_H */
+#endif /* KERN_PLIST_H */

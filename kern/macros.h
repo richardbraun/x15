@@ -23,8 +23,8 @@
  * TODO Improve documentation.
  */
 
-#ifndef _KERN_MACROS_H
-#define _KERN_MACROS_H
+#ifndef KERN_MACROS_H
+#define KERN_MACROS_H
 
 #if !defined(__GNUC__) || (__GNUC__ < 4)
 #error "GCC 4+ required"
@@ -110,4 +110,4 @@
 #endif /* __GNUC__ >= 7 */
 #endif
 
-#endif /* _KERN_MACROS_H */
+#endif /* KERN_MACROS_H */

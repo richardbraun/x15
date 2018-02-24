@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _STDIO_H
-#define _STDIO_H
+#ifndef STDIO_H
+#define STDIO_H
 
 #include <kern/fmt.h>
 #include <kern/printf.h>
@@ -39,4 +39,4 @@ char console_getchar(void);
 #define sscanf      fmt_sscanf
 #define vsscanf     fmt_vsscanf
 
-#endif /* _STDIO_H */
+#endif /* STDIO_H */

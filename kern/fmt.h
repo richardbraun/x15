@@ -38,8 +38,8 @@
  * http://git.sceen.net/rbraun/librbraun.git/
  */
 
-#ifndef _FMT_H
-#define _FMT_H
+#ifndef FMT_H
+#define FMT_H
 
 #include <stdarg.h>
 #include <stddef.h>
@@ -62,4 +62,4 @@ int fmt_sscanf(const char *str, const char *format, ...)
 int fmt_vsscanf(const char *str, const char *format, va_list ap)
     __attribute__((format(scanf, 2, 0)));
 
-#endif /* _FMT_H */
+#endif /* FMT_H */

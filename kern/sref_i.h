@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_SREF_I_H
-#define _KERN_SREF_I_H
+#ifndef KERN_SREF_I_H
+#define KERN_SREF_I_H
 
 #include <stdint.h>
 
@@ -73,4 +73,4 @@ struct sref_counter {
     };
 };
 
-#endif /* _KERN_SREF_I_H */
+#endif /* KERN_SREF_I_H */

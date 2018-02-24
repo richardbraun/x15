@@ -22,8 +22,8 @@
  * or not), or "name=value".
  */
 
-#ifndef _KERN_ARG_H
-#define _KERN_ARG_H
+#ifndef KERN_ARG_H
+#define KERN_ARG_H
 
 #include <stdbool.h>
 
@@ -64,4 +64,4 @@ const char * arg_value(const char *name);
  */
 INIT_OP_DECLARE(arg_setup);
 
-#endif /* _KERN_ARG_H */
+#endif /* KERN_ARG_H */

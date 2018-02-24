@@ -18,8 +18,8 @@
  * Low resolution timer system.
  */
 
-#ifndef _KERN_TIMER_H
-#define _KERN_TIMER_H
+#ifndef KERN_TIMER_H
+#define KERN_TIMER_H
 
 #include <stdint.h>
 
@@ -102,4 +102,4 @@ void timer_report_periodic_event(void);
  */
 INIT_OP_DECLARE(timer_bootstrap);
 
-#endif /* _KERN_TIMER_H */
+#endif /* KERN_TIMER_H */

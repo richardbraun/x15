@@ -23,8 +23,8 @@
  * stack.
  */
 
-#ifndef _KERN_CPUMAP_H
-#define _KERN_CPUMAP_H
+#ifndef KERN_CPUMAP_H
+#define KERN_CPUMAP_H
 
 #include <kern/bitmap.h>
 #include <kern/init.h>
@@ -170,4 +170,4 @@ int cpumap_check(const struct cpumap *cpumap);
  */
 INIT_OP_DECLARE(cpumap_setup);
 
-#endif /* _KERN_CPUMAP_H */
+#endif /* KERN_CPUMAP_H */

@@ -18,8 +18,8 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_SYSCNT_TYPES_H
-#define _KERN_SYSCNT_TYPES_H
+#ifndef KERN_SYSCNT_TYPES_H
+#define KERN_SYSCNT_TYPES_H
 
 #include <stdint.h>
 
@@ -41,4 +41,4 @@ struct syscnt {
     char name[SYSCNT_NAME_SIZE];
 };
 
-#endif /* _KERN_SYSCNT_TYPES_H */
+#endif /* KERN_SYSCNT_TYPES_H */

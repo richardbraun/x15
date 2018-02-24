@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_RTMUTEX_I_H
-#define _KERN_RTMUTEX_I_H
+#ifndef KERN_RTMUTEX_I_H
+#define KERN_RTMUTEX_I_H
 
 #include <assert.h>
 #include <stdbool.h>
@@ -78,4 +78,4 @@ int rtmutex_timedlock_slow(struct rtmutex *rtmutex, uint64_t ticks);
 
 void rtmutex_unlock_slow(struct rtmutex *rtmutex);
 
-#endif /* _KERN_RTMUTEX_I_H */
+#endif /* KERN_RTMUTEX_I_H */

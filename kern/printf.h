@@ -24,12 +24,12 @@
  * See the sprintf module for information about the supported formats.
  */
 
-#ifndef _KERN_PRINTF_H
-#define _KERN_PRINTF_H
+#ifndef KERN_PRINTF_H
+#define KERN_PRINTF_H
 
-#ifndef _STDIO_H
+#ifndef STDIO_H
 #error "do not use <kern/printf.h> directly; include <stdio.h> instead"
-#endif /* _STDIO_H */
+#endif /* STDIO_H */
 
 #include <stdarg.h>
 
@@ -47,4 +47,4 @@ int vprintf(const char *format, va_list ap)
  */
 INIT_OP_DECLARE(printf_setup);
 
-#endif /* _KERN_PRINTF_H */
+#endif /* KERN_PRINTF_H */

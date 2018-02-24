@@ -22,7 +22,7 @@
 #ifndef _X86_ATOMIC_H
 #define _X86_ATOMIC_H
 
-#ifndef _KERN_ATOMIC_H
+#ifndef KERN_ATOMIC_H
 #error "don't include <machine/atomic.h> directly, use <kern/atomic.h> instead"
 #endif
 
@@ -48,11 +48,11 @@
  */
 #define atomic_load_64(ptr, mo)                                           \
 MACRO_BEGIN                                                               \
-    uint64_t ___ret = 0;                                                  \
+    uint64_t ret___ = 0;                                                  \
                                                                           \
-    __atomic_compare_exchange_n((uint64_t *)(ptr), &___ret, 0,            \
+    __atomic_compare_exchange_n((uint64_t *)(ptr), &ret___, 0,            \
                                 false, mo, __ATOMIC_RELAXED);             \
-    ___ret;                                                               \
+    ret___;                                                               \
 MACRO_END
 
 #define atomic_load(ptr, mo)                                              \
@@ -65,17 +65,17 @@ MACRO_BEGIN                                                               \
     if (sizeof(*(ptr)) != 8) {                                            \
         __atomic_store_n(ptr, val, mo);                                   \
     } else {                                                              \
-        typeof(*(ptr)) ___oval, ___nval;                                  \
-        bool ___done;                                                     \
+        typeof(*(ptr)) oval___, nval___;                                  \
+        bool done___;                                                     \
                                                                           \
-        ___oval = *(ptr);                                                 \
-        ___nval = (val);                                                  \
+        oval___ = *(ptr);                                                 \
+        nval___ = (val);                                                  \
                                                                           \
         do {                                                              \
-            ___done = __atomic_compare_exchange_n(ptr, &___oval, ___nval, \
+            done___ = __atomic_compare_exchange_n(ptr, &oval___, nval___, \
                                                   false, mo,              \
                                                   __ATOMIC_RELAXED);      \
-        } while (!___done);                                               \
+        } while (!done___);                                               \
                                                                           \
     }                                                                     \
 MACRO_END

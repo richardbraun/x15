@@ -28,8 +28,8 @@
  * using sref counters in the work module itself.
  */
 
-#ifndef _KERN_SREF_H
-#define _KERN_SREF_H
+#ifndef KERN_SREF_H
+#define KERN_SREF_H
 
 #include <kern/init.h>
 
@@ -113,4 +113,4 @@ struct sref_counter * sref_weakref_get(struct sref_weakref *weakref);
  */
 INIT_OP_DECLARE(sref_bootstrap);
 
-#endif /* _KERN_SREF_H */
+#endif /* KERN_SREF_H */

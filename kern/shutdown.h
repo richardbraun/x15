@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_SHUTDOWN_H
-#define _KERN_SHUTDOWN_H
+#ifndef KERN_SHUTDOWN_H
+#define KERN_SHUTDOWN_H
 
 #include <stdnoreturn.h>
 
@@ -46,4 +46,4 @@ INIT_OP_DECLARE(shutdown_bootstrap);
  */
 INIT_OP_DECLARE(shutdown_setup);
 
-#endif /* _KERN_SHUTDOWN_H */
+#endif /* KERN_SHUTDOWN_H */

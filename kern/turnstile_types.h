@@ -18,8 +18,8 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_TURNSTILE_TYPES_H
-#define _KERN_TURNSTILE_TYPES_H
+#ifndef KERN_TURNSTILE_TYPES_H
+#define KERN_TURNSTILE_TYPES_H
 
 #include <kern/plist_types.h>
 #include <kern/spinlock_types.h>
@@ -55,4 +55,4 @@ struct turnstile_td {
     unsigned short top_priority;                /* (t)   */
 };
 
-#endif /* _KERN_TURNSTILE_TYPES_H */
+#endif /* KERN_TURNSTILE_TYPES_H */

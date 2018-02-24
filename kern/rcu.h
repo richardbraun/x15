@@ -43,8 +43,8 @@
  * [1] https://www.kernel.org/doc/Documentation/RCU/Design/Requirements/Requirements.html.
  */
 
-#ifndef _KERN_RCU_H
-#define _KERN_RCU_H
+#ifndef KERN_RCU_H
+#define KERN_RCU_H
 
 #include <kern/atomic.h>
 #include <kern/init.h>
@@ -142,4 +142,4 @@ void rcu_wait(void);
  */
 INIT_OP_DECLARE(rcu_bootstrap);
 
-#endif /* _KERN_RCU_H */
+#endif /* KERN_RCU_H */

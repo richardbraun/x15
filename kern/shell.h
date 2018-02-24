@@ -18,8 +18,8 @@
  * Minimalist shell for embedded systems.
  */
 
-#ifndef _KERN_SHELL_H
-#define _KERN_SHELL_H
+#ifndef KERN_SHELL_H
+#define KERN_SHELL_H
 
 #include <kern/init.h>
 #include <kern/error.h>
@@ -27,12 +27,12 @@
 
 #define SHELL_REGISTER_CMDS(cmds)                           \
 MACRO_BEGIN                                                 \
-    size_t ___i;                                            \
-    int ___error;                                           \
+    size_t i___;                                            \
+    int error___;                                           \
                                                             \
-    for (___i = 0; ___i < ARRAY_SIZE(cmds); ___i++) {       \
-        ___error = shell_cmd_register(&(cmds)[___i]);       \
-        error_check(___error, __func__);                    \
+    for (i___ = 0; i___ < ARRAY_SIZE(cmds); i___++) {       \
+        error___ = shell_cmd_register(&(cmds)[i___]);       \
+        error_check(error___, __func__);                    \
     }                                                       \
 MACRO_END
 
@@ -86,4 +86,4 @@ int shell_cmd_register(struct shell_cmd *cmd);
  */
 INIT_OP_DECLARE(shell_setup);
 
-#endif /* _KERN_SHELL_H */
+#endif /* KERN_SHELL_H */

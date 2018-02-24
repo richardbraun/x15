@@ -15,9 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _STRING_H
-#define _STRING_H
+#ifndef STRING_H
+#define STRING_H
 
 #include <kern/string.h>
 
-#endif /* _STRING_H */
+#endif /* STRING_H */

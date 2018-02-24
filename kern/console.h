@@ -18,8 +18,8 @@
  * Device-independent console interface.
  */
 
-#ifndef _KERN_CONSOLE_H
-#define _KERN_CONSOLE_H
+#ifndef KERN_CONSOLE_H
+#define KERN_CONSOLE_H
 
 #include <kern/cbuf.h>
 #include <kern/init.h>
@@ -104,4 +104,4 @@ INIT_OP_DECLARE(console_bootstrap);
  */
 INIT_OP_DECLARE(console_setup);
 
-#endif /* _KERN_CONSOLE_H */
+#endif /* KERN_CONSOLE_H */

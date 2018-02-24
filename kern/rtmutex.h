@@ -21,8 +21,8 @@
  * inheritance is unconditionally enabled.
  */
 
-#ifndef _KERN_RTMUTEX_H
-#define _KERN_RTMUTEX_H
+#ifndef KERN_RTMUTEX_H
+#define KERN_RTMUTEX_H
 
 #include <assert.h>
 #include <stdint.h>
@@ -138,4 +138,4 @@ rtmutex_unlock(struct rtmutex *rtmutex)
 INIT_OP_DECLARE(rtmutex_bootstrap);
 INIT_OP_DECLARE(rtmutex_setup);
 
-#endif /* _KERN_RTMUTEX_H */
+#endif /* KERN_RTMUTEX_H */

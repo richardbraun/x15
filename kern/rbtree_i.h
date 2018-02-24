@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_RBTREE_I_H
-#define _KERN_RBTREE_I_H
+#ifndef KERN_RBTREE_I_H
+#define KERN_RBTREE_I_H
 
 #include <assert.h>
 #include <stddef.h>
@@ -186,4 +186,4 @@ struct rbtree_node * rbtree_postwalk_deepest(const struct rbtree *tree);
  */
 struct rbtree_node * rbtree_postwalk_unlink(struct rbtree_node *node);
 
-#endif /* _KERN_RBTREE_I_H */
+#endif /* KERN_RBTREE_I_H */

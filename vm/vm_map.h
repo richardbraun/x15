@@ -18,8 +18,8 @@
  * Virtual memory map management.
  */
 
-#ifndef _VM_VM_MAP_H
-#define _VM_VM_MAP_H
+#ifndef VM_VM_MAP_H
+#define VM_VM_MAP_H
 
 #include <stdint.h>
 
@@ -135,4 +135,4 @@ INIT_OP_DECLARE(vm_map_bootstrap);
  */
 INIT_OP_DECLARE(vm_map_setup);
 
-#endif /* _VM_VM_MAP_H */
+#endif /* VM_VM_MAP_H */

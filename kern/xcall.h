@@ -23,8 +23,8 @@
  * TODO Asynchronous cross-calls.
  */
 
-#ifndef _KERN_XCALL_H
-#define _KERN_XCALL_H
+#ifndef KERN_XCALL_H
+#define KERN_XCALL_H
 
 #include <kern/init.h>
 
@@ -61,4 +61,4 @@ void xcall_intr(void);
  */
 INIT_OP_DECLARE(xcall_setup);
 
-#endif /* _KERN_XCALL_H */
+#endif /* KERN_XCALL_H */

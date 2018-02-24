@@ -18,8 +18,8 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _VM_OBJECT_TYPES_H
-#define _VM_OBJECT_TYPES_H
+#ifndef VM_OBJECT_TYPES_H
+#define VM_OBJECT_TYPES_H
 
 #include <stdint.h>
 
@@ -33,4 +33,4 @@ struct vm_object {
     unsigned long nr_pages;
 };
 
-#endif /* _VM_OBJECT_TYPES_H */
+#endif /* VM_OBJECT_TYPES_H */

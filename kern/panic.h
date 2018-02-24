@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_PANIC_H
-#define _KERN_PANIC_H
+#ifndef KERN_PANIC_H
+#define KERN_PANIC_H
 
 #include <stdnoreturn.h>
 
@@ -34,4 +34,4 @@ noreturn void panic(const char *format, ...)
  */
 INIT_OP_DECLARE(panic_setup);
 
-#endif /* _KERN_PANIC_H */
+#endif /* KERN_PANIC_H */

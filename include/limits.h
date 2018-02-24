@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _LIMITS_H
-#define _LIMITS_H
+#ifndef LIMITS_H
+#define LIMITS_H
 
 #define CHAR_BIT 8
 
@@ -26,4 +26,4 @@
 #define LONG_BIT 32
 #endif /* __LP64__ */
 
-#endif /* _LIMITS_H */
+#endif /* LIMITS_H */

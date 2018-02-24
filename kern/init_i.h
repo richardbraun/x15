@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_INIT_I_H
-#define _KERN_INIT_I_H
+#ifndef KERN_INIT_I_H
+#define KERN_INIT_I_H
 
 #include <stdalign.h>
 #include <stdbool.h>
@@ -54,4 +54,4 @@ struct init_op_dep {
 #define __INIT_OP(fn)       fn ## _init_op
 #define INIT_OP(fn)         __INIT_OP(fn)
 
-#endif /* _KERN_INIT_I_H */
+#endif /* KERN_INIT_I_H */

@@ -21,8 +21,8 @@
  * accessed and modified atomically from any context.
  */
 
-#ifndef _KERN_SYSCNT_H
-#define _KERN_SYSCNT_H
+#ifndef KERN_SYSCNT_H
+#define KERN_SYSCNT_H
 
 #include <stdint.h>
 
@@ -134,4 +134,4 @@ void syscnt_info(const char *prefix);
  */
 INIT_OP_DECLARE(syscnt_setup);
 
-#endif /* _KERN_SYSCNT_H */
+#endif /* KERN_SYSCNT_H */

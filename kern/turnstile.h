@@ -23,8 +23,8 @@
  * unbounded priority inversion.
  */
 
-#ifndef _KERN_TURNSTILE_H
-#define _KERN_TURNSTILE_H
+#ifndef KERN_TURNSTILE_H
+#define KERN_TURNSTILE_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -199,4 +199,4 @@ void turnstile_disown(struct turnstile *turnstile);
  */
 INIT_OP_DECLARE(turnstile_setup);
 
-#endif /* _KERN_TURNSTILE_H */
+#endif /* KERN_TURNSTILE_H */

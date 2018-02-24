@@ -23,8 +23,8 @@
  * acquisition depending only on the number of contending processors.
  */
 
-#ifndef _KERN_SPINLOCK_H
-#define _KERN_SPINLOCK_H
+#ifndef KERN_SPINLOCK_H
+#define KERN_SPINLOCK_H
 
 #include <kern/init.h>
 #include <kern/macros.h>
@@ -181,4 +181,4 @@ spinlock_unlock_intr_restore(struct spinlock *lock, unsigned long flags)
  */
 INIT_OP_DECLARE(spinlock_setup);
 
-#endif /* _KERN_SPINLOCK_H */
+#endif /* KERN_SPINLOCK_H */

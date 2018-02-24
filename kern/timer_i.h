@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_TIMER_I_H
-#define _KERN_TIMER_I_H
+#ifndef KERN_TIMER_I_H
+#define KERN_TIMER_I_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -47,4 +47,4 @@ struct timer {
     struct thread *joiner;      /* (c)     */
 };
 
-#endif /* _KERN_TIMER_I_H */
+#endif /* KERN_TIMER_I_H */

@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_STRING_H
-#define _KERN_STRING_H
+#ifndef KERN_STRING_H
+#define KERN_STRING_H
 
 #include <stddef.h>
 
@@ -31,4 +31,4 @@ int strcmp(const char *s1, const char *s2);
 int strncmp(const char *s1, const char *s2, size_t n);
 char * strchr(const char *s, int c);
 
-#endif /* _KERN_STRING_H */
+#endif /* KERN_STRING_H */

@@ -18,8 +18,8 @@
  * Singly-linked list.
  */
 
-#ifndef _KERN_SLIST_H
-#define _KERN_SLIST_H
+#ifndef KERN_SLIST_H
+#define KERN_SLIST_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -223,10 +223,10 @@ slist_remove(struct slist *list, struct slist_node *prev)
  */
 #define slist_first_entry(list, type, member)                           \
 MACRO_BEGIN                                                             \
-    struct slist_node *___first;                                        \
+    struct slist_node *first___;                                        \
                                                                         \
-    ___first = (list)->first;                                           \
-    slist_end(___first) ? NULL : slist_entry(___first, type, member);   \
+    first___ = (list)->first;                                           \
+    slist_end(first___) ? NULL : slist_entry(first___, type, member);   \
 MACRO_END
 
 /*
@@ -234,10 +234,10 @@ MACRO_END
  */
 #define slist_last_entry(list, type, member)                            \
 MACRO_BEGIN                                                             \
-    struct slist_node *___last;                                         \
+    struct slist_node *last___;                                         \
                                                                         \
-    ___last = (list)->last;                                             \
-    slist_end(___last) ? NULL : slist_entry(___last, type, member);     \
+    last___ = (list)->last;                                             \
+    slist_end(last___) ? NULL : slist_entry(last___, type, member);     \
 MACRO_END
 
 /*
@@ -245,12 +245,12 @@ MACRO_END
  */
 #define slist_next_entry(entry, member) \
 MACRO_BEGIN                                                             \
-    struct slist_node *___next;                                         \
+    struct slist_node *next___;                                         \
                                                                         \
-    ___next = (entry)->member.next;                                     \
-    slist_end(___next)                                                  \
+    next___ = (entry)->member.next;                                     \
+    slist_end(next___)                                                  \
         ? NULL                                                          \
-        : slist_entry(___next, typeof(*entry), member);                 \
+        : slist_entry(next___, typeof(*entry), member);                 \
 MACRO_END
 
 /*
@@ -406,10 +406,10 @@ slist_rcu_remove(struct slist *list, struct slist_node *prev)
  */
 #define slist_rcu_first_entry(list, type, member)                       \
 MACRO_BEGIN                                                             \
-    struct slist_node *___first;                                        \
+    struct slist_node *first___;                                        \
                                                                         \
-    ___first = slist_rcu_first(list);                                   \
-    slist_end(___first) ? NULL : slist_entry(___first, type, member);   \
+    first___ = slist_rcu_first(list);                                   \
+    slist_end(first___) ? NULL : slist_entry(first___, type, member);   \
 MACRO_END
 
 /*
@@ -417,12 +417,12 @@ MACRO_END
  */
 #define slist_rcu_next_entry(entry, member)                             \
 MACRO_BEGIN                                                             \
-    struct slist_node *___next;                                         \
+    struct slist_node *next___;                                         \
                                                                         \
-    ___next = slist_rcu_next(&entry->member);                           \
-    slist_end(___next)                                                  \
+    next___ = slist_rcu_next(&entry->member);                           \
+    slist_end(next___)                                                  \
         ? NULL                                                          \
-        : slist_entry(___next, typeof(*entry), member);                 \
+        : slist_entry(next___, typeof(*entry), member);                 \
 MACRO_END
 
 /*
@@ -441,4 +441,4 @@ for (entry = slist_rcu_first_entry(list, typeof(*entry), member);       \
      entry != NULL;                                                     \
      entry = slist_rcu_next_entry(entry, member))
 
-#endif /* _KERN_SLIST_H */
+#endif /* KERN_SLIST_H */

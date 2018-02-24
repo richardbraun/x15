@@ -18,8 +18,8 @@
  * System logging.
  */
 
-#ifndef _KERN_LOG_H
-#define _KERN_LOG_H
+#ifndef KERN_LOG_H
+#define KERN_LOG_H
 
 #include <stdarg.h>
 
@@ -93,4 +93,4 @@ int log_vdebug(const char *format, va_list ap)
  */
 INIT_OP_DECLARE(log_setup);
 
-#endif /* _KERN_LOG_H */
+#endif /* KERN_LOG_H */

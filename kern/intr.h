@@ -18,8 +18,8 @@
  * Machine-independent interrupt management.
  */
 
-#ifndef _KERN_INTR_H
-#define _KERN_INTR_H
+#ifndef KERN_INTR_H
+#define KERN_INTR_H
 
 #include <kern/init.h>
 
@@ -76,4 +76,4 @@ INIT_OP_DECLARE(intr_bootstrap);
  */
 INIT_OP_DECLARE(intr_setup);
 
-#endif /* _KERN_INTR_H */
+#endif /* KERN_INTR_H */

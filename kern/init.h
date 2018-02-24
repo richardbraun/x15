@@ -18,8 +18,8 @@
  * Init sections and operations.
  */
 
-#ifndef _KERN_INIT_H
-#define _KERN_INIT_H
+#ifndef KERN_INIT_H
+#define KERN_INIT_H
 
 /*
  * These sections should contain code and data which can be discarded once
@@ -110,4 +110,4 @@ void init_setup(void);
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* _KERN_INIT_H */
+#endif /* KERN_INIT_H */

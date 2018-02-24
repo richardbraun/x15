@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _ASSERT_H
-#define _ASSERT_H
+#ifndef ASSERT_H
+#define ASSERT_H
 
 #define static_assert _Static_assert
 
@@ -47,4 +47,4 @@ MACRO_END
 
 #endif /* NDEBUG */
 
-#endif /* _ASSERT_H */
+#endif /* ASSERT_H */

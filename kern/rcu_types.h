@@ -18,8 +18,8 @@
  * Isolated type definition used to avoid inclusion circular dependencies.
  */
 
-#ifndef _KERN_RCU_TYPES_H
-#define _KERN_RCU_TYPES_H
+#ifndef KERN_RCU_TYPES_H
+#define KERN_RCU_TYPES_H
 
 #include <stdbool.h>
 
@@ -37,4 +37,4 @@ struct rcu_reader {
     bool linked;
 };
 
-#endif /* _KERN_RCU_TYPES_H */
+#endif /* KERN_RCU_TYPES_H */

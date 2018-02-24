@@ -435,13 +435,13 @@ extern void *cpu_local_area;
 
 #define cpu_local_ptr(var)                  \
 MACRO_BEGIN                                 \
-    typeof(var) *___ptr = &(var);           \
+    typeof(var) *ptr___ = &(var);           \
                                             \
     asm("add %%fs:%1, %0"                   \
-                 : "+r" (___ptr)            \
+                 : "+r" (ptr___)            \
                  : "m" (cpu_local_area));   \
                                             \
-    ___ptr;                                 \
+    ptr___;                                 \
 MACRO_END
 
 #define cpu_local_var(var) (*cpu_local_ptr(var))
@@ -454,13 +454,13 @@ MACRO_END
 
 #define cpu_local_read(var)         \
 MACRO_BEGIN                         \
-    typeof(var) ___val;             \
+    typeof(var) val___;             \
                                     \
     asm("mov %%fs:%1, %0"           \
-                 : "=r" (___val)    \
+                 : "=r" (val___)    \
                  : "m" (var));      \
                                     \
-    ___val;                         \
+    val___;                         \
 MACRO_END
 
 static inline struct cpu *

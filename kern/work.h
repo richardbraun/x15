@@ -23,8 +23,8 @@
  * concurrently handle queued works.
  */
 
-#ifndef _KERN_WORK_H
-#define _KERN_WORK_H
+#ifndef KERN_WORK_H
+#define KERN_WORK_H
 
 #include <kern/init.h>
 
@@ -155,4 +155,4 @@ void work_report_periodic_event(void);
  */
 INIT_OP_DECLARE(work_bootstrap);
 
-#endif /* _KERN_WORK_H */
+#endif /* KERN_WORK_H */

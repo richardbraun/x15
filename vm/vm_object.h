@@ -21,8 +21,8 @@
  * physical memory. They collectively form the page cache.
  */
 
-#ifndef _VM_OBJECT_H
-#define _VM_OBJECT_H
+#ifndef VM_OBJECT_H
+#define VM_OBJECT_H
 
 #include <stdint.h>
 
@@ -85,4 +85,4 @@ struct vm_page * vm_object_lookup(struct vm_object *object, uint64_t offset);
  */
 INIT_OP_DECLARE(vm_object_setup);
 
-#endif /* _VM_OBJECT_H */
+#endif /* VM_OBJECT_H */

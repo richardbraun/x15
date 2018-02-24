@@ -18,8 +18,8 @@
  * Timekeeping module.
  */
 
-#ifndef _KERN_CLOCK_H
-#define _KERN_CLOCK_H
+#ifndef KERN_CLOCK_H
+#define KERN_CLOCK_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -116,4 +116,4 @@ clock_time_occurred(uint64_t t, uint64_t ref)
 
 void clock_tick_intr(void);
 
-#endif /* _KERN_CLOCK_H */
+#endif /* KERN_CLOCK_H */

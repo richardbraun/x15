@@ -18,9 +18,9 @@
  * Machine-independent definitions for non-standard C types.
  */
 
-#ifndef _KERN_TYPES_H
-#define _KERN_TYPES_H
+#ifndef KERN_TYPES_H
+#define KERN_TYPES_H
 
 typedef long ssize_t;
 
-#endif /* _KERN_TYPES_H */
+#endif /* KERN_TYPES_H */

@@ -41,8 +41,8 @@
  * As a result, semaphores may only be used by application code.
  */
 
-#ifndef _KERN_SEMAPHORE_H
-#define _KERN_SEMAPHORE_H
+#ifndef KERN_SEMAPHORE_H
+#define KERN_SEMAPHORE_H
 
 #include <assert.h>
 #include <stdint.h>
@@ -155,4 +155,4 @@ semaphore_getvalue(const struct semaphore *semaphore)
     return atomic_load(&semaphore->value, ATOMIC_RELAXED);
 }
 
-#endif /* _KERN_SEMAPHORE_H */
+#endif /* KERN_SEMAPHORE_H */

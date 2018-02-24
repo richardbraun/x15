@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KERN_THREAD_I_H
-#define _KERN_THREAD_I_H
+#ifndef KERN_THREAD_I_H
+#define KERN_THREAD_I_H
 
 #include <stdalign.h>
 #include <stdbool.h>
@@ -213,4 +213,4 @@ thread_test_flag(struct thread *thread, unsigned long flag)
     return (atomic_load(&thread->flags, ATOMIC_ACQUIRE) & flag) != 0;
 }
 
-#endif /* _KERN_THREAD_I_H */
+#endif /* KERN_THREAD_I_H */
