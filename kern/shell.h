@@ -21,8 +21,9 @@
 #ifndef KERN_SHELL_H
 #define KERN_SHELL_H
 
-#include <errno.h>
+#include <stddef.h>
 
+#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 

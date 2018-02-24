@@ -136,7 +136,7 @@ list_empty(const struct list *list)
 static inline bool
 list_singular(const struct list *list)
 {
-    return (list != list->next) && (list->next == list->prev);
+    return !list_empty(list) && (list->next == list->prev);
 }
 
 /*
@@ -248,7 +248,7 @@ list_insert_tail(struct list *list, struct list *node)
  * Insert a node before another node.
  */
 static inline void
-list_insert_before(struct list *next, struct list *node)
+list_insert_before(struct list *node, struct list *next)
 {
     list_add(next->prev, next, node);
 }
@@ -257,7 +257,7 @@ list_insert_before(struct list *next, struct list *node)
  * Insert a node after another node.
  */
 static inline void
-list_insert_after(struct list *prev, struct list *node)
+list_insert_after(struct list *node, struct list *prev)
 {
     list_add(prev, prev->next, node);
 }
@@ -435,7 +435,7 @@ list_rcu_insert_tail(struct list *list, struct list *node)
  * Insert a node before another node.
  */
 static inline void
-list_rcu_insert_before(struct list *next, struct list *node)
+list_rcu_insert_before(struct list *node, struct list *next)
 {
     list_rcu_add(next->prev, next, node);
 }
@@ -444,7 +444,7 @@ list_rcu_insert_before(struct list *next, struct list *node)
  * Insert a node after another node.
  */
 static inline void
-list_rcu_insert_after(struct list *prev, struct list *node)
+list_rcu_insert_after(struct list *node, struct list *prev)
 {
     list_rcu_add(prev, prev->next, node);
 }

@@ -119,7 +119,7 @@ rdxtree_entry_addr(void *entry)
     return (void *)((uintptr_t)entry & RDXTREE_ENTRY_ADDR_MASK);
 }
 
-static inline int
+static inline bool
 rdxtree_entry_is_node(const void *entry)
 {
     return ((uintptr_t)entry & 1) != 0;
@@ -208,13 +208,13 @@ rdxtree_node_unlink(struct rdxtree_node *node)
     node->parent = NULL;
 }
 
-static inline int
+static inline bool
 rdxtree_node_full(struct rdxtree_node *node)
 {
     return (node->nr_entries == ARRAY_SIZE(node->entries));
 }
 
-static inline int
+static inline bool
 rdxtree_node_empty(struct rdxtree_node *node)
 {
     return (node->nr_entries == 0);
@@ -282,13 +282,13 @@ rdxtree_node_bm_clear(struct rdxtree_node *node, unsigned short index)
     node->alloc_bm &= ~((rdxtree_bm_t)1 << index);
 }
 
-static inline int
+static inline bool
 rdxtree_node_bm_is_set(struct rdxtree_node *node, unsigned short index)
 {
     return (node->alloc_bm & ((rdxtree_bm_t)1 << index));
 }
 
-static inline int
+static inline bool
 rdxtree_node_bm_empty(struct rdxtree_node *node)
 {
     return (node->alloc_bm == RDXTREE_BM_EMPTY);
@@ -684,7 +684,7 @@ rdxtree_remove(struct rdxtree *tree, rdxtree_key_t key)
 
 void *
 rdxtree_lookup_common(const struct rdxtree *tree, rdxtree_key_t key,
-                      int get_slot)
+                      bool get_slot)
 {
     struct rdxtree_node *node, *prev;
     unsigned short height, shift, index;

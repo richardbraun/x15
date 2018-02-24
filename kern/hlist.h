@@ -149,7 +149,7 @@ hlist_insert_head(struct hlist *list, struct hlist_node *node)
  * Insert a node before another node.
  */
 static inline void
-hlist_insert_before(struct hlist_node *next, struct hlist_node *node)
+hlist_insert_before(struct hlist_node *node, struct hlist_node *next)
 {
     node->next = next;
     node->pprev = next->pprev;
@@ -161,7 +161,7 @@ hlist_insert_before(struct hlist_node *next, struct hlist_node *node)
  * Insert a node after another node.
  */
 static inline void
-hlist_insert_after(struct hlist_node *prev, struct hlist_node *node)
+hlist_insert_after(struct hlist_node *node, struct hlist_node *prev)
 {
     node->next = prev->next;
     node->pprev = &prev->next;
@@ -303,7 +303,7 @@ hlist_rcu_insert_head(struct hlist *list, struct hlist_node *node)
  * Insert a node before another node.
  */
 static inline void
-hlist_rcu_insert_before(struct hlist_node *next, struct hlist_node *node)
+hlist_rcu_insert_before(struct hlist_node *node, struct hlist_node *next)
 {
     node->next = next;
     node->pprev = next->pprev;
@@ -315,7 +315,7 @@ hlist_rcu_insert_before(struct hlist_node *next, struct hlist_node *node)
  * Insert a node after another node.
  */
 static inline void
-hlist_rcu_insert_after(struct hlist_node *prev, struct hlist_node *node)
+hlist_rcu_insert_after(struct hlist_node *node, struct hlist_node *prev)
 {
     node->next = prev->next;
     node->pprev = &prev->next;

@@ -18,6 +18,9 @@
 #ifndef KERN_RDXTREE_I_H
 #define KERN_RDXTREE_I_H
 
+#include <stdbool.h>
+#include <stddef.h>
+
 /*
  * Radix tree.
  */
@@ -56,7 +59,7 @@ int rdxtree_insert_alloc_common(struct rdxtree *tree, void *ptr,
                                 rdxtree_key_t *keyp, void ***slotp);
 
 void * rdxtree_lookup_common(const struct rdxtree *tree, rdxtree_key_t key,
-                             int get_slot);
+                             bool get_slot);
 
 void * rdxtree_walk(struct rdxtree *tree, struct rdxtree_iter *iter);
 

@@ -337,7 +337,7 @@ vm_map_link(struct vm_map *map, struct vm_map_entry *entry,
     if (next == NULL) {
         list_insert_tail(&map->entry_list, &entry->list_node);
     } else {
-        list_insert_before(&next->list_node, &entry->list_node);
+        list_insert_before(&entry->list_node, &next->list_node);
     }
 
     rbtree_insert(&map->entry_tree, &entry->tree_node, vm_map_entry_cmp_insert);

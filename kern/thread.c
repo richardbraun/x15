@@ -938,10 +938,10 @@ thread_sched_fs_enqueue(struct thread_fs_runq *fs_runq, unsigned long round,
     }
 
     if (group->weight == 0) {
-        list_insert_after(node, &group->node);
+        list_insert_after(&group->node, node);
     } else if (node != init_node) {
         list_remove(&group->node);
-        list_insert_after(node, &group->node);
+        list_insert_after(&group->node, node);
     }
 
     /*
@@ -1060,7 +1060,7 @@ thread_sched_fs_dequeue(struct thread *thread)
 
         if (node != init_node) {
             list_remove(&group->node);
-            list_insert_before(node, &group->node);
+            list_insert_before(&group->node, node);
         }
     }
 }

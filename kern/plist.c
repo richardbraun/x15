@@ -37,12 +37,12 @@ plist_add(struct plist *plist, struct plist_node *pnode)
 
     if (list_end(&plist->prio_list, &next->prio_node)
         || (pnode->priority != next->priority)) {
-        list_insert_before(&next->prio_node, &pnode->prio_node);
+        list_insert_before(&pnode->prio_node, &next->prio_node);
     } else {
         list_init(&pnode->prio_node);
     }
 
-    list_insert_before(&next->node, &pnode->node);
+    list_insert_before(&pnode->node, &next->node);
 }
 
 void

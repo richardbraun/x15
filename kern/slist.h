@@ -172,8 +172,8 @@ slist_insert_tail(struct slist *list, struct slist_node *node)
  * The prev node must be valid.
  */
 static inline void
-slist_insert_after(struct slist *list, struct slist_node *prev,
-                   struct slist_node *node)
+slist_insert_after(struct slist *list, struct slist_node *node,
+                   struct slist_node *prev)
 {
     node->next = prev->next;
     prev->next = node;
@@ -187,8 +187,8 @@ slist_insert_after(struct slist *list, struct slist_node *prev,
  * Remove a node from a list.
  *
  * The prev argument must point to the node immediately preceding the target
- * node. It may safely denote the end of the given list, in which case the
- * first node is removed.
+ * node. It may safely denote the end of the given list (NULL), in which case
+ * the first node is removed.
  */
 static inline void
 slist_remove(struct slist *list, struct slist_node *prev)
@@ -354,8 +354,8 @@ slist_rcu_insert_tail(struct slist *list, struct slist_node *node)
  * The prev node must be valid.
  */
 static inline void
-slist_rcu_insert_after(struct slist *list, struct slist_node *prev,
-                          struct slist_node *node)
+slist_rcu_insert_after(struct slist *list, struct slist_node *node,
+                          struct slist_node *prev)
 {
     node->next = prev->next;
     rcu_store_ptr(prev->next, node);

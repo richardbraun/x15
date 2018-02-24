@@ -25,6 +25,8 @@
 #ifndef KERN_RDXTREE_H
 #define KERN_RDXTREE_H
 
+#include <assert.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -136,7 +138,7 @@ void * rdxtree_remove(struct rdxtree *tree, rdxtree_key_t key);
 static inline void *
 rdxtree_lookup(const struct rdxtree *tree, rdxtree_key_t key)
 {
-    return rdxtree_lookup_common(tree, key, 0);
+    return rdxtree_lookup_common(tree, key, false);
 }
 
 /*
@@ -153,7 +155,7 @@ rdxtree_lookup(const struct rdxtree *tree, rdxtree_key_t key)
 static inline void **
 rdxtree_lookup_slot(const struct rdxtree *tree, rdxtree_key_t key)
 {
-    return rdxtree_lookup_common(tree, key, 1);
+    return rdxtree_lookup_common(tree, key, true);
 }
 
 static inline void *
