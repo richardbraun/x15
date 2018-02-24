@@ -20,13 +20,11 @@ def print_fn(*args):
     for arg in args:
         print(arg)
 
-
 def quote_if_needed(value):
     if not value.isdigit() and value != 'y' and value != 'n':
         value = '"%s"' % value
 
     return value
-
 
 def gen_configs_list(options_dict):
     'Generate a list of all possible combinations of options.'
@@ -34,11 +32,9 @@ def gen_configs_list(options_dict):
     product = itertools.product(*options_dict.values())
     return [dict(zip(names, x)) for x in product]
 
-
 def gen_configs_values_str(options_dict):
     'Generate a list of all possible combinations of options as strings.'
     return [' '.join(x.values()) for x in gen_configs_list(options_dict)]
-
 
 def gen_cc_options_list(options_dict):
     '''
@@ -46,7 +42,6 @@ def gen_cc_options_list(options_dict):
     to all generated strings.
     '''
     return ['{} -Werror'.format(x) for x in gen_configs_values_str(options_dict)]
-
 
 def gen_exclusive_boolean_filter(args):
     enabled_option, options_list = args
@@ -61,7 +56,6 @@ def gen_exclusive_boolean_filter(args):
         option_filter.update({option: value})
 
     return option_filter
-
 
 def gen_exclusive_boolean_filters_list(options_list, all_disabled=False):
     '''
@@ -78,7 +72,6 @@ def gen_exclusive_boolean_filters_list(options_list, all_disabled=False):
         option_and_options.append((None, options_list))
 
     return list(map(gen_exclusive_boolean_filter, option_and_options))
-
 
 # Dictionary of compiler options.
 #
@@ -117,6 +110,7 @@ large_options_dict.update({
     'CONFIG_THREAD_STACK_GUARD': ['y', 'n'],
 })
 
+# TODO Generate this list from test/test_*.c
 test_list = [
     'CONFIG_TEST_MODULE_MUTEX',
     'CONFIG_TEST_MODULE_MUTEX_PI',
@@ -178,15 +172,12 @@ blocking_filters_list = [
     },
 ]
 
-
 def gen_config_line(config_entry):
     name, value = config_entry
     return '%s=%s\n' % (name, quote_if_needed(value))
 
-
 def gen_config_content(config_dict):
     return map(gen_config_line, config_dict.items())
-
 
 def test_config_run(command, check, buildlog):
     buildlog.writelines(['$ %s\n' % command])
@@ -198,7 +189,6 @@ def test_config_run(command, check, buildlog):
     else:
         return subprocess.call(command.split(), stdout=buildlog,
                                stderr=subprocess.STDOUT)
-
 
 def test_config(args):
     'This function is run in multiprocessing.Pool workers.'
@@ -233,7 +223,6 @@ def test_config(args):
 
     return [retval, buildtree]
 
-
 def check_filter(config_dict, filter_dict):
     'Return true if a filter completely matches a configuration.'
     for name, value in filter_dict.items():
@@ -249,7 +238,6 @@ def check_filter(config_dict, filter_dict):
 
     return True
 
-
 def check_filter_relevant(config_dict, filter_dict):
     for name, _ in filter_dict.items():
         if name in config_dict:
@@ -257,14 +245,12 @@ def check_filter_relevant(config_dict, filter_dict):
 
     return False
 
-
 def check_filters_list_relevant(config_dict, filters_list):
     for filter_dict in filters_list:
         if check_filter_relevant(config_dict, filter_dict):
             return True
 
     return False
-
 
 def check_passing_filters(args):
     '''
@@ -285,7 +271,6 @@ def check_passing_filters(args):
 
     return False
 
-
 def check_blocking_filters(args):
     'Return true if a configuration passes all the given filters.'
     config_dict, filters_list = args
@@ -295,7 +280,6 @@ def check_blocking_filters(args):
             return False
 
     return True
-
 
 def filter_configs_list(configs_list, passing, blocking):
     configs_and_filters = [(x, passing) for x in configs_list]
@@ -377,7 +361,6 @@ def main():
         os.rmdir(topbuilddir)
     finally:
         sys.exit(len(failures) != 0)
-
 
 if __name__ == '__main__':
     main()
