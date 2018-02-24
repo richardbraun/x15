@@ -160,10 +160,10 @@ bool turnstile_empty(const struct turnstile *turnstile);
  * to prevent unbounded priority inversion.
  *
  * When bounding the duration of the wait, the caller must pass an absolute
- * time in ticks, and ERROR_TIMEDOUT is returned if that time is reached
- * before the turnstile is signalled. In addition, if a timeout occurs,
- * the calling thread temporarily releases the turnstile before returning,
- * causing other threads to consider the turnstile as empty.
+ * time in ticks, and ETIMEDOUT is returned if that time is reached before
+ * the turnstile is signalled. In addition, if a timeout occurs, the calling
+ * thread temporarily releases the turnstile before returning, causing other
+ * threads to consider the turnstile as empty.
  */
 void turnstile_wait(struct turnstile *turnstile, const char *wchan,
                     struct thread *owner);

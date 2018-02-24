@@ -59,7 +59,7 @@ void spinlock_init(struct spinlock *lock);
 /*
  * Attempt to lock the given spin lock.
  *
- * Return 0 on success, ERROR_BUSY if the spin lock is already locked.
+ * Return 0 on success, EBUSY if the spin lock is already locked.
  *
  * Preemption is disabled on success.
  */
@@ -118,7 +118,7 @@ spinlock_unlock(struct spinlock *lock)
 /*
  * Attempt to lock the given spin lock.
  *
- * Return 0 on success, ERROR_BUSY if the spin lock is already locked.
+ * Return 0 on success, EBUSY if the spin lock is already locked.
  *
  * Preemption and interrupts are disabled on success, in which case the
  * flags passed by the caller are filled with the previous value of the

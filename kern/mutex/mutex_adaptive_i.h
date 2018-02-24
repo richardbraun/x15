@@ -24,10 +24,10 @@
 #endif
 
 #include <assert.h>
+#include <errno.h>
 #include <stdint.h>
 
 #include <kern/atomic.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/mutex_types.h>
@@ -58,7 +58,7 @@ mutex_adaptive_lock_fast(struct mutex *mutex)
     owner = atomic_cas_acquire(&mutex->owner, 0, (uintptr_t)thread_self());
 
     if (unlikely(owner != 0)) {
-        return ERROR_BUSY;
+        return EBUSY;
     }
 
     return 0;
@@ -72,7 +72,7 @@ mutex_adaptive_unlock_fast(struct mutex *mutex)
     owner = atomic_cas_release(&mutex->owner, (uintptr_t)thread_self(), 0);
 
     if (unlikely(owner & MUTEX_ADAPTIVE_CONTENDED)) {
-        return ERROR_BUSY;
+        return EBUSY;
     }
 
     return 0;

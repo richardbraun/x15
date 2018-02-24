@@ -16,13 +16,13 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/macros.h>
@@ -150,7 +150,7 @@ rdxtree_node_create(struct rdxtree_node **nodep, unsigned short height)
     node = kmem_cache_alloc(&rdxtree_node_cache);
 
     if (node == NULL) {
-        return ERROR_NOMEM;
+        return ENOMEM;
     }
 
     rdxtree_assert_alignment(node);
@@ -475,7 +475,7 @@ rdxtree_insert_common(struct rdxtree *tree, rdxtree_key_t key,
 
     if (unlikely(height == 0)) {
         if (tree->root != NULL) {
-            return ERROR_BUSY;
+            return EBUSY;
         }
 
         rcu_store_ptr(tree->root, ptr);
@@ -521,7 +521,7 @@ rdxtree_insert_common(struct rdxtree *tree, rdxtree_key_t key,
     } while (height > 0);
 
     if (unlikely(node != NULL)) {
-        return ERROR_BUSY;
+        return EBUSY;
     }
 
     rdxtree_node_insert(prev, index, ptr);

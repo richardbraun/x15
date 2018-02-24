@@ -25,6 +25,7 @@
 #define VM_VM_PAGE_H
 
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -268,7 +269,7 @@ vm_page_tryref(struct vm_page *page)
         nr_refs = atomic_load(&page->nr_refs, ATOMIC_RELAXED);
 
         if (nr_refs == 0) {
-            return ERROR_AGAIN;
+            return EAGAIN;
         }
 
         prev = atomic_cas_acquire(&page->nr_refs, nr_refs, nr_refs + 1);

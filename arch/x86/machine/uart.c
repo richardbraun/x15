@@ -16,11 +16,11 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdint.h>
 
 #include <kern/arg.h>
 #include <kern/console.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/intr.h>
 #include <kern/log.h>
@@ -173,7 +173,7 @@ uart_intr(void *arg)
     byte = uart_read(uart, UART_REG_IIR);
 
     if (byte & UART_IIR_NOT_PENDING) {
-        return ERROR_AGAIN;
+        return EAGAIN;
     }
 
     byte &= UART_IIR_SRC_MASK;
@@ -268,7 +268,7 @@ static int __init
 uart_init_check_speed(unsigned int speed)
 {
     if (speed > UART_SPEED_MAX) {
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     return 0;
@@ -288,7 +288,7 @@ uart_init_convert_parity_char(char c, unsigned int *parity)
         *parity = UART_PARITY_EVEN;
         break;
     default:
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     return 0;
@@ -301,7 +301,7 @@ uart_init_check_data_bits(unsigned int data_bits)
     case 5 ... 8:
         break;
     default:
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     return 0;

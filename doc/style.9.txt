@@ -425,11 +425,11 @@ error code, let a NULL value encode that error, otherwise return
 it explicitely :
 
 struct my_struct * my_struct_create(...)::
-  Return NULL if an error occurs, which may only be ERROR_NOMEM.
+  Return NULL if an error occurs, which may only be ENOMEM.
 int my_struct_create(struct my_struct **my_structp, ...)::
-  Return an error (ERROR_NOMEM or something else) if creation fails,
-  otherwise pass the new object to the caller through the double pointer
-  argument and return 0.
+  Return an error (ENOMEM or something else) if creation fails, otherwise
+  pass the new object to the caller through the double pointer argument
+  and return 0.
 
 Methods, which are functions invoked on an object instance, must be
 defined so that their first argument is always the object instance
@@ -464,7 +464,7 @@ obj_create(struct obj **objp, int var)
     obj = kmem_cache_alloc(&obj_cache);
 
     if (obj == NULL) {
-        return ERROR_NOMEM;
+        return ENOMEM;
     }
 
     error = subobj_create(&subobj);
@@ -637,7 +637,7 @@ error = do_something();
 
 /* Valid */
 if (error) {
-    if (error != ERROR_AGAIN) {
+    if (error != EAGAIN) {
         printf("unexpected error\n");
     }
 

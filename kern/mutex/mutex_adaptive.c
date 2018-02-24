@@ -16,13 +16,13 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include <kern/atomic.h>
 #include <kern/clock.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/mutex.h>
 #include <kern/mutex_types.h>
@@ -152,7 +152,7 @@ mutex_adaptive_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
                 mutex_adaptive_inc_sc(MUTEX_ADAPTIVE_SC_SPINS);
 
                 if (timed && clock_time_occurred(ticks, clock_get_time())) {
-                    error = ERROR_TIMEDOUT;
+                    error = ETIMEDOUT;
                     break;
                 }
 

@@ -43,13 +43,13 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 
 #include <kern/condition.h>
 #include <kern/cpumap.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/list.h>
 #include <kern/log.h>
@@ -256,7 +256,7 @@ sref_weakref_kill(struct sref_weakref *weakref)
 
     if (oldval != addr) {
         assert((oldval & SREF_WEAKREF_MASK) == (addr & SREF_WEAKREF_MASK));
-        return ERROR_BUSY;
+        return EBUSY;
     }
 
     return 0;
@@ -936,7 +936,7 @@ sref_unregister(void)
 
     if (dirty) {
         sref_cache_mark_registered(cache);
-        error = ERROR_BUSY;
+        error = EBUSY;
         goto out;
     }
 
@@ -957,7 +957,7 @@ sref_unregister(void)
         error = 0;
     } else {
         sref_cache_manage(cache);
-        error = ERROR_BUSY;
+        error = EBUSY;
     }
 
     if (error) {

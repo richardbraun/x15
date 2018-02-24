@@ -16,6 +16,7 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -217,7 +218,7 @@ log_record_init_consume(struct log_record *record, struct log_consume_ctx *ctx)
     for (;;) {
         if (log_consume_ctx_empty(ctx)) {
             if (!marker_found) {
-                return ERROR_INVAL;
+                return EINVAL;
             }
 
             break;

@@ -32,12 +32,14 @@
  * to occur.
  */
 
+#include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <kern/condition.h>
-#include <kern/error.h>
 #include <kern/init.h>
+#include <kern/error.h>
 #include <kern/kmem.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
@@ -126,7 +128,7 @@ test_run(void *arg)
     threads = kmem_alloc(sizeof(*threads) * nr_threads);
 
     if (threads == NULL) {
-        panic("kmem_alloc: %s", error_str(ERROR_NOMEM));
+        panic("kmem_alloc: %s", strerror(ENOMEM));
     }
 
     for (i = 0; i < nr_threads; i++) {
@@ -140,7 +142,7 @@ test_run(void *arg)
     obj = vm_kmem_alloc(sizeof(*obj));
 
     if (obj == NULL) {
-        panic("vm_kmem_alloc: %s", error_str(ERROR_NOMEM));
+        panic("vm_kmem_alloc: %s", strerror(ENOMEM));
     }
 
     sref_counter_init(&obj->ref_counter, 1, NULL, test_obj_noref);

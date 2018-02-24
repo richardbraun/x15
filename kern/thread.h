@@ -213,8 +213,8 @@ void thread_join(struct thread *thread);
  * containing the interlock, but not necessarily.
  *
  * When bounding the duration of the sleep, the caller must pass an absolute
- * time in ticks, and ERROR_TIMEDOUT is returned if that time is reached
- * before the thread is awaken.
+ * time in ticks, and ETIMEDOUT is returned if that time is reached before
+ * the thread is awaken.
  *
  * Implies a memory barrier.
  */
@@ -227,7 +227,7 @@ int thread_timedsleep(struct spinlock *interlock, const void *wchan_addr,
  * Schedule a thread for execution on a processor.
  *
  * If the target thread is NULL, the calling thread, or already in the
- * running state, no action is performed and ERROR_INVAL is returned.
+ * running state, no action is performed and EINVAL is returned.
  *
  * TODO Describe memory ordering with regard to thread_sleep().
  */

@@ -25,9 +25,9 @@
 #define KERN_RTMUTEX_H
 
 #include <assert.h>
+#include <errno.h>
 #include <stdint.h>
 
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/rtmutex_i.h>
@@ -51,7 +51,7 @@ rtmutex_init(struct rtmutex *rtmutex)
  *
  * This function may not sleep.
  *
- * Return 0 on success, ERROR_BUSY if the mutex is already locked.
+ * Return 0 on success, EBUSY if the mutex is already locked.
  */
 static inline int
 rtmutex_trylock(struct rtmutex *rtmutex)
@@ -61,7 +61,7 @@ rtmutex_trylock(struct rtmutex *rtmutex)
     prev_owner = rtmutex_lock_fast(rtmutex);
 
     if (unlikely(prev_owner != 0)) {
-        return ERROR_BUSY;
+        return EBUSY;
     }
 
     return 0;

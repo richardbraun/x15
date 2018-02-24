@@ -16,11 +16,11 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/log.h>
 #include <kern/macros.h>
@@ -89,12 +89,12 @@ percpu_add(unsigned int cpu)
             percpu_skip_warning = 1;
         }
 
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     if (percpu_areas[cpu] != NULL) {
         log_err("percpu: id %u ignored, already registered", cpu);
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     if (percpu_area_size == 0) {
@@ -106,7 +106,7 @@ percpu_add(unsigned int cpu)
 
     if (page == NULL) {
         log_err("percpu: unable to allocate percpu area");
-        return ERROR_NOMEM;
+        return ENOMEM;
     }
 
     percpu_areas[cpu] = vm_page_direct_ptr(page);

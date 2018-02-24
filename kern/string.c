@@ -18,6 +18,7 @@
  * Trivial, portable implementations.
  */
 
+#include <errno.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -226,3 +227,34 @@ strchr(const char *s, int c)
     }
 }
 #endif /* STRING_ARCH_STRCHR */
+
+const char *
+strerror(int error)
+{
+    switch (error) {
+    case 0:
+        return "success";
+    case ENOMEM:
+        return "out of memory";
+    case EAGAIN:
+        return "resource temporarily unavailable";
+    case EINVAL:
+        return "invalid argument";
+    case EBUSY:
+        return "device or resource busy";
+    case EFAULT:
+        return "bad address";
+    case ENODEV:
+        return "no such device";
+    case EEXIST:
+        return "entry exists";
+    case EIO:
+        return "input/output error";
+    case ESRCH:
+        return "no such process";
+    case ETIMEDOUT:
+        return "timeout error";
+    default:
+        return "unknown error";
+    }
+}

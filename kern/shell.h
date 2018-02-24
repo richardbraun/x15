@@ -21,8 +21,9 @@
 #ifndef KERN_SHELL_H
 #define KERN_SHELL_H
 
+#include <errno.h>
+
 #include <kern/init.h>
-#include <kern/error.h>
 #include <kern/macros.h>
 
 #define SHELL_REGISTER_CMDS(cmds)                           \

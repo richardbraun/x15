@@ -42,7 +42,8 @@
 
 #ifndef __ASSEMBLER__
 
-#include <kern/error.h>
+#include <errno.h>
+
 #include <kern/macros.h>
 
 #define __init __section(QUOTE(INIT_SECTION))
@@ -94,7 +95,7 @@ typedef int (*init_op_fn_t)(void);
         .name = QUOTE(_fn),                                         \
         .fn = _fn,                                                  \
         .deps = INIT_OP_DEPS(_fn),                                  \
-        .error = ERROR_AGAIN,                                       \
+        .error = EAGAIN,                                            \
         .state = INIT_OP_STATE_UNLINKED,                            \
         .nr_deps = ARRAY_SIZE(INIT_OP_DEPS(_fn)),                   \
         .nr_parents = 0,                                            \

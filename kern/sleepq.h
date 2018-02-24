@@ -106,8 +106,8 @@ bool sleepq_empty(const struct sleepq *sleepq);
  * the queue, the queue is not immediately considered empty.
  *
  * When bounding the duration of the wait, the caller must pass an absolute
- * time in ticks, and ERROR_TIMEDOUT is returned if that time is reached
- * before the sleep queue is signalled.
+ * time in ticks, and ETIMEDOUT is returned if that time is reached before
+ * the sleep queue is signalled.
  */
 void sleepq_wait(struct sleepq *sleepq, const char *wchan);
 int sleepq_timedwait(struct sleepq *sleepq, const char *wchan, uint64_t ticks);

@@ -61,7 +61,7 @@ typedef void (*sref_noref_fn_t)(struct sref_counter *);
  * impossible to obtain or release references while idling.
  *
  * Unregistration can fail if internal data still require processing, in
- * which case a maintenance thread is awaken and ERROR_BUSY is returned.
+ * which case a maintenance thread is awaken and EBUSY is returned.
  *
  * Preemption must be disabled when calling these functions.
  */

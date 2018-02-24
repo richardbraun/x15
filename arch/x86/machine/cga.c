@@ -16,12 +16,12 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <kern/console.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/cbuf.h>
 #include <kern/macros.h>
@@ -180,7 +180,7 @@ cga_bbuf_get_phys_cursor(const struct cga_bbuf *bbuf, uint16_t *cursorp)
     assert((cursor & 1) == 0);
 
     if (cursor >= CGA_MEMORY_SIZE) {
-        return ERROR_NODEV;
+        return ENODEV;
     }
 
     *cursorp = (cursor >> 1);

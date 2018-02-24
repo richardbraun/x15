@@ -159,7 +159,7 @@ void cpumap_destroy(struct cpumap *cpumap);
  * Check the validity of a CPU map.
  *
  * If the map doesn't identify at least one managed processor, return
- * ERROR_INVAL.
+ * EINVAL.
  */
 int cpumap_check(const struct cpumap *cpumap);
 

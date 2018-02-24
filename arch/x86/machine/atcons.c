@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -76,12 +77,12 @@ atcons_esc_seq_lookup(const struct atcons_esc_seq **seqp)
                 *seqp = seq;
                 return 0;
             } else {
-                return ERROR_AGAIN;
+                return EAGAIN;
             }
         }
     }
 
-    return ERROR_SRCH;
+    return ESRCH;
 }
 
 static void
@@ -101,7 +102,7 @@ atcons_process_esc_seq(char c)
     error = atcons_esc_seq_lookup(&seq);
 
     if (error) {
-        if (error != ERROR_AGAIN) {
+        if (error != EAGAIN) {
             atcons_reset_esc_seq();
         }
     } else {

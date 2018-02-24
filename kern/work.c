@@ -16,6 +16,7 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdalign.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -414,7 +415,7 @@ work_thread_create(struct work_pool *pool, unsigned int id)
     worker = kmem_cache_alloc(&work_thread_cache);
 
     if (worker == NULL) {
-        return ERROR_NOMEM;
+        return ENOMEM;
     }
 
     worker->pool = pool;

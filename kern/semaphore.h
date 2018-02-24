@@ -45,10 +45,10 @@
 #define KERN_SEMAPHORE_H
 
 #include <assert.h>
+#include <errno.h>
 #include <stdint.h>
 
 #include <kern/atomic.h>
-#include <kern/error.h>
 
 #define SEMAPHORE_VALUE_MAX 32768
 
@@ -71,7 +71,7 @@ semaphore_init(struct semaphore *semaphore, unsigned int value)
  *
  * This function may not sleep.
  *
- * Return 0 on success, ERROR_AGAIN if the semaphore could not be decremented.
+ * Return 0 on success, EAGAIN if the semaphore could not be decremented.
  */
 static inline int
 semaphore_trywait(struct semaphore *semaphore)
@@ -81,7 +81,7 @@ semaphore_trywait(struct semaphore *semaphore)
     prev = semaphore_dec(semaphore);
 
     if (prev == 0) {
-        return ERROR_AGAIN;
+        return EAGAIN;
     }
 
     return 0;

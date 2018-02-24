@@ -64,11 +64,11 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdalign.h>
 #include <stddef.h>
 
 #include <kern/atomic.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/percpu.h>
@@ -253,7 +253,7 @@ spinlock_try_downgrade(struct spinlock *lock, unsigned int oldqid)
     assert(prev != SPINLOCK_QID_NULL);
 
     if (prev != oldqid) {
-        return ERROR_BUSY;
+        return EBUSY;
     }
 
     return 0;

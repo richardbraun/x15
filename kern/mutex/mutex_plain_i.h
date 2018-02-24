@@ -24,10 +24,10 @@
 #endif
 
 #include <assert.h>
+#include <errno.h>
 #include <stdint.h>
 
 #include <kern/atomic.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/mutex_types.h>
 
@@ -52,7 +52,7 @@ mutex_plain_lock_fast(struct mutex *mutex)
     state = atomic_cas_acquire(&mutex->state, MUTEX_UNLOCKED, MUTEX_LOCKED);
 
     if (unlikely(state != MUTEX_UNLOCKED)) {
-        return ERROR_BUSY;
+        return EBUSY;
     }
 
     return 0;
@@ -66,7 +66,7 @@ mutex_plain_unlock_fast(struct mutex *mutex)
     state = atomic_swap_release(&mutex->state, MUTEX_UNLOCKED);
 
     if (unlikely(state == MUTEX_CONTENDED)) {
-        return ERROR_BUSY;
+        return EBUSY;
     }
 
     return 0;

@@ -54,7 +54,7 @@ mutex_init(struct mutex *mutex)
  *
  * This function may not sleep.
  *
- * Return 0 on success, ERROR_BUSY if the mutex is already locked.
+ * Return 0 on success, EBUSY if the mutex is already locked.
  */
 static inline int
 mutex_trylock(struct mutex *mutex)

@@ -15,11 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
@@ -74,7 +74,7 @@ task_shell_info(int argc, char *argv[])
         task = task_lookup(argv[1]);
 
         if (task == NULL) {
-            error = ERROR_INVAL;
+            error = EINVAL;
             goto error;
         }
 
@@ -85,7 +85,7 @@ task_shell_info(int argc, char *argv[])
     return;
 
 error:
-    printf("task: info: %s\n", error_str(error));
+    printf("task: info: %s\n", strerror(error));
 }
 
 static struct shell_cmd task_shell_cmds[] = {
@@ -138,7 +138,7 @@ task_create(struct task **taskp, const char *name)
     task = kmem_cache_alloc(&task_cache);
 
     if (task == NULL) {
-        error = ERROR_NOMEM;
+        error = ENOMEM;
         goto error_task;
     }
 

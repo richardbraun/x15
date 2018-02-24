@@ -42,6 +42,7 @@ X15 augments the environment with a small subset of the functions provided
 in hosted environments. The additional headers are :
 
 ** cheader:assert
+** cheader:errno
 ** cheader:limits
 ** cheader:stdio
 ** cheader:string

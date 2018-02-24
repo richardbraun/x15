@@ -46,8 +46,8 @@ struct condition;
  * It is unlocked before waiting and relocked before returning.
  *
  * When bounding the duration of the wait, the caller must pass an absolute
- * time in ticks, and ERROR_TIMEDOUT is returned if that time is reached
- * before the sleep queue is signalled.
+ * time in ticks, and ETIMEDOUT is returned if that time is reached before
+ * the sleep queue is signalled.
  */
 void condition_wait(struct condition *condition, struct mutex *mutex);
 int condition_timedwait(struct condition *condition,

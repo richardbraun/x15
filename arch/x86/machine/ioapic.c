@@ -16,10 +16,10 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/intr.h>
 #include <kern/kmem.h>

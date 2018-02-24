@@ -16,12 +16,12 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <kern/cbuf.h>
-#include <kern/error.h>
 #include <kern/macros.h>
 
 /* Negative close to 0 so that an overflow occurs early */
@@ -62,7 +62,7 @@ cbuf_push(struct cbuf *cbuf, const void *buf, size_t size, bool erase)
         free_size = cbuf_capacity(cbuf) - cbuf_size(cbuf);
 
         if (size > free_size) {
-            return ERROR_AGAIN;
+            return EAGAIN;
         }
     }
 
@@ -75,7 +75,7 @@ cbuf_pop(struct cbuf *cbuf, void *buf, size_t *sizep)
     int error;
 
     if (cbuf_size(cbuf) == 0) {
-        return ERROR_AGAIN;
+        return EAGAIN;
     }
 
     error = cbuf_read(cbuf, cbuf_start(cbuf), buf, sizep);
@@ -93,7 +93,7 @@ cbuf_pushb(struct cbuf *cbuf, uint8_t byte, bool erase)
         free_size = cbuf_capacity(cbuf) - cbuf_size(cbuf);
 
         if (free_size == 0) {
-            return ERROR_AGAIN;
+            return EAGAIN;
         }
     }
 
@@ -109,7 +109,7 @@ cbuf_popb(struct cbuf *cbuf, void *bytep)
     uint8_t *ptr;
 
     if (cbuf_size(cbuf) == 0) {
-        return ERROR_AGAIN;
+        return EAGAIN;
     }
 
     ptr = bytep;
@@ -125,7 +125,7 @@ cbuf_write(struct cbuf *cbuf, size_t index, const void *buf, size_t size)
     size_t new_end, skip;
 
     if (!cbuf_range_valid(cbuf, index, cbuf->end)) {
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     new_end = index + size;
@@ -166,7 +166,7 @@ cbuf_read(const struct cbuf *cbuf, size_t index, void *buf, size_t *sizep)
 
     /* At least one byte must be available */
     if (!cbuf_range_valid(cbuf, index, index + 1)) {
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     size = cbuf->end - index;

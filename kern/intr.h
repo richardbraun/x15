@@ -28,7 +28,7 @@
  *
  * Return codes :
  *  - 0             Interrupt successfully handled
- *  - ERROR_AGAIN   Spurious interrupt
+ *  - EAGAIN        Spurious interrupt
  */
 typedef int (*intr_handler_fn_t)(void *arg);
 

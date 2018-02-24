@@ -15,10 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
-#include <kern/error.h>
 #include <kern/hash.h>
 #include <kern/init.h>
 #include <kern/log.h>
@@ -258,8 +258,8 @@ shell_cmd_match(const struct shell_cmd *cmd, const char *str,
  * eligible for completion.
  *
  * If there is a single match for the given string, return 0. If there
- * are more than one match, return ERROR_AGAIN. If there is no match,
- * return ERROR_INVAL.
+ * are more than one match, return EAGAIN. If there is no match,
+ * return EINVAL.
  *
  * The global lock must be acquired before calling this function.
  */
@@ -279,7 +279,7 @@ shell_cmd_complete(const char *str, unsigned long *sizep,
     cmd = shell_cmd_match(shell_list, str, size);
 
     if (cmd == NULL) {
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     *cmdp = cmd;
@@ -324,7 +324,7 @@ shell_cmd_complete(const char *str, unsigned long *sizep,
 
     size--;
     *sizep = size;
-    return ERROR_AGAIN;
+    return EAGAIN;
 }
 
 /*
@@ -370,7 +370,7 @@ shell_cmd_check_char(char c)
         return 0;
     }
 
-    return ERROR_INVAL;
+    return EINVAL;
 }
 
 static int
@@ -388,7 +388,7 @@ shell_cmd_check(const struct shell_cmd *cmd)
     }
 
     if (i == 0) {
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     return 0;
@@ -446,7 +446,7 @@ shell_cmd_add(struct shell_cmd *cmd)
     for (;;) {
         if (strcmp(cmd->name, tmp->name) == 0) {
             log_err("shell: %s: shell command name collision", cmd->name);
-            return ERROR_EXIST;
+            return EEXIST;
         }
 
         if (tmp->ht_next == NULL) {
@@ -519,11 +519,11 @@ shell_line_insert(struct shell_line *line, unsigned long index, char c)
     unsigned long remaining_chars;
 
     if (index > line->size) {
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     if ((line->size + 1) == sizeof(line->str)) {
-        return ERROR_NOMEM;
+        return ENOMEM;
     }
 
     remaining_chars = line->size - index;
@@ -544,7 +544,7 @@ shell_line_erase(struct shell_line *line, unsigned long index)
     unsigned long remaining_chars;
 
     if (index >= line->size) {
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     remaining_chars = line->size - index - 1;
@@ -764,7 +764,7 @@ static int
 shell_process_right(void)
 {
     if (shell_cursor >= shell_line_size(shell_history_get_newest())) {
-        return ERROR_AGAIN;
+        return EAGAIN;
     }
 
     shell_cursor++;
@@ -867,12 +867,12 @@ shell_process_tabulation(void)
 
     error = shell_cmd_complete(word, &size, &cmd);
 
-    if (error && (error != ERROR_AGAIN)) {
+    if (error && (error != EAGAIN)) {
         error = 0;
         goto out;
     }
 
-    if (error == ERROR_AGAIN) {
+    if (error == EAGAIN) {
         unsigned long cursor;
 
         cursor = shell_cursor;
@@ -1056,7 +1056,7 @@ shell_process_args(void)
 
                 if (j == ARRAY_SIZE(shell_argv)) {
                     printf("shell: too many arguments\n");
-                    return ERROR_INVAL;
+                    return EINVAL;
                 }
 
                 shell_argv[j] = NULL;
@@ -1119,7 +1119,7 @@ shell_process_ctrl_char(char c)
     case '\r':
         putchar('\n');
         shell_process_line();
-        return ERROR_AGAIN;
+        return EAGAIN;
     default:
         return 0;
     }

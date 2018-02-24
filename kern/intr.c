@@ -22,6 +22,7 @@
  * Shared interrupts are supported.
  */
 
+#include <errno.h>
 #include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -107,7 +108,7 @@ intr_handler_create(struct intr_handler **handlerp,
     handler = kmem_cache_alloc(&intr_handler_cache);
 
     if (handler == NULL) {
-        return ERROR_NOMEM;
+        return ENOMEM;
     }
 
     handler->fn = fn;
@@ -259,7 +260,7 @@ intr_entry_add(struct intr_entry *entry, struct intr_handler *handler)
         ctl = intr_lookup_ctl(intr_entry_get_intr(entry));
 
         if (ctl == NULL) {
-            error = ERROR_NODEV;
+            error = ENODEV;
             goto out;
         }
 

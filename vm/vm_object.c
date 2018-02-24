@@ -20,6 +20,7 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -72,7 +73,7 @@ vm_object_insert(struct vm_object *object, struct vm_page *page,
     mutex_lock(&object->lock);
 
     if (offset >= object->size) {
-        error = ERROR_INVAL;
+        error = EINVAL;
         goto error;
     }
 

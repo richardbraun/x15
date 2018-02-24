@@ -15,11 +15,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stddef.h>
 
 #include <kern/bitmap.h>
 #include <kern/cpumap.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/macros.h>
@@ -63,7 +63,7 @@ cpumap_create(struct cpumap **cpumapp)
     cpumap = kmem_cache_alloc(&cpumap_cache);
 
     if (cpumap == NULL) {
-        return ERROR_NOMEM;
+        return ENOMEM;
     }
 
     *cpumapp = cpumap;
@@ -84,7 +84,7 @@ cpumap_check(const struct cpumap *cpumap)
     index = bitmap_find_first(cpumap->cpus, cpu_count());
 
     if (index == -1) {
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     return 0;

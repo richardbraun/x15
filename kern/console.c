@@ -16,13 +16,13 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <kern/arg.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/console.h>
 #include <kern/list.h>
@@ -76,7 +76,7 @@ console_process_ctrl_char(struct console *console, char c)
     case CONSOLE_SCROLL_DOWN:
         break;
     default:
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     console->ops->putc(console, c);

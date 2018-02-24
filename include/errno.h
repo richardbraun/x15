@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 Richard Braun.
+ * Copyright (c) 2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,22 +15,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <errno.h>
-#include <stddef.h>
-#include <string.h>
+#ifndef ERRNO_H
+#define ERRNO_H
 
-#include <kern/error.h>
-#include <kern/panic.h>
+#define ENOMEM              1
+#define EAGAIN              2
+#define EINVAL              3
+#define EBUSY               4
+#define EFAULT              5
+#define ENODEV              6
+#define EEXIST              7
+#define EIO                 8
+#define ESRCH               9
+#define ETIMEDOUT           10
 
-void
-error_check(int error, const char *prefix)
-{
-    if (!error) {
-        return;
-    }
-
-    panic("%s%s%s",
-          (prefix == NULL) ? "" : prefix,
-          (prefix == NULL) ? "" : ": ",
-          strerror(error));
-}
+#endif /* ERRNO_H */

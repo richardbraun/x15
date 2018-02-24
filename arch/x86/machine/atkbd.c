@@ -21,12 +21,12 @@
  * supported. This includes any communication with the keyboard itself.
  */
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include <kern/console.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/intr.h>
 #include <kern/log.h>
@@ -501,19 +501,19 @@ atkbd_read_status(bool check_out)
      */
     if (status == 0xff) {
         log_info("atkbd: no keyboard controller");
-        return ERROR_NODEV;
+        return ENODEV;
     } else if (status & ATKBD_STATUS_PARITY_ERROR) {
         log_err("atkbd: parity error");
-        return ERROR_IO;
+        return EIO;
     } else if (status & ATKBD_STATUS_TIMEOUT_ERROR) {
         log_err("atkbd: timeout error");
-        return ERROR_TIMEDOUT;
+        return ETIMEDOUT;
     }
 
     if (check_out) {
-        return (status & ATKBD_STATUS_OUT_FULL) ? 0 : ERROR_AGAIN;
+        return (status & ATKBD_STATUS_OUT_FULL) ? 0 : EAGAIN;
     } else {
-        return (status & ATKBD_STATUS_IN_FULL) ? ERROR_AGAIN : 0;
+        return (status & ATKBD_STATUS_IN_FULL) ? EAGAIN : 0;
     }
 }
 
@@ -531,7 +531,7 @@ atkbd_out_wait(void)
     for (;;) {
         error = atkbd_read_status(true);
 
-        if (error != ERROR_AGAIN) {
+        if (error != EAGAIN) {
             break;
         }
     }
@@ -547,7 +547,7 @@ atkbd_in_wait(void)
     for (;;) {
         error = atkbd_read_status(false);
 
-        if (error != ERROR_AGAIN) {
+        if (error != EAGAIN) {
             break;
         }
     }
@@ -599,7 +599,7 @@ atkbd_flush(void)
         error = atkbd_read(&byte, false);
     } while (!error);
 
-    if (error == ERROR_AGAIN) {
+    if (error == EAGAIN) {
         error = 0;
     }
 

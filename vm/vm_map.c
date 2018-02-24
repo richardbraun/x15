@@ -20,11 +20,11 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
@@ -202,14 +202,14 @@ vm_map_find_fixed(struct vm_map *map, struct vm_map_request *request)
     size = request->size;
 
     if ((start < map->start) || (start + size) > map->end) {
-        return ERROR_NOMEM;
+        return ENOMEM;
     }
 
     next = vm_map_lookup_nearest(map, start);
 
     if (next == NULL) {
         if ((map->end - start) < size) {
-            return ERROR_NOMEM;
+            return ENOMEM;
         }
 
         request->next = NULL;
@@ -217,7 +217,7 @@ vm_map_find_fixed(struct vm_map *map, struct vm_map_request *request)
     }
 
     if ((start >= next->start) || ((next->start - start) < size)) {
-        return ERROR_NOMEM;
+        return ENOMEM;
     }
 
     request->next = next;
@@ -281,7 +281,7 @@ retry:
                 goto retry;
             }
 
-            return ERROR_NOMEM;
+            return ENOMEM;
         }
 
         if (next == NULL) {
@@ -784,7 +784,7 @@ vm_map_create(struct vm_map **mapp)
     map = kmem_cache_alloc(&vm_map_cache);
 
     if (map == NULL) {
-        error = ERROR_NOMEM;
+        error = ENOMEM;
         goto error_map;
     }
 

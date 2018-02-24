@@ -82,6 +82,7 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -93,7 +94,6 @@
 #include <kern/atomic.h>
 #include <kern/clock.h>
 #include <kern/cpumap.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
@@ -1813,14 +1813,14 @@ thread_init(struct thread *thread, void *stack,
     thread->priv_sleepq = sleepq_create();
 
     if (thread->priv_sleepq == NULL) {
-        error = ERROR_NOMEM;
+        error = ENOMEM;
         goto error_sleepq;
     }
 
     thread->priv_turnstile = turnstile_create();
 
     if (thread->priv_turnstile == NULL) {
-        error = ERROR_NOMEM;
+        error = ENOMEM;
         goto error_turnstile;
     }
 
@@ -2208,7 +2208,7 @@ thread_shell_trace(int argc, char *argv[])
     int error;
 
     if (argc != 3) {
-        error = ERROR_INVAL;
+        error = EINVAL;
         goto error;
     }
 
@@ -2218,7 +2218,7 @@ thread_shell_trace(int argc, char *argv[])
     task = task_lookup(task_name);
 
     if (task == NULL) {
-        error = ERROR_SRCH;
+        error = ESRCH;
         goto error;
     }
 
@@ -2226,7 +2226,7 @@ thread_shell_trace(int argc, char *argv[])
     task_unref(task);
 
     if (thread == NULL) {
-        error = ERROR_SRCH;
+        error = ESRCH;
         goto error;
     }
 
@@ -2244,7 +2244,7 @@ thread_shell_trace(int argc, char *argv[])
     return;
 
 error:
-    printf("thread: trace: %s\n", error_str(error));
+    printf("thread: trace: %s\n", strerror(error));
 }
 
 static struct shell_cmd thread_shell_cmds[] = {
@@ -2346,14 +2346,14 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
     thread = kmem_cache_alloc(&thread_cache);
 
     if (thread == NULL) {
-        error = ERROR_NOMEM;
+        error = ENOMEM;
         goto error_thread;
     }
 
     stack = thread_alloc_stack();
 
     if (stack == NULL) {
-        error = ERROR_NOMEM;
+        error = ENOMEM;
         goto error_stack;
     }
 
@@ -2439,7 +2439,7 @@ thread_wakeup_common(struct thread *thread, int error)
     unsigned long flags;
 
     if ((thread == NULL) || (thread == thread_self())) {
-        return ERROR_INVAL;
+        return EINVAL;
     }
 
     /*
@@ -2455,7 +2455,7 @@ thread_wakeup_common(struct thread *thread, int error)
 
         if (thread->state == THREAD_RUNNING) {
             thread_unlock_runq(runq, flags);
-            return ERROR_INVAL;
+            return EINVAL;
         }
 
         thread_clear_wchan(thread);
@@ -2501,7 +2501,7 @@ thread_timeout(struct timer *timer)
     struct thread_timeout_waiter *waiter;
 
     waiter = structof(timer, struct thread_timeout_waiter, timer);
-    thread_wakeup_common(waiter->thread, ERROR_TIMEDOUT);
+    thread_wakeup_common(waiter->thread, ETIMEDOUT);
 }
 
 static int

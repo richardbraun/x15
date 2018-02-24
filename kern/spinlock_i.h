@@ -19,11 +19,11 @@
 #define KERN_SPINLOCK_I_H
 
 #include <assert.h>
+#include <errno.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #include <kern/atomic.h>
-#include <kern/error.h>
 #include <kern/macros.h>
 #include <kern/spinlock_types.h>
 #include <kern/thread.h>
@@ -72,7 +72,7 @@ spinlock_lock_fast(struct spinlock *lock)
     prev = atomic_cas_acquire(&lock->value, SPINLOCK_UNLOCKED, SPINLOCK_LOCKED);
 
     if (unlikely(prev != SPINLOCK_UNLOCKED)) {
-        return ERROR_BUSY;
+        return EBUSY;
     }
 
     spinlock_own(lock);
@@ -88,7 +88,7 @@ spinlock_unlock_fast(struct spinlock *lock)
     prev = atomic_cas_release(&lock->value, SPINLOCK_LOCKED, SPINLOCK_UNLOCKED);
 
     if (unlikely(prev != SPINLOCK_LOCKED)) {
-        return ERROR_BUSY;
+        return EBUSY;
     }
 
     return 0;

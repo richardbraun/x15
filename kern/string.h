@@ -30,5 +30,6 @@ size_t strlcpy(char * restrict dest, const char * restrict src, size_t n);
 int strcmp(const char *s1, const char *s2);
 int strncmp(const char *s1, const char *s2, size_t n);
 char * strchr(const char *s, int c);
+const char * strerror(int error);
 
 #endif /* KERN_STRING_H */

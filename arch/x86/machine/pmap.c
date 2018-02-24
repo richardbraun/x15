@@ -19,13 +19,13 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdalign.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <kern/cpumap.h>
-#include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
@@ -666,7 +666,7 @@ pmap_update_oplist_create(struct pmap_update_oplist **oplistp)
     oplist = kmem_cache_alloc(&pmap_update_oplist_cache);
 
     if (oplist == NULL) {
-        return ERROR_NOMEM;
+        return ENOMEM;
     }
 
     *oplistp = oplist;
@@ -1122,7 +1122,7 @@ pmap_kextract(uintptr_t va, phys_addr_t *pap)
         pte = &ptp[pmap_pte_index(va, pt_level)];
 
         if (!pmap_pte_valid(*pte)) {
-            return ERROR_FAULT;
+            return EFAULT;
         }
 
         if ((level == 0) || pmap_pte_large(*pte)) {
@@ -1146,7 +1146,7 @@ pmap_create(struct pmap **pmapp)
     pmap = kmem_cache_alloc(&pmap_cache);
 
     if (pmap == NULL) {
-        return ERROR_NOMEM;
+        return ENOMEM;
     }
 
     for (i = 0; i < ARRAY_SIZE(pmap->cpu_tables); i++) {
@@ -1194,7 +1194,7 @@ pmap_enter_local(struct pmap *pmap, uintptr_t va, phys_addr_t pa,
 
             if (page == NULL) {
                 log_warning("pmap: page table page allocation failure");
-                return ERROR_NOMEM;
+                return ENOMEM;
             }
 
             ptp_pa = vm_page_to_pa(page);
