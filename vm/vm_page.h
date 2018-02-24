@@ -108,7 +108,7 @@ void vm_page_set_type(struct vm_page *page, unsigned int order,
 static inline unsigned int
 vm_page_order(size_t size)
 {
-    return iorder2(vm_page_btop(vm_page_round(size)));
+    return log2_order(vm_page_btop(vm_page_round(size)));
 }
 
 static inline phys_addr_t

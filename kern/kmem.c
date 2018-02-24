@@ -1242,7 +1242,7 @@ INIT_OP_DEFINE(kmem_setup,
 static inline size_t
 kmem_get_index(unsigned long size)
 {
-    return iorder2(size) - KMEM_CACHES_FIRST_ORDER;
+    return log2_order(size) - KMEM_CACHES_FIRST_ORDER;
 }
 
 static void

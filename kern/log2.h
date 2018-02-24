@@ -16,8 +16,6 @@
  *
  *
  * Integer base 2 logarithm operations.
- *
- * TODO Fix naming.
  */
 
 #ifndef _KERN_LOG2_H
@@ -26,15 +24,23 @@
 #include <assert.h>
 #include <limits.h>
 
+/*
+ * Return the base-2 logarithm of the given value, or of the first
+ * power-of-two below the given value if it's not a power-of-two.
+ */
 static inline unsigned int
-ilog2(unsigned long x)
+log2(unsigned long x)
 {
     assert(x != 0);
     return LONG_BIT - __builtin_clzl(x) - 1;
 }
 
+/*
+ * Return the base-2 logarithm of the given value, or of the first
+ * power-of-two above the given value if it's not a power-of-two.
+ */
 static inline unsigned int
-iorder2(unsigned long size)
+log2_order(unsigned long size)
 {
     assert(size != 0);
 
@@ -42,7 +48,7 @@ iorder2(unsigned long size)
         return 0;
     }
 
-    return ilog2(size - 1) + 1;
+    return log2(size - 1) + 1;
 }
 
 #endif /* _KERN_LOG2_H */
