@@ -1,12 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''
 Configuration builder.
 
 Generate a large number of valid configurations, build them concurrently,
 and report.
 '''
-
-from __future__ import print_function
 
 import itertools
 import multiprocessing
