@@ -84,6 +84,12 @@ endmenu
 
 menu "Debugging"
 
+config KMEM_DEBUG
+	bool "Kernel allocator debugging"
+	default n
+	---help---
+	  Enable the debugging of the kernel allocator.
+
 config INIT_DEBUG
 	bool "Initialization debugging"
 	default n

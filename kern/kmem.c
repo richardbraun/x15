@@ -550,11 +550,11 @@ kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
     struct kmem_cpu_pool_type *cpu_pool_type;
     size_t i, buf_size;
 
-#ifdef KMEM_VERIFY
+#ifdef CONFIG_KMEM_DEBUG
     cache->flags = KMEM_CF_VERIFY;
-#else /* KMEM_CF_VERIFY */
+#else /* CONFIG_KMEM_DEBUG */
     cache->flags = 0;
-#endif /* KMEM_CF_VERIFY */
+#endif /* CONFIG_KMEM_DEBUG */
 
     if (flags & KMEM_CACHE_VERIFY) {
         cache->flags |= KMEM_CF_VERIFY;
