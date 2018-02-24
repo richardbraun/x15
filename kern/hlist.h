@@ -14,6 +14,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
+ * Upstream site with license notes :
+ * http://git.sceen.net/rbraun/librbraun.git/
+ *
  *
  * Doubly-linked list specialized for forward traversals and O(1) removals.
  */

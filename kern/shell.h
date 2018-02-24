@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Richard Braun.
+ * Copyright (c) 2015-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,6 +13,9 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Upstream site with license notes :
+ * http://git.sceen.net/rbraun/librbraun.git/
  *
  *
  * Minimalist shell for embedded systems.

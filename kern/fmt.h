@@ -14,6 +14,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
+ * Upstream site with license notes :
+ * http://git.sceen.net/rbraun/librbraun.git/
+ *
  *
  * Formatted string functions.
  *
@@ -32,14 +35,10 @@
  * common:
  *  - modifiers: hh h l ll z t
  *  - specifiers: d i o u x X c s p n %
- *
- *
- * Upstream site with license notes :
- * http://git.sceen.net/rbraun/librbraun.git/
  */
 
-#ifndef FMT_H
-#define FMT_H
+#ifndef KERN_FMT_H
+#define KERN_FMT_H
 
 #include <stdarg.h>
 #include <stddef.h>
@@ -62,4 +61,4 @@ int fmt_sscanf(const char *str, const char *format, ...)
 int fmt_vsscanf(const char *str, const char *format, va_list ap)
     __attribute__((format(scanf, 2, 0)));
 
-#endif /* FMT_H */
+#endif /* KERN_FMT_H */
