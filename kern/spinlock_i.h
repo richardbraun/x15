@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 Richard Braun.
+ * Copyright (c) 2012-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,12 +30,12 @@
 #include <machine/cpu.h>
 
 /*
- * Non-contended lock values.
+ * Uncontended lock values.
  *
- * Any other lock value implies a contended lock.
+ * Any other value implies a contended lock.
  */
-#define SPINLOCK_UNLOCKED   0
-#define SPINLOCK_LOCKED     1
+#define SPINLOCK_UNLOCKED   0x0
+#define SPINLOCK_LOCKED     0x1
 
 #ifdef SPINLOCK_TRACK_OWNER
 
@@ -63,7 +63,7 @@ spinlock_disown(struct spinlock *lock)
 static inline int
 spinlock_lock_fast(struct spinlock *lock)
 {
-    unsigned int prev;
+    uint32_t prev;
 
     prev = atomic_cas_acquire(&lock->value, SPINLOCK_UNLOCKED, SPINLOCK_LOCKED);
 
@@ -75,24 +75,7 @@ spinlock_lock_fast(struct spinlock *lock)
     return 0;
 }
 
-static inline int
-spinlock_unlock_fast(struct spinlock *lock)
-{
-    unsigned int prev;
-
-    spinlock_disown(lock);
-    prev = atomic_cas_release(&lock->value, SPINLOCK_LOCKED, SPINLOCK_UNLOCKED);
-
-    if (unlikely(prev != SPINLOCK_LOCKED)) {
-        return EBUSY;
-    }
-
-    return 0;
-}
-
 void spinlock_lock_slow(struct spinlock *lock);
-
-void spinlock_unlock_slow(struct spinlock *lock);
 
 static inline void
 spinlock_lock_common(struct spinlock *lock)
@@ -109,13 +92,8 @@ spinlock_lock_common(struct spinlock *lock)
 static inline void
 spinlock_unlock_common(struct spinlock *lock)
 {
-    int error;
-
-    error = spinlock_unlock_fast(lock);
-
-    if (unlikely(error)) {
-        spinlock_unlock_slow(lock);
-    }
+    spinlock_disown(lock);
+    atomic_and(&lock->value, ~SPINLOCK_LOCKED, ATOMIC_RELEASE);
 }
 
 #endif /* KERN_SPINLOCK_I_H */

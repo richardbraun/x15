@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,54 +19,46 @@
  * Synchronization on Shared-Memory Multiprocessors" by John M. Mellor-Crummey
  * and Michael L. Scott, which describes MCS locks, among other algorithms.
  *
- * In order to avoid the need to allocate a qnode for every spin lock
- * currently held, and also to keep the size of locks to a single 32-bits
- * word, this module actually uses a variant of the MCS locks. The
- * differences are presented below.
+ * Here are additional issues this module solves that require modifications
+ * to the original MCS algorithm :
+ *  - There must not be any limit on the number of spin locks a thread may
+ *    hold, and spinlocks must not need dynamic memory allocation.
+ *  - Unlocking a spin lock must be a non-blocking operation. Without
+ *    this requirement, a locking operation may be interrupted in the
+ *    middle of a hand-off sequence, preventing the unlock operation
+ *    from completing, potentially causing tricky deadlocks.
+ *  - Spin lock storage must not exceed 32 bits.
  *
- * First, the lock owner is never part of the lock queue. This makes it
- * possible to use a qnode only during the lock operation, not after.
- * This means a single qnode per execution context is required even when
- * holding multiple spin locks simultaneously. In order to achieve that,
- * a spin lock not only refers to the last waiter, but also to the first,
- * which is the owner's qnode->next in the original algorithm.
+ * In order to solve these issues, the lock owner is never part of the
+ * lock queue. This makes it possible to use a qnode only during the lock
+ * operation, not after. This means a single qnode per execution context
+ * is required even when holding multiple spin locks simultaneously.
  *
- * Next, instead of two pointers, the lock is a single word storing
- * compressed references to both the first and last waiters. Those
- * references are integers called QIDs, for qnode IDs. They can be
- * broken down into 3 parts :
- *  - the lock bit
+ * In addition, instead of making the owner perform a hand-off sequence
+ * to unblock the first waiter when unlocking, the latter directly spins
+ * on the lock word, and is the one performing the hand-off sequence with
+ * the second waiter. As a side effect, this also optimizes spinning for
+ * the common case of a single waiter.
+ *
+ * When a lock is held, the lock bit is set, and when a lock is contended
+ * the contended bit is set. When contended, the lock word also contains
+ * a compressed reference to the last waiter. That reference is called a
+ * QID (for qnode ID). It is structured into two parts :
  *  - the execution context
- *  - the target CPU ID
+ *  - the CPU ID
  *
- * The layout of a QID is carefully crafted to match the lock values
- * expected by the fast paths. Without contention, a QID value must
- * be SPINLOCK_UNLOCKED when a lock isn't held, and SPINLOCK_LOCKED
- * when it is. Besides, without contention, the reference to the first
- * waiter is logically NULL so that the whole lock value matches one
- * of SPINLOCK_UNLOCKED or SPINLOCK_LOCKED. This means that the values
- * of the execution context and the CPU ID must be 0 in the absence of
- * contention. In the presence of contention, the execution context and
- * CPU ID are used to uniquely identify a statically allocated qnode,
- * and fast paths operations fail. The lock operation must make sure
- * that the lock value is restored to SPINLOCK_LOCKED if there is no
- * more contention, an operation called downgrading.
- *
- * In order to enforce correct visibility of the critical section,
- * acquire and release atomic operations are used when accessing a
- * qnode lock. Similarly, acquire and release semantics are also used
- * when accessing the lock word which stores the first and last QIDs,
- * so that the memory operations on the qnodes referenced by those QIDs
- * are correctly enforced. Accessing the next QID in a qnode however
- * is performed with no memory order constraint, because the qnodes
- * referenced by those QID are never accessed unless they are the first
- * or the last, cases which do enforce ordering.
+ * The QID is used to uniquely identify a statically allocated qnode,
+ * The lock operation must make sure that the lock value is restored
+ * to SPINLOCK_LOCKED if there is no more contention, an operation
+ * called downgrading.
  */
 
 #include <assert.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdalign.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include <kern/atomic.h>
 #include <kern/init.h>
@@ -78,62 +70,84 @@
 #include <kern/thread.h>
 #include <machine/cpu.h>
 
-#define SPINLOCK_QID_LOCK_BIT       1
+#define SPINLOCK_CONTENDED          0x2
 
-#define SPINLOCK_QID_CTX_BITS       2
-#define SPINLOCK_QID_CTX_SHIFT      SPINLOCK_QID_LOCK_BIT
-#define SPINLOCK_QID_CTX_MAX        (1 << SPINLOCK_QID_CTX_BITS)
-#define SPINLOCK_QID_CTX_MASK       (SPINLOCK_QID_CTX_MAX - 1)
+#define SPINLOCK_LOCKED_BITS        1
+#define SPINLOCK_CONTENDED_BITS     1
 
-#define SPINLOCK_QID_CPU_BITS       13
-#define SPINLOCK_QID_CPU_SHIFT      (SPINLOCK_QID_CTX_BITS \
-                                     + SPINLOCK_QID_CTX_SHIFT)
-#define SPINLOCK_QID_CPU_MAX        (1 << SPINLOCK_QID_CPU_BITS)
-#define SPINLOCK_QID_CPU_MASK       (SPINLOCK_QID_CPU_MAX - 1)
+#define SPINLOCK_QID_SHIFT          (SPINLOCK_CONTENDED_BITS \
+                                     + SPINLOCK_LOCKED_BITS)
 
-#define SPINLOCK_QID_BITS           (SPINLOCK_QID_CPU_BITS          \
-                                     + SPINLOCK_QID_CTX_BITS        \
-                                     + SPINLOCK_QID_LOCK_BIT)
-#define SPINLOCK_QID_MAX            (1 << SPINLOCK_QID_BITS)
-#define SPINLOCK_QID_MASK           (SPINLOCK_QID_MAX - 1)
+#define SPINLOCK_QID_CTX_BITS       1
+#define SPINLOCK_QID_CTX_SHIFT      0
+#define SPINLOCK_QID_CTX_MASK       ((1U << SPINLOCK_QID_CTX_BITS) - 1)
 
-#define SPINLOCK_QID_MAX_BITS       16
+#define SPINLOCK_QID_CPU_BITS       29
+#define SPINLOCK_QID_CPU_SHIFT      (SPINLOCK_QID_CTX_SHIFT \
+                                     + SPINLOCK_QID_CTX_BITS)
+#define SPINLOCK_QID_CPU_MASK       ((1U << SPINLOCK_QID_CPU_BITS) - 1)
 
-#define SPINLOCK_QID_NULL           SPINLOCK_UNLOCKED
-#define SPINLOCK_QID_LOCKED         SPINLOCK_LOCKED
+#define SPINLOCK_BITS               (SPINLOCK_QID_CPU_BITS      \
+                                     + SPINLOCK_QID_CTX_BITS    \
+                                     + SPINLOCK_CONTENDED_BITS  \
+                                     + SPINLOCK_LOCKED_BITS)
 
-#if SPINLOCK_QID_BITS > SPINLOCK_QID_MAX_BITS
-#error "spinlock qid too large"
-#endif
-
-#if CONFIG_MAX_CPUS > (1 << SPINLOCK_QID_CPU_BITS)
+#if CONFIG_MAX_CPUS > (1U << SPINLOCK_QID_CPU_BITS)
 #error "maximum number of supported processors too large"
 #endif
 
+static_assert(SPINLOCK_BITS <= (CHAR_BIT * sizeof(uint32_t)),
+              "spinlock too large");
+
 struct spinlock_qnode {
-    unsigned int next_qid;
+    alignas(CPU_L1_SIZE) struct spinlock_qnode *next;
     bool locked;
 };
 
-#define SPINLOCK_CTX_INVALID    0
-#define SPINLOCK_CTX_THREAD     1
-#define SPINLOCK_CTX_INTR       2
-#define SPINLOCK_CTX_NMI        3
-#define SPINLOCK_NR_CTXS        4
+/* TODO NMI support */
+enum {
+    SPINLOCK_CTX_THREAD,
+    SPINLOCK_CTX_INTR,
+    SPINLOCK_NR_CTXS
+};
 
-#if SPINLOCK_CTX_INVALID != 0
-#error "the invalid context value must be 0"
-#endif
-
-#if SPINLOCK_NR_CTXS > SPINLOCK_QID_CTX_MAX
-#error "maximum number of contexts too large"
-#endif
+static_assert(SPINLOCK_NR_CTXS <= (SPINLOCK_QID_CTX_MASK + 1),
+              "maximum number of contexts too large");
 
 struct spinlock_cpu_data {
-    alignas(CPU_L1_SIZE) struct spinlock_qnode qnodes[SPINLOCK_NR_CTXS - 1];
+    struct spinlock_qnode qnodes[SPINLOCK_NR_CTXS];
 };
 
 static struct spinlock_cpu_data spinlock_cpu_data __percpu;
+
+static struct spinlock_qnode *
+spinlock_cpu_data_get_qnode(struct spinlock_cpu_data *cpu_data,
+                            unsigned int ctx)
+{
+    assert(ctx < ARRAY_SIZE(cpu_data->qnodes));
+    return &cpu_data->qnodes[ctx];
+}
+
+static uint32_t
+spinlock_qid_build(unsigned int ctx, unsigned int cpu)
+{
+    assert(ctx <= SPINLOCK_QID_CTX_MASK);
+    assert(cpu <= SPINLOCK_QID_CPU_MASK);
+
+    return (cpu << SPINLOCK_QID_CPU_SHIFT) | (ctx << SPINLOCK_QID_CTX_SHIFT);
+}
+
+static unsigned int
+spinlock_qid_ctx(uint32_t qid)
+{
+    return (qid >> SPINLOCK_QID_CTX_SHIFT) & SPINLOCK_QID_CTX_MASK;
+}
+
+static unsigned int
+spinlock_qid_cpu(uint32_t qid)
+{
+    return (qid >> SPINLOCK_QID_CPU_SHIFT) & SPINLOCK_QID_CPU_MASK;
+}
 
 void
 spinlock_init(struct spinlock *lock)
@@ -145,114 +159,146 @@ spinlock_init(struct spinlock *lock)
 #endif /* SPINLOCK_TRACK_OWNER */
 }
 
-static unsigned int
-spinlock_qid2ctx(unsigned int qid)
+static void
+spinlock_qnode_init(struct spinlock_qnode *qnode)
 {
-    return (qid >> SPINLOCK_QID_CTX_SHIFT) & SPINLOCK_QID_CTX_MASK;
+    qnode->next = NULL;
 }
 
-static unsigned int
-spinlock_qid2cpu(unsigned int qid)
+static struct spinlock_qnode *
+spinlock_qnode_wait_next(const struct spinlock_qnode *qnode)
 {
-    return (qid >> SPINLOCK_QID_CPU_SHIFT) & SPINLOCK_QID_CPU_MASK;
-}
+    struct spinlock_qnode *next;
 
-static unsigned int
-spinlock_build_qid(unsigned int cpu, unsigned int ctx)
-{
-    return (cpu << SPINLOCK_QID_CPU_SHIFT)
-           | (ctx << SPINLOCK_QID_CTX_SHIFT)
-           | SPINLOCK_QID_LOCK_BIT;
+    for (;;) {
+        next = atomic_load(&qnode->next, ATOMIC_ACQUIRE);
+
+        if (next) {
+            break;
+        }
+
+        cpu_pause();
+    }
+
+    return next;
 }
 
 static void
-spinlock_get_local_qnode(struct spinlock_qnode **qnodep, unsigned int *qidp)
+spinlock_qnode_set_next(struct spinlock_qnode *qnode, struct spinlock_qnode *next)
+{
+    assert(next);
+    atomic_store(&qnode->next, next, ATOMIC_RELEASE);
+}
+
+static void
+spinlock_qnode_set_locked(struct spinlock_qnode *qnode)
+{
+    qnode->locked = true;
+}
+
+static void
+spinlock_qnode_wait_locked(const struct spinlock_qnode *qnode)
+{
+    bool locked;
+
+    for (;;) {
+        locked = atomic_load(&qnode->locked, ATOMIC_ACQUIRE);
+
+        if (!locked) {
+            break;
+        }
+
+        cpu_pause();
+    }
+}
+
+static void
+spinlock_qnode_clear_locked(struct spinlock_qnode *qnode)
+{
+    atomic_store(&qnode->locked, false, ATOMIC_RELEASE);
+}
+
+static void
+spinlock_get_local_qnode(struct spinlock_qnode **qnode, uint32_t *qid)
 {
     struct spinlock_cpu_data *cpu_data;
     unsigned int ctx;
 
     cpu_data = cpu_local_ptr(spinlock_cpu_data);
-
-    /* TODO NMI support */
     ctx = thread_interrupted() ? SPINLOCK_CTX_INTR : SPINLOCK_CTX_THREAD;
-    *qnodep = &cpu_data->qnodes[ctx - 1];
-    *qidp = spinlock_build_qid(cpu_id(), ctx);
+    *qnode = spinlock_cpu_data_get_qnode(cpu_data, ctx);
+    *qid = spinlock_qid_build(ctx, cpu_id());
+}
+
+static uint32_t
+spinlock_enqueue(struct spinlock *lock, uint32_t qid)
+{
+    uint32_t old_value, new_value, prev, next;
+
+    next = (qid << SPINLOCK_QID_SHIFT) | SPINLOCK_CONTENDED;
+
+    for (;;) {
+        old_value = atomic_load(&lock->value, ATOMIC_RELAXED);
+        new_value = next | (old_value & SPINLOCK_LOCKED);
+        prev = atomic_cas(&lock->value, old_value, new_value, ATOMIC_RELEASE);
+
+        if (prev == old_value) {
+            break;
+        }
+
+        cpu_pause();
+    }
+
+    return prev;
 }
 
 static struct spinlock_qnode *
-spinlock_get_remote_qnode(unsigned int qid)
+spinlock_get_remote_qnode(uint32_t qid)
 {
     struct spinlock_cpu_data *cpu_data;
     unsigned int ctx, cpu;
 
-    ctx = spinlock_qid2ctx(qid);
+    /* This fence synchronizes with queueing */
+    atomic_fence_acquire();
 
-    if (ctx == SPINLOCK_CTX_INVALID) {
-        return NULL;
-    }
-
-    ctx--;
-    assert(ctx < ARRAY_SIZE(cpu_data->qnodes));
-
-    cpu = spinlock_qid2cpu(qid);
+    ctx = spinlock_qid_ctx(qid);
+    cpu = spinlock_qid_cpu(qid);
     cpu_data = percpu_ptr(spinlock_cpu_data, cpu);
-    return &cpu_data->qnodes[ctx];
+    return spinlock_cpu_data_get_qnode(cpu_data, ctx);
 }
 
 static void
-spinlock_store_first_qid(struct spinlock *lock, unsigned int newqid)
+spinlock_set_locked(struct spinlock *lock)
 {
-    unsigned int oldval, newval, prev;
-
-    assert(newqid < SPINLOCK_QID_MAX);
-
-    newqid <<= SPINLOCK_QID_MAX_BITS;
-
-    do {
-        oldval = atomic_load(&lock->value, ATOMIC_RELAXED);
-        newval = newqid | (oldval & SPINLOCK_QID_MASK);
-        prev = atomic_cas_release(&lock->value, oldval, newval);
-    } while (prev != oldval);
+    atomic_or(&lock->value, SPINLOCK_LOCKED, ATOMIC_RELAXED);
 }
 
-static unsigned int
-spinlock_load_first_qid(const struct spinlock *lock)
+static void
+spinlock_wait_locked(const struct spinlock *lock)
 {
-    unsigned int value;
+    uint32_t value;
 
-    value = atomic_load_acquire(&lock->value);
-    return (value >> SPINLOCK_QID_MAX_BITS) & SPINLOCK_QID_MASK;
+    for (;;) {
+        value = atomic_load(&lock->value, ATOMIC_ACQUIRE);
+
+        if (!(value & SPINLOCK_LOCKED)) {
+            break;
+        }
+
+        cpu_pause();
+    }
 }
 
-static unsigned int
-spinlock_swap_last_qid(struct spinlock *lock, unsigned int newqid)
+static int
+spinlock_downgrade(struct spinlock *lock, uint32_t qid)
 {
-    unsigned int oldval, newval, prev;
+    uint32_t value, prev;
 
-    assert(newqid < SPINLOCK_QID_MAX);
+    value = (qid << SPINLOCK_QID_SHIFT) | SPINLOCK_CONTENDED;
+    prev = atomic_cas(&lock->value, value, SPINLOCK_LOCKED, ATOMIC_RELAXED);
+    assert(prev & SPINLOCK_CONTENDED);
 
-    do {
-        oldval = atomic_load(&lock->value, ATOMIC_RELAXED);
-        newval = (oldval & (SPINLOCK_QID_MASK << SPINLOCK_QID_MAX_BITS))
-                 | newqid;
-        prev = atomic_cas_acq_rel(&lock->value, oldval, newval);
-    } while (prev != oldval);
-
-    return prev & SPINLOCK_QID_MASK;
-}
-
-static unsigned int
-spinlock_try_downgrade(struct spinlock *lock, unsigned int oldqid)
-{
-    unsigned int prev;
-
-    prev = atomic_cas(&lock->value, oldqid,
-                      SPINLOCK_QID_LOCKED, ATOMIC_RELAXED);
-
-    assert((prev >> SPINLOCK_QID_MAX_BITS) == 0);
-    assert(prev != SPINLOCK_QID_NULL);
-
-    if (prev != oldqid) {
+    if (prev != value) {
         return EBUSY;
     }
 
@@ -262,78 +308,39 @@ spinlock_try_downgrade(struct spinlock *lock, unsigned int oldqid)
 void
 spinlock_lock_slow(struct spinlock *lock)
 {
-    struct spinlock_qnode *qnode, *prev_qnode;
-    unsigned int qid, prev_qid, next_qid, ctx;
-    bool locked;
+    struct spinlock_qnode *qnode, *prev_qnode, *next_qnode;
+    uint32_t prev, qid;
     int error;
 
     spinlock_get_local_qnode(&qnode, &qid);
-    qnode->next_qid = SPINLOCK_QID_NULL;
+    spinlock_qnode_init(qnode);
 
-    prev_qid = spinlock_swap_last_qid(lock, qid);
+    prev = spinlock_enqueue(lock, qid);
 
-    if (prev_qid != SPINLOCK_QID_NULL) {
-        qnode->locked = true;
-        ctx = spinlock_qid2ctx(prev_qid);
-
-        if (ctx == SPINLOCK_CTX_INVALID) {
-            spinlock_store_first_qid(lock, qid);
-        } else {
-            prev_qnode = spinlock_get_remote_qnode(prev_qid);
-            atomic_store(&prev_qnode->next_qid, qid, ATOMIC_RELAXED);
-        }
-
-        for (;;) {
-            locked = atomic_load_acquire(&qnode->locked);
-
-            if (!locked) {
-                break;
-            }
-
-            cpu_pause();
-        }
-
-        spinlock_store_first_qid(lock, SPINLOCK_QID_NULL);
+    if (prev & SPINLOCK_CONTENDED) {
+        prev_qnode = spinlock_get_remote_qnode(prev >> SPINLOCK_QID_SHIFT);
+        spinlock_qnode_set_locked(qnode);
+        spinlock_qnode_set_next(prev_qnode, qnode);
+        spinlock_qnode_wait_locked(qnode);
     }
 
+    /*
+     * If uncontended, the previous lock value could be used to check whether
+     * the lock bit was also cleared, but this wait operation also enforces
+     * acquire ordering.
+     */
+    spinlock_wait_locked(lock);
+
     spinlock_own(lock);
-    error = spinlock_try_downgrade(lock, qid);
+    error = spinlock_downgrade(lock, qid);
 
     if (!error) {
         return;
     }
 
-    for (;;) {
-        next_qid = atomic_load(&qnode->next_qid, ATOMIC_RELAXED);
-
-        if (next_qid != SPINLOCK_QID_NULL) {
-            break;
-        }
-
-        cpu_pause();
-    }
-
-    spinlock_store_first_qid(lock, next_qid);
-}
-
-void
-spinlock_unlock_slow(struct spinlock *lock)
-{
-    struct spinlock_qnode *next_qnode;
-    unsigned int next_qid;
-
-    for (;;) {
-        next_qid = spinlock_load_first_qid(lock);
-
-        if (next_qid != SPINLOCK_QID_NULL) {
-            break;
-        }
-
-        cpu_pause();
-    }
-
-    next_qnode = spinlock_get_remote_qnode(next_qid);
-    atomic_store_release(&next_qnode->locked, false);
+    spinlock_set_locked(lock);
+    next_qnode = spinlock_qnode_wait_next(qnode);
+    spinlock_qnode_clear_locked(next_qnode);
 }
 
 static int __init

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,8 @@
 #ifndef KERN_SPINLOCK_TYPES_H
 #define KERN_SPINLOCK_TYPES_H
 
+#include <stdint.h>
+
 #ifdef CONFIG_SPINLOCK_DEBUG
 #define SPINLOCK_TRACK_OWNER
 #endif
@@ -28,7 +30,7 @@
 struct thread;
 
 struct spinlock {
-    unsigned int value;
+    uint32_t value;
 
 #ifdef SPINLOCK_TRACK_OWNER
     struct thread *owner;

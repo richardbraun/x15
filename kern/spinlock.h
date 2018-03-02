@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 Richard Braun.
+ * Copyright (c) 2012-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,6 +26,11 @@
 #ifndef KERN_SPINLOCK_H
 #define KERN_SPINLOCK_H
 
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+#include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/spinlock_i.h>
@@ -34,7 +39,17 @@
 
 struct spinlock;
 
-#define spinlock_assert_locked(lock) assert((lock)->value != SPINLOCK_UNLOCKED)
+/* TODO Remove, let users do it instead */
+#define spinlock_assert_locked(lock) assert(spinlock_locked(lock))
+
+static inline bool
+spinlock_locked(const struct spinlock *lock)
+{
+    uint32_t value;
+
+    value = atomic_load(&lock->value, ATOMIC_RELAXED);
+    return value != SPINLOCK_UNLOCKED;
+}
 
 #ifdef SPINLOCK_TRACK_OWNER
 
