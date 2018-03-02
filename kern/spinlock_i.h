@@ -37,10 +37,6 @@
 #define SPINLOCK_UNLOCKED   0
 #define SPINLOCK_LOCKED     1
 
-#ifdef CONFIG_SPINLOCK_DEBUG
-#define SPINLOCK_TRACK_OWNER
-#endif
-
 #ifdef SPINLOCK_TRACK_OWNER
 
 static inline void
