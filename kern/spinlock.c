@@ -47,7 +47,8 @@
  *  - the execution context
  *  - the CPU ID
  *
- * The QID is used to uniquely identify a statically allocated qnode,
+ * The QID is used to uniquely identify a statically allocated qnode.
+ *
  * The lock operation must make sure that the lock value is restored
  * to SPINLOCK_LOCKED if there is no more contention, an operation
  * called downgrading.
