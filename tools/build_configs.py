@@ -16,10 +16,6 @@ import subprocess
 import sys
 import tempfile
 
-def print_fn(*args):
-    for arg in args:
-        print(arg)
-
 def quote_if_needed(value):
     if not value.isdigit() and value != 'y' and value != 'n':
         value = '"%s"' % value
@@ -80,9 +76,9 @@ def gen_exclusive_boolean_filters_list(options_list, all_disabled=False):
 # gen_configs_list() function. The value is a list of all values that may
 # be used for this compiler option when building a configuration.
 all_cc_options_dict = {
-    'O': ['-O0', '-O2', '-Os'],
-    'LTO': ['-flto', '-fno-lto'],
-    'SSP': ['-fno-stack-protector', '-fstack-protector'],
+    'O'             : ['-O0', '-O2', '-Os'],
+    'LTO'           : ['-flto', '-fno-lto'],
+    'SSP'           : ['-fno-stack-protector', '-fstack-protector'],
 }
 
 # Dictionaries of options.
@@ -92,22 +88,22 @@ all_cc_options_dict = {
 # option when building a configuration.
 
 small_options_dict = {
-    'CONFIG_CC_OPTIONS': gen_cc_options_list(all_cc_options_dict),
-    'CONFIG_SMP': ['y', 'n'],
-    'CONFIG_MAX_CPUS': ['1', '128'],
-    'CONFIG_ASSERT': ['y', 'n'],
+    'CONFIG_CC_OPTIONS'             : gen_cc_options_list(all_cc_options_dict),
+    'CONFIG_SMP'                    : ['y', 'n'],
+    'CONFIG_MAX_CPUS'               : ['1', '128'],
+    'CONFIG_ASSERT'                 : ['y', 'n'],
 }
 
 large_options_dict = dict(small_options_dict)
 large_options_dict.update({
-    'CONFIG_CC_EXE': ['gcc', 'clang'],
-    'CONFIG_64BITS': ['y', 'n'],
-    'CONFIG_X86_PAE': ['y', 'n'],
-    'CONFIG_MUTEX_ADAPTIVE': ['y', 'n'],
-    'CONFIG_MUTEX_PI': ['y', 'n'],
-    'CONFIG_MUTEX_PLAIN': ['y', 'n'],
-    'CONFIG_SHELL': ['y', 'n'],
-    'CONFIG_THREAD_STACK_GUARD': ['y', 'n'],
+    'CONFIG_CC_EXE'                 : ['gcc', 'clang'],
+    'CONFIG_64BITS'                 : ['y', 'n'],
+    'CONFIG_X86_PAE'                : ['y', 'n'],
+    'CONFIG_MUTEX_ADAPTIVE'         : ['y', 'n'],
+    'CONFIG_MUTEX_PI'               : ['y', 'n'],
+    'CONFIG_MUTEX_PLAIN'            : ['y', 'n'],
+    'CONFIG_SHELL'                  : ['y', 'n'],
+    'CONFIG_THREAD_STACK_GUARD'     : ['y', 'n'],
 })
 
 # TODO Generate this list from test/test_*.c
@@ -129,9 +125,9 @@ for test in test_list:
     test_options_dict.update({test: ['y', 'n']})
 
 all_options_sets = {
-    'small': small_options_dict,
-    'large': large_options_dict,
-    'test': test_options_dict,
+    'small'     : small_options_dict,
+    'large'     : large_options_dict,
+    'test'      : test_options_dict,
 }
 
 # Filters.
@@ -155,20 +151,20 @@ passing_filters_list += gen_exclusive_boolean_filters_list(test_list,
 blocking_filters_list = [
     # XXX Clang currently cannot build the kernel with LTO.
     {
-        'CONFIG_CC_EXE':   [True, 'clang'],
-        'CONFIG_CC_OPTIONS':   [True, re.compile('-flto')],
+        'CONFIG_CC_EXE'         :   [True, 'clang'],
+        'CONFIG_CC_OPTIONS'     :   [True, re.compile('-flto')],
     },
     {
-        'CONFIG_SMP':   [True, 'y'],
-        'CONFIG_MAX_CPUS':   [True, '1'],
+        'CONFIG_SMP'            :   [True, 'y'],
+        'CONFIG_MAX_CPUS'       :   [True, '1'],
     },
     {
-        'CONFIG_SMP':   [True, 'n'],
-        'CONFIG_MAX_CPUS':   [False, '1'],
+        'CONFIG_SMP'            :   [True, 'n'],
+        'CONFIG_MAX_CPUS'       :   [False, '1'],
     },
     {
-        'CONFIG_64BITS':   [True, 'y'],
-        'CONFIG_X86_PAE':   [True, 'y'],
+        'CONFIG_64BITS'         :   [True, 'y'],
+        'CONFIG_X86_PAE'        :   [True, 'y'],
     },
 ]
 
@@ -239,7 +235,7 @@ def check_filter(config_dict, filter_dict):
     return True
 
 def check_filter_relevant(config_dict, filter_dict):
-    for name, _ in filter_dict.items():
+    for name in filter_dict.keys():
         if name in config_dict:
             return True
 
@@ -281,14 +277,14 @@ def check_blocking_filters(args):
 
     return True
 
-def filter_configs_list(configs_list, passing, blocking):
-    configs_and_filters = [(x, passing) for x in configs_list]
+def filter_configs_list(configs_list, passing_filters, blocking_filters):
+    configs_and_filters = [(x, passing_filters) for x in configs_list]
     configs_list = [x[0] for x in filter(check_passing_filters,
                                          configs_and_filters)]
-    configs_and_filters = [(x, blocking) for x in configs_list]
+    configs_and_filters = [(x, blocking_filters) for x in configs_list]
     configs_list = [x[0] for x in filter(check_blocking_filters,
                                          configs_and_filters)]
-    return list(configs_list)
+    return configs_list
 
 def find_options_dict(options_sets, name):
     if name not in options_sets:
@@ -351,9 +347,9 @@ def main():
         shutil.rmtree(topbuilddir)
         raise
 
-    failures = [x for x in results if x[0] != 0]
-    for _, buildtree in failures:
-        print_fn('failed: {0}/.config ({0}/build.log)'.format(buildtree))
+    failures = [x[1] for x in results if x[0] != 0]
+    for buildtree in failures:
+        print('failed: {0}/.config ({0}/build.log)'.format(buildtree))
     print('passed: {:d}'.format(nr_configs - len(failures)))
     print('failed: {:d}'.format(len(failures)))
 
