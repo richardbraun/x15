@@ -229,7 +229,7 @@ def check_filter(config_dict, filter_dict):
             if value[0] != (config_dict[name] == value[1]):
                 return False
         else:
-            if value[0] != bool(value[1].match(config_dict[name])):
+            if value[0] != bool(value[1].search(config_dict[name])):
                 return False
 
     return True
