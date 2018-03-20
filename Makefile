@@ -254,6 +254,10 @@ endif
 XBUILD_CFLAGS += -fsigned-char
 XBUILD_CFLAGS += -fno-common
 
+# XXX Some assemblers consider the / symbol to denote comments. The --divide
+# option suppresses that behavior.
+XBUILD_CFLAGS += -Wa,--divide
+
 XBUILD_CFLAGS += -Wall
 XBUILD_CFLAGS += -Wextra
 XBUILD_CFLAGS += -Wshadow
