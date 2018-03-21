@@ -9,6 +9,8 @@ all: x15 docs
 VERSION = 0.1
 export VERSION
 
+COMMA := ,
+
 ifndef V
 V := 0
 endif
@@ -256,7 +258,7 @@ XBUILD_CFLAGS += -fno-common
 
 # XXX Some assemblers consider the / symbol to denote comments. The --divide
 # option suppresses that behavior.
-XBUILD_CFLAGS += -Wa,--divide
+XBUILD_CFLAGS += $(call xbuild_check_cc_option,-Wa$(COMMA)--divide)
 
 XBUILD_CFLAGS += -Wall
 XBUILD_CFLAGS += -Wextra
