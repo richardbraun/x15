@@ -43,6 +43,7 @@
 #define KERN_HASH_H
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __LP64__
@@ -54,10 +55,18 @@ static_assert(sizeof(long) == 4, "unsupported data model");
 #define hash_long(n, bits) hash_int32(n, bits)
 #endif
 
+static inline bool
+hash_bits_valid(unsigned int bits)
+{
+    return (bits != 0) && (bits <= HASH_ALLBITS);
+}
+
 static inline uint32_t
 hash_int32(uint32_t n, unsigned int bits)
 {
     uint32_t hash;
+
+    assert(hash_bits_valid(bits));
 
     hash = n;
     hash = ~hash + (hash << 15);
@@ -74,6 +83,8 @@ static inline uint64_t
 hash_int64(uint64_t n, unsigned int bits)
 {
     uint64_t hash;
+
+    assert(hash_bits_valid(bits));
 
     hash = n;
     hash = ~hash + (hash << 21);
@@ -100,8 +111,10 @@ hash_ptr(const void *ptr, unsigned int bits)
 static inline unsigned long
 hash_str(const char *str, unsigned int bits)
 {
-    unsigned long hash;
+    unsigned long hash, mask;
     char c;
+
+    assert(hash_bits_valid(bits));
 
     for (hash = 0; /* no condition */; str++) {
         c = *str;
@@ -113,7 +126,13 @@ hash_str(const char *str, unsigned int bits)
         hash = ((hash << 5) - hash) + c;
     }
 
-    return hash & ((1UL << bits) - 1);
+    /*
+     * This mask construction avoids the undefined behavior that would
+     * result from directly shifting by the number of bits, if that number
+     * is equal to the width of the hash.
+     */
+    mask = (~0UL >> (HASH_ALLBITS - bits));
+    return hash & mask;
 }
 
 #endif /* KERN_HASH_H */
