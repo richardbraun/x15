@@ -1,3 +1,4 @@
+x15_SOURCES-$(CONFIG_TEST_MODULE_BULLETIN)              += test/test_bulletin.c
 x15_SOURCES-$(CONFIG_TEST_MODULE_MUTEX)                 += test/test_mutex.c
 x15_SOURCES-$(CONFIG_TEST_MODULE_MUTEX_PI)              += test/test_mutex_pi.c
 x15_SOURCES-$(CONFIG_TEST_MODULE_PMAP_UPDATE_MP)        += test/test_pmap_update_mp.c

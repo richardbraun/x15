@@ -9,6 +9,9 @@ if TEST_MODULE
 choice
 	prompt "Select test module"
 
+config TEST_MODULE_BULLETIN
+	bool "bulletin"
+
 config TEST_MODULE_MUTEX
 	bool "mutex"
 	select MUTEX_DEBUG
