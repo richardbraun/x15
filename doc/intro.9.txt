@@ -135,6 +135,8 @@ other development tools :
 
 module:kern/bitmap::
   Arbitrary-length bit array.
+module:kern/bulletin::
+  Publish-subscribe mechanism.
 module:kern/cbuf::
   Circular byte buffer.
 module:kern/clock::
