@@ -706,6 +706,8 @@ rcu_defer(struct work *work)
     struct rcu_cpu_data *cpu_data;
     unsigned long flags;
 
+    assert(!rcu_reader_in_cs(thread_rcu_reader(thread_self())));
+
     thread_preempt_disable_intr_save(&flags);
     cpu_data = rcu_get_cpu_data();
     rcu_cpu_data_queue(cpu_data, work);
