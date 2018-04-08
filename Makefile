@@ -300,7 +300,7 @@ x15_OBJECTS := $(call xbuild_replace_source_suffix,o,$(x15_SOURCES))
 x15_LDS_D := $(call xbuild_gen_linker_script_depfile,$(x15_LDS_S))
 x15_LDS := $(basename $(x15_LDS_S))
 
-XBUILD_LDFLAGS += -Xlinker -T $(x15_LDS)
+XBUILD_LDFLAGS += -Wl,--script=$(x15_LDS)
 
 define gen_sorted_init_ops
 	$(call xbuild_action,GEN,$@) \
