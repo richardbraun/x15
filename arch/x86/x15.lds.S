@@ -58,7 +58,7 @@ SECTIONS
     _percpu = .;
 
     .percpu 0 : AT(BOOT_VTOP(_percpu)) {
-        *(.percpu)
+        *(.percpu*)
     } : percpu
 
     . = _percpu + SIZEOF(.percpu);
@@ -67,18 +67,14 @@ SECTIONS
     _text = .;
 
     .text ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.text))) {
-        *(.text)
+        *(.text*)
     } : text
 
     . = ALIGN(PAGE_SIZE);
     _rodata = .;
 
     .rodata ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.rodata))) {
-        *(.rodata)
-    } : rodata
-
-    .notes ALIGN(CPU_DATA_ALIGN) : AT(BOOT_VTOP(ADDR(.notes))) {
-        *(.note.*)
+        *(.rodata*)
     } : rodata
 
     . = ALIGN(PAGE_SIZE);
@@ -88,21 +84,18 @@ SECTIONS
         . = ALIGN(CPU_L1_SIZE);
         *(.data.read_mostly)
         . = ALIGN(CPU_L1_SIZE);
-        *(.data)
+        *(.data*)
     } : data
 
     .bss ALIGN(CPU_DATA_ALIGN) : AT(BOOT_VTOP(ADDR(.bss))) {
-        *(.bss)
+        *(.bss*)
     } : data
 
     . = ALIGN(PAGE_SIZE);
     _end = .;
 
-    /*
-     * XXX A global offset section is created because of linking with libgcc.
-     * Is it safe to discard it ?
-     */
     /DISCARD/ : {
-        *(.eh_frame)
+        *(.eh_frame*)
+        *(.note*)
     }
 }
