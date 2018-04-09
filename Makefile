@@ -272,7 +272,7 @@ XBUILD_CFLAGS += -Wno-unneeded-internal-declaration
 XBUILD_CFLAGS += $(call xbuild_check_cc_option,-fno-PIE)
 XBUILD_CFLAGS += $(call xbuild_check_cc_option,-Qunused-arguments)
 
-XBUILD_LDFLAGS += -static -nostdlib -lgcc
+XBUILD_LDFLAGS += -static -nostdlib
 
 # Disable the build ID feature of the linker
 XBUILD_LDFLAGS += -Wl,--build-id=none

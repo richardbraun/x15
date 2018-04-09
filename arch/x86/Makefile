@@ -20,11 +20,20 @@ XBUILD_LDFLAGS += -Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
 
 ifeq ($(CONFIG_X86_32),y)
         biarch := $(call cc-option,-m32)
+
         XBUILD_CPPFLAGS += -m32
+
+        XBUILD_LDFLAGS += -lgcc
 else
         biarch := -m64
+
         XBUILD_CPPFLAGS += -m64
 
+        # XXX The kernel isn't linked with libgcc on amd64, because libgcc
+        # uses red zones. But since there are actually very few functions
+        # provided by libgcc on amd64, it was decided to just not link with
+        # it. If it turns out that libgcc is really needed some day, the
+        # kernel can somewhat easily be changed to support red zones.
         XBUILD_CFLAGS += -mno-red-zone
         XBUILD_CFLAGS += -mcmodel=kernel
 endif
