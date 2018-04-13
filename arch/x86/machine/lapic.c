@@ -271,11 +271,17 @@ lapic_ap_setup(void)
 static void
 lapic_ipi(uint32_t apic_id, uint32_t icr)
 {
+    unsigned long flags;
+
+    cpu_intr_save(&flags);
+
     if ((icr & LAPIC_ICR_DEST_MASK) == 0) {
         lapic_write(&lapic_map->icr_high, apic_id << LAPIC_DEST_SHIFT);
     }
 
     lapic_write(&lapic_map->icr_low, icr & ~LAPIC_ICR_RESERVED);
+
+    cpu_intr_restore(flags);
 }
 
 static void
