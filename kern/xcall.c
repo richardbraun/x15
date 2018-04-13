@@ -177,7 +177,7 @@ xcall_intr(void)
     if (call) {
         xcall_process(call);
     } else {
-        log_warning("xcall: spurious interrupt on cpu%u", cpu_id());
+        log_err("xcall: spurious interrupt on cpu%u", cpu_id());
     }
 
     syscnt_inc(&cpu_data->sc_received);
