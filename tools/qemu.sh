@@ -25,13 +25,14 @@ TMPDIR=$(mktemp -d)
 
 objcopy -O elf32-i386 $X15 $TMPDIR/x15
 
+cd $TMPDIR
 $QEMU_EXE $KVM \
           -ctrl-grab \
           -gdb tcp::1234 \
           -m $RAM \
           -smp $NR_CPUS \
           -monitor stdio \
-          -kernel $TMPDIR/x15 \
+          -kernel x15 \
           -append "console=atcons"
 
 rm -rf $TMPDIR
