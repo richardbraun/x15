@@ -105,12 +105,12 @@
 #define RCU_WINDOW_ID_INIT_VALUE ((unsigned int)-500)
 
 /*
- * Interval between window checking.
+ * Interval (in milliseconds) between window checking.
  *
  * When windows are checked, a flip occurs if the previous window isn't
  * active any more.
  */
-#define RCU_WINDOW_CHECK_INTERVAL_MS 10
+#define RCU_WINDOW_CHECK_INTERVAL CONFIG_RCU_WINDOW_CHECK_INTERVAL
 
 /*
  * Grace period states.
@@ -376,7 +376,7 @@ rcu_data_schedule_timer(struct rcu_data *data, uint64_t now)
 {
     uint64_t ticks;
 
-    ticks = clock_ticks_from_ms(RCU_WINDOW_CHECK_INTERVAL_MS);
+    ticks = clock_ticks_from_ms(RCU_WINDOW_CHECK_INTERVAL);
     timer_schedule(&data->timer, now + ticks);
 }
 

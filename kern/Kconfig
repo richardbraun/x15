@@ -63,6 +63,20 @@ config MUTEX_PLAIN
 
 endchoice
 
+config RCU_WINDOW_CHECK_INTERVAL
+	int "Interval between RCU window checks"
+	range 1 100
+	default 10
+	---help---
+	  Time (in milliseconds) between two RCU window checks.
+
+	  The RCU system keeps memory used by read-side critical sections
+	  until it is safe to release it, which can only be determined when
+	  checking windows. As a result, checking windows more frequently
+	  may help lower latencies on synchronous RCU waits, and in turn,
+	  the amount of memory pending release, at the cost of increased
+	  CPU overhead.
+
 config SHELL
 	bool "Embedded shell"
 	default n
