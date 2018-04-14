@@ -480,14 +480,14 @@ list_rcu_remove(struct list *node)
  */
 #define list_rcu_first_entry(head, type, member)            \
 MACRO_BEGIN                                                 \
-    struct list *list___;                                   \
-    struct list *first___;                                  \
+    struct list *list_;                                     \
+    struct list *first_;                                    \
                                                             \
-    list___ = (head);                                       \
-    first___ = list_rcu_first(list___);                     \
-    list_end(list___, first___)                             \
+    list_ = (head);                                         \
+    first_ = list_rcu_first(list_);                         \
+    list_end(list_, first_)                                 \
         ? NULL                                              \
-        : list_entry(first___, type, member);               \
+        : list_entry(first_, type, member);                 \
 MACRO_END
 
 /*
@@ -499,14 +499,14 @@ MACRO_END
  */
 #define list_rcu_next_entry(head, entry, member)            \
 MACRO_BEGIN                                                 \
-    struct list *list___;                                   \
-    struct list *next___;                                   \
+    struct list *list_;                                     \
+    struct list *next_;                                     \
                                                             \
-    list___ = (head);                                       \
-    next___ = list_rcu_next(&entry->member);                \
-    list_end(list___, next___)                              \
+    list_ = (head);                                         \
+    next_ = list_rcu_next(&entry->member);                  \
+    list_end(list_, next_)                                  \
         ? NULL                                              \
-        : list_entry(next___, typeof(*entry), member);      \
+        : list_entry(next_, typeof(*entry), member);        \
 MACRO_END
 
 /*

@@ -680,13 +680,10 @@ matching the object.method() syntax.
 Function-like macros with local variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Such macros may cause variable shadowing if one of their local variables has
-the same name as one of the arguments. To avoid such situations, local
-variables in function-like macros should be named with a prefix of underscores.
-The C specification describes the use of single and double underscore prefixes
-for file-scope specifiers and names reserved for the implementation. It's
-therefore recommended to use three underscores when naming the local variables
-of function-like macros.
+Variable shadowing occurs in function-like macros if one of their local
+variables has the same name as one of the arguments. To avoid such situations,
+local variables in function-like macros must be named with an underscore
+suffix. This naming scheme is reserved for function-like macro variables.
 
 SEE
 ---

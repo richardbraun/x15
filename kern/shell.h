@@ -32,12 +32,12 @@
 
 #define SHELL_REGISTER_CMDS(cmds)                           \
 MACRO_BEGIN                                                 \
-    size_t i___;                                            \
-    int error___;                                           \
+    size_t i_;                                              \
+    int error_;                                             \
                                                             \
-    for (i___ = 0; i___ < ARRAY_SIZE(cmds); i___++) {       \
-        error___ = shell_cmd_register(&(cmds)[i___]);       \
-        error_check(error___, __func__);                    \
+    for (i_ = 0; i_ < ARRAY_SIZE(cmds); i_++) {             \
+        error_ = shell_cmd_register(&(cmds)[i_]);           \
+        error_check(error_, __func__);                      \
     }                                                       \
 MACRO_END
 

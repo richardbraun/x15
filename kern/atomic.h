@@ -89,15 +89,15 @@
  * value, some compilers seem to have trouble when all parameters don't
  * have the same type.
  */
-#define atomic_cas(ptr, oval, nval, mo)                           \
-MACRO_BEGIN                                                       \
-    typeof(*(ptr)) oval___, nval___;                              \
-                                                                  \
-    oval___ = (oval);                                             \
-    nval___ = (nval);                                             \
-    __atomic_compare_exchange_n(ptr, &oval___, nval___, false,    \
-                                mo, ATOMIC_RELAXED);              \
-    oval___;                                                      \
+#define atomic_cas(ptr, oval, nval, mo)                             \
+MACRO_BEGIN                                                         \
+    typeof(*(ptr)) oval_, nval_;                                    \
+                                                                    \
+    oval_ = (oval);                                                 \
+    nval_ = (nval);                                                 \
+    __atomic_compare_exchange_n(ptr, &oval_, nval_, false,          \
+                                mo, ATOMIC_RELAXED);                \
+    oval_;                                                          \
 MACRO_END
 
 /*

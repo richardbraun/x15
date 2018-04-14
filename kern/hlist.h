@@ -200,23 +200,23 @@ hlist_remove(struct hlist_node *node)
  */
 #define hlist_first_entry(list, type, member)                           \
 MACRO_BEGIN                                                             \
-    struct hlist_node *first___;                                        \
+    struct hlist_node *first_;                                          \
                                                                         \
-    first___ = (list)->first;                                           \
-    hlist_end(first___) ? NULL : hlist_entry(first___, type, member);   \
+    first_ = (list)->first;                                             \
+    hlist_end(first_) ? NULL : hlist_entry(first_, type, member);       \
 MACRO_END
 
 /*
  * Get the entry next to the given entry.
  */
-#define hlist_next_entry(entry, member) \
+#define hlist_next_entry(entry, member)                                 \
 MACRO_BEGIN                                                             \
-    struct hlist_node *next___;                                         \
+    struct hlist_node *next_;                                           \
                                                                         \
-    next___ = (entry)->member.next;                                     \
-    hlist_end(next___)                                                  \
+    next_ = (entry)->member.next;                                       \
+    hlist_end(next_)                                                    \
         ? NULL                                                          \
-        : hlist_entry(next___, typeof(*entry), member);                 \
+        : hlist_entry(next_, typeof(*entry), member);                   \
 MACRO_END
 
 /*
@@ -355,10 +355,10 @@ hlist_rcu_remove(struct hlist_node *node)
  */
 #define hlist_rcu_first_entry(list, type, member)                       \
 MACRO_BEGIN                                                             \
-    struct hlist_node *first___;                                        \
+    struct hlist_node *first_;                                          \
                                                                         \
-    first___ = hlist_rcu_first(list);                                   \
-    hlist_end(first___) ? NULL : hlist_entry(first___, type, member);   \
+    first_ = hlist_rcu_first(list);                                     \
+    hlist_end(first_) ? NULL : hlist_entry(first_, type, member);       \
 MACRO_END
 
 /*
@@ -366,12 +366,12 @@ MACRO_END
  */
 #define hlist_rcu_next_entry(entry, member)                             \
 MACRO_BEGIN                                                             \
-    struct hlist_node *next___;                                         \
+    struct hlist_node *next_;                                           \
                                                                         \
-    next___ = hlist_rcu_next(&entry->member);                           \
-    hlist_end(next___)                                                  \
+    next_ = hlist_rcu_next(&entry->member);                             \
+    hlist_end(next_)                                                    \
         ? NULL                                                          \
-        : hlist_entry(next___, typeof(*entry), member);                 \
+        : hlist_entry(next_, typeof(*entry), member);                   \
 MACRO_END
 
 /*

@@ -46,38 +46,38 @@
  * Temporarily discard qualifiers when loading 64-bits values with a
  * compare-and-swap operation.
  */
-#define atomic_load_64(ptr, mo)                                           \
-MACRO_BEGIN                                                               \
-    uint64_t ret___ = 0;                                                  \
-                                                                          \
-    __atomic_compare_exchange_n((uint64_t *)(ptr), &ret___, 0,            \
-                                false, mo, __ATOMIC_RELAXED);             \
-    ret___;                                                               \
+#define atomic_load_64(ptr, mo)                                             \
+MACRO_BEGIN                                                                 \
+    uint64_t ret_ = 0;                                                      \
+                                                                            \
+    __atomic_compare_exchange_n((uint64_t *)(ptr), &ret_, 0,                \
+                                false, mo, __ATOMIC_RELAXED);               \
+    ret_;                                                                   \
 MACRO_END
 
-#define atomic_load(ptr, mo)                                              \
-    (typeof(*(ptr)))__builtin_choose_expr(sizeof(*(ptr)) == 8,            \
-                                          atomic_load_64(ptr, mo),        \
+#define atomic_load(ptr, mo)                                                \
+    (typeof(*(ptr)))__builtin_choose_expr(sizeof(*(ptr)) == 8,              \
+                                          atomic_load_64(ptr, mo),          \
                                           __atomic_load_n(ptr, mo))
 
-#define atomic_store(ptr, val, mo)                                        \
-MACRO_BEGIN                                                               \
-    if (sizeof(*(ptr)) != 8) {                                            \
-        __atomic_store_n(ptr, val, mo);                                   \
-    } else {                                                              \
-        typeof(*(ptr)) oval___, nval___;                                  \
-        bool done___;                                                     \
-                                                                          \
-        oval___ = *(ptr);                                                 \
-        nval___ = (val);                                                  \
-                                                                          \
-        do {                                                              \
-            done___ = __atomic_compare_exchange_n(ptr, &oval___, nval___, \
-                                                  false, mo,              \
-                                                  __ATOMIC_RELAXED);      \
-        } while (!done___);                                               \
-                                                                          \
-    }                                                                     \
+#define atomic_store(ptr, val, mo)                                          \
+MACRO_BEGIN                                                                 \
+    if (sizeof(*(ptr)) != 8) {                                              \
+        __atomic_store_n(ptr, val, mo);                                     \
+    } else {                                                                \
+        typeof(*(ptr)) oval_, nval_;                                        \
+        bool done_;                                                         \
+                                                                            \
+        oval_ = *(ptr);                                                     \
+        nval_ = (val);                                                      \
+                                                                            \
+        do {                                                                \
+            done_ = __atomic_compare_exchange_n(ptr, &oval_, nval_,         \
+                                                  false, mo,                \
+                                                  __ATOMIC_RELAXED);        \
+        } while (!done_);                                                   \
+                                                                            \
+    }                                                                       \
 MACRO_END
 
 /*
