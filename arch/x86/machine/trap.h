@@ -21,8 +21,8 @@
  * other headers that may cause circular dependencies.
  */
 
-#ifndef _X86_TRAP_H
-#define _X86_TRAP_H
+#ifndef X86_TRAP_H
+#define X86_TRAP_H
 
 #include <machine/page.h>
 
@@ -182,4 +182,4 @@ INIT_OP_DECLARE(trap_setup);
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* _X86_TRAP_H */
+#endif /* X86_TRAP_H */

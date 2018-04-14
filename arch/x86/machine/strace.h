@@ -20,8 +20,8 @@
  * TODO Make it possible to debug without the frame pointer.
  */
 
-#ifndef _X86_STRACE_H
-#define _X86_STRACE_H
+#ifndef X86_STRACE_H
+#define X86_STRACE_H
 
 #include <kern/init.h>
 #include <kern/macros.h>
@@ -61,4 +61,4 @@ void strace_set_mbi(const struct multiboot_raw_info *mbi);
  */
 INIT_OP_DECLARE(strace_setup);
 
-#endif /* _X86_STRACE_H */
+#endif /* X86_STRACE_H */

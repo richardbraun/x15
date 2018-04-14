@@ -18,8 +18,8 @@
  * Tiny CGA driver.
  */
 
-#ifndef _X86_CGA_H
-#define _X86_CGA_H
+#ifndef X86_CGA_H
+#define X86_CGA_H
 
 #include <kern/init.h>
 
@@ -40,4 +40,4 @@ void cga_cursor_right(void);
  */
 INIT_OP_DECLARE(cga_setup);
 
-#endif /* _X86_CGA_H */
+#endif /* X86_CGA_H */

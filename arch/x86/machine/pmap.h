@@ -18,8 +18,8 @@
  * TODO Comment.
  */
 
-#ifndef _X86_PMAP_H
-#define _X86_PMAP_H
+#ifndef X86_PMAP_H
+#define X86_PMAP_H
 
 #include <kern/macros.h>
 
@@ -336,4 +336,4 @@ INIT_OP_DECLARE(pmap_setup);
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* _X86_PMAP_H */
+#endif /* X86_PMAP_H */

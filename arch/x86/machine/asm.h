@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_ASM_H
-#define _X86_ASM_H
+#ifndef X86_ASM_H
+#define X86_ASM_H
 
 #ifndef __ASSEMBLER__
 #warning "asm.h included from a C file"
@@ -39,4 +39,4 @@ x:
 #define ASM_END(x)  \
 .size x, . - x
 
-#endif /* _X86_ASM_H */
+#endif /* X86_ASM_H */

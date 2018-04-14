@@ -18,8 +18,8 @@
  * AT console driver.
  */
 
-#ifndef _X86_ATCONS_H
-#define _X86_ATCONS_H
+#ifndef X86_ATCONS_H
+#define X86_ATCONS_H
 
 #include <kern/init.h>
 
@@ -52,4 +52,4 @@ INIT_OP_DECLARE(atcons_bootstrap);
  */
 INIT_OP_DECLARE(atcons_setup);
 
-#endif /* _X86_ATCONS_H */
+#endif /* X86_ATCONS_H */

@@ -18,8 +18,8 @@
  * Thread control block.
  */
 
-#ifndef _X86_TCB_H
-#define _X86_TCB_H
+#ifndef X86_TCB_H
+#define X86_TCB_H
 
 #include <assert.h>
 #include <stdint.h>
@@ -125,4 +125,4 @@ void tcb_trace(const struct tcb *tcb);
  */
 INIT_OP_DECLARE(tcb_setup);
 
-#endif /* _X86_TCB_H */
+#endif /* X86_TCB_H */

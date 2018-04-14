@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_CPU_H
-#define _X86_CPU_H
+#ifndef X86_CPU_H
+#define X86_CPU_H
 
 #include <limits.h>
 
@@ -708,4 +708,4 @@ INIT_OP_DECLARE(cpu_setup_shutdown);
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* _X86_CPU_H */
+#endif /* X86_CPU_H */

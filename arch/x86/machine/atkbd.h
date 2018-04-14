@@ -18,8 +18,8 @@
  * Tiny AT keyboard driver.
  */
 
-#ifndef _X86_ATKBD_H
-#define _X86_ATKBD_H
+#ifndef X86_ATKBD_H
+#define X86_ATKBD_H
 
 #include <kern/init.h>
 
@@ -29,4 +29,4 @@
  */
 INIT_OP_DECLARE(atkbd_setup);
 
-#endif /* _X86_ATKBD_H */
+#endif /* X86_ATKBD_H */

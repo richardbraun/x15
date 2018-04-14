@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_SSP_H
-#define _X86_SSP_H
+#ifndef X86_SSP_H
+#define X86_SSP_H
 
 #ifdef __LP64__
 #define SSP_GUARD_WORD 0xdeadd00ddeadd00d
@@ -29,4 +29,4 @@
  */
 #define SSP_WORD_TLS_OFFSET 5
 
-#endif /* _X86_SSP_H */
+#endif /* X86_SSP_H */

@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_STRING_H
-#define _X86_STRING_H
+#ifndef X86_STRING_H
+#define X86_STRING_H
 
 /*
  * Provide architecture-specific string functions.
@@ -31,4 +31,4 @@
 #define STRING_ARCH_STRNCMP
 #define STRING_ARCH_STRCHR
 
-#endif /* _X86_STRING_H */
+#endif /* X86_STRING_H */

@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_PIT_H
-#define _X86_PIT_H
+#ifndef X86_PIT_H
+#define X86_PIT_H
 
 /*
  * Initialize the PIT as a free running counter.
@@ -37,4 +37,4 @@ void pit_setup(void);
  */
 void pit_delay(unsigned long usecs);
 
-#endif /* _X86_PIT_H */
+#endif /* X86_PIT_H */

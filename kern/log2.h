@@ -18,8 +18,8 @@
  * Integer base 2 logarithm operations.
  */
 
-#ifndef _KERN_LOG2_H
-#define _KERN_LOG2_H
+#ifndef KERN_LOG2_H
+#define KERN_LOG2_H
 
 #include <assert.h>
 #include <limits.h>
@@ -51,4 +51,4 @@ log2_order(unsigned long size)
     return log2(size - 1) + 1;
 }
 
-#endif /* _KERN_LOG2_H */
+#endif /* KERN_LOG2_H */

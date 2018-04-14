@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_BOOT_H
-#define _X86_BOOT_H
+#ifndef X86_BOOT_H
+#define X86_BOOT_H
 
 #include <stdnoreturn.h>
 
@@ -166,4 +166,4 @@ INIT_OP_DECLARE(boot_setup_shutdown);
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* _X86_BOOT_H */
+#endif /* X86_BOOT_H */

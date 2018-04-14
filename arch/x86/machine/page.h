@@ -19,11 +19,11 @@
  * other headers that may cause circular dependencies.
  */
 
-#ifndef _X86_PAGE_H
-#define _X86_PAGE_H
+#ifndef X86_PAGE_H
+#define X86_PAGE_H
 
 #define PAGE_SHIFT  12
 #define PAGE_SIZE   (1 << PAGE_SHIFT)
 #define PAGE_MASK   (PAGE_SIZE - 1)
 
-#endif /* _X86_PAGE_H */
+#endif /* X86_PAGE_H */

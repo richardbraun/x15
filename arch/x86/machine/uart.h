@@ -18,8 +18,8 @@
  * Tiny 8250 UART driver.
  */
 
-#ifndef _X86_UART_H
-#define _X86_UART_H
+#ifndef X86_UART_H
+#define X86_UART_H
 
 #include <kern/init.h>
 
@@ -36,4 +36,4 @@ INIT_OP_DECLARE(uart_bootstrap);
  */
 INIT_OP_DECLARE(uart_setup);
 
-#endif /* _X86_UART_H */
+#endif /* X86_UART_H */

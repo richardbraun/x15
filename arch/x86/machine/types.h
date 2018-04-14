@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_TYPES_H
-#define _X86_TYPES_H
+#ifndef X86_TYPES_H
+#define X86_TYPES_H
 
 #ifdef CONFIG_X86_PAE
 typedef unsigned long long phys_addr_t;
@@ -24,4 +24,4 @@ typedef unsigned long long phys_addr_t;
 typedef unsigned long phys_addr_t;
 #endif /* CONFIG_X86_PAE */
 
-#endif /* _X86_TYPES_H */
+#endif /* X86_TYPES_H */

@@ -21,8 +21,8 @@
  * other headers that may cause circular dependencies.
  */
 
-#ifndef _X86_PMEM_H
-#define _X86_PMEM_H
+#ifndef X86_PMEM_H
+#define X86_PMEM_H
 
 #include <kern/macros.h>
 
@@ -64,4 +64,4 @@
 #define PMEM_ZONE_HIGHMEM       2
 #endif /* __LP64__ */
 
-#endif /* _X86_PMEM_H */
+#endif /* X86_PMEM_H */

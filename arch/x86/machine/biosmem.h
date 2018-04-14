@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_BIOSMEM_H
-#define _X86_BIOSMEM_H
+#ifndef X86_BIOSMEM_H
+#define X86_BIOSMEM_H
 
 #include <stdbool.h>
 
@@ -108,4 +108,4 @@ phys_addr_t biosmem_directmap_end(void);
  */
 INIT_OP_DECLARE(biosmem_setup);
 
-#endif /* _X86_BIOSMEM_H */
+#endif /* X86_BIOSMEM_H */

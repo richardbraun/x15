@@ -19,8 +19,8 @@
  * specification v1.0.
  */
 
-#ifndef _X86_ACPI_H
-#define _X86_ACPI_H
+#ifndef X86_ACPI_H
+#define X86_ACPI_H
 
 #include <kern/init.h>
 
@@ -32,4 +32,4 @@
  */
 INIT_OP_DECLARE(acpi_setup);
 
-#endif /* _X86_ACPI_H */
+#endif /* X86_ACPI_H */

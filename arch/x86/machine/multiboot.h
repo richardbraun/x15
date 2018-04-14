@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_MULTIBOOT_H
-#define _X86_MULTIBOOT_H
+#ifndef X86_MULTIBOOT_H
+#define X86_MULTIBOOT_H
 
 /*
  * Magic number provided by the OS to the boot loader.
@@ -108,4 +108,4 @@ struct multiboot_info {
 
 #endif /* __ASSEMBLER__ */
 
-#endif /* _X86_MULTIBOOT_H */
+#endif /* X86_MULTIBOOT_H */

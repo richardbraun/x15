@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_LAPIC_H
-#define _X86_LAPIC_H
+#ifndef X86_LAPIC_H
+#define X86_LAPIC_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -58,4 +58,4 @@ void lapic_timer_intr(struct trap_frame *frame);
 void lapic_error_intr(struct trap_frame *frame);
 void lapic_spurious_intr(struct trap_frame *frame);
 
-#endif /* _X86_LAPIC_H */
+#endif /* X86_LAPIC_H */

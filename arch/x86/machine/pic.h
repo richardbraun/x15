@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_PIC_H
-#define _X86_PIC_H
+#ifndef X86_PIC_H
+#define X86_PIC_H
 
 /*
  * Interrupts per PIC.
@@ -44,4 +44,4 @@ void pic_setup(void);
  */
 void pic_setup_disabled(void);
 
-#endif /* _X86_PIC_H */
+#endif /* X86_PIC_H */

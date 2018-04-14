@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_ELF_H
-#define _X86_ELF_H
+#ifndef X86_ELF_H
+#define X86_ELF_H
 
 #define ELF_SHT_SYMTAB  2
 #define ELF_SHT_STRTAB  3
@@ -58,4 +58,4 @@ struct elf_sym {
 
 #endif /* __LP64__ */
 
-#endif /* _X86_ELF_H */
+#endif /* X86_ELF_H */

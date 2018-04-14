@@ -15,8 +15,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _X86_IO_H
-#define _X86_IO_H
+#ifndef X86_IO_H
+#define X86_IO_H
 
 #include <stdint.h>
 
@@ -41,4 +41,4 @@ io_write_byte(uint16_t port, uint8_t value)
     asm volatile("outb %%al, %%dx" : : "d" (port), "a" (value));
 }
 
-#endif /* _X86_IO_H */
+#endif /* X86_IO_H */

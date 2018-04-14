@@ -19,8 +19,8 @@
  * Architecture-specific definitions for atomic operations.
  */
 
-#ifndef _X86_ATOMIC_H
-#define _X86_ATOMIC_H
+#ifndef X86_ATOMIC_H
+#define X86_ATOMIC_H
 
 #ifndef KERN_ATOMIC_H
 #error "don't include <machine/atomic.h> directly, use <kern/atomic.h> instead"
@@ -101,4 +101,4 @@ MACRO_END
 
 #endif /* __clang__ */
 
-#endif /* _X86_ATOMIC_H */
+#endif /* X86_ATOMIC_H */
