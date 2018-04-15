@@ -53,7 +53,7 @@ ASM_END(boot_header)
 /*
  * Entry point.
  */
-ASM_ENTRY(_start)
+ASM_ENTRY(boot_start)
  lgdt boot_gdtr
 
  /* Keep %eax and %ebx */
@@ -116,7 +116,7 @@ ASM_ENTRY(_start)
 
  /* Never reached */
  nop
-ASM_END(_start)
+ASM_END(boot_start)
 
 .code32
 

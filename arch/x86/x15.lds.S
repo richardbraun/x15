@@ -6,7 +6,7 @@ OUTPUT_FORMAT("elf32-i386")
 OUTPUT_ARCH(i386)
 #endif /* __LP64__ */
 
-ENTRY(_start)
+ENTRY(boot_start)
 
 #include <kern/init.h>
 #include <machine/boot.h>
