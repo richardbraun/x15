@@ -104,36 +104,6 @@ MACRO_END
 #define atomic_store(ptr, val, mo) __atomic_store_n(ptr, val, mo)
 #endif
 
-/*
- * Thread fences.
- */
-
-#define atomic_fence_acquire()  __atomic_thread_fence(ATOMIC_ACQUIRE)
-#define atomic_fence_release()  __atomic_thread_fence(ATOMIC_RELEASE)
-#define atomic_fence_acq_rel()  __atomic_thread_fence(ATOMIC_ACQ_REL)
-#define atomic_fence_seq_cst()  __atomic_thread_fence(ATOMIC_SEQ_CST)
-
-/*
- * Common shortcuts.
- */
-
-#define atomic_load_acquire(ptr) atomic_load(ptr, ATOMIC_ACQUIRE)
-#define atomic_store_release(ptr, val) atomic_store(ptr, val, ATOMIC_RELEASE)
-
-#define atomic_cas_acquire(ptr, oval, nval) \
-    atomic_cas(ptr, oval, nval, ATOMIC_ACQUIRE)
-
-#define atomic_cas_release(ptr, oval, nval) \
-    atomic_cas(ptr, oval, nval, ATOMIC_RELEASE)
-
-#define atomic_cas_acq_rel(ptr, oval, nval) \
-    atomic_cas(ptr, oval, nval, ATOMIC_ACQ_REL)
-
-#define atomic_swap_acquire(ptr, val)   atomic_swap(ptr, val, ATOMIC_ACQUIRE)
-#define atomic_swap_release(ptr, val)   atomic_swap(ptr, val, ATOMIC_RELEASE)
-#define atomic_swap_acq_rel(ptr, val)   atomic_swap(ptr, val, ATOMIC_ACQ_REL)
-
-#define atomic_fetch_sub_acq_rel(ptr, val) \
-    atomic_fetch_sub(ptr, val, ATOMIC_ACQ_REL)
+#define atomic_fence(mo) __atomic_thread_fence(mo)
 
 #endif /* KERN_ATOMIC_H */

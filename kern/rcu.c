@@ -292,7 +292,7 @@ rcu_data_check_gp_state(const struct rcu_data *data,
     *global_gp_state = atomic_load(&data->gp_state, ATOMIC_RELAXED);
 
     if (unlikely(local_gp_state != *global_gp_state)) {
-        atomic_fence_acquire();
+        atomic_fence(ATOMIC_ACQUIRE);
         return true;
     }
 

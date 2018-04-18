@@ -82,8 +82,8 @@ void clock_tick_intr(void)
         t.ticks++;
 
         atomic_store(&clock_global_time.high2, t.high1, ATOMIC_RELAXED);
-        atomic_store_release(&clock_global_time.low, t.low);
-        atomic_store_release(&clock_global_time.high1, t.high1);
+        atomic_store(&clock_global_time.low, t.low, ATOMIC_RELEASE);
+        atomic_store(&clock_global_time.high1, t.high1, ATOMIC_RELEASE);
 
 #endif /* ATOMIC_HAVE_64B_OPS */
     }

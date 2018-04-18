@@ -260,7 +260,7 @@ spinlock_get_remote_qnode(uint32_t qid)
     unsigned int ctx, cpu;
 
     /* This fence synchronizes with queueing */
-    atomic_fence_acquire();
+    atomic_fence(ATOMIC_ACQUIRE);
 
     ctx = spinlock_qid_ctx(qid);
     cpu = spinlock_qid_cpu(qid);

@@ -252,7 +252,7 @@ vm_page_unref(struct vm_page *page)
 {
     unsigned int nr_refs;
 
-    nr_refs = atomic_fetch_sub_acq_rel(&page->nr_refs, 1);
+    nr_refs = atomic_fetch_sub(&page->nr_refs, 1, ATOMIC_ACQ_REL);
     assert(nr_refs != 0);
 
     if (nr_refs == 1) {
@@ -272,7 +272,8 @@ vm_page_tryref(struct vm_page *page)
             return EAGAIN;
         }
 
-        prev = atomic_cas_acquire(&page->nr_refs, nr_refs, nr_refs + 1);
+        prev = atomic_cas(&page->nr_refs, nr_refs,
+                          nr_refs + 1, ATOMIC_ACQUIRE);
     } while (prev != nr_refs);
 
     return 0;

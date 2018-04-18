@@ -84,7 +84,7 @@ mutex_plain_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
     sleepq = sleepq_lend(mutex, false, &flags);
 
     for (;;) {
-        state = atomic_swap_release(&mutex->state, MUTEX_CONTENDED);
+        state = atomic_swap(&mutex->state, MUTEX_CONTENDED, ATOMIC_RELEASE);
 
         if (state == MUTEX_UNLOCKED) {
             break;

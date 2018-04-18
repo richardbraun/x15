@@ -49,7 +49,8 @@ mutex_plain_lock_fast(struct mutex *mutex)
 {
     unsigned int state;
 
-    state = atomic_cas_acquire(&mutex->state, MUTEX_UNLOCKED, MUTEX_LOCKED);
+    state = atomic_cas(&mutex->state, MUTEX_UNLOCKED,
+                       MUTEX_LOCKED, ATOMIC_ACQUIRE);
 
     if (unlikely(state != MUTEX_UNLOCKED)) {
         return EBUSY;
@@ -63,7 +64,7 @@ mutex_plain_unlock_fast(struct mutex *mutex)
 {
     unsigned int state;
 
-    state = atomic_swap_release(&mutex->state, MUTEX_UNLOCKED);
+    state = atomic_swap(&mutex->state, MUTEX_UNLOCKED, ATOMIC_RELEASE);
 
     if (unlikely(state == MUTEX_CONTENDED)) {
         return EBUSY;

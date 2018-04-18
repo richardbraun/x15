@@ -65,7 +65,8 @@ spinlock_lock_fast(struct spinlock *lock)
 {
     uint32_t prev;
 
-    prev = atomic_cas_acquire(&lock->value, SPINLOCK_UNLOCKED, SPINLOCK_LOCKED);
+    prev = atomic_cas(&lock->value, SPINLOCK_UNLOCKED,
+                      SPINLOCK_LOCKED, ATOMIC_ACQUIRE);
 
     if (unlikely(prev != SPINLOCK_UNLOCKED)) {
         return EBUSY;

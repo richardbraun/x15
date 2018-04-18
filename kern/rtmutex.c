@@ -107,7 +107,7 @@ rtmutex_lock_slow_common(struct rtmutex *rtmutex, bool timed, uint64_t ticks)
     bits = RTMUTEX_CONTENDED;
 
     for (;;) {
-        owner = atomic_cas_acquire(&rtmutex->owner, bits, self | bits);
+        owner = atomic_cas(&rtmutex->owner, bits, self | bits, ATOMIC_ACQUIRE);
         assert((owner & bits) == bits);
 
         if (owner == bits) {
@@ -211,8 +211,9 @@ rtmutex_unlock_slow(struct rtmutex *rtmutex)
         }
     }
 
-    owner = atomic_swap_release(&rtmutex->owner,
-                                RTMUTEX_FORCE_WAIT | RTMUTEX_CONTENDED);
+    owner = atomic_swap(&rtmutex->owner,
+                        RTMUTEX_FORCE_WAIT | RTMUTEX_CONTENDED,
+                        ATOMIC_RELEASE);
     assert(rtmutex_get_thread(owner) == thread_self());
 
     turnstile_disown(turnstile);

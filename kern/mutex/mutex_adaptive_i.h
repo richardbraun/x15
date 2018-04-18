@@ -55,7 +55,8 @@ mutex_adaptive_lock_fast(struct mutex *mutex)
 {
     uintptr_t owner;
 
-    owner = atomic_cas_acquire(&mutex->owner, 0, (uintptr_t)thread_self());
+    owner = atomic_cas(&mutex->owner, 0,
+                       (uintptr_t)thread_self(), ATOMIC_ACQUIRE);
 
     if (unlikely(owner != 0)) {
         return EBUSY;
@@ -69,7 +70,8 @@ mutex_adaptive_unlock_fast(struct mutex *mutex)
 {
     uintptr_t owner;
 
-    owner = atomic_cas_release(&mutex->owner, (uintptr_t)thread_self(), 0);
+    owner = atomic_cas(&mutex->owner, (uintptr_t)thread_self(),
+                       0, ATOMIC_RELEASE);
 
     if (unlikely(owner & MUTEX_ADAPTIVE_CONTENDED)) {
         return EBUSY;

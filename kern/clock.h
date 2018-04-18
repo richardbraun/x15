@@ -80,8 +80,8 @@ clock_get_time(void)
      */
 
     do {
-        high1 = atomic_load_acquire(&clock_global_time.high1);
-        low = atomic_load_acquire(&clock_global_time.low);
+        high1 = atomic_load(&clock_global_time.high1, ATOMIC_ACQUIRE);
+        low = atomic_load(&clock_global_time.low, ATOMIC_ACQUIRE);
         high2 = atomic_load(&clock_global_time.high2, ATOMIC_RELAXED);
     } while (high1 != high2);
 

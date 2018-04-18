@@ -297,7 +297,7 @@ thread_unref(struct thread *thread)
 {
     unsigned long nr_refs;
 
-    nr_refs = atomic_fetch_sub_acq_rel(&thread->nr_refs, 1);
+    nr_refs = atomic_fetch_sub(&thread->nr_refs, 1, ATOMIC_ACQ_REL);
     assert(nr_refs != 0);
 
     if (nr_refs == 1) {

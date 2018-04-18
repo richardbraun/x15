@@ -39,7 +39,7 @@ semaphore_dec(struct semaphore *semaphore)
             break;
         }
 
-        prev = atomic_cas_acquire(&semaphore->value, value, value - 1);
+        prev = atomic_cas(&semaphore->value, value, value - 1, ATOMIC_ACQUIRE);
     } while (prev != value);
 
     return value;

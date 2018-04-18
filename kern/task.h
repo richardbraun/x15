@@ -64,7 +64,7 @@ task_unref(struct task *task)
 {
     unsigned long nr_refs;
 
-    nr_refs = atomic_fetch_sub_acq_rel(&task->nr_refs, 1);
+    nr_refs = atomic_fetch_sub(&task->nr_refs, 1, ATOMIC_ACQ_REL);
     assert(nr_refs != 0);
 
     if (nr_refs == 1) {

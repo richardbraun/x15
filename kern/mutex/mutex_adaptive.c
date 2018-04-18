@@ -135,8 +135,8 @@ mutex_adaptive_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
     mutex_adaptive_set_contended(mutex);
 
     do {
-        owner = atomic_cas_acquire(&mutex->owner, MUTEX_ADAPTIVE_CONTENDED,
-                                   self | MUTEX_ADAPTIVE_CONTENDED);
+        owner = atomic_cas(&mutex->owner, MUTEX_ADAPTIVE_CONTENDED,
+                           self | MUTEX_ADAPTIVE_CONTENDED, ATOMIC_ACQUIRE);
         assert(owner & MUTEX_ADAPTIVE_CONTENDED);
 
         if (mutex_adaptive_get_thread(owner) == NULL) {
@@ -254,8 +254,8 @@ mutex_adaptive_unlock_slow(struct mutex *mutex)
     self = (uintptr_t)thread_self() | MUTEX_ADAPTIVE_CONTENDED;
 
     for (;;) {
-        owner = atomic_cas_release(&mutex->owner, self,
-                                   MUTEX_ADAPTIVE_CONTENDED);
+        owner = atomic_cas(&mutex->owner, self,
+                           MUTEX_ADAPTIVE_CONTENDED, ATOMIC_RELEASE);
 
         if (owner == self) {
             break;
