@@ -40,7 +40,7 @@
  * to be unlocked, potentially spinning on the owner. It forces threads
  * trying to lock the mutex as well as the owner to take the slow path.
  */
-#define MUTEX_ADAPTIVE_CONTENDED 0x1
+#define MUTEX_ADAPTIVE_CONTENDED 0x1UL
 
 static inline void
 mutex_adaptive_init(struct mutex *mutex)
