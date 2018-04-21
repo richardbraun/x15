@@ -102,7 +102,7 @@ static_assert(SPINLOCK_BITS <= (CHAR_BIT * sizeof(uint32_t)),
 
 struct spinlock_qnode {
     alignas(CPU_L1_SIZE) struct spinlock_qnode *next;
-    bool locked;
+    int locked;
 };
 
 /* TODO NMI support */
@@ -194,13 +194,13 @@ spinlock_qnode_set_next(struct spinlock_qnode *qnode, struct spinlock_qnode *nex
 static void
 spinlock_qnode_set_locked(struct spinlock_qnode *qnode)
 {
-    qnode->locked = true;
+    qnode->locked = 1;
 }
 
 static void
 spinlock_qnode_wait_locked(const struct spinlock_qnode *qnode)
 {
-    bool locked;
+    int locked;
 
     for (;;) {
         locked = atomic_load(&qnode->locked, ATOMIC_ACQUIRE);
@@ -216,7 +216,7 @@ spinlock_qnode_wait_locked(const struct spinlock_qnode *qnode)
 static void
 spinlock_qnode_clear_locked(struct spinlock_qnode *qnode)
 {
-    atomic_store(&qnode->locked, false, ATOMIC_RELEASE);
+    atomic_store(&qnode->locked, 0, ATOMIC_RELEASE);
 }
 
 static void

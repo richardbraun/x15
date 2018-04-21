@@ -55,7 +55,7 @@ task_ref(struct task *task)
 {
     unsigned long nr_refs;
 
-    nr_refs = atomic_fetch_add(&task->nr_refs, 1, ATOMIC_RELAXED);
+    nr_refs = atomic_fetch_add(&task->nr_refs, 1UL, ATOMIC_RELAXED);
     assert(nr_refs != (unsigned long)-1);
 }
 
@@ -64,7 +64,7 @@ task_unref(struct task *task)
 {
     unsigned long nr_refs;
 
-    nr_refs = atomic_fetch_sub(&task->nr_refs, 1, ATOMIC_ACQ_REL);
+    nr_refs = atomic_fetch_sub(&task->nr_refs, 1UL, ATOMIC_ACQ_REL);
     assert(nr_refs != 0);
 
     if (nr_refs == 1) {

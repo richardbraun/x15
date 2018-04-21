@@ -91,7 +91,7 @@ static void __init
 trap_handler_init(struct trap_handler *handler, int flags, trap_handler_fn_t fn)
 {
     handler->flags = flags;
-    atomic_store(&handler->fn, fn, ATOMIC_RELAXED);
+    handler->fn = fn;
 }
 
 static void __init

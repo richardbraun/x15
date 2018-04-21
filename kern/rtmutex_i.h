@@ -41,8 +41,8 @@
  * the turnstile wait function so that only the highest priority thread
  * may lock the mutex.
  */
-#define RTMUTEX_CONTENDED   0x1
-#define RTMUTEX_FORCE_WAIT  0x2
+#define RTMUTEX_CONTENDED   ((uintptr_t)0x1)
+#define RTMUTEX_FORCE_WAIT  ((uintptr_t)0x2)
 
 #define RTMUTEX_OWNER_MASK  (~((uintptr_t)(RTMUTEX_FORCE_WAIT \
                                            | RTMUTEX_CONTENDED)))
