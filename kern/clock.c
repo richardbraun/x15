@@ -72,7 +72,7 @@ void clock_tick_intr(void)
     if (cpu_id() == 0) {
 #ifdef ATOMIC_HAVE_64B_OPS
 
-        atomic_add(&clock_global_time.ticks, 1, ATOMIC_RELAXED);
+        atomic_add(&clock_global_time.ticks, 1ULL, ATOMIC_RELAXED);
 
 #else /* ATOMIC_HAVE_64B_OPS */
 

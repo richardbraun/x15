@@ -261,8 +261,8 @@ module:arch/tcb::
 module:arch/trap::
   Interrupt and exception handling.
 
-The machine-independent code assumes a completely relaxed memory model as
-allowed by the C11 specification.
+The machine-independent code assumes either an ILP32 or LP64 data model, and
+a completely relaxed memory model as allowed by the C11 specification.
 
 X15 currently requires a memory management unit, but that may change in
 the future.

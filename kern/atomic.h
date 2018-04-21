@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2018 Richard Braun.
  * Copyright (c) 2017 Agustina Arzille.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,6 +18,12 @@
  *
  * Type-generic memory-model aware atomic operations.
  *
+ * For portability reasons, this interface restricts atomic operation
+ * sizes to 32-bit and 64-bit.
+ *
+ * Some configurations may not support 64-bit operations. Check if the
+ * ATOMIC_HAVE_64B_OPS macro is defined to find out.
+ *
  * TODO Replace mentions of "memory barriers" throughout the code with
  * C11 memory model terminology.
  */
@@ -26,43 +33,25 @@
 
 #include <stdbool.h>
 
-#include <kern/macros.h>
 #include <machine/atomic.h>
 
 /*
  * Supported memory orders.
  */
-#define ATOMIC_RELAXED   __ATOMIC_RELAXED
-#define ATOMIC_CONSUME   __ATOMIC_CONSUME
-#define ATOMIC_ACQUIRE   __ATOMIC_ACQUIRE
-#define ATOMIC_RELEASE   __ATOMIC_RELEASE
-#define ATOMIC_ACQ_REL   __ATOMIC_ACQ_REL
-#define ATOMIC_SEQ_CST   __ATOMIC_SEQ_CST
+#define ATOMIC_RELAXED  __ATOMIC_RELAXED
+#define ATOMIC_CONSUME  __ATOMIC_CONSUME
+#define ATOMIC_ACQUIRE  __ATOMIC_ACQUIRE
+#define ATOMIC_RELEASE  __ATOMIC_RELEASE
+#define ATOMIC_ACQ_REL  __ATOMIC_ACQ_REL
+#define ATOMIC_SEQ_CST  __ATOMIC_SEQ_CST
 
-/*
- * Type-generic atomic operations.
- */
-#define atomic_fetch_add(ptr, val, mo)  __atomic_fetch_add(ptr, val, mo)
+#include <kern/atomic_i.h>
 
-#define atomic_fetch_sub(ptr, val, mo)  __atomic_fetch_sub(ptr, val, mo)
+#define atomic_load(ptr, memorder) \
+((typeof(*(ptr)))atomic_select(ptr, load)(ptr, memorder))
 
-#define atomic_fetch_and(ptr, val, mo)  __atomic_fetch_and(ptr, val, mo)
-
-#define atomic_fetch_or(ptr, val, mo)   __atomic_fetch_or(ptr, val, mo)
-
-#define atomic_fetch_xor(ptr, val, mo)  __atomic_fetch_xor(ptr, val, mo)
-
-#define atomic_add(ptr, val, mo)        (void)__atomic_add_fetch(ptr, val, mo)
-
-#define atomic_sub(ptr, val, mo)        (void)__atomic_sub_fetch(ptr, val, mo)
-
-#define atomic_and(ptr, val, mo)        (void)__atomic_and_fetch(ptr, val, mo)
-
-#define atomic_or(ptr, val, mo)         (void)__atomic_or_fetch(ptr, val, mo)
-
-#define atomic_xor(ptr, val, mo)        (void)__atomic_xor_fetch(ptr, val, mo)
-
-#define atomic_swap(ptr, val, mo)       __atomic_exchange_n(ptr, val, mo)
+#define atomic_store(ptr, val, memorder) \
+atomic_select(ptr, store)(ptr, val, memorder)
 
 /*
  * For compare-and-swap, deviate a little from the standard, and only
@@ -73,37 +62,43 @@
  * because atomic CAS is typically used in a loop. However, if a different
  * code path is taken on failure (rather than retrying), then the user
  * should be aware that a memory fence might be necessary.
- *
- * Finally, although a local variable isn't strictly needed for the new
- * value, some compilers seem to have trouble when all parameters don't
- * have the same type.
  */
-#define atomic_cas(ptr, oval, nval, mo)                             \
-MACRO_BEGIN                                                         \
-    typeof(*(ptr)) oval_, nval_;                                    \
-                                                                    \
-    oval_ = (oval);                                                 \
-    nval_ = (nval);                                                 \
-    __atomic_compare_exchange_n(ptr, &oval_, nval_, false,          \
-                                mo, ATOMIC_RELAXED);                \
-    oval_;                                                          \
-MACRO_END
+#define atomic_cas(ptr, oval, nval, memorder) \
+((typeof(*(ptr)))atomic_select(ptr, cas)(ptr, oval, nval, memorder))
 
-/*
- * Some architectures may need specific definitions for loads and stores,
- * in order to prevent the compiler from emitting unsupported instructions.
- * As such, only define these if the architecture-specific part of the
- * module didn't already.
- */
+#define atomic_swap(ptr, val, memorder) \
+((typeof(*(ptr)))atomic_select(ptr, swap)(ptr, val, memorder))
 
-#ifndef ATOMIC_ARCH_SPECIFIC_LOAD
-#define atomic_load(ptr, mo) __atomic_load_n(ptr, mo)
-#endif
+#define atomic_fetch_add(ptr, val, memorder) \
+((typeof(*(ptr)))atomic_select(ptr, fetch_add)(ptr, val, memorder))
 
-#ifndef ATOMIC_ARCH_SPECIFIC_STORE
-#define atomic_store(ptr, val, mo) __atomic_store_n(ptr, val, mo)
-#endif
+#define atomic_fetch_sub(ptr, val, memorder) \
+((typeof(*(ptr)))atomic_select(ptr, fetch_sub)(ptr, val, memorder))
 
-#define atomic_fence(mo) __atomic_thread_fence(mo)
+#define atomic_fetch_and(ptr, val, memorder) \
+((typeof(*(ptr)))atomic_select(ptr, fetch_and)(ptr, val, memorder))
+
+#define atomic_fetch_or(ptr, val, memorder) \
+((typeof(*(ptr)))atomic_select(ptr, fetch_or)(ptr, val, memorder))
+
+#define atomic_fetch_xor(ptr, val, memorder) \
+((typeof(*(ptr)))atomic_select(ptr, fetch_xor)(ptr, val, memorder))
+
+#define atomic_add(ptr, val, memorder) \
+atomic_select(ptr, add)(ptr, val, memorder)
+
+#define atomic_sub(ptr, val, memorder) \
+atomic_select(ptr, sub)(ptr, val, memorder)
+
+#define atomic_and(ptr, val, memorder) \
+atomic_select(ptr, and)(ptr, val, memorder)
+
+#define atomic_or(ptr, val, memorder) \
+atomic_select(ptr, or)(ptr, val, memorder)
+
+#define atomic_xor(ptr, val, memorder) \
+atomic_select(ptr, xor)(ptr, val, memorder)
+
+#define atomic_fence(memorder) __atomic_thread_fence(memorder)
 
 #endif /* KERN_ATOMIC_H */
