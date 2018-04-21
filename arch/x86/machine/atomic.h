@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 Richard Braun.
+ * Copyright (c) 2012-2018 Richard Braun.
  * Copyright (c) 2017 Agustina Arzille.
  *
  * This program is free software: you can redistribute it and/or modify
@@ -27,78 +27,77 @@
 #endif
 
 #include <stdbool.h>
-#include <stdint.h>
 
 #include <kern/macros.h>
 
 #ifndef __LP64__
 
 /*
- * On i386, the compiler generates either an FP-stack read/write, or an SSE2
- * store/load to implement these 64-bit atomic operations. Since that's not
- * feasible in the kernel, fall back to cmpxchg8b. Note that, in this case,
- * loading becomes a potentially mutating operation, but it's not expected
- * to be a problem since atomic operations are normally not used on read-only
- * memory. Also note that this assumes the processor is at least an i586.
- */
-
-/*
- * Temporarily discard qualifiers when loading 64-bits values with a
- * compare-and-swap operation.
- */
-#define atomic_load_64(ptr, mo)                                             \
-MACRO_BEGIN                                                                 \
-    uint64_t ret_ = 0;                                                      \
-                                                                            \
-    __atomic_compare_exchange_n((uint64_t *)(ptr), &ret_, 0,                \
-                                false, mo, __ATOMIC_RELAXED);               \
-    ret_;                                                                   \
-MACRO_END
-
-#define atomic_load(ptr, mo)                                                \
-    (typeof(*(ptr)))__builtin_choose_expr(sizeof(*(ptr)) == 8,              \
-                                          atomic_load_64(ptr, mo),          \
-                                          __atomic_load_n(ptr, mo))
-
-#define atomic_store(ptr, val, mo)                                          \
-MACRO_BEGIN                                                                 \
-    if (sizeof(*(ptr)) != 8) {                                              \
-        __atomic_store_n(ptr, val, mo);                                     \
-    } else {                                                                \
-        typeof(*(ptr)) oval_, nval_;                                        \
-        bool done_;                                                         \
-                                                                            \
-        oval_ = *(ptr);                                                     \
-        nval_ = (val);                                                      \
-                                                                            \
-        do {                                                                \
-            done_ = __atomic_compare_exchange_n(ptr, &oval_, nval_,         \
-                                                  false, mo,                \
-                                                  __ATOMIC_RELAXED);        \
-        } while (!done_);                                                   \
-                                                                            \
-    }                                                                       \
-MACRO_END
-
-/*
- * Report that load and store are architecture-specific.
- */
-#define ATOMIC_ARCH_SPECIFIC_LOAD
-#define ATOMIC_ARCH_SPECIFIC_STORE
-
-#endif /* __LP64__ */
-
-/*
- * XXX Clang seems to have trouble with 64-bits operations on 32-bits
+ * XXX Clang seems to have trouble with 64-bit operations on 32-bit
  * processors.
  */
-#if defined(__LP64__) || !defined(__clang__)
+#ifndef __clang__
 
-/*
- * Report that 64-bits operations are supported.
- */
+/* Report that 64-bits operations are supported */
 #define ATOMIC_HAVE_64B_OPS
 
+/*
+ * On i386, the compiler generates either an FP-stack read/write, or an SSE2
+ * store/load to implement these 64-bit atomic operations. Since that's not
+ * feasible in the kernel, fall back to cmpxchg8b.
+ *
+ * XXX Note that, in this case, loading becomes a potentially mutating
+ * operation, but it's not expected to be a problem since atomic operations
+ * are normally not used on read-only memory.
+ *
+ * Also note that this assumes the processor is at least an i586.
+ */
+
+#define atomic_x86_select(ptr, op)                      \
+_Generic(*(ptr),                                        \
+    unsigned int: __atomic_ ## op ## _n,                \
+    unsigned long long: atomic_i386_ ## op ## _64)
+
+static inline unsigned long long
+atomic_i386_load_64(const unsigned long long *ptr, int memorder)
+{
+    unsigned long long prev;
+
+    prev = 0;
+    __atomic_compare_exchange_n((unsigned long long *)ptr, &prev,
+                                0, false, memorder, __ATOMIC_RELAXED);
+    return prev;
+}
+
+#define atomic_load_n(ptr, memorder) \
+atomic_x86_select(ptr, load)(ptr, memorder)
+
+static inline void
+atomic_i386_store_64(unsigned long long *ptr, unsigned long long val,
+                     int memorder)
+{
+    unsigned long long prev;
+    bool done;
+
+    prev = *ptr;
+
+    do {
+        done = __atomic_compare_exchange_n(ptr, &prev, val,
+                                           false, memorder,
+                                           __ATOMIC_RELAXED);
+    } while (!done);
+}
+
+#define atomic_store_n(ptr, val, memorder) \
+atomic_x86_select(ptr, store)(ptr, val, memorder)
+
 #endif /* __clang__ */
+
+#else /* __LP64__ */
+
+/* Report that 64-bits operations are supported */
+#define ATOMIC_HAVE_64B_OPS
+
+#endif /* __LP64__ */
 
 #endif /* X86_ATOMIC_H */
