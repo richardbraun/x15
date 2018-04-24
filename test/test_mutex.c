@@ -38,6 +38,7 @@
 #include <kern/log.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
+#include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <kern/timer.h>
 #include <test/test.h>

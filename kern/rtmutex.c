@@ -26,6 +26,7 @@
 #include <kern/rtmutex.h>
 #include <kern/rtmutex_i.h>
 #include <kern/rtmutex_types.h>
+#include <kern/syscnt.h>
 #include <kern/thread.h>
 #include <kern/turnstile.h>
 
