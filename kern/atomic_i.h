@@ -210,7 +210,8 @@ union atomic_val_64 {
 
 #endif /* __LP64__ */
 
-#define atomic_ptr_aligned(ptr) P2ALIGNED((uintptr_t)(ptr), sizeof(ptr))
+#define ATOMIC_ALIGN(ptr) MIN(sizeof(*(ptr)), sizeof(ptr))
+#define atomic_ptr_aligned(ptr) P2ALIGNED((uintptr_t)(ptr), ATOMIC_ALIGN(ptr))
 
 /* atomic_load */
 
