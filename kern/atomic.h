@@ -31,9 +31,11 @@
 #ifndef KERN_ATOMIC_H
 #define KERN_ATOMIC_H
 
+#include <assert.h>
 #include <stdbool.h>
 
-#include <machine/atomic.h>
+#include <kern/atomic_i.h>
+#include <kern/macros.h>
 
 /*
  * Supported memory orders.
@@ -45,13 +47,17 @@
 #define ATOMIC_ACQ_REL  __ATOMIC_ACQ_REL
 #define ATOMIC_SEQ_CST  __ATOMIC_SEQ_CST
 
-#include <kern/atomic_i.h>
+#define atomic_load(ptr, memorder)                                          \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    ((typeof(*(ptr)))atomic_select(ptr, load)(ptr, memorder));              \
+MACRO_END
 
-#define atomic_load(ptr, memorder) \
-((typeof(*(ptr)))atomic_select(ptr, load)(ptr, memorder))
-
-#define atomic_store(ptr, val, memorder) \
-atomic_select(ptr, store)(ptr, val, memorder)
+#define atomic_store(ptr, val, memorder)                                    \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    atomic_select(ptr, store)(ptr, val, memorder);                          \
+MACRO_END
 
 /*
  * For compare-and-swap, deviate a little from the standard, and only
@@ -63,41 +69,77 @@ atomic_select(ptr, store)(ptr, val, memorder)
  * code path is taken on failure (rather than retrying), then the user
  * should be aware that a memory fence might be necessary.
  */
-#define atomic_cas(ptr, oval, nval, memorder) \
-((typeof(*(ptr)))atomic_select(ptr, cas)(ptr, oval, nval, memorder))
+#define atomic_cas(ptr, oval, nval, memorder)                               \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    ((typeof(*(ptr)))atomic_select(ptr, cas)(ptr, oval, nval, memorder));   \
+MACRO_END
 
-#define atomic_swap(ptr, val, memorder) \
-((typeof(*(ptr)))atomic_select(ptr, swap)(ptr, val, memorder))
+#define atomic_swap(ptr, val, memorder)                                     \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    ((typeof(*(ptr)))atomic_select(ptr, swap)(ptr, val, memorder));         \
+MACRO_END
 
-#define atomic_fetch_add(ptr, val, memorder) \
-((typeof(*(ptr)))atomic_select(ptr, fetch_add)(ptr, val, memorder))
+#define atomic_fetch_add(ptr, val, memorder)                                \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    ((typeof(*(ptr)))atomic_select(ptr, fetch_add)(ptr, val, memorder));    \
+MACRO_END
 
-#define atomic_fetch_sub(ptr, val, memorder) \
-((typeof(*(ptr)))atomic_select(ptr, fetch_sub)(ptr, val, memorder))
+#define atomic_fetch_sub(ptr, val, memorder)                                \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    ((typeof(*(ptr)))atomic_select(ptr, fetch_sub)(ptr, val, memorder));    \
+MACRO_END
 
-#define atomic_fetch_and(ptr, val, memorder) \
-((typeof(*(ptr)))atomic_select(ptr, fetch_and)(ptr, val, memorder))
+#define atomic_fetch_and(ptr, val, memorder)                                \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    ((typeof(*(ptr)))atomic_select(ptr, fetch_and)(ptr, val, memorder));    \
+MACRO_END
 
-#define atomic_fetch_or(ptr, val, memorder) \
-((typeof(*(ptr)))atomic_select(ptr, fetch_or)(ptr, val, memorder))
+#define atomic_fetch_or(ptr, val, memorder)                                 \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    ((typeof(*(ptr)))atomic_select(ptr, fetch_or)(ptr, val, memorder));     \
+MACRO_END
 
-#define atomic_fetch_xor(ptr, val, memorder) \
-((typeof(*(ptr)))atomic_select(ptr, fetch_xor)(ptr, val, memorder))
+#define atomic_fetch_xor(ptr, val, memorder)                                \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    ((typeof(*(ptr)))atomic_select(ptr, fetch_xor)(ptr, val, memorder));    \
+MACRO_END
 
-#define atomic_add(ptr, val, memorder) \
-atomic_select(ptr, add)(ptr, val, memorder)
+#define atomic_add(ptr, val, memorder)                                      \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    atomic_select(ptr, add)(ptr, val, memorder);                            \
+MACRO_END
 
-#define atomic_sub(ptr, val, memorder) \
-atomic_select(ptr, sub)(ptr, val, memorder)
+#define atomic_sub(ptr, val, memorder)                                      \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    atomic_select(ptr, sub)(ptr, val, memorder);                            \
+MACRO_END
 
-#define atomic_and(ptr, val, memorder) \
-atomic_select(ptr, and)(ptr, val, memorder)
+#define atomic_and(ptr, val, memorder)                                      \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    atomic_select(ptr, and)(ptr, val, memorder);                            \
+MACRO_END
 
-#define atomic_or(ptr, val, memorder) \
-atomic_select(ptr, or)(ptr, val, memorder)
+#define atomic_or(ptr, val, memorder)                                       \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    atomic_select(ptr, or)(ptr, val, memorder);                             \
+MACRO_END
 
-#define atomic_xor(ptr, val, memorder) \
-atomic_select(ptr, xor)(ptr, val, memorder)
+#define atomic_xor(ptr, val, memorder)                                      \
+MACRO_BEGIN                                                                 \
+    assert(atomic_ptr_aligned(ptr));                                        \
+    atomic_select(ptr, xor)(ptr, val, memorder);                            \
+MACRO_END
 
 #define atomic_fence(memorder) __atomic_thread_fence(memorder)
 

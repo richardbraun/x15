@@ -16,20 +16,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * Architecture-specific code may override any of the type-generic
- * atomic_xxx_n macros by defining them.
+ * Architecture-specific code may override any of the type-specific
+ * functions by defining the macro of the same name.
  */
 
 #ifndef KERN_ATOMIC_I_H
 #define KERN_ATOMIC_I_H
 
-#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 #include <kern/atomic_types.h>
 #include <kern/macros.h>
 #include <machine/atomic.h>
+
+#define ATOMIC_ALIGN(ptr) MIN(sizeof(*(ptr)), sizeof(ptr))
+#define atomic_ptr_aligned(ptr) P2ALIGNED((uintptr_t)(ptr), ATOMIC_ALIGN(ptr))
 
 /*
  * This macro is used to select the appropriate function for the given
@@ -60,16 +62,12 @@ _Generic(*(ptr),                                    \
 
 void atomic_invalid_type(void);
 
-#define ATOMIC_ALIGN(ptr) MIN(sizeof(*(ptr)), sizeof(ptr))
-#define atomic_ptr_aligned(ptr) P2ALIGNED((uintptr_t)(ptr), ATOMIC_ALIGN(ptr))
-
 /* atomic_load */
 
 #ifndef atomic_load_32
 static inline unsigned int
 atomic_load_32(union atomic_constptr_32 ptr, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     return __atomic_load_n(ptr.ui_ptr, memorder);
 }
 #endif /* atomic_load_32 */
@@ -80,7 +78,6 @@ atomic_load_32(union atomic_constptr_32 ptr, int memorder)
 static inline unsigned long long
 atomic_load_64(union atomic_constptr_64 ptr, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     return __atomic_load_n(ptr.ull_ptr, memorder);
 }
 #endif /* atomic_load_64 */
@@ -103,7 +100,6 @@ atomic_load_64(union atomic_constptr_64 ptr, int memorder)
 static inline void
 atomic_store_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     return __atomic_store_n(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_store_32 */
@@ -114,7 +110,6 @@ atomic_store_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 static inline void
 atomic_store_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     return __atomic_store_n(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_store_64 */
@@ -148,7 +143,6 @@ static inline unsigned int
 atomic_cas_32(union atomic_ptr_32 ptr, union atomic_val32 oval,
               union atomic_val32 nval, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     return atomic_cas_n(ptr.ui_ptr, oval.ui, nval.ui, memorder);
 }
 #endif /* atomic_cas_32 */
@@ -160,7 +154,6 @@ static inline unsigned long long
 atomic_cas_64(union atomic_ptr_64 ptr, union atomic_val_64 oval,
               union atomic_val_64 nval, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     return atomic_cas_n(ptr.ull_ptr, oval.ull, nval.ull, memorder);
 }
 #endif /* atomic_cas_64 */
@@ -183,7 +176,6 @@ atomic_cas_64(union atomic_ptr_64 ptr, union atomic_val_64 oval,
 static inline unsigned int
 atomic_swap_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     return __atomic_exchange_n(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_swap_32 */
@@ -194,7 +186,6 @@ atomic_swap_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 static inline unsigned long long
 atomic_swap_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     return __atomic_exchange_n(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_swap_64 */
@@ -218,7 +209,6 @@ static inline unsigned int
 atomic_fetch_add_32(union atomic_ptr_32 ptr, union atomic_val32 val,
                     int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     return __atomic_fetch_add(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_fetch_add_32 */
@@ -230,7 +220,6 @@ static inline unsigned long long
 atomic_fetch_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
                     int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     return __atomic_fetch_add(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_fetch_add_64 */
@@ -254,7 +243,6 @@ static inline unsigned int
 atomic_fetch_sub_32(union atomic_ptr_32 ptr, union atomic_val32 val,
                     int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     return __atomic_fetch_sub(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_fetch_sub_32 */
@@ -266,7 +254,6 @@ static inline unsigned long long
 atomic_fetch_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
                     int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     return __atomic_fetch_sub(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_fetch_sub_64 */
@@ -290,7 +277,6 @@ static inline unsigned int
 atomic_fetch_and_32(union atomic_ptr_32 ptr, union atomic_val32 val,
                     int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     return __atomic_fetch_and(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_fetch_and_32 */
@@ -302,7 +288,6 @@ static inline unsigned long long
 atomic_fetch_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
                     int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     return __atomic_fetch_and(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_fetch_and_64 */
@@ -326,7 +311,6 @@ static inline unsigned int
 atomic_fetch_or_32(union atomic_ptr_32 ptr, union atomic_val32 val,
                    int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     return __atomic_fetch_or(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_fetch_or_32 */
@@ -338,7 +322,6 @@ static inline unsigned long long
 atomic_fetch_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
                    int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     return __atomic_fetch_or(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_fetch_or_64 */
@@ -362,7 +345,6 @@ static inline unsigned int
 atomic_fetch_xor_32(union atomic_ptr_32 ptr, union atomic_val32 val,
                     int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     return __atomic_fetch_xor(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_fetch_xor_32 */
@@ -374,7 +356,6 @@ static inline unsigned long long
 atomic_fetch_xor_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
                     int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     return __atomic_fetch_xor(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_fetch_xor_64 */
@@ -397,7 +378,6 @@ atomic_fetch_xor_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 static inline void
 atomic_add_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     __atomic_add_fetch(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_add_32 */
@@ -408,7 +388,6 @@ atomic_add_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 static inline void
 atomic_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     __atomic_add_fetch(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_add_64 */
@@ -431,7 +410,6 @@ atomic_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 static inline void
 atomic_sub_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     __atomic_sub_fetch(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_sub_32 */
@@ -442,7 +420,6 @@ atomic_sub_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 static inline void
 atomic_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     __atomic_sub_fetch(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_sub_64 */
@@ -465,7 +442,6 @@ atomic_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 static inline void
 atomic_and_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     __atomic_and_fetch(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_and_32 */
@@ -476,7 +452,6 @@ atomic_and_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 static inline void
 atomic_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     __atomic_and_fetch(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_and_64 */
@@ -499,7 +474,6 @@ atomic_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 static inline void
 atomic_or_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     __atomic_or_fetch(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_or_32 */
@@ -510,7 +484,6 @@ atomic_or_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 static inline void
 atomic_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     __atomic_or_fetch(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_or_64 */
@@ -533,7 +506,6 @@ atomic_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 static inline void
 atomic_xor_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ui_ptr));
     __atomic_xor_fetch(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_xor_32 */
@@ -544,7 +516,6 @@ atomic_xor_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
 static inline void
 atomic_xor_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 {
-    assert(atomic_ptr_aligned(ptr.ull_ptr));
     __atomic_xor_fetch(ptr.ull_ptr, val.ull, memorder);
 }
 #endif /* atomic_xor_64 */
