@@ -28,13 +28,18 @@
 
 #include <stdbool.h>
 
+#include <kern/atomic_types.h>
 #include <kern/macros.h>
 
-#ifndef __LP64__
+#ifdef __LP64__
+
+/* Report that 64-bits operations are supported */
+#define ATOMIC_HAVE_64B_OPS
+
+#else /* __LP64__ */
 
 /*
- * XXX Clang seems to have trouble with 64-bit operations on 32-bit
- * processors.
+ * XXX Clang doesn't provide any __atomic_xxx_8 functions on i386.
  */
 #ifndef __clang__
 
@@ -42,7 +47,7 @@
 #define ATOMIC_HAVE_64B_OPS
 
 /*
- * On i386, the compiler generates either an FP-stack read/write, or an SSE2
+ * On i386, GCC generates either an FP-stack read/write, or an SSE2
  * store/load to implement these 64-bit atomic operations. Since that's not
  * feasible in the kernel, fall back to cmpxchg8b.
  *
@@ -53,50 +58,37 @@
  * Also note that this assumes the processor is at least an i586.
  */
 
-#define atomic_x86_select(ptr, op)                      \
-_Generic(*(ptr),                                        \
-    unsigned int: __atomic_ ## op ## _n,                \
-    unsigned long long: atomic_i386_ ## op ## _64)
-
 static inline unsigned long long
-atomic_i386_load_64(const unsigned long long *ptr, int memorder)
+atomic_i386_load_64(union atomic_constptr_64 ptr, int memorder)
 {
     unsigned long long prev;
 
     prev = 0;
-    __atomic_compare_exchange_n((unsigned long long *)ptr, &prev,
-                                0, false, memorder, __ATOMIC_RELAXED);
+    __atomic_compare_exchange_n((unsigned long long *)(ptr.ull_ptr),
+                                &prev, 0, false, memorder, __ATOMIC_RELAXED);
     return prev;
 }
 
-#define atomic_load_n(ptr, memorder) \
-atomic_x86_select(ptr, load)(ptr, memorder)
+#define atomic_load_64 atomic_i386_load_64
 
 static inline void
-atomic_i386_store_64(unsigned long long *ptr, unsigned long long val,
+atomic_i386_store_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
                      int memorder)
 {
     unsigned long long prev;
     bool done;
 
-    prev = *ptr;
+    prev = *ptr.ull_ptr;
 
     do {
-        done = __atomic_compare_exchange_n(ptr, &prev, val,
-                                           false, memorder,
-                                           __ATOMIC_RELAXED);
+        done = __atomic_compare_exchange_n(ptr.ull_ptr, &prev, val.ull,
+                                           false, memorder, __ATOMIC_RELAXED);
     } while (!done);
 }
 
-#define atomic_store_n(ptr, val, memorder) \
-atomic_x86_select(ptr, store)(ptr, val, memorder)
+#define atomic_store_64 atomic_i386_store_64
 
 #endif /* __clang__ */
-
-#else /* __LP64__ */
-
-/* Report that 64-bits operations are supported */
-#define ATOMIC_HAVE_64B_OPS
 
 #endif /* __LP64__ */
 
