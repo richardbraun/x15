@@ -16,6 +16,8 @@
  *
  *
  * Isolated type definition used to avoid inclusion circular dependencies.
+ *
+ * These types are directly used by both the atomic and latomic modules.
  */
 
 #ifndef KERN_ATOMIC_TYPES_H
