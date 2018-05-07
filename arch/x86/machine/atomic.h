@@ -68,7 +68,6 @@ atomic_i386_load_64(union atomic_constptr_64 ptr, int memorder)
                                 &prev, 0, false, memorder, __ATOMIC_RELAXED);
     return prev;
 }
-
 #define atomic_load_64 atomic_i386_load_64
 
 static inline void
@@ -85,7 +84,6 @@ atomic_i386_store_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
                                            false, memorder, __ATOMIC_RELAXED);
     } while (!done);
 }
-
 #define atomic_store_64 atomic_i386_store_64
 
 #endif /* __clang__ */

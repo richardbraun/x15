@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *
- * Type-generic memory-model aware atomic operations.
+ * Type-generic memory-model-aware atomic operations.
  *
  * For portability reasons, this interface restricts atomic operation
  * sizes to 32-bit and 64-bit.

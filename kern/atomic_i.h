@@ -17,7 +17,7 @@
  *
  *
  * Architecture-specific code may override any of the type-specific
- * functions by defining the macro of the same name.
+ * functions by defining a macro of the same name.
  */
 
 #ifndef KERN_ATOMIC_I_H
@@ -62,6 +62,7 @@ _Generic(*(ptr),                                    \
 
 void atomic_invalid_type(void);
 
+
 /* atomic_load */
 
 #ifndef atomic_load_32
@@ -73,7 +74,6 @@ atomic_load_32(union atomic_constptr_32 ptr, int memorder)
 #endif /* atomic_load_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_load_64
 static inline unsigned long long
 atomic_load_64(union atomic_constptr_64 ptr, int memorder)
@@ -94,18 +94,18 @@ atomic_load_64(union atomic_constptr_64 ptr, int memorder)
 
 #define atomic_load_ptr         atomic_load_ul
 
+
 /* atomic_store */
 
 #ifndef atomic_store_32
 static inline void
-atomic_store_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
+atomic_store_32(union atomic_ptr_32 ptr, union atomic_val_32 val, int memorder)
 {
     return __atomic_store_n(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_store_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_store_64
 static inline void
 atomic_store_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
@@ -126,11 +126,12 @@ atomic_store_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 
 #define atomic_store_ptr        atomic_store_ul
 
+
 /* atomic_cas */
 
 #define atomic_cas_n(ptr, oval, nval, memorder)                     \
 MACRO_BEGIN                                                         \
-    typeof(*(ptr)) oval_;                                           \
+    typeof(oval) oval_;                                             \
                                                                     \
     oval_ = (oval);                                                 \
     __atomic_compare_exchange_n(ptr, &oval_, (nval), false,         \
@@ -140,15 +141,14 @@ MACRO_END
 
 #ifndef atomic_cas_32
 static inline unsigned int
-atomic_cas_32(union atomic_ptr_32 ptr, union atomic_val32 oval,
-              union atomic_val32 nval, int memorder)
+atomic_cas_32(union atomic_ptr_32 ptr, union atomic_val_32 oval,
+              union atomic_val_32 nval, int memorder)
 {
     return atomic_cas_n(ptr.ui_ptr, oval.ui, nval.ui, memorder);
 }
 #endif /* atomic_cas_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_cas_64
 static inline unsigned long long
 atomic_cas_64(union atomic_ptr_64 ptr, union atomic_val_64 oval,
@@ -170,18 +170,18 @@ atomic_cas_64(union atomic_ptr_64 ptr, union atomic_val_64 oval,
 
 #define atomic_cas_ptr          atomic_cas_ul
 
+
 /* atomic_swap */
 
 #ifndef atomic_swap_32
 static inline unsigned int
-atomic_swap_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
+atomic_swap_32(union atomic_ptr_32 ptr, union atomic_val_32 val, int memorder)
 {
     return __atomic_exchange_n(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_swap_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_swap_64
 static inline unsigned long long
 atomic_swap_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
@@ -202,11 +202,12 @@ atomic_swap_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 
 #define atomic_swap_ptr         atomic_swap_ul
 
+
 /* atomic_fetch_add */
 
 #ifndef atomic_fetch_add_32
 static inline unsigned int
-atomic_fetch_add_32(union atomic_ptr_32 ptr, union atomic_val32 val,
+atomic_fetch_add_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
                     int memorder)
 {
     return __atomic_fetch_add(ptr.ui_ptr, val.ui, memorder);
@@ -214,7 +215,6 @@ atomic_fetch_add_32(union atomic_ptr_32 ptr, union atomic_val32 val,
 #endif /* atomic_fetch_add_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_fetch_add_64
 static inline unsigned long long
 atomic_fetch_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
@@ -236,11 +236,12 @@ atomic_fetch_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 
 #define atomic_fetch_add_ptr    atomic_fetch_add_ul
 
+
 /* atomic_fetch_sub */
 
 #ifndef atomic_fetch_sub_32
 static inline unsigned int
-atomic_fetch_sub_32(union atomic_ptr_32 ptr, union atomic_val32 val,
+atomic_fetch_sub_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
                     int memorder)
 {
     return __atomic_fetch_sub(ptr.ui_ptr, val.ui, memorder);
@@ -248,7 +249,6 @@ atomic_fetch_sub_32(union atomic_ptr_32 ptr, union atomic_val32 val,
 #endif /* atomic_fetch_sub_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_fetch_sub_64
 static inline unsigned long long
 atomic_fetch_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
@@ -270,11 +270,12 @@ atomic_fetch_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 
 #define atomic_fetch_sub_ptr    atomic_fetch_sub_ul
 
+
 /* atomic_fetch_and */
 
 #ifndef atomic_fetch_and_32
 static inline unsigned int
-atomic_fetch_and_32(union atomic_ptr_32 ptr, union atomic_val32 val,
+atomic_fetch_and_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
                     int memorder)
 {
     return __atomic_fetch_and(ptr.ui_ptr, val.ui, memorder);
@@ -282,7 +283,6 @@ atomic_fetch_and_32(union atomic_ptr_32 ptr, union atomic_val32 val,
 #endif /* atomic_fetch_and_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_fetch_and_64
 static inline unsigned long long
 atomic_fetch_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
@@ -304,11 +304,12 @@ atomic_fetch_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 
 #define atomic_fetch_and_ptr    atomic_fetch_and_ul
 
+
 /* atomic_fetch_or */
 
 #ifndef atomic_fetch_or_32
 static inline unsigned int
-atomic_fetch_or_32(union atomic_ptr_32 ptr, union atomic_val32 val,
+atomic_fetch_or_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
                    int memorder)
 {
     return __atomic_fetch_or(ptr.ui_ptr, val.ui, memorder);
@@ -316,7 +317,6 @@ atomic_fetch_or_32(union atomic_ptr_32 ptr, union atomic_val32 val,
 #endif /* atomic_fetch_or_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_fetch_or_64
 static inline unsigned long long
 atomic_fetch_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
@@ -338,11 +338,12 @@ atomic_fetch_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 
 #define atomic_fetch_or_ptr     atomic_fetch_or_ul
 
+
 /* atomic_fetch_xor */
 
 #ifndef atomic_fetch_xor_32
 static inline unsigned int
-atomic_fetch_xor_32(union atomic_ptr_32 ptr, union atomic_val32 val,
+atomic_fetch_xor_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
                     int memorder)
 {
     return __atomic_fetch_xor(ptr.ui_ptr, val.ui, memorder);
@@ -350,7 +351,6 @@ atomic_fetch_xor_32(union atomic_ptr_32 ptr, union atomic_val32 val,
 #endif /* atomic_fetch_xor_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_fetch_xor_64
 static inline unsigned long long
 atomic_fetch_xor_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
@@ -372,18 +372,18 @@ atomic_fetch_xor_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 
 #define atomic_fetch_xor_ptr    atomic_fetch_xor_ul
 
+
 /* atomic_add */
 
 #ifndef atomic_add_32
 static inline void
-atomic_add_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
+atomic_add_32(union atomic_ptr_32 ptr, union atomic_val_32 val, int memorder)
 {
     __atomic_add_fetch(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_add_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_add_64
 static inline void
 atomic_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
@@ -404,18 +404,18 @@ atomic_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 
 #define atomic_add_ptr          atomic_add_ul
 
+
 /* atomic_sub */
 
 #ifndef atomic_sub_32
 static inline void
-atomic_sub_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
+atomic_sub_32(union atomic_ptr_32 ptr, union atomic_val_32 val, int memorder)
 {
     __atomic_sub_fetch(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_sub_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_sub_64
 static inline void
 atomic_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
@@ -436,18 +436,18 @@ atomic_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 
 #define atomic_sub_ptr          atomic_sub_ul
 
+
 /* atomic_and */
 
 #ifndef atomic_and_32
 static inline void
-atomic_and_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
+atomic_and_32(union atomic_ptr_32 ptr, union atomic_val_32 val, int memorder)
 {
     __atomic_and_fetch(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_and_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_and_64
 static inline void
 atomic_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
@@ -468,18 +468,18 @@ atomic_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 
 #define atomic_and_ptr          atomic_and_ul
 
+
 /* atomic_or */
 
 #ifndef atomic_or_32
 static inline void
-atomic_or_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
+atomic_or_32(union atomic_ptr_32 ptr, union atomic_val_32 val, int memorder)
 {
     __atomic_or_fetch(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_or_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_or_64
 static inline void
 atomic_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
@@ -500,18 +500,18 @@ atomic_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)
 
 #define atomic_or_ptr           atomic_or_ul
 
+
 /* atomic_xor */
 
 #ifndef atomic_xor_32
 static inline void
-atomic_xor_32(union atomic_ptr_32 ptr, union atomic_val32 val, int memorder)
+atomic_xor_32(union atomic_ptr_32 ptr, union atomic_val_32 val, int memorder)
 {
     __atomic_xor_fetch(ptr.ui_ptr, val.ui, memorder);
 }
 #endif /* atomic_xor_32 */
 
 #ifdef ATOMIC_HAVE_64B_OPS
-
 #ifndef atomic_xor_64
 static inline void
 atomic_xor_64(union atomic_ptr_64 ptr, union atomic_val_64 val, int memorder)

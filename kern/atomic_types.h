@@ -40,7 +40,7 @@ union atomic_constptr_32 {
     const unsigned int *ui_ptr;
 } __attribute__((transparent_union));
 
-union atomic_val32 {
+union atomic_val_32 {
     int i;
     unsigned int ui;
 } __attribute__((transparent_union));
@@ -75,7 +75,7 @@ union atomic_constptr_32 {
     const unsigned int *ui_ptr;
 } __attribute__((transparent_union));
 
-union atomic_val32 {
+union atomic_val_32 {
     void *ptr;
     int i;
     unsigned int ui;
