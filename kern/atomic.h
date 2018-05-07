@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018 Richard Braun.
- * Copyright (c) 2017 Agustina Arzille.
+ * Copyright (c) 2017-2018 Agustina Arzille.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,10 +31,57 @@
 #ifndef KERN_ATOMIC_H
 #define KERN_ATOMIC_H
 
+#if !defined(CONFIG_SMP) && defined(CONFIG_LATOMIC_REPLACE_ATOMIC_ON_UP)
+#define ATOMIC_USE_LATOMIC
+#endif
+
+#ifdef ATOMIC_USE_LATOMIC
+
+#include <kern/latomic.h>
+
+/*
+ * Local atomic operations always provide 64-bit support, by using the
+ * generic versions which disable interrupts as a last resort.
+ */
+#define ATOMIC_HAVE_64B_OPS
+
+/*
+ * Memory orders.
+ *
+ * XXX Consume ordering is currently aliased to acquire.
+ */
+#define ATOMIC_RELAXED          LATOMIC_RELAXED
+#define ATOMIC_CONSUME          LATOMIC_ACQUIRE
+#define ATOMIC_ACQUIRE          LATOMIC_ACQUIRE
+#define ATOMIC_RELEASE          LATOMIC_RELEASE
+#define ATOMIC_ACQ_REL          LATOMIC_ACQ_REL
+#define ATOMIC_SEQ_CST          LATOMIC_SEQ_CST
+
+#define atomic_load             latomic_load
+#define atomic_store            latomic_store
+
+#define atomic_swap             latomic_swap
+#define atomic_cas              latomic_cas
+
+#define atomic_fetch_add        latomic_fetch_add
+#define atomic_fetch_sub        latomic_fetch_sub
+#define atomic_fetch_and        latomic_fetch_and
+#define atomic_fetch_or         latomic_fetch_or
+#define atomic_fetch_xor        latomic_fetch_xor
+
+#define atomic_add              latomic_add
+#define atomic_sub              latomic_sub
+#define atomic_and              latomic_and
+#define atomic_or               latomic_or
+#define atomic_xor              latomic_xor
+
+#define atomic_fence            latomic_fence
+
+#else /* ATOMIC_USE_LATOMIC */
+
 #include <assert.h>
 #include <stdbool.h>
 
-#include <kern/atomic_i.h>
 #include <kern/macros.h>
 
 /*
@@ -46,6 +93,8 @@
 #define ATOMIC_RELEASE  __ATOMIC_RELEASE
 #define ATOMIC_ACQ_REL  __ATOMIC_ACQ_REL
 #define ATOMIC_SEQ_CST  __ATOMIC_SEQ_CST
+
+#include <kern/atomic_i.h>
 
 #define atomic_load(ptr, memorder)                                          \
 MACRO_BEGIN                                                                 \
@@ -142,5 +191,7 @@ MACRO_BEGIN                                                                 \
 MACRO_END
 
 #define atomic_fence(memorder) __atomic_thread_fence(memorder)
+
+#endif /* ATOMIC_USE_LATOMIC */
 
 #endif /* KERN_ATOMIC_H */
