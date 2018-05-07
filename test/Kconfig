@@ -9,6 +9,21 @@ if TEST_MODULE
 choice
 	prompt "Select test module"
 
+config TEST_MODULE_ATOMIC
+	bool "atomic"
+
+if TEST_MODULE_ATOMIC
+
+config TEST_MODULE_ATOMIC_64
+	bool "Force 64-bit atomic operations"
+	default n
+	---help---
+	  Force atomic operations to apply to 64-bit integers, even on 32-bit
+	  targets. Some targets may not support 64-bit atomic operations
+	  at all.
+
+endif
+
 config TEST_MODULE_BULLETIN
 	bool "bulletin"
 

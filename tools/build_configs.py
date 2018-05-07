@@ -108,6 +108,7 @@ large_options_dict.update({
 
 # TODO Generate this list from test/test_*.c
 test_list = [
+    'CONFIG_TEST_MODULE_ATOMIC',
     'CONFIG_TEST_MODULE_BULLETIN',
     'CONFIG_TEST_MODULE_MUTEX',
     'CONFIG_TEST_MODULE_MUTEX_PI',
