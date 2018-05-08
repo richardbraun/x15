@@ -73,16 +73,10 @@ define xbuild_compile
 		$(COMPILE) -MMD -MP -c -o $@ $<
 endef
 
-# $(call xbuild_gen_linker_script_depfile,<linker_script>)
-define xbuild_gen_linker_script_depfile
-$(call xbuild_replace_source_suffix,d,$(1))
-endef
-
 define xbuild_gen_linker_script
 	$(call xbuild_action,LDS,$@) \
 		$(CPP) $(XBUILD_CPPFLAGS) -MMD -MP \
-		-MF $(call xbuild_gen_linker_script_depfile,$<) \
-		-MT $@ -P -o $@ $<
+		-MF $@.d -MT $@ -P -o $@ $<
 endef
 
 # $(call xbuild_link,<objects>)
@@ -300,8 +294,8 @@ COMPILE := $(CC) $(XBUILD_CPPFLAGS) $(XBUILD_CFLAGS)
 x15_SOURCES := $(x15_SOURCES-y)
 x15_OBJDEPS := $(call xbuild_replace_source_suffix,d,$(x15_SOURCES))
 x15_OBJECTS := $(call xbuild_replace_source_suffix,o,$(x15_SOURCES))
-x15_LDS_D := $(call xbuild_gen_linker_script_depfile,$(x15_LDS_S))
 x15_LDS := $(basename $(x15_LDS_S))
+x15_LDS_D := $(x15_LDS).d
 
 XBUILD_LDFLAGS += -Wl,--script=$(x15_LDS)
 
