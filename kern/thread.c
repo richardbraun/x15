@@ -2367,7 +2367,9 @@ thread_create(struct thread **threadp, const struct thread_attr *attr,
      * The new thread address must be written before the thread is started
      * in case it's passed to it.
      */
-    *threadp = thread;
+    if (threadp) {
+        *threadp = thread;
+    }
 
     thread_wakeup(thread);
 

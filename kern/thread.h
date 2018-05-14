@@ -182,6 +182,9 @@ void thread_ap_setup(void);
  * Creation attributes must be passed, but some of them may be NULL, in which
  * case the value is inherited from the caller. The name attribute must not be
  * NULL.
+ *
+ * If successful, and if the caller passed a non-NULL thread pointer, it is
+ * filled with the address of the newly created thread.
  */
 int thread_create(struct thread **threadp, const struct thread_attr *attr,
                   void (*fn)(void *), void *arg);
