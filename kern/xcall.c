@@ -130,7 +130,8 @@ xcall_setup(void)
 INIT_OP_DEFINE(xcall_setup,
                INIT_OP_DEP(cpu_mp_probe, true),
                INIT_OP_DEP(thread_bootstrap, true),
-               INIT_OP_DEP(spinlock_setup, true));
+               INIT_OP_DEP(spinlock_setup, true),
+               INIT_OP_DEP(syscnt_setup, true));
 
 void
 xcall_call(xcall_fn_t fn, void *arg, unsigned int cpu)
