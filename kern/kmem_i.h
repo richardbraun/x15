@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 Richard Braun.
+ * Copyright (c) 2010-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,12 @@
 #include <kern/list.h>
 #include <kern/mutex.h>
 #include <machine/cpu.h>
+
+#if defined(CONFIG_SMP) && !defined(CONFIG_KMEM_NO_CPU_LAYER)
+#define KMEM_USE_CPU_LAYER
+#endif
+
+#ifdef KMEM_USE_CPU_LAYER
 
 /*
  * Per-processor cache of pre-constructed objects.
@@ -51,6 +57,8 @@ struct kmem_cpu_pool_type {
     size_t array_align;
     struct kmem_cache *array_cache;
 };
+
+#endif /* KMEM_USE_CPU_LAYER */
 
 /*
  * Buffer descriptor.
@@ -169,9 +177,11 @@ struct kmem_slab {
  * Locking order : cpu_pool -> cache. CPU pools locking is ordered by CPU ID.
  */
 struct kmem_cache {
+#ifdef KMEM_USE_CPU_LAYER
     /* CPU pool layer */
     struct kmem_cpu_pool cpu_pools[CONFIG_MAX_CPUS];
     struct kmem_cpu_pool_type *cpu_pool_type;
+#endif /* KMEM_USE_CPU_LAYER */
 
     /* Slab layer */
     struct mutex lock;

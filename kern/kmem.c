@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 Richard Braun.
+ * Copyright (c) 2010-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -120,6 +120,8 @@
 #define KMEM_ERR_MODIFIED   3   /* Buffer modified while free */
 #define KMEM_ERR_REDZONE    4   /* Redzone violation */
 
+#ifdef KMEM_USE_CPU_LAYER
+
 /*
  * Available CPU pool types.
  *
@@ -139,6 +141,8 @@ static struct kmem_cpu_pool_type kmem_cpu_pool_types[] __read_mostly = {
  * Caches where CPU pool arrays are allocated from.
  */
 static struct kmem_cache kmem_cpu_array_caches[ARRAY_SIZE(kmem_cpu_pool_types)];
+
+#endif /* KMEM_USE_CPU_LAYER */
 
 /*
  * Cache for off slab data.
@@ -348,6 +352,8 @@ kmem_slab_buf(const struct kmem_slab *slab)
     return P2ALIGN((uintptr_t)slab->addr, PAGE_SIZE);
 }
 
+#ifdef KMEM_USE_CPU_LAYER
+
 static void
 kmem_cpu_pool_init(struct kmem_cpu_pool *cpu_pool, struct kmem_cache *cache)
 {
@@ -435,6 +441,8 @@ kmem_cpu_pool_drain(struct kmem_cpu_pool *cpu_pool, struct kmem_cache *cache)
 
     mutex_unlock(&cache->lock);
 }
+
+#endif /* KMEM_USE_CPU_LAYER */
 
 static void
 kmem_cache_error(struct kmem_cache *cache, void *buf, int error, void *arg)
@@ -547,8 +555,7 @@ void
 kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
                 size_t align, kmem_ctor_fn_t ctor, int flags)
 {
-    struct kmem_cpu_pool_type *cpu_pool_type;
-    size_t i, buf_size;
+    size_t buf_size;
 
 #ifdef CONFIG_KMEM_DEBUG
     cache->flags = KMEM_CF_VERIFY;
@@ -599,15 +606,15 @@ kmem_cache_init(struct kmem_cache *cache, const char *name, size_t obj_size,
 
     kmem_cache_compute_properties(cache, flags);
 
-    for (cpu_pool_type = kmem_cpu_pool_types;
-         buf_size <= cpu_pool_type->buf_size;
-         cpu_pool_type++);
+#ifdef KMEM_USE_CPU_LAYER
+    for (cache->cpu_pool_type = kmem_cpu_pool_types;
+         buf_size <= cache->cpu_pool_type->buf_size;
+         cache->cpu_pool_type++);
 
-    cache->cpu_pool_type = cpu_pool_type;
-
-    for (i = 0; i < ARRAY_SIZE(cache->cpu_pools); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(cache->cpu_pools); i++) {
         kmem_cpu_pool_init(&cache->cpu_pools[i], cache);
     }
+#endif /* KMEM_USE_CPU_LAYER */
 
     mutex_lock(&kmem_cache_list_lock);
     list_insert_tail(&kmem_cache_list, &cache->node);
@@ -885,9 +892,11 @@ kmem_cache_alloc_verify(struct kmem_cache *cache, void *buf, int construct)
 void *
 kmem_cache_alloc(struct kmem_cache *cache)
 {
-    struct kmem_cpu_pool *cpu_pool;
-    int filled, verify;
+    bool filled;
     void *buf;
+
+#ifdef KMEM_USE_CPU_LAYER
+    struct kmem_cpu_pool *cpu_pool;
 
     thread_pin();
     cpu_pool = kmem_cpu_pool_get(cache);
@@ -896,6 +905,8 @@ kmem_cache_alloc(struct kmem_cache *cache)
 
 fast_alloc:
     if (likely(cpu_pool->nr_objs > 0)) {
+        bool verify;
+
         buf = kmem_cpu_pool_pop(cpu_pool);
         verify = (cpu_pool->flags & KMEM_CF_VERIFY);
         mutex_unlock(&cpu_pool->lock);
@@ -931,6 +942,7 @@ fast_alloc:
 
     mutex_unlock(&cpu_pool->lock);
     thread_unpin();
+#endif /* KMEM_USE_CPU_LAYER */
 
 slab_alloc:
     mutex_lock(&cache->lock);
@@ -1024,6 +1036,7 @@ kmem_cache_free_verify(struct kmem_cache *cache, void *buf)
 void
 kmem_cache_free(struct kmem_cache *cache, void *obj)
 {
+#ifdef KMEM_USE_CPU_LAYER
     struct kmem_cpu_pool *cpu_pool;
     void **array;
 
@@ -1082,6 +1095,11 @@ fast_free:
     }
 
     thread_unpin();
+#else /* KMEM_USE_CPU_LAYER */
+    if (cache->flags & KMEM_CF_VERIFY) {
+        kmem_cache_free_verify(cache, obj);
+    }
+#endif /* KMEM_USE_CPU_LAYER */
 
     mutex_lock(&cache->lock);
     kmem_cache_free_to_slab(cache, obj);
@@ -1112,13 +1130,16 @@ kmem_cache_info(struct kmem_cache *cache)
            "kmem:      nr_slabs: %lu\n"
            "kmem: nr_free_slabs: %lu\n"
            "kmem:   buftag_dist: %zu\n"
-           "kmem:   redzone_pad: %zu\n"
-           "kmem: cpu_pool_size: %d\n", cache->flags, flags_str, cache->obj_size,
+           "kmem:   redzone_pad: %zu\n",
+           cache->flags, flags_str, cache->obj_size,
            cache->align, cache->buf_size, cache->bufctl_dist,
            cache->slab_size, cache->color_max, cache->bufs_per_slab,
            cache->nr_objs, cache->nr_bufs, cache->nr_slabs,
-           cache->nr_free_slabs, cache->buftag_dist, cache->redzone_pad,
-           cache->cpu_pool_type->array_size);
+           cache->nr_free_slabs, cache->buftag_dist, cache->redzone_pad);
+
+#ifdef KMEM_USE_CPU_LAYER
+    printf("kmem: cpu_pool_size: %d\n", cache->cpu_pool_type->array_size);
+#endif /* KMEM_USE_CPU_LAYER */
 
     mutex_unlock(&cache->lock);
 }
@@ -1186,20 +1207,15 @@ INIT_OP_DEFINE(kmem_setup_shell,
 
 #endif /* CONFIG_SHELL */
 
-static int __init
-kmem_bootstrap(void)
+#ifdef KMEM_USE_CPU_LAYER
+static void
+kmem_bootstrap_cpu(void)
 {
     struct kmem_cpu_pool_type *cpu_pool_type;
     char name[KMEM_NAME_SIZE];
-    size_t i, size;
+    size_t size;
 
-    /* Make sure a bufctl can always be stored in a buffer */
-    assert(sizeof(union kmem_bufctl) <= KMEM_ALIGN_MIN);
-
-    list_init(&kmem_cache_list);
-    mutex_init(&kmem_cache_list_lock);
-
-    for (i = 0; i < ARRAY_SIZE(kmem_cpu_pool_types); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(kmem_cpu_pool_types); i++) {
         cpu_pool_type = &kmem_cpu_pool_types[i];
         cpu_pool_type->array_cache = &kmem_cpu_array_caches[i];
         sprintf(name, "kmem_cpu_array_%d", cpu_pool_type->array_size);
@@ -1207,6 +1223,24 @@ kmem_bootstrap(void)
         kmem_cache_init(cpu_pool_type->array_cache, name, size,
                         cpu_pool_type->array_align, NULL, 0);
     }
+}
+#endif /* KMEM_USE_CPU_LAYER */
+
+static int __init
+kmem_bootstrap(void)
+{
+    char name[KMEM_NAME_SIZE];
+    size_t size;
+
+    /* Make sure a bufctl can always be stored in a buffer */
+    assert(sizeof(union kmem_bufctl) <= KMEM_ALIGN_MIN);
+
+    list_init(&kmem_cache_list);
+    mutex_init(&kmem_cache_list_lock);
+
+#ifdef KMEM_USE_CPU_LAYER
+    kmem_bootstrap_cpu();
+#endif /* KMEM_USE_CPU_LAYER */
 
     /*
      * Prevent off slab data for the slab cache to avoid infinite recursion.
@@ -1216,7 +1250,7 @@ kmem_bootstrap(void)
 
     size = 1 << KMEM_CACHES_FIRST_ORDER;
 
-    for (i = 0; i < ARRAY_SIZE(kmem_caches); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(kmem_caches); i++) {
         sprintf(name, "kmem_%zu", size);
         kmem_cache_init(&kmem_caches[i], name, size, 0, NULL, 0);
         size <<= 1;
