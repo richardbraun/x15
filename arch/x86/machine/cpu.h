@@ -639,6 +639,11 @@ cpu_tlb_flush_va(unsigned long va)
 }
 
 /*
+ * Get CPU frequency in Hz.
+ */
+uint64_t cpu_get_freq(void);
+
+/*
  * Busy-wait for a given amount of time, in microseconds.
  */
 void cpu_delay(unsigned long usecs);

@@ -160,6 +160,12 @@ static alignas(8) struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __read_mostly;
 static unsigned long cpu_double_fault_handler;
 static alignas(CPU_DATA_ALIGN) char cpu_double_fault_stack[TRAP_STACK_SIZE];
 
+uint64_t
+cpu_get_freq(void)
+{
+    return cpu_freq;
+}
+
 void
 cpu_delay(unsigned long usecs)
 {
