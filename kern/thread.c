@@ -100,6 +100,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
+#include <kern/perfmon.h>
 #include <kern/rcu.h>
 #include <kern/shell.h>
 #include <kern/sleepq.h>
@@ -600,14 +601,28 @@ thread_runq_wakeup_balancer(struct thread_runq *runq)
     }
 
     thread_clear_wchan(runq->balancer);
-    runq->balancer->state = THREAD_RUNNING;
+    atomic_store(&runq->balancer->state, THREAD_RUNNING, ATOMIC_RELAXED);
     thread_runq_wakeup(runq, runq->balancer);
 }
 
 static void
-thread_runq_schedule_prepare(struct thread *thread)
+thread_runq_schedule_load(struct thread *thread)
 {
     pmap_load(thread->task->map->pmap);
+
+#ifdef CONFIG_PERFMON
+    perfmon_td_load(thread_get_perfmon_td(thread));
+#endif
+}
+
+static void
+thread_runq_schedule_unload(struct thread *thread)
+{
+#ifdef CONFIG_PERFMON
+    perfmon_td_unload(thread_get_perfmon_td(thread));
+#else
+    (void)thread;
+#endif
 }
 
 static struct thread_runq *
@@ -639,6 +654,8 @@ thread_runq_schedule(struct thread_runq *runq)
     assert(next->preempt_level == THREAD_SUSPEND_PREEMPT_LEVEL);
 
     if (likely(prev != next)) {
+        thread_runq_schedule_unload(prev);
+
         rcu_report_context_switch(thread_rcu_reader(prev));
         spinlock_transfer_owner(&runq->lock, next);
 
@@ -660,10 +677,10 @@ thread_runq_schedule(struct thread_runq *runq)
          *  - The current thread may have been migrated to another processor.
          */
         barrier();
+        thread_runq_schedule_load(prev);
+
         next = NULL;
         runq = thread_runq_local();
-
-        thread_runq_schedule_prepare(prev);
     } else {
         next = NULL;
     }
@@ -1750,7 +1767,7 @@ thread_main(void (*fn)(void *), void *arg)
     assert(!thread_preempt_enabled());
 
     thread = thread_self();
-    thread_runq_schedule_prepare(thread);
+    thread_runq_schedule_load(thread);
 
     spinlock_unlock(&thread_runq_local()->lock);
     cpu_intr_enable();
@@ -1842,6 +1859,10 @@ thread_init(struct thread *thread, void *stack,
     thread->task = task;
     thread->stack = stack;
     strlcpy(thread->name, attr->name, sizeof(thread->name));
+
+#ifdef CONFIG_PERFMON
+    perfmon_td_init(thread_get_perfmon_td(thread));
+#endif
 
     if (attr->flags & THREAD_ATTR_DETACHED) {
         thread->flags |= THREAD_DETACHED;
@@ -1989,8 +2010,9 @@ static void
 thread_join_common(struct thread *thread)
 {
     struct thread_runq *runq;
-    unsigned long flags, state;
     struct thread *self;
+    unsigned long flags;
+    unsigned int state;
 
     self = thread_self();
     assert(thread != self);
@@ -2060,7 +2082,7 @@ thread_balance(void *arg)
     for (;;) {
         runq->idle_balance_ticks = THREAD_IDLE_BALANCE_TICKS;
         thread_set_wchan(self, runq, "runq");
-        self->state = THREAD_SLEEPING;
+        atomic_store(&self->state, THREAD_SLEEPING, ATOMIC_RELAXED);
         runq = thread_runq_schedule(runq);
         assert(runq == arg);
 
@@ -2309,6 +2331,13 @@ thread_setup(void)
 #define THREAD_STACK_GUARD_INIT_OP_DEPS
 #endif /* CONFIG_THREAD_STACK_GUARD */
 
+#ifdef CONFIG_PERFMON
+#define THREAD_PERFMON_INIT_OP_DEPS \
+               INIT_OP_DEP(perfmon_bootstrap, true),
+#else /* CONFIG_PERFMON */
+#define THREAD_PERFMON_INIT_OP_DEPS
+#endif /* CONFIG_PERFMON */
+
 INIT_OP_DEFINE(thread_setup,
                INIT_OP_DEP(cpumap_setup, true),
                INIT_OP_DEP(kmem_setup, true),
@@ -2318,6 +2347,7 @@ INIT_OP_DEFINE(thread_setup,
                INIT_OP_DEP(thread_bootstrap, true),
                INIT_OP_DEP(turnstile_setup, true),
                THREAD_STACK_GUARD_INIT_OP_DEPS
+               THREAD_PERFMON_INIT_OP_DEPS
 );
 
 void __init
@@ -2421,7 +2451,7 @@ thread_exit(void)
     runq = thread_runq_local();
     spinlock_lock_intr_save(&runq->lock, &flags);
 
-    thread->state = THREAD_DEAD;
+    atomic_store(&thread->state, THREAD_DEAD, ATOMIC_RELAXED);
 
     thread_runq_schedule(runq);
     panic("thread: dead thread walking");
@@ -2461,7 +2491,7 @@ thread_wakeup_common(struct thread *thread, int error)
         }
 
         thread_clear_wchan(thread);
-        thread->state = THREAD_RUNNING;
+        atomic_store(&thread->state, THREAD_RUNNING, ATOMIC_RELAXED);
         thread_unlock_runq(runq, flags);
     }
 
@@ -2532,7 +2562,7 @@ thread_sleep_common(struct spinlock *interlock, const void *wchan_addr,
     }
 
     thread_set_wchan(thread, wchan_addr, wchan_desc);
-    thread->state = THREAD_SLEEPING;
+    atomic_store(&thread->state, THREAD_SLEEPING, ATOMIC_RELAXED);
 
     runq = thread_runq_schedule(runq);
     assert(thread->state == THREAD_RUNNING);
@@ -2699,9 +2729,9 @@ thread_report_periodic_event(void)
 }
 
 char
-thread_state_to_chr(const struct thread *thread)
+thread_state_to_chr(unsigned int state)
 {
-    switch (thread->state) {
+    switch (state) {
     case THREAD_RUNNING:
         return 'R';
     case THREAD_SLEEPING:
@@ -2904,6 +2934,21 @@ thread_key_create(unsigned int *keyp, thread_dtor_fn_t dtor)
 
     thread_dtors[key] = dtor;
     *keyp = key;
+}
+
+unsigned int
+thread_cpu(const struct thread *thread)
+{
+    const struct thread_runq *runq;
+
+    runq = atomic_load(&thread->runq, ATOMIC_RELAXED);
+    return runq->cpu;
+}
+
+unsigned int
+thread_state(const struct thread *thread)
+{
+    return atomic_load(&thread->state, ATOMIC_RELAXED);
 }
 
 bool

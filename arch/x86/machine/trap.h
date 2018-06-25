@@ -62,6 +62,7 @@
 #define TRAP_XCALL              238
 #define TRAP_THREAD_SCHEDULE    239
 #define TRAP_CPU_HALT           240
+#define TRAP_LAPIC_PMC_OF       252
 #define TRAP_LAPIC_TIMER        253
 #define TRAP_LAPIC_ERROR        254
 #define TRAP_LAPIC_SPURIOUS     255

@@ -34,6 +34,18 @@ config TEST_MODULE_MUTEX
 config TEST_MODULE_MUTEX_PI
 	bool "mutex_pi"
 
+config TEST_MODULE_PERFMON_CPU
+	bool "perfmon_cpu"
+	depends on PERFMON
+
+config TEST_MODULE_PERFMON_THREAD
+	bool "perfmon_thread"
+	depends on PERFMON
+
+config TEST_MODULE_PERFMON_TORTURE
+	bool "perfmon_torture"
+	depends on PERFMON
+
 config TEST_MODULE_PMAP_UPDATE_MP
 	bool "pmap_update_mp"
 

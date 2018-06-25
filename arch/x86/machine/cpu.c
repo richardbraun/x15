@@ -69,6 +69,11 @@
 
 #define CPU_INVALID_APIC_ID ((unsigned int)-1)
 
+struct cpu_vendor {
+    unsigned int id;
+    const char *str;
+};
+
 /*
  * MP related CMOS ports, registers and values.
  */
@@ -155,6 +160,12 @@ static alignas(8) struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __read_mostly;
 static unsigned long cpu_double_fault_handler;
 static alignas(CPU_DATA_ALIGN) char cpu_double_fault_stack[TRAP_STACK_SIZE];
 
+uint64_t
+cpu_get_freq(void)
+{
+    return cpu_freq;
+}
+
 void
 cpu_delay(unsigned long usecs)
 {
@@ -173,6 +184,11 @@ cpu_delay(unsigned long usecs)
     } while (total > 0);
 }
 
+static const struct cpu_vendor cpu_vendors[] = {
+    { CPU_VENDOR_INTEL, "GenuineIntel" },
+    { CPU_VENDOR_AMD,   "AuthenticAMD" },
+};
+
 void * __init
 cpu_get_boot_stack(void)
 {
@@ -182,10 +198,9 @@ cpu_get_boot_stack(void)
 static void __init
 cpu_preinit(struct cpu *cpu, unsigned int id, unsigned int apic_id)
 {
+    memset(cpu, 0, sizeof(*cpu));
     cpu->id = id;
     cpu->apic_id = apic_id;
-    cpu->state = CPU_STATE_OFF;
-    cpu->boot_stack = NULL;
 }
 
 static void
@@ -430,6 +445,32 @@ cpu_load_idt(const void *idt, size_t size)
     asm volatile("lidt %0" : : "m" (idtr));
 }
 
+static const struct cpu_vendor *
+cpu_vendor_lookup(const char *str)
+{
+    for (size_t i = 0; i < ARRAY_SIZE(cpu_vendors); i++) {
+        if (strcmp(str, cpu_vendors[i].str) == 0) {
+            return &cpu_vendors[i];
+        }
+    }
+
+    return NULL;
+}
+
+static void __init
+cpu_init_vendor_id(struct cpu *cpu)
+{
+    const struct cpu_vendor *vendor;
+
+    vendor = cpu_vendor_lookup(cpu->vendor_str);
+
+    if (vendor == NULL) {
+        return;
+    }
+
+    cpu->vendor_id = vendor->id;
+}
+
 /*
  * Initialize the given cpu structure for the current processor.
  */
@@ -456,10 +497,12 @@ cpu_init(struct cpu *cpu)
     eax = 0;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
     max_basic = eax;
-    memcpy(cpu->vendor_id, &ebx, sizeof(ebx));
-    memcpy(cpu->vendor_id + 4, &edx, sizeof(edx));
-    memcpy(cpu->vendor_id + 8, &ecx, sizeof(ecx));
-    cpu->vendor_id[sizeof(cpu->vendor_id) - 1] = '\0';
+    cpu->cpuid_max_basic = max_basic;
+    memcpy(cpu->vendor_str, &ebx, sizeof(ebx));
+    memcpy(cpu->vendor_str + 4, &edx, sizeof(edx));
+    memcpy(cpu->vendor_str + 8, &ecx, sizeof(ecx));
+    cpu->vendor_str[sizeof(cpu->vendor_str) - 1] = '\0';
+    cpu_init_vendor_id(cpu);
 
     /* Some fields are only initialized if supported by the processor */
     cpu->model_name[0] = '\0';
@@ -497,6 +540,8 @@ cpu_init(struct cpu *cpu)
     } else {
         max_extended = eax;
     }
+
+    cpu->cpuid_max_extended = max_extended;
 
     if (max_extended < 0x80000001) {
         cpu->features3 = 0;
@@ -617,7 +662,7 @@ void
 cpu_log_info(const struct cpu *cpu)
 {
     log_info("cpu%u: %s, type %u, family %u, model %u, stepping %u",
-             cpu->id, cpu->vendor_id, cpu->type, cpu->family, cpu->model,
+             cpu->id, cpu->vendor_str, cpu->type, cpu->family, cpu->model,
              cpu->stepping);
 
     if (strlen(cpu->model_name) > 0) {

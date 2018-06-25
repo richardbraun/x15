@@ -160,6 +160,12 @@ INIT_OP_DECLARE(boot_setup_intr);
 
 /*
  * This init operation provides :
+ *  - all PMU drivers have probed hardware
+ */
+INIT_OP_DECLARE(boot_setup_pmu);
+
+/*
+ * This init operation provides :
  *  - all shutdown operations have been registered
  */
 INIT_OP_DECLARE(boot_setup_shutdown);

@@ -24,6 +24,7 @@
 #include <kern/atomic.h>
 #include <kern/cpumap.h>
 #include <kern/list_types.h>
+#include <kern/perfmon_types.h>
 #include <kern/rcu_types.h>
 #include <kern/spinlock_types.h>
 #include <kern/turnstile_types.h>
@@ -43,16 +44,6 @@ struct thread_fs_runq;
  */
 #define THREAD_YIELD    0x1UL /* Must yield the processor ASAP */
 #define THREAD_DETACHED 0x2UL /* Resources automatically released on exit */
-
-/*
- * Thread states.
- *
- * Threads in the running state may not be on a run queue if they're being
- * awaken.
- */
-#define THREAD_RUNNING  0
-#define THREAD_SLEEPING 1
-#define THREAD_DEAD     2
 
 /*
  * Scheduling data for a real-time thread.
@@ -113,7 +104,7 @@ struct thread {
     const void *wchan_addr;     /* (r)   */
     const char *wchan_desc;     /* (r)   */
     int wakeup_error;           /* (r)   */
-    unsigned short state;       /* (r)   */
+    unsigned int state;         /* (a,r) */
 
     /* Sleep queue available for lending */
     struct sleepq *priv_sleepq; /* (-) */
@@ -185,6 +176,10 @@ struct thread {
     struct list task_node;          /* (T) */
     void *stack;                    /* (-) */
     char name[THREAD_NAME_SIZE];    /* ( ) */
+
+#ifdef CONFIG_PERFMON
+    struct perfmon_td perfmon_td;   /* ( ) */
+#endif
 };
 
 #define THREAD_ATTR_DETACHED 0x1

@@ -26,6 +26,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
+#include <kern/slist.h>
 #include <machine/cpu.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>
@@ -35,6 +36,14 @@ void *percpu_areas[CONFIG_MAX_CPUS] __read_mostly;
 static void *percpu_area_content __initdata;
 static size_t percpu_area_size __initdata;
 static int percpu_skip_warning __initdata;
+
+static struct slist percpu_ops __initdata;
+
+static void __init
+percpu_op_run(const struct percpu_op *op)
+{
+    op->fn();
+}
 
 static int __init
 percpu_bootstrap(void)
@@ -50,6 +59,8 @@ percpu_setup(void)
 {
     struct vm_page *page;
     unsigned int order;
+
+    slist_init(&percpu_ops);
 
     percpu_area_size = &_percpu_end - &_percpu;
     log_info("percpu: max_cpus: %u, section size: %zuk", CONFIG_MAX_CPUS,
@@ -75,6 +86,15 @@ percpu_setup(void)
 INIT_OP_DEFINE(percpu_setup,
                INIT_OP_DEP(percpu_bootstrap, true),
                INIT_OP_DEP(vm_page_setup, true));
+
+void __init
+percpu_register_op(struct percpu_op *op)
+{
+    slist_insert_tail(&percpu_ops, &op->node);
+
+    /* Run on BSP */
+    percpu_op_run(op);
+}
 
 int __init
 percpu_add(unsigned int cpu)
@@ -114,6 +134,16 @@ percpu_add(unsigned int cpu)
 
 out:
     return 0;
+}
+
+void __init
+percpu_ap_setup(void)
+{
+    struct percpu_op *op;
+
+    slist_for_each_entry(&percpu_ops, op, node) {
+        percpu_op_run(op);
+    }
 }
 
 static int __init

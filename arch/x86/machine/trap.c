@@ -210,6 +210,9 @@ trap_setup(void)
     trap_install(TRAP_XCALL, TRAP_HF_INTR, cpu_xcall_intr);
     trap_install(TRAP_THREAD_SCHEDULE, TRAP_HF_INTR, cpu_thread_schedule_intr);
     trap_install(TRAP_CPU_HALT, TRAP_HF_INTR, cpu_halt_intr);
+#ifdef CONFIG_PERFMON
+    trap_install(TRAP_LAPIC_PMC_OF, TRAP_HF_INTR, lapic_pmc_overflow_intr);
+#endif
     trap_install(TRAP_LAPIC_TIMER, TRAP_HF_INTR, lapic_timer_intr);
     trap_install(TRAP_LAPIC_ERROR, TRAP_HF_INTR, lapic_error_intr);
     trap_install(TRAP_LAPIC_SPURIOUS, TRAP_HF_INTR, lapic_spurious_intr);

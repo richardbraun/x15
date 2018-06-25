@@ -56,6 +56,7 @@
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
+#include <kern/percpu.h>
 #include <kern/thread.h>
 #include <machine/acpi.h>
 #include <machine/atcons.h>
@@ -67,6 +68,8 @@
 #include <machine/multiboot.h>
 #include <machine/page.h>
 #include <machine/pmap.h>
+#include <machine/pmu_amd.h>
+#include <machine/pmu_intel.h>
 #include <machine/strace.h>
 #include <machine/uart.h>
 #include <vm/vm_kmem.h>
@@ -504,6 +507,7 @@ boot_ap_main(void)
     cpu_ap_setup();
     thread_ap_setup();
     pmap_ap_setup();
+    percpu_ap_setup();
     kernel_ap_main();
 
     /* Never reached */
@@ -550,6 +554,32 @@ boot_setup_intr(void)
 
 INIT_OP_DEFINE(boot_setup_intr,
                INIT_OP_DEP(acpi_setup, true));
+
+#ifdef CONFIG_PERFMON
+static int __init
+boot_setup_pmu(void)
+{
+    return 0;
+}
+
+#ifdef CONFIG_X86_PMU_AMD
+#define BOOT_PMU_AMD_INIT_OP_DEPS \
+               INIT_OP_DEP(pmu_amd_setup, false),
+#else /* CONFIG_X86_PMU_AMD */
+#define BOOT_PMU_AMD_INIT_OP_DEPS
+#endif /* CONFIG_X86_PMU_AMD */
+
+#ifdef CONFIG_X86_PMU_INTEL
+#define BOOT_PMU_INTEL_INIT_OP_DEPS \
+               INIT_OP_DEP(pmu_intel_setup, false),
+#else /* CONFIG_X86_PMU_INTEL */
+#define BOOT_PMU_INTEL_INIT_OP_DEPS
+#endif /* CONFIG_X86_PMU_INTEL */
+
+INIT_OP_DEFINE(boot_setup_pmu,
+               BOOT_PMU_AMD_INIT_OP_DEPS
+               BOOT_PMU_INTEL_INIT_OP_DEPS);
+#endif /* CONFIG_PERFMON */
 
 static int __init
 boot_setup_shutdown(void)

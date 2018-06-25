@@ -59,9 +59,25 @@
 
 #include <kern/init.h>
 #include <kern/macros.h>
+#include <kern/slist_types.h>
 
 #define PERCPU_SECTION .percpu
 #define __percpu __section(QUOTE(PERCPU_SECTION))
+
+typedef void (*percpu_op_fn_t)(void);
+
+/*
+ * Per-CPU operation.
+ *
+ * These operations allow initialization code to register functions to be run
+ * on APs when they're started.
+ */
+struct percpu_op {
+    struct slist_node node;
+    percpu_op_fn_t fn;
+};
+
+#define PERCPU_OP_INITIALIZER(op_fn) { .fn = op_fn }
 
 /*
  * Boundaries of the percpu section.
@@ -96,6 +112,15 @@ percpu_area(unsigned int cpu)
 }
 
 /*
+ * Register a percpu operation to be run on all processors when
+ * they're started.
+ *
+ * The operation is run on the BSP when it's registered. It's run as late as
+ * possible on APs, normally right before scheduling is enabled.
+ */
+void percpu_register_op(struct percpu_op *op);
+
+/*
  * Register a processor.
  *
  * This function creates a percpu area from kernel virtual memory for the
@@ -105,6 +130,11 @@ percpu_area(unsigned int cpu)
 int percpu_add(unsigned int cpu);
 
 /*
+ * Run registered percpu operations on an AP.
+ */
+void percpu_ap_setup(void);
+
+/*
  * This init operation provides :
  *  - access to percpu variables on processor 0
  */
@@ -112,6 +142,7 @@ INIT_OP_DECLARE(percpu_bootstrap);
 
 /*
  * This init operation provides :
+ *  - percpu operations can be registered
  *  - new percpu areas can be created
  *
  * The dependency that provides access to percpu variables on all processors

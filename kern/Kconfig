@@ -94,6 +94,19 @@ config THREAD_STACK_GUARD
 
 	  If unsure, disable.
 
+config PERFMON
+	def_bool n
+
+config PERFMON_MAX_PMCS
+	int "Number of performance monitoring counters"
+	default 8
+	depends on PERFMON
+	---help---
+	  Number of performance monitoring counters.
+
+	  This value affects the minimum duration of some critical sections
+	  that run with interrupts disabled.
+
 endmenu
 
 menu "Debugging"

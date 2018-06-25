@@ -218,8 +218,12 @@ struct cpu_tss {
     uint16_t iobp_base;
 } __packed;
 
-#define CPU_VENDOR_ID_SIZE  13
+#define CPU_VENDOR_STR_SIZE 13
 #define CPU_MODEL_NAME_SIZE 49
+
+#define CPU_VENDOR_UNKNOWN  0
+#define CPU_VENDOR_INTEL    1
+#define CPU_VENDOR_AMD      2
 
 /*
  * CPU states.
@@ -230,8 +234,11 @@ struct cpu_tss {
 struct cpu {
     unsigned int id;
     unsigned int apic_id;
-    char vendor_id[CPU_VENDOR_ID_SIZE];
+    char vendor_str[CPU_VENDOR_STR_SIZE];
     char model_name[CPU_MODEL_NAME_SIZE];
+    unsigned int cpuid_max_basic;
+    unsigned int cpuid_max_extended;
+    unsigned int vendor_id;
     unsigned int type;
     unsigned int family;
     unsigned int model;
@@ -537,16 +544,41 @@ cpu_cpuid(unsigned int *eax, unsigned int *ebx, unsigned int *ecx,
                  : : "memory");
 }
 
-static __always_inline void
+static inline void
 cpu_get_msr(uint32_t msr, uint32_t *high, uint32_t *low)
 {
-    asm volatile("rdmsr" : "=a" (*low), "=d" (*high) : "c" (msr));
+    asm("rdmsr" : "=a" (*low), "=d" (*high) : "c" (msr));
 }
 
-static __always_inline void
+static inline uint64_t
+cpu_get_msr64(uint32_t msr)
+{
+    uint32_t high, low;
+
+    cpu_get_msr(msr, &high, &low);
+    return (((uint64_t)high << 32) | low);
+}
+
+/*
+ * Implies a full memory barrier.
+ */
+static inline void
 cpu_set_msr(uint32_t msr, uint32_t high, uint32_t low)
 {
-    asm volatile("wrmsr" : : "c" (msr), "a" (low), "d" (high));
+    asm volatile("wrmsr" : : "c" (msr), "a" (low), "d" (high) : "memory");
+}
+
+/*
+ * Implies a full memory barrier.
+ */
+static inline void
+cpu_set_msr64(uint32_t msr, uint64_t value)
+{
+    uint32_t low, high;
+
+    low = value & 0xffffffff;
+    high = value >> 32;
+    cpu_set_msr(msr, high, low);
 }
 
 static __always_inline uint64_t
@@ -605,6 +637,11 @@ cpu_tlb_flush_va(unsigned long va)
 {
     asm volatile("invlpg (%0)" : : "r" (va) : "memory");
 }
+
+/*
+ * Get CPU frequency in Hz.
+ */
+uint64_t cpu_get_freq(void);
 
 /*
  * Busy-wait for a given amount of time, in microseconds.
