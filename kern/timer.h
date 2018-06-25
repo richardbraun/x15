@@ -71,6 +71,8 @@ void timer_init(struct timer *timer, timer_fn_t fn, int flags);
  *
  * If the timer has been canceled, this function does nothing. A
  * canceled timer must be reinitialized before being scheduled again.
+ *
+ * This function may safely be called in interrupt context.
  */
 void timer_schedule(struct timer *timer, uint64_t ticks);
 
