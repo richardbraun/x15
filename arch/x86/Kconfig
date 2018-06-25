@@ -13,6 +13,26 @@ config X86_PAE
 	  PAE allows addressing physical memory beyond 4 GiB at the cost
 	  of more pagetable lookup and memory overhead.
 
+config X86_PMU_AMD
+	bool "Enable AMD PMU driver"
+	select PERFMON
+	default n
+	---help---
+	  Enable support for the performance monitoring unit on AMD
+	  processors.
+
+	  If unsure, disable.
+
+config X86_PMU_INTEL
+	bool "Enable Intel PMU driver"
+	select PERFMON
+	default n
+	---help---
+	  Enable support for the performance monitoring unit on Intel
+	  processors.
+
+	  If unsure, disable.
+
 endmenu
 
 config X86_32

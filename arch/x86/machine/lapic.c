@@ -25,6 +25,7 @@
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
+#include <kern/perfmon.h>
 #include <machine/cpu.h>
 #include <machine/lapic.h>
 #include <machine/pmap.h>
@@ -159,7 +160,7 @@ struct lapic_map {
     struct lapic_register icr_high;
     struct lapic_register lvt_timer;
     const struct lapic_register reserved14; /* Thermal sensor register */
-    const struct lapic_register reserved15; /* Performance counters register */
+    struct lapic_register lvt_pmc; /* Performance counters register */
     struct lapic_register lvt_lint0;
     struct lapic_register lvt_lint1;
     struct lapic_register lvt_error;
@@ -239,6 +240,7 @@ lapic_setup_registers(void)
     lapic_write(&lapic_map->lvt_error, TRAP_LAPIC_ERROR);
     lapic_write(&lapic_map->timer_dcr, LAPIC_TIMER_DCR_DIV1);
     lapic_write(&lapic_map->timer_icr, lapic_bus_freq / CLOCK_FREQ);
+    lapic_write(&lapic_map->lvt_pmc, TRAP_LAPIC_PMC_OF);
 }
 
 void __init
@@ -332,6 +334,21 @@ lapic_ipi_broadcast(uint32_t vector)
     lapic_ipi(0, LAPIC_ICR_DEST_ALL_EXCEPT_SELF
                  | (vector & LAPIC_ICR_VECTOR_MASK));
 }
+
+#ifdef CONFIG_PERFMON
+void
+lapic_pmc_overflow_intr(struct trap_frame *frame)
+{
+    (void)frame;
+
+    lapic_eoi();
+
+    /* Reset the LVT entry as it is automatically cleared when triggered */
+    lapic_write(&lapic_map->lvt_pmc, TRAP_LAPIC_PMC_OF);
+
+    perfmon_overflow_intr();
+}
+#endif /* CONFIG_PERFMON */
 
 void
 lapic_timer_intr(struct trap_frame *frame)

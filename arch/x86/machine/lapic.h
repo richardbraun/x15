@@ -54,6 +54,7 @@ void lapic_ipi_broadcast(uint32_t vector);
 /*
  * Interrupt handlers.
  */
+void lapic_pmc_overflow_intr(struct trap_frame *frame);
 void lapic_timer_intr(struct trap_frame *frame);
 void lapic_error_intr(struct trap_frame *frame);
 void lapic_spurious_intr(struct trap_frame *frame);

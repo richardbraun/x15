@@ -61,3 +61,6 @@ x15_SOURCES-y += \
         arch/x86/machine/trap_asm.S \
         arch/x86/machine/trap.c \
         arch/x86/machine/uart.c
+
+x15_SOURCES-$(CONFIG_X86_PMU_AMD) += arch/x86/machine/pmu_amd.c
+x15_SOURCES-$(CONFIG_X86_PMU_INTEL) += arch/x86/machine/pmu_intel.c
