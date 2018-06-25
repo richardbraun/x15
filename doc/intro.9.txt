@@ -153,6 +153,8 @@ module:kern/list::
   Doubly-linked list.
 module:kern/macros::
   Useful generic macros.
+module:kern/perfmon::
+  Performance monitoring.
 module:kern/rbtree::
   Red-black tree.
 module:kern/rdxtree::

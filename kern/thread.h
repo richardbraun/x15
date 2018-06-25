@@ -712,6 +712,14 @@ thread_get_specific(unsigned int key)
     return thread_tsd_get(thread_self(), key);
 }
 
+#ifdef CONFIG_PERFMON
+static inline struct perfmon_td *
+thread_get_perfmon_td(struct thread *thread)
+{
+    return &thread->perfmon_td;
+}
+#endif /* CONFIG_PERFMON */
+
 /*
  * Return the last CPU on which the thread has been scheduled.
  *

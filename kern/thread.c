@@ -100,6 +100,7 @@
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
+#include <kern/perfmon.h>
 #include <kern/rcu.h>
 #include <kern/shell.h>
 #include <kern/sleepq.h>
@@ -605,9 +606,23 @@ thread_runq_wakeup_balancer(struct thread_runq *runq)
 }
 
 static void
-thread_runq_schedule_prepare(struct thread *thread)
+thread_runq_schedule_load(struct thread *thread)
 {
     pmap_load(thread->task->map->pmap);
+
+#ifdef CONFIG_PERFMON
+    perfmon_td_load(thread_get_perfmon_td(thread));
+#endif
+}
+
+static void
+thread_runq_schedule_unload(struct thread *thread)
+{
+#ifdef CONFIG_PERFMON
+    perfmon_td_unload(thread_get_perfmon_td(thread));
+#else
+    (void)thread;
+#endif
 }
 
 static struct thread_runq *
@@ -639,6 +654,8 @@ thread_runq_schedule(struct thread_runq *runq)
     assert(next->preempt_level == THREAD_SUSPEND_PREEMPT_LEVEL);
 
     if (likely(prev != next)) {
+        thread_runq_schedule_unload(prev);
+
         rcu_report_context_switch(thread_rcu_reader(prev));
         spinlock_transfer_owner(&runq->lock, next);
 
@@ -660,10 +677,10 @@ thread_runq_schedule(struct thread_runq *runq)
          *  - The current thread may have been migrated to another processor.
          */
         barrier();
+        thread_runq_schedule_load(prev);
+
         next = NULL;
         runq = thread_runq_local();
-
-        thread_runq_schedule_prepare(prev);
     } else {
         next = NULL;
     }
@@ -1750,7 +1767,7 @@ thread_main(void (*fn)(void *), void *arg)
     assert(!thread_preempt_enabled());
 
     thread = thread_self();
-    thread_runq_schedule_prepare(thread);
+    thread_runq_schedule_load(thread);
 
     spinlock_unlock(&thread_runq_local()->lock);
     cpu_intr_enable();
@@ -1842,6 +1859,10 @@ thread_init(struct thread *thread, void *stack,
     thread->task = task;
     thread->stack = stack;
     strlcpy(thread->name, attr->name, sizeof(thread->name));
+
+#ifdef CONFIG_PERFMON
+    perfmon_td_init(thread_get_perfmon_td(thread));
+#endif
 
     if (attr->flags & THREAD_ATTR_DETACHED) {
         thread->flags |= THREAD_DETACHED;
@@ -2310,6 +2331,13 @@ thread_setup(void)
 #define THREAD_STACK_GUARD_INIT_OP_DEPS
 #endif /* CONFIG_THREAD_STACK_GUARD */
 
+#ifdef CONFIG_PERFMON
+#define THREAD_PERFMON_INIT_OP_DEPS \
+               INIT_OP_DEP(perfmon_bootstrap, true),
+#else /* CONFIG_PERFMON */
+#define THREAD_PERFMON_INIT_OP_DEPS
+#endif /* CONFIG_PERFMON */
+
 INIT_OP_DEFINE(thread_setup,
                INIT_OP_DEP(cpumap_setup, true),
                INIT_OP_DEP(kmem_setup, true),
@@ -2319,6 +2347,7 @@ INIT_OP_DEFINE(thread_setup,
                INIT_OP_DEP(thread_bootstrap, true),
                INIT_OP_DEP(turnstile_setup, true),
                THREAD_STACK_GUARD_INIT_OP_DEPS
+               THREAD_PERFMON_INIT_OP_DEPS
 );
 
 void __init

@@ -24,6 +24,7 @@
 #include <kern/atomic.h>
 #include <kern/cpumap.h>
 #include <kern/list_types.h>
+#include <kern/perfmon_types.h>
 #include <kern/rcu_types.h>
 #include <kern/spinlock_types.h>
 #include <kern/turnstile_types.h>
@@ -175,6 +176,10 @@ struct thread {
     struct list task_node;          /* (T) */
     void *stack;                    /* (-) */
     char name[THREAD_NAME_SIZE];    /* ( ) */
+
+#ifdef CONFIG_PERFMON
+    struct perfmon_td perfmon_td;   /* ( ) */
+#endif
 };
 
 #define THREAD_ATTR_DETACHED 0x1
