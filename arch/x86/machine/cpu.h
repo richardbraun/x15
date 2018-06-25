@@ -544,16 +544,19 @@ cpu_cpuid(unsigned int *eax, unsigned int *ebx, unsigned int *ecx,
                  : : "memory");
 }
 
-static __always_inline void
+static inline void
 cpu_get_msr(uint32_t msr, uint32_t *high, uint32_t *low)
 {
-    asm volatile("rdmsr" : "=a" (*low), "=d" (*high) : "c" (msr));
+    asm("rdmsr" : "=a" (*low), "=d" (*high) : "c" (msr));
 }
 
-static __always_inline void
+/*
+ * Implies a full memory barrier.
+ */
+static inline void
 cpu_set_msr(uint32_t msr, uint32_t high, uint32_t low)
 {
-    asm volatile("wrmsr" : : "c" (msr), "a" (low), "d" (high));
+    asm volatile("wrmsr" : : "c" (msr), "a" (low), "d" (high) : "memory");
 }
 
 static __always_inline uint64_t
