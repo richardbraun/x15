@@ -2908,6 +2908,15 @@ thread_key_create(unsigned int *keyp, thread_dtor_fn_t dtor)
 }
 
 unsigned int
+thread_cpu(const struct thread *thread)
+{
+    const struct thread_runq *runq;
+
+    runq = atomic_load(&thread->runq, ATOMIC_RELAXED);
+    return runq->cpu;
+}
+
+unsigned int
 thread_state(const struct thread *thread)
 {
     return atomic_load(&thread->state, ATOMIC_RELAXED);

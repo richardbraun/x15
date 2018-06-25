@@ -713,6 +713,13 @@ thread_get_specific(unsigned int key)
 }
 
 /*
+ * Return the last CPU on which the thread has been scheduled.
+ *
+ * This call isn't synchronized, and the caller may obtain an outdated value.
+ */
+unsigned int thread_cpu(const struct thread *thread);
+
+/*
  * Return the current state of the given thread.
  *
  * This call isn't synchronized, and the caller may obtain an outdated value.
