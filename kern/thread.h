@@ -75,6 +75,13 @@ struct thread_sched_data {
 #define THREAD_KERNEL_PREFIX KERNEL_NAME "_"
 
 /*
+ * Thread states.
+ */
+#define THREAD_RUNNING  0
+#define THREAD_SLEEPING 1
+#define THREAD_DEAD     2
+
+/*
  * Scheduling policies.
  *
  * The idle policy is reserved for the per-CPU idle threads.
@@ -323,7 +330,7 @@ thread_wchan_desc(const struct thread *thread)
 /*
  * Return a character representation of the state of a thread.
  */
-char thread_state_to_chr(const struct thread *thread);
+char thread_state_to_chr(unsigned int state);
 
 static inline const struct thread_sched_data *
 thread_get_user_sched_data(const struct thread *thread)
@@ -704,6 +711,13 @@ thread_get_specific(unsigned int key)
 {
     return thread_tsd_get(thread_self(), key);
 }
+
+/*
+ * Return the current state of the given thread.
+ *
+ * This call isn't synchronized, and the caller may obtain an outdated value.
+ */
+unsigned int thread_state(const struct thread *thread);
 
 /*
  * Return true if the given thread is running.

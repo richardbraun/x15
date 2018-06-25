@@ -45,16 +45,6 @@ struct thread_fs_runq;
 #define THREAD_DETACHED 0x2UL /* Resources automatically released on exit */
 
 /*
- * Thread states.
- *
- * Threads in the running state may not be on a run queue if they're being
- * awaken.
- */
-#define THREAD_RUNNING  0
-#define THREAD_SLEEPING 1
-#define THREAD_DEAD     2
-
-/*
  * Scheduling data for a real-time thread.
  */
 struct thread_rt_data {
@@ -113,7 +103,7 @@ struct thread {
     const void *wchan_addr;     /* (r)   */
     const char *wchan_desc;     /* (r)   */
     int wakeup_error;           /* (r)   */
-    unsigned short state;       /* (r)   */
+    unsigned int state;         /* (a,r) */
 
     /* Sleep queue available for lending */
     struct sleepq *priv_sleepq; /* (-) */

@@ -600,7 +600,7 @@ thread_runq_wakeup_balancer(struct thread_runq *runq)
     }
 
     thread_clear_wchan(runq->balancer);
-    runq->balancer->state = THREAD_RUNNING;
+    atomic_store(&runq->balancer->state, THREAD_RUNNING, ATOMIC_RELAXED);
     thread_runq_wakeup(runq, runq->balancer);
 }
 
@@ -1989,8 +1989,9 @@ static void
 thread_join_common(struct thread *thread)
 {
     struct thread_runq *runq;
-    unsigned long flags, state;
     struct thread *self;
+    unsigned long flags;
+    unsigned int state;
 
     self = thread_self();
     assert(thread != self);
@@ -2060,7 +2061,7 @@ thread_balance(void *arg)
     for (;;) {
         runq->idle_balance_ticks = THREAD_IDLE_BALANCE_TICKS;
         thread_set_wchan(self, runq, "runq");
-        self->state = THREAD_SLEEPING;
+        atomic_store(&self->state, THREAD_SLEEPING, ATOMIC_RELAXED);
         runq = thread_runq_schedule(runq);
         assert(runq == arg);
 
@@ -2421,7 +2422,7 @@ thread_exit(void)
     runq = thread_runq_local();
     spinlock_lock_intr_save(&runq->lock, &flags);
 
-    thread->state = THREAD_DEAD;
+    atomic_store(&thread->state, THREAD_DEAD, ATOMIC_RELAXED);
 
     thread_runq_schedule(runq);
     panic("thread: dead thread walking");
@@ -2461,7 +2462,7 @@ thread_wakeup_common(struct thread *thread, int error)
         }
 
         thread_clear_wchan(thread);
-        thread->state = THREAD_RUNNING;
+        atomic_store(&thread->state, THREAD_RUNNING, ATOMIC_RELAXED);
         thread_unlock_runq(runq, flags);
     }
 
@@ -2532,7 +2533,7 @@ thread_sleep_common(struct spinlock *interlock, const void *wchan_addr,
     }
 
     thread_set_wchan(thread, wchan_addr, wchan_desc);
-    thread->state = THREAD_SLEEPING;
+    atomic_store(&thread->state, THREAD_SLEEPING, ATOMIC_RELAXED);
 
     runq = thread_runq_schedule(runq);
     assert(thread->state == THREAD_RUNNING);
@@ -2699,9 +2700,9 @@ thread_report_periodic_event(void)
 }
 
 char
-thread_state_to_chr(const struct thread *thread)
+thread_state_to_chr(unsigned int state)
 {
-    switch (thread->state) {
+    switch (state) {
     case THREAD_RUNNING:
         return 'R';
     case THREAD_SLEEPING:
@@ -2904,6 +2905,12 @@ thread_key_create(unsigned int *keyp, thread_dtor_fn_t dtor)
 
     thread_dtors[key] = dtor;
     *keyp = key;
+}
+
+unsigned int
+thread_state(const struct thread *thread)
+{
+    return atomic_load(&thread->state, ATOMIC_RELAXED);
 }
 
 bool
