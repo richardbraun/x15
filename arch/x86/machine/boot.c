@@ -56,6 +56,7 @@
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
+#include <kern/percpu.h>
 #include <kern/thread.h>
 #include <machine/acpi.h>
 #include <machine/atcons.h>
@@ -504,6 +505,7 @@ boot_ap_main(void)
     cpu_ap_setup();
     thread_ap_setup();
     pmap_ap_setup();
+    percpu_ap_setup();
     kernel_ap_main();
 
     /* Never reached */
