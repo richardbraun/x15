@@ -218,8 +218,12 @@ struct cpu_tss {
     uint16_t iobp_base;
 } __packed;
 
-#define CPU_VENDOR_ID_SIZE  13
+#define CPU_VENDOR_STR_SIZE 13
 #define CPU_MODEL_NAME_SIZE 49
+
+#define CPU_VENDOR_UNKNOWN  0
+#define CPU_VENDOR_INTEL    1
+#define CPU_VENDOR_AMD      2
 
 /*
  * CPU states.
@@ -230,8 +234,11 @@ struct cpu_tss {
 struct cpu {
     unsigned int id;
     unsigned int apic_id;
-    char vendor_id[CPU_VENDOR_ID_SIZE];
+    char vendor_str[CPU_VENDOR_STR_SIZE];
     char model_name[CPU_MODEL_NAME_SIZE];
+    unsigned int cpuid_max_basic;
+    unsigned int cpuid_max_extended;
+    unsigned int vendor_id;
     unsigned int type;
     unsigned int family;
     unsigned int model;
