@@ -550,6 +550,15 @@ cpu_get_msr(uint32_t msr, uint32_t *high, uint32_t *low)
     asm("rdmsr" : "=a" (*low), "=d" (*high) : "c" (msr));
 }
 
+static inline uint64_t
+cpu_get_msr64(uint32_t msr)
+{
+    uint32_t high, low;
+
+    cpu_get_msr(msr, &high, &low);
+    return (((uint64_t)high << 32) | low);
+}
+
 /*
  * Implies a full memory barrier.
  */
@@ -557,6 +566,19 @@ static inline void
 cpu_set_msr(uint32_t msr, uint32_t high, uint32_t low)
 {
     asm volatile("wrmsr" : : "c" (msr), "a" (low), "d" (high) : "memory");
+}
+
+/*
+ * Implies a full memory barrier.
+ */
+static inline void
+cpu_set_msr64(uint32_t msr, uint64_t value)
+{
+    uint32_t low, high;
+
+    low = value & 0xffffffff;
+    high = value >> 32;
+    cpu_set_msr(msr, high, low);
 }
 
 static __always_inline uint64_t
