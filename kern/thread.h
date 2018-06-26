@@ -737,8 +737,7 @@ unsigned int thread_state(const struct thread *thread);
 /*
  * Return true if the given thread is running.
  *
- * Note that this check is speculative, and may not return an accurate
- * result. It may only be used for optimistic optimizations.
+ * This call isn't synchronized, and the caller may obtain an outdated value.
  */
 bool thread_is_running(const struct thread *thread);
 
