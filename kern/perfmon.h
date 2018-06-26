@@ -73,10 +73,9 @@ struct perfmon_dev_ops {
     /*
      * Allocate a performance monitoring counter globally for the given
      * raw event ID, and return the counter ID through the given pointer.
-     * The range of IDs must start from 0 and increase contiguously.
-     *
-     * The PMC index is to be used by the driver when reporting overflows,
-     * if a custom overflow interrupt handler.
+     * The driver may return any PMC ID, as long as it uniquely identifies
+     * the underlying counter. The PMC index is passed when reporting
+     * overflows, if using a custom overflow interrupt handler.
      *
      * Global operation.
      */
