@@ -23,9 +23,9 @@
 #ifndef X86_STRACE_H
 #define X86_STRACE_H
 
-#include <kern/init.h>
+#include <stdint.h>
+
 #include <kern/macros.h>
-#include <machine/multiboot.h>
 
 /*
  * Display a call trace.
@@ -33,7 +33,7 @@
  * Attempt to resolve the given instruction pointer, then walk the calling
  * chain from the given frame pointer.
  */
-void strace_show(unsigned long ip, unsigned long bp);
+void strace_show(uintptr_t ip, uintptr_t bp);
 
 /*
  * Display the current call trace.
@@ -41,24 +41,11 @@ void strace_show(unsigned long ip, unsigned long bp);
 static __always_inline void
 strace_dump(void)
 {
-    unsigned long ip;
+    uintptr_t ip, bp;
 
     asm volatile("1: mov $1b, %0" : "=r" (ip));
-    strace_show(ip, (unsigned long)__builtin_frame_address(0));
+    bp = (uintptr_t)__builtin_frame_address(0);
+    strace_show(ip, bp);
 }
-
-/*
- * Pass the multiboot information structure.
- *
- * If available, the symbol table is extracted from the boot data, when
- * the strace module is initialized.
- */
-void strace_set_mbi(const struct multiboot_raw_info *mbi);
-
-/*
- * This init operation provides :
- *  - module fully initialized
- */
-INIT_OP_DECLARE(strace_setup);
 
 #endif /* X86_STRACE_H */
