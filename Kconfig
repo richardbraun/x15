@@ -47,6 +47,18 @@ config ASSERT
 	---help---
 	  Enable assert() code generation.
 
+config SYMTAB
+	bool "Build symbol table"
+	default y
+	---help---
+	  Build and embed a symbol table in the kernel.
+
+	  This option allows the kernel to perform symbolic address
+	  resolutions which are very convenient for debugging, at the
+	  cost of additional data memory.
+
+	  If unsure, enable.
+
 endmenu
 
 source "arch/$ARCH/Kconfig"
