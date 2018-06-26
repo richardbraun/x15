@@ -26,13 +26,16 @@ config CFLAGS
 
 menu "Build options"
 
-config CC_EXE
+config COMPILER
 	string "Compiler executable"
 	default CC
 	---help---
 	  Name of the compiler executable
 
-config CC_OPTIONS
+	  This includes any toolchain prefix, and must be a file name,
+	  not a path.
+
+config COMPILER_OPTIONS
 	string "Compilation options"
 	default CFLAGS
 	---help---

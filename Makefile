@@ -208,17 +208,23 @@ include/generated/autoconf.h: .config $(ALL_MAKEFILES)
 
 -include .config
 
-ifdef CONFIG_CC_EXE
+ifdef CONFIG_COMPILER
 # Use printf to remove quotes
-CC := $(shell printf -- $(CONFIG_CC_EXE))
+CC := $(shell printf -- $(CONFIG_COMPILER))
 else
 CC := gcc
 endif
 
-# Export to CONFIG_CC
+# The CC variable is used by Kconfig to set the value of CONFIG_COMPILER.
 export CC
 
-CPP = $(CC) -E
+TOOLCHAIN_NAME = $(shell printf "%s" $(CC) | rev | cut -s -d - -f 2- | rev)
+
+ifneq ($(TOOLCHAIN_NAME),)
+TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
+endif
+
+CPP := $(CC) -E
 
 CFLAGS ?= -O2 -g
 
@@ -282,9 +288,9 @@ include $(MAKEFILE_INCLUDES)
 # Must be defined by the architecture-specific Makefile.
 export KCONFIG_DEFCONFIG
 
-ifdef CONFIG_CC_OPTIONS
+ifdef CONFIG_COMPILER_OPTIONS
 # Use printf to remove quotes
-XBUILD_CFLAGS += $(shell printf -- $(CONFIG_CC_OPTIONS))
+XBUILD_CFLAGS += $(shell printf -- $(CONFIG_COMPILER_OPTIONS))
 endif
 
 COMPILE := $(CC) $(XBUILD_CPPFLAGS) $(XBUILD_CFLAGS)
