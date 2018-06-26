@@ -87,9 +87,8 @@ endef
 
 define xbuild_clean
 	$(Q)rm -f x15 \
-	$(x15_OBJDEPS) \
-	$(x15_OBJECTS) \
-	$(x15_LDS)
+	$(x15_OBJDEPS) $(x15_OBJECTS) \
+	$(x15_LDS_D) $(x15_LDS)
 endef
 
 define xbuild_distclean
