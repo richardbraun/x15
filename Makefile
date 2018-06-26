@@ -85,9 +85,19 @@ define xbuild_link
 		$(COMPILE) -o $@ $(1) $(XBUILD_LDFLAGS)
 endef
 
+XBUILD_GEN_SYMTAB = $(SRCDIR)/tools/gen_symtab.py
+XBUILD_GEN_SYMTAB_DEPS = $(XBUILD_GEN_SYMTAB)
+
+# $(call xbuild_gen_symtab)
+define xbuild_gen_symtab
+	$(call xbuild_action,GEN,$@) \
+		$(NM) -S -n $< | $(XBUILD_GEN_SYMTAB) > $@
+endef
+
 define xbuild_clean
-	$(Q)rm -f x15 \
+	$(Q)rm -f x15 $(x15_NO_SYMTAB) \
 	$(x15_OBJDEPS) $(x15_OBJECTS) \
+	$(x15_SYMTAB_C) $(x15_SYMTAB_D) $(x15_SYMTAB_O) \
 	$(x15_LDS_D) $(x15_LDS)
 endef
 
@@ -207,17 +217,24 @@ include/generated/autoconf.h: .config $(ALL_MAKEFILES)
 
 -include .config
 
-ifdef CONFIG_CC_EXE
+ifdef CONFIG_COMPILER
 # Use printf to remove quotes
-CC := $(shell printf -- $(CONFIG_CC_EXE))
+CC := $(shell printf -- $(CONFIG_COMPILER))
 else
 CC := gcc
 endif
 
-# Export to CONFIG_CC
+# The CC variable is used by Kconfig to set the value of CONFIG_COMPILER.
 export CC
 
-CPP = $(CC) -E
+TOOLCHAIN_NAME = $(shell printf "%s" $(CC) | rev | cut -s -d - -f 2- | rev)
+
+ifneq ($(TOOLCHAIN_NAME),)
+TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
+endif
+
+CPP := $(CC) -E
+NM  := $(TOOLCHAIN_PREFIX)nm
 
 CFLAGS ?= -O2 -g
 
@@ -281,18 +298,22 @@ include $(MAKEFILE_INCLUDES)
 # Must be defined by the architecture-specific Makefile.
 export KCONFIG_DEFCONFIG
 
-ifdef CONFIG_CC_OPTIONS
+ifdef CONFIG_COMPILER_OPTIONS
 # Use printf to remove quotes
-XBUILD_CFLAGS += $(shell printf -- $(CONFIG_CC_OPTIONS))
+XBUILD_CFLAGS += $(shell printf -- $(CONFIG_COMPILER_OPTIONS))
 endif
 
 COMPILE := $(CC) $(XBUILD_CPPFLAGS) $(XBUILD_CFLAGS)
 
 # Don't change preprocessor and compiler flags from this point
 
+x15_NO_SYMTAB := .x15.no_symtab
 x15_SOURCES := $(x15_SOURCES-y)
 x15_OBJDEPS := $(call xbuild_replace_source_suffix,d,$(x15_SOURCES))
 x15_OBJECTS := $(call xbuild_replace_source_suffix,o,$(x15_SOURCES))
+x15_SYMTAB_C := .symtab.c
+x15_SYMTAB_D := $(call xbuild_replace_source_suffix,d,$(x15_SYMTAB_C))
+x15_SYMTAB_O := $(call xbuild_replace_source_suffix,o,$(x15_SYMTAB_C))
 x15_LDS := $(basename $(x15_LDS_S))
 x15_LDS_D := $(x15_LDS).d
 
@@ -324,8 +345,22 @@ x15_DEPS := $(x15_LDS) .x15.sorted_init_ops
 %.lds: %.lds.S include/generated/autoconf.h
 	$(xbuild_gen_linker_script)
 
-x15: $(x15_OBJECTS) $(x15_DEPS)
+ifeq ($(CONFIG_SYMTAB),y)
+x15_FIRST_PASS := $(x15_NO_SYMTAB)
+else
+x15_FIRST_PASS := x15
+endif
+
+$(x15_FIRST_PASS): $(x15_OBJECTS) $(x15_DEPS)
 	$(call xbuild_link,$(x15_OBJECTS))
+
+ifeq ($(CONFIG_SYMTAB),y)
+$(x15_SYMTAB_C): $(x15_FIRST_PASS) $(XBUILD_GEN_SYMTAB_DEPS)
+	$(call xbuild_gen_symtab)
+
+x15: $(x15_NO_SYMTAB) $(x15_SYMTAB_O)
+	$(call xbuild_link,$(x15_OBJECTS) $(x15_SYMTAB_O))
+endif
 
 .PHONY: install-x15
 install-x15:

@@ -70,7 +70,6 @@
 #include <machine/pmap.h>
 #include <machine/pmu_amd.h>
 #include <machine/pmu_intel.h>
-#include <machine/strace.h>
 #include <machine/uart.h>
 #include <vm/vm_kmem.h>
 
@@ -495,7 +494,6 @@ void __init
 boot_main(void)
 {
     arg_set_cmdline(boot_tmp_cmdline);
-    strace_set_mbi(&boot_raw_mbi);
     kernel_main();
 
     /* Never reached */

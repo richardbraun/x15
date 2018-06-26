@@ -105,6 +105,10 @@
 #define __used              __attribute__((used))
 #endif
 
+#ifndef __weak
+#define __weak              __attribute__((weak))
+#endif
+
 #ifndef __fallthrough
 #if __GNUC__ >= 7
 #define __fallthrough       __attribute__((fallthrough))

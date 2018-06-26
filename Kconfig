@@ -26,13 +26,16 @@ config CFLAGS
 
 menu "Build options"
 
-config CC_EXE
+config COMPILER
 	string "Compiler executable"
 	default CC
 	---help---
 	  Name of the compiler executable
 
-config CC_OPTIONS
+	  This includes any toolchain prefix, and must be a file name,
+	  not a path.
+
+config COMPILER_OPTIONS
 	string "Compilation options"
 	default CFLAGS
 	---help---
@@ -43,6 +46,18 @@ config ASSERT
 	default y
 	---help---
 	  Enable assert() code generation.
+
+config SYMTAB
+	bool "Build symbol table"
+	default y
+	---help---
+	  Build and embed a symbol table in the kernel.
+
+	  This option allows the kernel to perform symbolic address
+	  resolutions which are very convenient for debugging, at the
+	  cost of additional data memory.
+
+	  If unsure, enable.
 
 endmenu
 

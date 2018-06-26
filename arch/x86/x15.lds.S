@@ -23,6 +23,10 @@ PHDRS
     text    PT_LOAD FLAGS(5);
     rodata  PT_LOAD FLAGS(4);
     data    PT_LOAD FLAGS(6);
+
+#ifdef CONFIG_SYMTAB
+    symbol  PT_LOAD FLAGS(6);
+#endif
 }
 
 SECTIONS
@@ -90,6 +94,19 @@ SECTIONS
     .bss ALIGN(CPU_DATA_ALIGN) : AT(BOOT_VTOP(ADDR(.bss))) {
         *(.bss*)
     } : data
+
+#ifdef CONFIG_SYMTAB
+    /*
+     * Including the embedded symbol table last should reliably prevent
+     * the second link from changing the addresses of the kernel symbols.
+     *
+     * In addition, use a program header different from data to make
+     * sure the linker doesn't include the .bss section in the output file.
+     */
+    .symbol ALIGN(PAGE_SIZE) : AT(BOOT_VTOP(ADDR(.symbol))) {
+        *(.symbol*)
+    } : symbol
+#endif /* CONFIG_SYMTAB */
 
     . = ALIGN(PAGE_SIZE);
     _end = .;

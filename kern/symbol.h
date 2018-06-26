@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2018 Agustina Arzille.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -13,39 +13,33 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- *
- * Stack tracing.
- *
- * TODO Make it possible to debug without the frame pointer.
  */
 
-#ifndef X86_STRACE_H
-#define X86_STRACE_H
+#ifndef KERN_SYMBOL_H
+#define KERN_SYMBOL_H
 
 #include <stdint.h>
 
 #include <kern/macros.h>
 
+#define __symbol_table __section(".symbol")
+
 /*
- * Display a call trace.
+ * Symbol structure.
  *
- * Attempt to resolve the given instruction pointer, then walk the calling
- * chain from the given frame pointer.
+ * This structure is public.
  */
-void strace_show(uintptr_t ip, uintptr_t bp);
+struct symbol {
+    uintptr_t addr;
+    uintptr_t size;
+    const char *name;
+};
 
 /*
- * Display the current call trace.
+ * Look up a symbol from an address.
+ *
+ * NULL is returned if no symbol was found for the given address.
  */
-static __always_inline void
-strace_dump(void)
-{
-    uintptr_t ip, bp;
+const struct symbol * symbol_lookup(uintptr_t addr);
 
-    asm volatile("1: mov $1b, %0" : "=r" (ip));
-    bp = (uintptr_t)__builtin_frame_address(0);
-    strace_show(ip, bp);
-}
-
-#endif /* X86_STRACE_H */
+#endif /* KERN_SYMBOL_H */

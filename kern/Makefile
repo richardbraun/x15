@@ -29,6 +29,7 @@ x15_SOURCES-y += \
         kern/spinlock.c \
         kern/sref.c \
         kern/string.c \
+        kern/symbol.c \
         kern/syscnt.c \
         kern/task.c \
         kern/thread.c \
