@@ -79,11 +79,6 @@ extern char _boot;
 extern char _boot_end;
 
 /*
- * This variable contains the CPU ID of an AP during early initialization.
- */
-extern unsigned int boot_ap_id;
-
-/*
  * Size of the trampoline code used for APs.
  */
 extern uint32_t boot_mp_trampoline_size;
@@ -122,6 +117,10 @@ void boot_main(void);
  * Entry point for APs.
  */
 void boot_ap_main(void);
+
+void boot_alloc_ap_stacks(void);
+
+void boot_set_ap_id(unsigned int ap_id);
 
 /*
  * Log kernel version and other architecture-specific information.

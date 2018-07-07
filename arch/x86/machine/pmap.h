@@ -203,7 +203,7 @@ pmap_pte_t * pmap_setup_paging(void);
 /*
  * This function is called by the AP bootstrap code before paging is enabled.
  */
-pmap_pte_t * pmap_ap_setup_paging(void);
+pmap_pte_t * pmap_ap_setup_paging(unsigned int ap_id);
 
 /*
  * Initialize the pmap module on APs.

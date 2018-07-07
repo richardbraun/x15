@@ -313,7 +313,7 @@ ASM_ENTRY(boot_ap_start32)
  .code64
 #endif /* __LP64__ */
 
- call pmap_ap_setup_paging
+ call boot_ap_setup
 
 #ifdef __LP64__
  movq %rax, %cr3
@@ -327,7 +327,7 @@ ASM_ENTRY(boot_ap_start32)
 1:
 #endif /* __LP64__ */
 
- call cpu_get_boot_stack
+ call boot_get_ap_stack
 
 #ifdef __LP64__
  movq %rax, %rsp

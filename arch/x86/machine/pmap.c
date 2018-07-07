@@ -484,7 +484,7 @@ pmap_setup_paging(void)
 }
 
 pmap_pte_t * __boot
-pmap_ap_setup_paging(void)
+pmap_ap_setup_paging(unsigned int ap_id)
 {
     struct pmap_cpu_table *cpu_table;
     struct pmap *pmap;
@@ -494,7 +494,7 @@ pmap_ap_setup_paging(void)
     pmap_boot_enable_pgext(pgsize);
 
     pmap = (void *)BOOT_VTOP((uintptr_t)&pmap_kernel_pmap);
-    cpu_table = (void *)BOOT_VTOP((uintptr_t)pmap->cpu_tables[boot_ap_id]);
+    cpu_table = (void *)BOOT_VTOP((uintptr_t)pmap->cpu_tables[ap_id]);
 
 #ifdef CONFIG_X86_PAE
     return (void *)(uint32_t)cpu_table->root_ptp_pa;

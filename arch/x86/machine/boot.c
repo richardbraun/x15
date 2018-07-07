@@ -75,7 +75,6 @@
 
 alignas(CPU_DATA_ALIGN) char boot_stack[BOOT_STACK_SIZE] __bootdata;
 alignas(CPU_DATA_ALIGN) char boot_ap_stack[BOOT_STACK_SIZE] __bootdata;
-unsigned int boot_ap_id __bootdata;
 
 #ifdef __LP64__
 alignas(PAGE_SIZE) pmap_pte_t boot_pml4[PMAP_L3_PTES_PER_PT] __bootdata;
@@ -121,6 +120,12 @@ static char boot_panic_meminfo_msg[] __bootdata
     = "boot: missing basic memory information";
 static char boot_panic_cmdline_msg[] __bootdata
     = "boot: command line too long";
+
+static volatile unsigned int boot_ap_id __bootdata;
+static char *boot_ap_stacks[CONFIG_MAX_CPUS - 1] __initdata;
+
+pmap_pte_t * boot_ap_setup(void);
+char * boot_get_ap_stack(void);
 
 void * __boot
 boot_memcpy(void *dest, const void *src, size_t n)
@@ -500,9 +505,47 @@ boot_main(void)
 }
 
 void __init
+boot_alloc_ap_stacks(void)
+{
+    char *stack;
+
+    for (unsigned int i = 1; i < cpu_count(); i++) {
+        stack = kmem_alloc(BOOT_STACK_SIZE);
+
+        if (!stack) {
+            panic("boot: unable to allocate stack for cpu%u", i);
+        }
+
+        boot_ap_stacks[i - 1] = stack;
+    }
+}
+
+void __init
+boot_set_ap_id(unsigned int ap_id)
+{
+    boot_ap_id = ap_id;
+}
+
+pmap_pte_t * __boot
+boot_ap_setup(void)
+{
+    return pmap_ap_setup_paging(boot_ap_id);
+}
+
+char * __init
+boot_get_ap_stack(void)
+{
+    unsigned int index;
+
+    index = boot_ap_id - 1;
+    assert(boot_ap_id < ARRAY_SIZE(boot_ap_stacks));
+    return boot_ap_stacks[index];
+}
+
+void __init
 boot_ap_main(void)
 {
-    cpu_ap_setup();
+    cpu_ap_setup(boot_ap_id);
     thread_ap_setup();
     pmap_ap_setup();
     percpu_ap_setup();

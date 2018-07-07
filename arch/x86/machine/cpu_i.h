@@ -158,7 +158,6 @@ struct cpu {
 #endif /* __LP64__ */
 
     volatile int state; // TODO Atomic accessors
-    void *boot_stack;
 
     alignas(CPU_DATA_ALIGN) char intr_stack[CPU_INTR_STACK_SIZE];
     alignas(CPU_DATA_ALIGN) char df_stack[CPU_INTR_STACK_SIZE];

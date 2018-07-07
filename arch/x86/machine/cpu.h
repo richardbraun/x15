@@ -600,11 +600,6 @@ uint64_t cpu_get_freq(void);
 void cpu_delay(unsigned long usecs);
 
 /*
- * Return the address of the boot stack allocated for the current processor.
- */
-void * cpu_get_boot_stack(void);
-
-/*
  * Log processor information.
  */
 void cpu_log_info(const struct cpu *cpu);
@@ -629,7 +624,7 @@ void cpu_mp_setup(void);
 /*
  * CPU initialization on APs.
  */
-void cpu_ap_setup(void);
+void cpu_ap_setup(unsigned int ap_id);
 
 static inline unsigned int
 cpu_apic_id(unsigned int cpu)

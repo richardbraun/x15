@@ -420,12 +420,6 @@ cpu_delay(unsigned long usecs)
     } while (total > 0);
 }
 
-void * __init
-cpu_get_boot_stack(void)
-{
-    return percpu_var(cpu_desc.boot_stack, boot_ap_id); // TODO Pass as argument
-}
-
 void *
 cpu_get_intr_stack(void)
 {
@@ -1254,7 +1248,6 @@ cpu_mp_setup(void)
 {
     uint16_t reset_vector[2];
     struct cpu *cpu;
-    unsigned int i;
     void *ptr;
 
     if (cpu_count() == 1) {
@@ -1279,14 +1272,7 @@ cpu_mp_setup(void)
     io_write_byte(CPU_MP_CMOS_PORT_REG, CPU_MP_CMOS_REG_RESET);
     io_write_byte(CPU_MP_CMOS_PORT_DATA, CPU_MP_CMOS_DATA_RESET_WARM);
 
-    for (i = 1; i < cpu_count(); i++) {
-        cpu = percpu_ptr(cpu_desc, i);
-        cpu->boot_stack = kmem_alloc(BOOT_STACK_SIZE);
-
-        if (!cpu->boot_stack) {
-            panic("cpu: unable to allocate boot stack for cpu%u", i);
-        }
-    }
+    boot_alloc_ap_stacks();
 
     /*
      * This function creates per-CPU copies of the page tables. Just in case,
@@ -1294,9 +1280,9 @@ cpu_mp_setup(void)
      */
     pmap_mp_setup();
 
-    for (i = 1; i < cpu_count(); i++) {
+    for (unsigned int i = 1; i < cpu_count(); i++) {
         cpu = percpu_ptr(cpu_desc, i);
-        boot_ap_id = i;
+        boot_set_ap_id(i);
 
         /* Perform the "Universal Start-up Algorithm" */
         lapic_ipi_init_assert(cpu->apic_id);
@@ -1315,11 +1301,11 @@ cpu_mp_setup(void)
 }
 
 void __init
-cpu_ap_setup(void)
+cpu_ap_setup(unsigned int ap_id)
 {
     struct cpu *cpu;
 
-    cpu = percpu_ptr(cpu_desc, boot_ap_id);
+    cpu = percpu_ptr(cpu_desc, ap_id);
     cpu_build(cpu);
     cpu_check(cpu_current());
     lapic_ap_setup();
