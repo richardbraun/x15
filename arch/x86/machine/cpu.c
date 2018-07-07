@@ -253,6 +253,18 @@ static const struct cpu_vendor cpu_vendors[] = {
     { CPU_VENDOR_AMD,   "AuthenticAMD" },
 };
 
+static const char *cpu_feature_names[] = {
+    [CPU_FEATURE_FPU]   = "fpu",
+    [CPU_FEATURE_PSE]   = "pse",
+    [CPU_FEATURE_PAE]   = "pae",
+    [CPU_FEATURE_MSR]   = "msr",
+    [CPU_FEATURE_CX8]   = "cx8",
+    [CPU_FEATURE_APIC]  = "apic",
+    [CPU_FEATURE_PGE]   = "pge",
+    [CPU_FEATURE_1GP]   = "1gp",
+    [CPU_FEATURE_LM]    = "lm",
+};
+
 static void __init
 cpu_exc_handler_init(struct cpu_exc_handler *handler, cpu_exc_handler_fn_t fn)
 {
@@ -851,6 +863,40 @@ cpu_tss_init_i386_double_fault(struct cpu_tss *tss, const void *df_stack_top)
 }
 #endif /* __LP64__ */
 
+static void __init
+cpu_feature_map_init(struct cpu_feature_map *map)
+{
+    bitmap_zero(map->flags, CPU_NR_FEATURES);
+}
+
+static void __init
+cpu_feature_map_cset(struct cpu_feature_map *map, unsigned int word,
+                     unsigned int mask, enum cpu_feature feature)
+{
+    if (word & mask) {
+        bitmap_set(map->flags, feature);
+    }
+}
+
+static void __init
+cpu_feature_map_basic1_edx(struct cpu_feature_map *map, unsigned int edx)
+{
+    cpu_feature_map_cset(map, edx, CPU_CPUID_BASIC1_EDX_FPU, CPU_FEATURE_FPU);
+    cpu_feature_map_cset(map, edx, CPU_CPUID_BASIC1_EDX_PSE, CPU_FEATURE_PSE);
+    cpu_feature_map_cset(map, edx, CPU_CPUID_BASIC1_EDX_PAE, CPU_FEATURE_PAE);
+    cpu_feature_map_cset(map, edx, CPU_CPUID_BASIC1_EDX_MSR, CPU_FEATURE_MSR);
+    cpu_feature_map_cset(map, edx, CPU_CPUID_BASIC1_EDX_CX8, CPU_FEATURE_CX8);
+    cpu_feature_map_cset(map, edx, CPU_CPUID_BASIC1_EDX_APIC, CPU_FEATURE_APIC);
+    cpu_feature_map_cset(map, edx, CPU_CPUID_BASIC1_EDX_PGE, CPU_FEATURE_PGE);
+}
+
+static void __init
+cpu_feature_map_ext1_edx(struct cpu_feature_map *map, unsigned int edx)
+{
+    cpu_feature_map_cset(map, edx, CPU_CPUID_EXT1_EDX_1GP, CPU_FEATURE_1GP);
+    cpu_feature_map_cset(map, edx, CPU_CPUID_EXT1_EDX_LM, CPU_FEATURE_LM);
+}
+
 static struct cpu_tss * __init
 cpu_get_tss(struct cpu *cpu)
 {
@@ -1021,13 +1067,13 @@ cpu_build(struct cpu *cpu)
                          >> CPU_CPUID_CLFLUSH_SHIFT) * 8;
     cpu->initial_apic_id = (ebx & CPU_CPUID_APIC_ID_MASK)
                            >> CPU_CPUID_APIC_ID_SHIFT;
-    cpu->features1 = ecx;
-    cpu->features2 = edx;
+    cpu_feature_map_init(&cpu->feature_map);
+    cpu_feature_map_basic1_edx(&cpu->feature_map, edx);
 
-    eax = 0x80000000;
+    eax = CPU_CPUID_EXT_BIT;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
-    if (eax <= 0x80000000) {
+    if (eax <= CPU_CPUID_EXT_BIT) {
         max_extended = 0;
     } else {
         max_extended = eax;
@@ -1035,32 +1081,28 @@ cpu_build(struct cpu *cpu)
 
     cpu->cpuid_max_extended = max_extended;
 
-    if (max_extended < 0x80000001) {
-        cpu->features3 = 0;
-        cpu->features4 = 0;
-    } else {
-        eax = 0x80000001;
+    if (max_extended >= (CPU_CPUID_EXT_BIT | 1)) {
+        eax = CPU_CPUID_EXT_BIT | 1;
         cpu_cpuid(&eax, &ebx, &ecx, &edx);
-        cpu->features3 = ecx;
-        cpu->features4 = edx;
+        cpu_feature_map_ext1_edx(&cpu->feature_map, edx);
     }
 
-    if (max_extended >= 0x80000004) {
-        eax = 0x80000002;
+    if (max_extended >= (CPU_CPUID_EXT_BIT | 4)) {
+        eax = CPU_CPUID_EXT_BIT | 2;
         cpu_cpuid(&eax, &ebx, &ecx, &edx);
         memcpy(cpu->model_name, &eax, sizeof(eax));
         memcpy(cpu->model_name + 4, &ebx, sizeof(ebx));
         memcpy(cpu->model_name + 8, &ecx, sizeof(ecx));
         memcpy(cpu->model_name + 12, &edx, sizeof(edx));
 
-        eax = 0x80000003;
+        eax = CPU_CPUID_EXT_BIT | 3;
         cpu_cpuid(&eax, &ebx, &ecx, &edx);
         memcpy(cpu->model_name + 16, &eax, sizeof(eax));
         memcpy(cpu->model_name + 20, &ebx, sizeof(ebx));
         memcpy(cpu->model_name + 24, &ecx, sizeof(ecx));
         memcpy(cpu->model_name + 28, &edx, sizeof(edx));
 
-        eax = 0x80000004;
+        eax = CPU_CPUID_EXT_BIT | 4;
         cpu_cpuid(&eax, &ebx, &ecx, &edx);
         memcpy(cpu->model_name + 32, &eax, sizeof(eax));
         memcpy(cpu->model_name + 36, &ebx, sizeof(ebx));
@@ -1070,8 +1112,8 @@ cpu_build(struct cpu *cpu)
         cpu->model_name[sizeof(cpu->model_name) - 1] = '\0';
     }
 
-    if (max_extended >= 0x80000008) {
-        eax = 0x80000008;
+    if (max_extended >= (CPU_CPUID_EXT_BIT | 8)) {
+        eax = CPU_CPUID_EXT_BIT | 8;
         cpu_cpuid(&eax, &ebx, &ecx, &edx);
         cpu->phys_addr_width = (unsigned short)eax & 0xff;
         cpu->virt_addr_width = ((unsigned short)eax >> 8) & 0xff;
@@ -1122,7 +1164,7 @@ cpu_panic_on_missing_feature(const char *feature)
 static void __init
 cpu_check(const struct cpu *cpu)
 {
-    if (!(cpu->features2 & CPU_FEATURE2_FPU)) {
+    if (!cpu_has_feature(cpu, CPU_FEATURE_FPU)) {
         cpu_panic_on_missing_feature("fpu");
     }
 
@@ -1133,7 +1175,7 @@ cpu_check(const struct cpu *cpu)
      * just disabled when building with it.
      */
 #if !defined(__LP64__) && !defined(__clang__)
-    if (!(cpu->features2 & CPU_FEATURE2_CX8)) {
+    if (!cpu_has_feature(cpu, CPU_FEATURE_CX8)) {
         cpu_panic_on_missing_feature("cx8");
     }
 #endif
@@ -1154,6 +1196,9 @@ INIT_OP_DEFINE(cpu_check_bsp,
 void __init
 cpu_log_info(const struct cpu *cpu)
 {
+    char features[60], *ptr;
+    size_t size, bytes;
+
     log_info("cpu%u: %s, type %u, family %u, model %u, stepping %u",
              cpu->id, cpu->vendor_str, cpu->type, cpu->family, cpu->model,
              cpu->stepping);
@@ -1170,6 +1215,32 @@ cpu_log_info(const struct cpu *cpu)
     log_info("cpu%u: frequency: %llu.%02llu MHz", cpu->id,
              (unsigned long long)cpu_freq / 1000000,
              (unsigned long long)cpu_freq % 1000000);
+
+    ptr = features;
+    size = sizeof(features);
+
+    for (size_t i = 0; i < ARRAY_SIZE(cpu_feature_names); i++) {
+        if (!cpu_has_feature(cpu, i)) {
+            continue;
+        }
+
+        assert(strlen(cpu_feature_names[i]) < sizeof(features));
+        bytes = snprintf(ptr, size, " %s", cpu_feature_names[i]);
+
+        if (bytes >= size) {
+            *ptr = '\0';
+            log_info("cpu%u:%s", cpu->id, features);
+            ptr = features;
+            size = sizeof(features);
+            i--;
+            continue;
+        }
+
+        ptr += bytes;
+        size -= bytes;
+    }
+
+    log_info("cpu%u:%s", cpu->id, features);
 }
 
 void __init

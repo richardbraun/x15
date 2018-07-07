@@ -342,17 +342,17 @@ pmap_boot_get_pgsize(void)
     unsigned int eax, ebx, ecx, edx;
 
 #ifdef __LP64__
-    eax = 0x80000000;
+    eax = CPU_CPUID_EXT_BIT;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
-    if (eax <= 0x80000000) {
+    if (eax <= CPU_CPUID_EXT_BIT) {
         goto out;
     }
 
-    eax = 0x80000001;
+    eax = (CPU_CPUID_EXT_BIT | 1);
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
-    if (edx & CPU_FEATURE4_1GP) {
+    if (edx & CPU_CPUID_EXT1_EDX_1GP) {
         return (1 << PMAP_L2_SKIP);
     }
 
@@ -370,13 +370,13 @@ out:
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
 
 #ifdef CONFIG_X86_PAE
-    if (!(edx & CPU_FEATURE2_PAE)) {
+    if (!(edx & CPU_CPUID_BASIC1_EDX_PAE)) {
         boot_panic(pmap_panic_no_pae);
     }
 
     return (1 << PMAP_L1_SKIP);
 #else /* CONFIG_X86_PAE */
-    if (edx & CPU_FEATURE2_PSE) {
+    if (edx & CPU_CPUID_BASIC1_EDX_PSE) {
         return (1 << PMAP_L1_SKIP);
     }
 #endif /* CONFIG_X86_PAE */

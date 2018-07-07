@@ -132,13 +132,13 @@ ASM_END(boot_gdtr)
 ASM_ENTRY(boot_check_long_mode)
  pushl %eax
  pushl %ebx
- movl $0x80000000, %eax
+ movl $CPU_CPUID_EXT_BIT, %eax
  cpuid
- cmpl $0x80000000, %eax
+ cmpl $CPU_CPUID_EXT_BIT, %eax
  jbe boot_no_long_mode
- movl $0x80000001, %eax
+ movl $(CPU_CPUID_EXT_BIT | 1), %eax
  cpuid
- testl $CPU_FEATURE4_LM, %edx
+ testl $CPU_CPUID_EXT1_EDX_LM, %edx
  jz boot_no_long_mode
  popl %ebx
  popl %eax

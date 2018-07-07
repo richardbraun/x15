@@ -47,7 +47,10 @@
 #ifndef __ASSEMBLER__
 
 #include <stdalign.h>
+#include <stdbool.h>
 #include <stdint.h>
+
+#include <kern/bitmap.h>
 
 struct cpu_tss {
 #ifdef __LP64__
@@ -108,6 +111,10 @@ struct cpu_gdt {
 #define CPU_VENDOR_ID_SIZE  13
 #define CPU_MODEL_NAME_SIZE 49
 
+struct cpu_feature_map {
+    BITMAP_DECLARE(flags, CPU_NR_FEATURES);
+};
+
 struct cpu {
     unsigned int id;
     unsigned int apic_id;
@@ -122,10 +129,7 @@ struct cpu {
     unsigned int stepping;
     unsigned int clflush_size;
     unsigned int initial_apic_id;
-    unsigned int features1; // TODO Use a struct bitmap
-    unsigned int features2;
-    unsigned int features3;
-    unsigned int features4;
+    struct cpu_feature_map feature_map;
     unsigned short phys_addr_width;
     unsigned short virt_addr_width;
 
@@ -162,6 +166,13 @@ struct cpu {
  * it can be directly accessed through a segment register.
  */
 extern void *cpu_local_area;
+
+static inline bool
+cpu_feature_map_test(const struct cpu_feature_map *map,
+                     enum cpu_feature feature)
+{
+    return bitmap_test(map->flags, feature);
+}
 
 /*
  * Return the content of the EFLAGS register.

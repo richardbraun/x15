@@ -138,26 +138,46 @@
 #define CPU_EFER_LME                            0x00000100
 
 /*
- * Feature2 flags.
- *
- * TODO Better names.
+ * Bit used to make extended CPUID requests.
  */
-#define CPU_FEATURE2_FPU                        0x00000001
-#define CPU_FEATURE2_PSE                        0x00000008
-#define CPU_FEATURE2_PAE                        0x00000040
-#define CPU_FEATURE2_MSR                        0x00000020
-#define CPU_FEATURE2_CX8                        0x00000100
-#define CPU_FEATURE2_APIC                       0x00000200
-#define CPU_FEATURE2_PGE                        0x00002000
+#define CPU_CPUID_EXT_BIT                       0x80000000
 
-#define CPU_FEATURE4_1GP                        0x04000000
-#define CPU_FEATURE4_LM                         0x20000000
+/*
+ * CPU feature flags as returned by CPUID.
+ */
+#define CPU_CPUID_BASIC1_EDX_FPU                0x00000001
+#define CPU_CPUID_BASIC1_EDX_PSE                0x00000008
+#define CPU_CPUID_BASIC1_EDX_PAE                0x00000040
+#define CPU_CPUID_BASIC1_EDX_MSR                0x00000020
+#define CPU_CPUID_BASIC1_EDX_CX8                0x00000100
+#define CPU_CPUID_BASIC1_EDX_APIC               0x00000200
+#define CPU_CPUID_BASIC1_EDX_PGE                0x00002000
+#define CPU_CPUID_EXT1_EDX_1GP                  0x04000000
+#define CPU_CPUID_EXT1_EDX_LM                   0x20000000
+
+#ifndef __ASSEMBLER__
+
+enum cpu_feature {
+    CPU_FEATURE_FPU,
+    CPU_FEATURE_PSE,
+    CPU_FEATURE_PAE,
+    CPU_FEATURE_MSR,
+    CPU_FEATURE_CX8,
+    CPU_FEATURE_APIC,
+    CPU_FEATURE_PGE,
+    CPU_FEATURE_1GP,
+    CPU_FEATURE_LM,
+    CPU_NR_FEATURES
+};
+
+#endif /* __ASSEMBLER__ */
 
 #include <machine/cpu_i.h>
 
 #ifndef __ASSEMBLER__
 
 #include <stdalign.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdnoreturn.h>
 
@@ -429,6 +449,12 @@ cpu_from_id(unsigned int cpu)
     return percpu_ptr(cpu_desc, cpu);
 }
 
+static inline bool
+cpu_has_feature(const struct cpu *cpu, enum cpu_feature feature)
+{
+    return cpu_feature_map_test(&cpu->feature_map, feature);
+}
+
 static __always_inline void
 cpu_enable_pse(void)
 {
@@ -444,7 +470,7 @@ cpu_enable_pae(void)
 static inline int
 cpu_has_global_pages(void)
 {
-    return cpu_current()->features2 & CPU_FEATURE2_PGE;
+    return cpu_has_feature(cpu_current(), CPU_FEATURE_PGE);
 }
 
 /*
