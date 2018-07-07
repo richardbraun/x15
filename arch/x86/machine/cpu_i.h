@@ -108,13 +108,6 @@ struct cpu_gdt {
 #define CPU_VENDOR_ID_SIZE  13
 #define CPU_MODEL_NAME_SIZE 49
 
-/*
- * CPU states.
- * TODO Boolean.
- */
-#define CPU_STATE_OFF   0
-#define CPU_STATE_ON    1
-
 struct cpu {
     unsigned int id;
     unsigned int apic_id;
@@ -157,7 +150,7 @@ struct cpu {
     struct cpu_tss df_tss;
 #endif /* __LP64__ */
 
-    volatile int state; // TODO Atomic accessors
+    unsigned int started;
 
     alignas(CPU_DATA_ALIGN) char intr_stack[CPU_INTR_STACK_SIZE];
     alignas(CPU_DATA_ALIGN) char df_stack[CPU_INTR_STACK_SIZE];

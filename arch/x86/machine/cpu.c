@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/log.h>
@@ -1076,7 +1077,7 @@ cpu_build(struct cpu *cpu)
         cpu->virt_addr_width = ((unsigned short)eax >> 8) & 0xff;
     }
 
-    cpu->state = CPU_STATE_ON;
+    atomic_store(&cpu->started, 1, ATOMIC_RELEASE);
 }
 
 static void __init
@@ -1247,6 +1248,7 @@ void __init
 cpu_mp_setup(void)
 {
     uint16_t reset_vector[2];
+    unsigned int started;
     struct cpu *cpu;
     void *ptr;
 
@@ -1294,8 +1296,12 @@ cpu_mp_setup(void)
         lapic_ipi_startup(cpu->apic_id, BOOT_MP_TRAMPOLINE_ADDR >> 12);
         cpu_delay(200);
 
-        while (cpu->state == CPU_STATE_OFF) {
-            cpu_pause();
+        for (;;) {
+            started = atomic_load(&cpu->started, ATOMIC_ACQUIRE);
+
+            if (started) {
+                break;
+            }
         }
     }
 }
