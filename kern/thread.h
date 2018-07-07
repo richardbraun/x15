@@ -712,6 +712,12 @@ thread_get_specific(unsigned int key)
     return thread_tsd_get(thread_self(), key);
 }
 
+static inline const char *
+thread_name(const struct thread *thread)
+{
+    return thread->name;
+}
+
 #ifdef CONFIG_PERFMON
 static inline struct perfmon_td *
 thread_get_perfmon_td(struct thread *thread)

@@ -445,8 +445,7 @@ cpu_show_thread(void)
 
     thread = thread_self();
 
-    /* TODO Thread name accessor */
-    printf("cpu: interrupted thread: %p (%s)\n", thread, thread->name);
+    printf("cpu: interrupted thread: %p (%s)\n", thread, thread_name(thread));
 }
 
 #ifdef __LP64__

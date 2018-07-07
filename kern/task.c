@@ -212,7 +212,7 @@ task_lookup_thread(struct task *task, const char *name)
     spinlock_lock(&task->lock);
 
     list_for_each_entry(&task->threads, thread, task_node) {
-        if (strcmp(thread->name, name) == 0) {
+        if (strcmp(thread_name(thread), name) == 0) {
             thread_ref(thread);
             spinlock_unlock(&task->lock);
             return thread;
@@ -263,7 +263,7 @@ task_info(struct task *task)
                thread_sched_class_to_str(thread_user_sched_class(thread)),
                thread_user_priority(thread),
                thread_real_global_priority(thread),
-               thread->name);
+               thread_name(thread));
     }
 
     spinlock_unlock(&task->lock);
