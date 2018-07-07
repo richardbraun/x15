@@ -215,11 +215,11 @@ pmu_amd_setup(void)
 
     cpu = cpu_current();
 
-    if (cpu->vendor_id != CPU_VENDOR_AMD) {
+    if (cpu_vendor_id(cpu) != CPU_VENDOR_AMD) {
         return ENODEV;
     }
 
-    if (cpu->family < 0x10) {
+    if (cpu_family(cpu) < 0x10) {
         return ENODEV;
     }
 

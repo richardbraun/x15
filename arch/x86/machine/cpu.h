@@ -638,6 +638,30 @@ cpu_tlb_flush_va(unsigned long va)
     asm volatile("invlpg (%0)" : : "r" (va) : "memory");
 }
 
+static inline unsigned int
+cpu_cpuid_max_basic(const struct cpu *cpu)
+{
+    return cpu->cpuid_max_basic;
+}
+
+static inline unsigned int
+cpu_vendor_id(const struct cpu *cpu)
+{
+    return cpu->vendor_id;
+}
+
+static inline unsigned int
+cpu_family(const struct cpu *cpu)
+{
+    return cpu->family;
+}
+
+static inline unsigned int
+cpu_phys_addr_width(const struct cpu *cpu)
+{
+    return cpu->phys_addr_width;
+}
+
 /*
  * Get CPU frequency in Hz.
  */

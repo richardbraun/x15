@@ -849,19 +849,18 @@ biosmem_load_zone(struct biosmem_zone *zone, uint64_t max_phys_end)
 static int __init
 biosmem_setup(void)
 {
+    unsigned int phys_addr_width;
     uint64_t max_phys_end;
     struct biosmem_zone *zone;
-    struct cpu *cpu;
-    unsigned int i;
 
     biosmem_map_show();
 
-    cpu = cpu_current();
-    max_phys_end = (cpu->phys_addr_width == 0)
+    phys_addr_width = cpu_phys_addr_width(cpu_current());
+    max_phys_end = ((phys_addr_width == 0) || (phys_addr_width == 64))
                    ? (uint64_t)-1
-                   : (uint64_t)1 << cpu->phys_addr_width;
+                   : (uint64_t)1 << phys_addr_width;
 
-    for (i = 0; i < ARRAY_SIZE(biosmem_zones); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(biosmem_zones); i++) {
         if (biosmem_zone_size(i) == 0) {
             break;
         }

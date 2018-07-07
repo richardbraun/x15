@@ -336,11 +336,11 @@ pmu_intel_setup(void)
     cpu = cpu_current();
     eax = 0xa;
 
-    if (cpu->vendor_id != CPU_VENDOR_INTEL) {
+    if (cpu_vendor_id(cpu) != CPU_VENDOR_INTEL) {
         return 0;
     }
 
-    if (cpu->cpuid_max_basic < eax) {
+    if (cpu_cpuid_max_basic(cpu) < eax) {
         return ENODEV;
     }
 
