@@ -416,6 +416,7 @@ cpu_delay(unsigned long usecs)
         diff = count - prev;
         prev = count;
         total -= diff;
+        cpu_pause();
     } while (total > 0);
 }
 

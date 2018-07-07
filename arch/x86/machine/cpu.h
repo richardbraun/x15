@@ -594,6 +594,8 @@ uint64_t cpu_get_freq(void);
 
 /*
  * Busy-wait for a given amount of time, in microseconds.
+ *
+ * Implies a compiler barrier.
  */
 void cpu_delay(unsigned long usecs);
 
