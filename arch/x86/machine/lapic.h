@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 Richard Braun.
+ * Copyright (c) 2011-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,8 +20,6 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-
-#include <machine/trap.h>
 
 /*
  * Send an end-of-interrupt message to the local APIC.
@@ -50,13 +48,5 @@ void lapic_ipi_startup(uint32_t apic_id, uint32_t vector);
  */
 void lapic_ipi_send(uint32_t apic_id, uint32_t vector);
 void lapic_ipi_broadcast(uint32_t vector);
-
-/*
- * Interrupt handlers.
- */
-void lapic_pmc_overflow_intr(struct trap_frame *frame);
-void lapic_timer_intr(struct trap_frame *frame);
-void lapic_error_intr(struct trap_frame *frame);
-void lapic_spurious_intr(struct trap_frame *frame);
 
 #endif /* X86_LAPIC_H */

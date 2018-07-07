@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 Richard Braun.
+ * Copyright (c) 2010-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,15 +17,19 @@
 
 #include <assert.h>
 #include <stdalign.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <kern/init.h>
+#include <kern/kmem.h>
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
 #include <kern/percpu.h>
+#include <kern/spinlock.h>
 #include <kern/shutdown.h>
 #include <kern/thread.h>
 #include <kern/xcall.h>
@@ -36,11 +40,10 @@
 #include <machine/io.h>
 #include <machine/lapic.h>
 #include <machine/page.h>
-#include <machine/pic.h>
 #include <machine/pit.h>
 #include <machine/pmap.h>
 #include <machine/ssp.h>
-#include <machine/trap.h>
+#include <machine/strace.h>
 #include <vm/vm_page.h>
 
 /*
@@ -48,24 +51,24 @@
  */
 #define CPU_FREQ_CAL_DELAY  1000000
 
-#define CPU_TYPE_MASK       0x00003000
-#define CPU_TYPE_SHIFT      12
-#define CPU_FAMILY_MASK     0x00000f00
-#define CPU_FAMILY_SHIFT    8
-#define CPU_EXTFAMILY_MASK  0x0ff00000
-#define CPU_EXTFAMILY_SHIFT 20
-#define CPU_MODEL_MASK      0x000000f0
-#define CPU_MODEL_SHIFT     4
-#define CPU_EXTMODEL_MASK   0x000f0000
-#define CPU_EXTMODEL_SHIFT  16
-#define CPU_STEPPING_MASK   0x0000000f
-#define CPU_STEPPING_SHIFT  0
-#define CPU_BRAND_MASK      0x000000ff
-#define CPU_BRAND_SHIFT     0
-#define CPU_CLFLUSH_MASK    0x0000ff00
-#define CPU_CLFLUSH_SHIFT   8
-#define CPU_APIC_ID_MASK    0xff000000
-#define CPU_APIC_ID_SHIFT   24
+#define CPU_CPUID_TYPE_MASK         0x00003000
+#define CPU_CPUID_TYPE_SHIFT        12
+#define CPU_CPUID_FAMILY_MASK       0x00000f00
+#define CPU_CPUID_FAMILY_SHIFT      8
+#define CPU_CPUID_EXTFAMILY_MASK    0x0ff00000
+#define CPU_CPUID_EXTFAMILY_SHIFT   20
+#define CPU_CPUID_MODEL_MASK        0x000000f0
+#define CPU_CPUID_MODEL_SHIFT       4
+#define CPU_CPUID_EXTMODEL_MASK     0x000f0000
+#define CPU_CPUID_EXTMODEL_SHIFT    16
+#define CPU_CPUID_STEPPING_MASK     0x0000000f
+#define CPU_CPUID_STEPPING_SHIFT    0
+#define CPU_CPUID_BRAND_MASK        0x000000ff
+#define CPU_CPUID_BRAND_SHIFT       0
+#define CPU_CPUID_CLFLUSH_MASK      0x0000ff00
+#define CPU_CPUID_CLFLUSH_SHIFT     8
+#define CPU_CPUID_APIC_ID_MASK      0xff000000
+#define CPU_CPUID_APIC_ID_SHIFT     24
 
 #define CPU_INVALID_APIC_ID ((unsigned int)-1)
 
@@ -73,6 +76,11 @@ struct cpu_vendor {
     unsigned int id;
     const char *str;
 };
+
+/*
+ * IST indexes (0 is reserved).
+ */
+#define CPU_TSS_IST_DF 1
 
 /*
  * MP related CMOS ports, registers and values.
@@ -90,9 +98,6 @@ struct cpu_vendor {
  */
 #define CPU_SHUTDOWN_PRIORITY 0
 
-/*
- * Gate descriptor.
- */
 struct cpu_gate_desc {
     uint32_t word1;
     uint32_t word2;
@@ -102,16 +107,8 @@ struct cpu_gate_desc {
 #endif /* __LP64__ */
 };
 
-/*
- * LDT or TSS system segment descriptor.
- */
-struct cpu_sysseg_desc {
-    uint32_t word1;
-    uint32_t word2;
-#ifdef __LP64__
-    uint32_t word3;
-    uint32_t word4;
-#endif /* __LP64__ */
+struct cpu_idt {
+    alignas(CPU_L1_SIZE) struct cpu_gate_desc descs[CPU_NR_EXC_VECTORS];
 };
 
 struct cpu_pseudo_desc {
@@ -119,10 +116,106 @@ struct cpu_pseudo_desc {
     uintptr_t address;
 } __packed;
 
+#ifdef __LP64__
+
+struct cpu_exc_frame {
+    uint64_t rax;
+    uint64_t rbx;
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rbp;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t r8;
+    uint64_t r9;
+    uint64_t r10;
+    uint64_t r11;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+    uint64_t vector;
+    uint64_t error;
+    uint64_t rip;
+    uint64_t cs;
+    uint64_t rflags;
+    uint64_t rsp;
+    uint64_t ss;
+} __packed;
+
+#else /* __LP64__ */
+
+struct cpu_exc_frame {
+    uint32_t eax;
+    uint32_t ebx;
+    uint32_t ecx;
+    uint32_t edx;
+    uint32_t ebp;
+    uint32_t esi;
+    uint32_t edi;
+    uint16_t ds;
+    uint16_t es;
+    uint16_t fs;
+    uint16_t gs;
+    uint32_t vector;
+    uint32_t error;
+    uint32_t eip;
+    uint32_t cs;
+    uint32_t eflags;
+    uint32_t esp;       /* esp and ss are undefined if trapped in kernel */
+    uint32_t ss;
+} __packed;
+
+#endif /* __LP64__ */
+
+/*
+ * Type for low level exception handlers.
+ *
+ * Low level exception handlers are directly installed in the IDT and are
+ * first run by the processor when an exception occurs. They route execution
+ * through either the main exception or interrupt handler.
+ */
+typedef void (*cpu_ll_exc_fn_t)(void);
+
+typedef void (*cpu_exc_handler_fn_t)(const struct cpu_exc_frame *frame);
+
+struct cpu_exc_handler {
+    cpu_exc_handler_fn_t fn;
+};
+
+struct cpu_intr_handler {
+    cpu_intr_handler_fn_t fn;
+};
+
+/*
+ * Set the given GDT for the current processor.
+ *
+ * On i386, the ds, es and ss segment registers are reloaded.
+ *
+ * The fs and gs segment registers, which point to the percpu and the TLS
+ * areas respectively, must be set separately.
+ */
+void cpu_load_gdt(struct cpu_pseudo_desc *gdtr);
+
+/*
+ * Return a pointer to the processor-local interrupt stack.
+ *
+ * This function is called by the low level exception handling code.
+ *
+ * Return NULL if no stack switching is required.
+ */
+void * cpu_get_intr_stack(void);
+
+/*
+ * Common entry points for exceptions and interrupts.
+ */
+void cpu_exc_main(const struct cpu_exc_frame *frame);
+void cpu_intr_main(const struct cpu_exc_frame *frame);
+
 void *cpu_local_area __percpu;
 
 /*
- * Processor descriptor, one per CPU.
+ * CPU descriptor, one per CPU.
  */
 struct cpu cpu_desc __percpu;
 
@@ -136,34 +229,176 @@ unsigned int cpu_nr_active __read_mostly = 1;
  */
 static uint64_t cpu_freq __read_mostly;
 
-/*
- * TLS segment, as expected by the compiler.
- *
- * TLS isn't actually used inside the kernel. The current purpose of this
- * segment is to implement stack protection.
- */
 static const struct cpu_tls_seg cpu_tls_seg = {
     .ssp_guard_word = SSP_GUARD_WORD,
 };
 
-/*
- * Interrupt descriptor table.
- */
-static alignas(8) struct cpu_gate_desc cpu_idt[CPU_IDT_SIZE] __read_mostly;
+static struct cpu_idt cpu_idt;
 
 /*
- * Double fault handler, and stack for the main processor.
- *
- * TODO Declare as init data, and replace the BSP stack with kernel virtual
- * memory.
+ * This table only exists during initialization, and is a way to
+ * communicate the list of low level handlers from assembly to C.
  */
-static unsigned long cpu_double_fault_handler;
-static alignas(CPU_DATA_ALIGN) char cpu_double_fault_stack[TRAP_STACK_SIZE];
+extern cpu_ll_exc_fn_t cpu_ll_exc_handler_addrs[CPU_NR_EXC_VECTORS];
+
+static struct cpu_exc_handler cpu_exc_handlers[CPU_NR_EXC_VECTORS]
+    __read_mostly;
+
+static struct cpu_intr_handler cpu_intr_handlers[CPU_NR_EXC_VECTORS]
+    __read_mostly;
+
+static const struct cpu_vendor cpu_vendors[] = {
+    { CPU_VENDOR_INTEL, "GenuineIntel" },
+    { CPU_VENDOR_AMD,   "AuthenticAMD" },
+};
+
+static void __init
+cpu_exc_handler_init(struct cpu_exc_handler *handler, cpu_exc_handler_fn_t fn)
+{
+    handler->fn = fn;
+}
+
+static void
+cpu_exc_handler_run(const struct cpu_exc_handler *handler,
+                    const struct cpu_exc_frame *frame)
+{
+    handler->fn(frame);
+}
+
+static void __init
+cpu_intr_handler_init(struct cpu_intr_handler *handler,
+                      cpu_intr_handler_fn_t fn)
+{
+    handler->fn = fn;
+}
+
+static void
+cpu_intr_handler_run(const struct cpu_intr_handler *handler,
+                     unsigned int vector)
+{
+    handler->fn(vector);
+}
+
+static cpu_ll_exc_fn_t __init
+cpu_get_ll_exc_handler(unsigned int vector)
+{
+    assert(vector < ARRAY_SIZE(cpu_ll_exc_handler_addrs));
+    return cpu_ll_exc_handler_addrs[vector];
+}
+
+static struct cpu_exc_handler *
+cpu_get_exc_handler(unsigned int vector)
+{
+    assert(vector < ARRAY_SIZE(cpu_exc_handlers));
+    return &cpu_exc_handlers[vector];
+}
+
+static void __init
+cpu_register_exc(unsigned int vector, cpu_exc_handler_fn_t fn)
+{
+    cpu_exc_handler_init(cpu_get_exc_handler(vector), fn);
+}
+
+static struct cpu_intr_handler *
+cpu_get_intr_handler(unsigned int vector)
+{
+    assert(vector < ARRAY_SIZE(cpu_intr_handlers));
+    return &cpu_intr_handlers[vector];
+}
+
+void __init
+cpu_register_intr(unsigned int vector, cpu_intr_handler_fn_t fn)
+{
+    cpu_intr_handler_init(cpu_get_intr_handler(vector), fn);
+}
+
+static void __init
+cpu_gate_desc_init_intr(struct cpu_gate_desc *desc, cpu_ll_exc_fn_t fn,
+                        unsigned int ist_index)
+{
+    uintptr_t addr;
+
+    addr = (uintptr_t)fn;
+    desc->word1 = (CPU_GDT_SEL_CODE << 16)
+                  | (addr & CPU_DESC_GATE_OFFSET_LOW_MASK);
+    desc->word2 = (addr & CPU_DESC_GATE_OFFSET_HIGH_MASK)
+                  | CPU_DESC_PRESENT | CPU_DESC_TYPE_GATE_INTR;
+
+#ifdef __LP64__
+    desc->word2 |= ist_index & CPU_DESC_SEG_IST_MASK;
+    desc->word3 = addr >> 32;
+    desc->word4 = 0;
+#else /* __LP64__ */
+    assert(ist_index == 0);
+#endif /* __LP64__ */
+}
+
+#ifndef __LP64__
+static void __init
+cpu_gate_desc_init_task(struct cpu_gate_desc *desc, unsigned int tss_seg_sel)
+{
+    desc->word2 = CPU_DESC_PRESENT | CPU_DESC_TYPE_GATE_TASK;
+    desc->word1 = tss_seg_sel << 16;
+}
+#endif /* __LP64__ */
+
+static struct cpu_gate_desc * __init
+cpu_idt_get_desc(struct cpu_idt *idt, unsigned int vector)
+{
+    assert(vector < ARRAY_SIZE(idt->descs));
+    return &idt->descs[vector];
+}
+
+static void __init
+cpu_idt_set_intr_gate(struct cpu_idt *idt, unsigned int vector,
+                      cpu_ll_exc_fn_t fn)
+{
+    struct cpu_gate_desc *desc;
+
+    desc = cpu_idt_get_desc(idt, vector);
+    cpu_gate_desc_init_intr(desc, fn, 0);
+}
+
+static void __init
+cpu_idt_setup_double_fault(struct cpu_idt *idt)
+{
+    struct cpu_gate_desc *desc;
+
+    desc = cpu_idt_get_desc(idt, CPU_EXC_DF);
+
+#ifdef __LP64__
+    cpu_ll_exc_fn_t fn;
+
+    fn = cpu_get_ll_exc_handler(CPU_EXC_DF);
+    cpu_gate_desc_init_intr(desc, fn, CPU_TSS_IST_DF);
+#else /* __LP64__ */
+    cpu_gate_desc_init_task(desc, CPU_GDT_SEL_DF_TSS);
+#endif /* __LP64__ */
+}
+
+static void
+cpu_idt_load(const struct cpu_idt *idt)
+{
+    struct cpu_pseudo_desc idtr;
+
+    idtr.address = (uintptr_t)idt->descs;
+    idtr.limit = sizeof(idt->descs) - 1;
+    asm volatile("lidt %0" : : "m" (idtr));
+}
 
 uint64_t
 cpu_get_freq(void)
 {
     return cpu_freq;
+}
+
+static uint64_t
+cpu_get_tsc(void)
+{
+    uint32_t high, low;
+
+    asm volatile("rdtsc" : "=a" (low), "=d" (high));
+    return ((uint64_t)high << 32) | low;
 }
 
 void
@@ -184,42 +419,286 @@ cpu_delay(unsigned long usecs)
     } while (total > 0);
 }
 
-static const struct cpu_vendor cpu_vendors[] = {
-    { CPU_VENDOR_INTEL, "GenuineIntel" },
-    { CPU_VENDOR_AMD,   "AuthenticAMD" },
-};
-
 void * __init
 cpu_get_boot_stack(void)
 {
-    return percpu_var(cpu_desc.boot_stack, boot_ap_id);
+    return percpu_var(cpu_desc.boot_stack, boot_ap_id); // TODO Pass as argument
 }
 
-static void __init
-cpu_preinit(struct cpu *cpu, unsigned int id, unsigned int apic_id)
+void *
+cpu_get_intr_stack(void)
 {
-    memset(cpu, 0, sizeof(*cpu));
-    cpu->id = id;
-    cpu->apic_id = apic_id;
+    struct cpu *cpu;
+
+    if (thread_interrupted()) {
+        return NULL;
+    }
+
+    cpu = cpu_local_ptr(cpu_desc);
+    return cpu->intr_stack + sizeof(cpu->intr_stack);
 }
 
 static void
-cpu_seg_set_null(char *table, unsigned int selector)
+cpu_show_thread(void)
 {
-    struct cpu_seg_desc *desc;
+    struct thread *thread;
 
-    desc = (struct cpu_seg_desc *)(table + selector);
+    thread = thread_self();
+
+    /* TODO Thread name accessor */
+    printf("cpu: interrupted thread: %p (%s)\n", thread, thread->name);
+}
+
+#ifdef __LP64__
+
+static void
+cpu_show_frame(const struct cpu_exc_frame *frame)
+{
+    printf("cpu: rax: %016lx rbx: %016lx rcx: %016lx\n"
+           "cpu: rdx: %016lx rbp: %016lx rsi: %016lx\n"
+           "cpu: rdi: %016lx  r8: %016lx  r9: %016lx\n"
+           "cpu: r10: %016lx r11: %016lx r12: %016lx\n"
+           "cpu: r13: %016lx r14: %016lx r15: %016lx\n"
+           "cpu: vector: %lu error: %08lx\n"
+           "cpu: rip: %016lx cs: %lu rflags: %016lx\n"
+           "cpu: rsp: %016lx ss: %lu\n",
+           (unsigned long)frame->rax, (unsigned long)frame->rbx,
+           (unsigned long)frame->rcx, (unsigned long)frame->rdx,
+           (unsigned long)frame->rbp, (unsigned long)frame->rsi,
+           (unsigned long)frame->rdi, (unsigned long)frame->r8,
+           (unsigned long)frame->r9, (unsigned long)frame->r10,
+           (unsigned long)frame->r11, (unsigned long)frame->r12,
+           (unsigned long)frame->r13, (unsigned long)frame->r14,
+           (unsigned long)frame->r15, (unsigned long)frame->vector,
+           (unsigned long)frame->error, (unsigned long)frame->rip,
+           (unsigned long)frame->cs, (unsigned long)frame->rflags,
+           (unsigned long)frame->rsp, (unsigned long)frame->ss);
+
+    /* XXX Until the page fault handler is written */
+    if (frame->vector == 14) {
+        printf("cpu: cr2: %016lx\n", (unsigned long)cpu_get_cr2());
+    }
+}
+
+#else /* __LP64__ */
+
+static void
+cpu_show_frame(const struct cpu_exc_frame *frame)
+{
+    unsigned long esp, ss;
+
+    if ((frame->cs & CPU_PL_USER) || (frame->vector == CPU_EXC_DF)) {
+        esp = frame->esp;
+        ss = frame->ss;
+    } else {
+        esp = 0;
+        ss = 0;
+    }
+
+    printf("cpu: eax: %08lx ebx: %08lx ecx: %08lx edx: %08lx\n"
+           "cpu: ebp: %08lx esi: %08lx edi: %08lx\n"
+           "cpu: ds: %hu es: %hu fs: %hu gs: %hu\n"
+           "cpu: vector: %lu error: %08lx\n"
+           "cpu: eip: %08lx cs: %lu eflags: %08lx\n"
+           "cpu: esp: %08lx ss: %lu\n",
+           (unsigned long)frame->eax, (unsigned long)frame->ebx,
+           (unsigned long)frame->ecx, (unsigned long)frame->edx,
+           (unsigned long)frame->ebp, (unsigned long)frame->esi,
+           (unsigned long)frame->edi, (unsigned short)frame->ds,
+           (unsigned short)frame->es, (unsigned short)frame->fs,
+           (unsigned short)frame->gs, (unsigned long)frame->vector,
+           (unsigned long)frame->error, (unsigned long)frame->eip,
+           (unsigned long)frame->cs, (unsigned long)frame->eflags,
+           (unsigned long)esp, (unsigned long)ss);
+
+
+    /* XXX Until the page fault handler is written */
+    if (frame->vector == 14) {
+        printf("cpu: cr2: %08lx\n", (unsigned long)cpu_get_cr2());
+    }
+}
+
+#endif /* __LP64__ */
+
+static void
+cpu_show_stack(const struct cpu_exc_frame *frame)
+{
+#ifdef __LP64__
+    strace_show(frame->rip, frame->rbp);
+#else /* __LP64__ */
+    strace_show(frame->eip, frame->ebp);
+#endif /* __LP64__ */
+}
+
+static void
+cpu_exc_double_fault(const struct cpu_exc_frame *frame)
+{
+    cpu_halt_broadcast();
+
+#ifndef __LP64__
+    struct cpu_exc_frame frame_store;
+    struct cpu *cpu;
+
+    /*
+     * Double faults are catched through a task gate, which makes the given
+     * frame useless. The interrupted state is automatically saved in the
+     * main TSS by the processor. Build a proper exception frame from there.
+     */
+    cpu = cpu_current();
+    frame_store.eax = cpu->tss.eax;
+    frame_store.ebx = cpu->tss.ebx;
+    frame_store.ecx = cpu->tss.ecx;
+    frame_store.edx = cpu->tss.edx;
+    frame_store.ebp = cpu->tss.ebp;
+    frame_store.esi = cpu->tss.esi;
+    frame_store.edi = cpu->tss.edi;
+    frame_store.ds = cpu->tss.ds;
+    frame_store.es = cpu->tss.es;
+    frame_store.fs = cpu->tss.fs;
+    frame_store.gs = cpu->tss.gs;
+    frame_store.vector = CPU_EXC_DF;
+    frame_store.error = 0;
+    frame_store.eip = cpu->tss.eip;
+    frame_store.cs = cpu->tss.cs;
+    frame_store.eflags = cpu->tss.eflags;
+    frame_store.esp = cpu->tss.esp;
+    frame_store.ss = cpu->tss.ss;
+    frame = &frame_store;
+#endif /* __LP64__ */
+
+    printf("cpu: double fault (cpu%u):\n", cpu_id());
+    cpu_show_thread();
+    cpu_show_frame(frame);
+    cpu_show_stack(frame);
+    cpu_halt();
+}
+
+void
+cpu_exc_main(const struct cpu_exc_frame *frame)
+{
+    const struct cpu_exc_handler *handler;
+
+    handler = cpu_get_exc_handler(frame->vector);
+    cpu_exc_handler_run(handler, frame);
+    assert(!cpu_intr_enabled());
+}
+
+void
+cpu_intr_main(const struct cpu_exc_frame *frame)
+{
+    const struct cpu_intr_handler *handler;
+
+    handler = cpu_get_intr_handler(frame->vector);
+
+    thread_intr_enter();
+    cpu_intr_handler_run(handler, frame->vector);
+    thread_intr_leave();
+
+    assert(!cpu_intr_enabled());
+}
+
+static void
+cpu_exc_default(const struct cpu_exc_frame *frame)
+{
+    cpu_halt_broadcast();
+    printf("cpu: unregistered exception (cpu%u):\n", cpu_id());
+    cpu_show_thread();
+    cpu_show_frame(frame);
+    cpu_show_stack(frame);
+    cpu_halt();
+}
+
+static void
+cpu_intr_default(unsigned int vector)
+{
+    cpu_halt_broadcast();
+    printf("cpu: unregistered interrupt %u (cpu%u):\n", vector, cpu_id());
+    cpu_show_thread();
+    cpu_halt();
+}
+
+static void
+cpu_xcall_intr(unsigned int vector)
+{
+    (void)vector;
+
+    lapic_eoi();
+    xcall_intr();
+}
+
+static void
+cpu_thread_schedule_intr(unsigned int vector)
+{
+    (void)vector;
+
+    lapic_eoi();
+    thread_schedule_intr();
+}
+
+static void
+cpu_halt_intr(unsigned int vector)
+{
+    (void)vector;
+
+    lapic_eoi();
+    cpu_halt();
+}
+
+static void __init
+cpu_setup_idt(void)
+{
+    for (size_t i = 0; i < ARRAY_SIZE(cpu_ll_exc_handler_addrs); i++) {
+        cpu_idt_set_intr_gate(&cpu_idt, i, cpu_get_ll_exc_handler(i));
+    }
+
+    cpu_idt_setup_double_fault(&cpu_idt);
+}
+
+static void __init
+cpu_setup_intr(void)
+{
+    cpu_setup_idt();
+
+    for (size_t i = 0; i < ARRAY_SIZE(cpu_exc_handlers); i++) {
+        cpu_register_exc(i, cpu_exc_default);
+    }
+
+    /* Architecture defined exceptions */
+    cpu_register_exc(CPU_EXC_DE, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_DB, cpu_exc_default);
+    cpu_register_intr(CPU_EXC_NMI, cpu_intr_default);
+    cpu_register_exc(CPU_EXC_BP, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_OF, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_BR, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_UD, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_NM, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_DF, cpu_exc_double_fault);
+    cpu_register_exc(CPU_EXC_TS, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_NP, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_SS, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_GP, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_PF, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_MF, cpu_exc_default);
+    cpu_register_exc(CPU_EXC_AC, cpu_exc_default);
+    cpu_register_intr(CPU_EXC_MC, cpu_intr_default);
+    cpu_register_exc(CPU_EXC_XM, cpu_exc_default);
+
+    /* System defined exceptions */
+    cpu_register_intr(CPU_EXC_XCALL, cpu_xcall_intr);
+    cpu_register_intr(CPU_EXC_THREAD_SCHEDULE, cpu_thread_schedule_intr);
+    cpu_register_intr(CPU_EXC_HALT, cpu_halt_intr);
+}
+
+static void __init
+cpu_seg_desc_init_null(struct cpu_seg_desc *desc)
+{
     desc->high = 0;
     desc->low = 0;
 }
 
-static void
-cpu_seg_set_code(char *table, unsigned int selector)
+static void __init
+cpu_seg_desc_init_code(struct cpu_seg_desc *desc)
 {
-    struct cpu_seg_desc *desc;
-
-    desc = (struct cpu_seg_desc *)(table + selector);
-
 #ifdef __LP64__
     desc->high = CPU_DESC_LONG | CPU_DESC_PRESENT | CPU_DESC_S
                  | CPU_DESC_TYPE_CODE;
@@ -232,13 +711,9 @@ cpu_seg_set_code(char *table, unsigned int selector)
 #endif /* __LP64__ */
 }
 
-static void
-cpu_seg_set_data(char *table, unsigned int selector, uint32_t base)
+static void __init
+cpu_seg_desc_init_data(struct cpu_seg_desc *desc, uintptr_t base)
 {
-    struct cpu_seg_desc *desc;
-
-    desc = (struct cpu_seg_desc *)(table + selector);
-
 #ifdef __LP64__
     (void)base;
 
@@ -256,21 +731,19 @@ cpu_seg_set_data(char *table, unsigned int selector, uint32_t base)
 #endif /* __LP64__ */
 }
 
-static void
-cpu_seg_set_tss(char *table, unsigned int selector, struct cpu_tss *tss)
+static void __init
+cpu_sysseg_desc_init_tss(struct cpu_sysseg_desc *desc,
+                         const struct cpu_tss *tss)
 {
-    struct cpu_sysseg_desc *desc;
-    unsigned long base, limit;
+    uintptr_t base, limit;
 
-    desc = (struct cpu_sysseg_desc *)(table + selector);
-    base = (unsigned long)tss;
+    base = (uintptr_t)tss;
     limit = base + sizeof(*tss) - 1;
 
 #ifdef __LP64__
     desc->word4 = 0;
     desc->word3 = (base >> 32);
 #endif /* __LP64__ */
-
     desc->word2 = (base & CPU_DESC_SEG_BASE_HIGH_MASK)
                   | (limit & CPU_DESC_SEG_LIMIT_HIGH_MASK)
                   | CPU_DESC_PRESENT | CPU_DESC_TYPE_TSS
@@ -279,17 +752,154 @@ cpu_seg_set_tss(char *table, unsigned int selector, struct cpu_tss *tss)
                   | (limit & CPU_DESC_SEG_LIMIT_LOW_MASK);
 }
 
-/*
- * Set the given GDT for the current processor.
- *
- * On i386, the ds, es and ss segment registers are reloaded.
- *
- * The fs and gs segment registers, which point to the percpu and the TLS
- * areas respectively, must be set separately.
- */
-void cpu_load_gdt(struct cpu_pseudo_desc *gdtr);
+static void * __init
+cpu_gdt_get_desc(struct cpu_gdt *gdt, unsigned int selector)
+{
+    assert((selector % sizeof(struct cpu_seg_desc)) == 0);
+    assert(selector < sizeof(gdt->descs));
+    return gdt->descs + selector;
+}
 
-static inline void __init
+static void __init
+cpu_gdt_set_null(struct cpu_gdt *gdt, unsigned int selector)
+{
+    struct cpu_seg_desc *desc;
+
+    desc = cpu_gdt_get_desc(gdt, selector);
+    cpu_seg_desc_init_null(desc);
+}
+
+static void __init
+cpu_gdt_set_code(struct cpu_gdt *gdt, unsigned int selector)
+{
+    struct cpu_seg_desc *desc;
+
+    desc = cpu_gdt_get_desc(gdt, selector);
+    cpu_seg_desc_init_code(desc);
+}
+
+static void __init
+cpu_gdt_set_data(struct cpu_gdt *gdt, unsigned int selector, const void *base)
+{
+    struct cpu_seg_desc *desc;
+
+    desc = cpu_gdt_get_desc(gdt, selector);
+    cpu_seg_desc_init_data(desc, (uintptr_t)base);
+}
+
+static void __init
+cpu_gdt_set_tss(struct cpu_gdt *gdt, unsigned int selector,
+                const struct cpu_tss *tss)
+{
+    struct cpu_sysseg_desc *desc;
+
+    desc = cpu_gdt_get_desc(gdt, selector);
+    cpu_sysseg_desc_init_tss(desc, tss);
+}
+
+static void __init
+cpu_gdt_init(struct cpu_gdt *gdt, const struct cpu_tss *tss,
+             const struct cpu_tss *df_tss, void *pcpu_area)
+{
+    cpu_gdt_set_null(gdt, CPU_GDT_SEL_NULL);
+    cpu_gdt_set_code(gdt, CPU_GDT_SEL_CODE);
+    cpu_gdt_set_data(gdt, CPU_GDT_SEL_DATA, 0);
+    cpu_gdt_set_tss(gdt, CPU_GDT_SEL_TSS, tss);
+
+#ifdef __LP64__
+    (void)df_tss;
+    (void)pcpu_area;
+#else /* __LP64__ */
+    cpu_gdt_set_tss(gdt, CPU_GDT_SEL_DF_TSS, df_tss);
+    cpu_gdt_set_data(gdt, CPU_GDT_SEL_PERCPU, pcpu_area);
+    cpu_gdt_set_data(gdt, CPU_GDT_SEL_TLS, &cpu_tls_seg);
+#endif /* __LP64__ */
+}
+
+static void __init
+cpu_gdt_load(const struct cpu_gdt *gdt)
+{
+    struct cpu_pseudo_desc gdtr;
+
+    gdtr.address = (uintptr_t)gdt->descs;
+    gdtr.limit = sizeof(gdt->descs) - 1;
+    cpu_load_gdt(&gdtr);
+}
+
+static void __init
+cpu_tss_init(struct cpu_tss *tss, const void *df_stack_top)
+{
+    memset(tss, 0, sizeof(*tss));
+
+#ifdef __LP64__
+    tss->ist[CPU_TSS_IST_DF] = (uintptr_t)df_stack_top;
+#else /* __LP64__ */
+    (void)df_stack_top;
+#endif /* __LP64__ */
+}
+
+#ifndef __LP64__
+static void __init
+cpu_tss_init_i386_double_fault(struct cpu_tss *tss, const void *df_stack_top)
+{
+    memset(tss, 0, sizeof(*tss));
+    tss->cr3 = cpu_get_cr3();
+    tss->eip = (uintptr_t)cpu_get_ll_exc_handler(CPU_EXC_DF);
+    tss->eflags = CPU_EFL_ONE;
+    tss->ebp = (uintptr_t)df_stack_top;
+    tss->esp = tss->ebp;
+    tss->es = CPU_GDT_SEL_DATA;
+    tss->cs = CPU_GDT_SEL_CODE;
+    tss->ss = CPU_GDT_SEL_DATA;
+    tss->ds = CPU_GDT_SEL_DATA;
+    tss->fs = CPU_GDT_SEL_PERCPU;
+}
+#endif /* __LP64__ */
+
+static struct cpu_tss * __init
+cpu_get_tss(struct cpu *cpu)
+{
+    return &cpu->tss;
+}
+
+static struct cpu_tss * __init
+cpu_get_df_tss(struct cpu *cpu)
+{
+#ifdef __LP64__
+    (void)cpu;
+    return NULL;
+#else /* __LP64__ */
+    return &cpu->df_tss;
+#endif /* __LP64__ */
+}
+
+static void * __init
+cpu_get_df_stack_top(struct cpu *cpu)
+{
+    return &cpu->df_stack[sizeof(cpu->df_stack)];
+}
+
+static void __init
+cpu_init(struct cpu *cpu, unsigned int id, unsigned int apic_id)
+{
+    memset(cpu, 0, sizeof(*cpu));
+    cpu->id = id;
+    cpu->apic_id = apic_id;
+}
+
+static void __init
+cpu_load_ldt(void)
+{
+    asm volatile("lldt %w0" : : "q" (CPU_GDT_SEL_NULL));
+}
+
+static void __init
+cpu_load_tss(void)
+{
+    asm volatile("ltr %w0" : : "q" (CPU_GDT_SEL_TSS));
+}
+
+static void __init
 cpu_set_percpu_area(const struct cpu *cpu, void *area)
 {
 #ifdef __LP64__
@@ -304,148 +914,20 @@ cpu_set_percpu_area(const struct cpu *cpu, void *area)
     percpu_var(cpu_local_area, cpu->id) = area;
 }
 
-static inline void __init
+static void __init
 cpu_set_tls_area(void)
 {
 #ifdef __LP64__
-    unsigned long va;
+    uintptr_t va;
 
-    va = (unsigned long)&cpu_tls_seg;
+    va = (uintptr_t)&cpu_tls_seg;
     cpu_set_msr(CPU_MSR_GSBASE, (uint32_t)(va >> 32), (uint32_t)va);
 #else /* __LP64__ */
     asm volatile("mov %0, %%gs" : : "r" (CPU_GDT_SEL_TLS));
 #endif /* __LP64__ */
 }
 
-static void __init
-cpu_init_gdtr(struct cpu_pseudo_desc *gdtr, const struct cpu *cpu)
-{
-    gdtr->address = (unsigned long)cpu->gdt;
-    gdtr->limit = sizeof(cpu->gdt) - 1;
-}
-
-static void __init
-cpu_init_gdt(struct cpu *cpu)
-{
-    struct cpu_pseudo_desc gdtr;
-    void *pcpu_area;
-
-    pcpu_area = percpu_area(cpu->id);
-
-    cpu_seg_set_null(cpu->gdt, CPU_GDT_SEL_NULL);
-    cpu_seg_set_code(cpu->gdt, CPU_GDT_SEL_CODE);
-    cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_DATA, 0);
-    cpu_seg_set_tss(cpu->gdt, CPU_GDT_SEL_TSS, &cpu->tss);
-
-#ifndef __LP64__
-    cpu_seg_set_tss(cpu->gdt, CPU_GDT_SEL_DF_TSS, &cpu->double_fault_tss);
-    cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_PERCPU, (unsigned long)pcpu_area);
-    cpu_seg_set_data(cpu->gdt, CPU_GDT_SEL_TLS, (unsigned long)&cpu_tls_seg);
-#endif /* __LP64__ */
-
-    cpu_init_gdtr(&gdtr, cpu);
-    cpu_load_gdt(&gdtr);
-    cpu_set_percpu_area(cpu, pcpu_area);
-    cpu_set_tls_area();
-}
-
-static void __init
-cpu_init_ldt(void)
-{
-    asm volatile("lldt %w0" : : "q" (CPU_GDT_SEL_NULL));
-}
-
-static void __init
-cpu_init_tss(struct cpu *cpu)
-{
-    struct cpu_tss *tss;
-
-    tss = &cpu->tss;
-    memset(tss, 0, sizeof(*tss));
-
-#ifdef __LP64__
-    assert(cpu->double_fault_stack != NULL);
-    tss->ist[CPU_TSS_IST_DF] = (unsigned long)cpu->double_fault_stack
-                               + TRAP_STACK_SIZE;
-#endif /* __LP64__ */
-
-    asm volatile("ltr %w0" : : "q" (CPU_GDT_SEL_TSS));
-}
-
-#ifndef __LP64__
-static void __init
-cpu_init_double_fault_tss(struct cpu *cpu)
-{
-    struct cpu_tss *tss;
-
-    assert(cpu_double_fault_handler != 0);
-    assert(cpu->double_fault_stack != NULL);
-
-    tss = &cpu->double_fault_tss;
-    memset(tss, 0, sizeof(*tss));
-    tss->cr3 = cpu_get_cr3();
-    tss->eip = cpu_double_fault_handler;
-    tss->eflags = CPU_EFL_ONE;
-    tss->ebp = (unsigned long)cpu->double_fault_stack + TRAP_STACK_SIZE;
-    tss->esp = tss->ebp;
-    tss->es = CPU_GDT_SEL_DATA;
-    tss->cs = CPU_GDT_SEL_CODE;
-    tss->ss = CPU_GDT_SEL_DATA;
-    tss->ds = CPU_GDT_SEL_DATA;
-    tss->fs = CPU_GDT_SEL_PERCPU;
-}
-#endif /* __LP64__ */
-
-void
-cpu_idt_set_gate(unsigned int vector, void (*isr)(void))
-{
-    struct cpu_gate_desc *desc;
-
-    assert(vector < ARRAY_SIZE(cpu_idt));
-
-    desc = &cpu_idt[vector];
-
-#ifdef __LP64__
-    desc->word4 = 0;
-    desc->word3 = (unsigned long)isr >> 32;
-#endif /* __LP64__ */
-
-    /* Use interrupt gates only to simplify trap handling */
-    desc->word2 = ((unsigned long)isr & CPU_DESC_GATE_OFFSET_HIGH_MASK)
-                  | CPU_DESC_PRESENT | CPU_DESC_TYPE_GATE_INTR;
-    desc->word1 = (CPU_GDT_SEL_CODE << 16)
-                  | ((unsigned long)isr & CPU_DESC_GATE_OFFSET_LOW_MASK);
-}
-
-void
-cpu_idt_set_double_fault(void (*isr)(void))
-{
-    struct cpu_gate_desc *desc;
-
-    cpu_double_fault_handler = (unsigned long)isr;
-
-#ifdef __LP64__
-    cpu_idt_set_gate(TRAP_DF, isr);
-    desc = &cpu_idt[TRAP_DF];
-    desc->word2 |= CPU_TSS_IST_DF & CPU_DESC_SEG_IST_MASK;
-#else /* __LP64__ */
-    desc = &cpu_idt[TRAP_DF];
-    desc->word2 = CPU_DESC_PRESENT | CPU_DESC_TYPE_GATE_TASK;
-    desc->word1 = CPU_GDT_SEL_DF_TSS << 16;
-#endif /* __LP64__ */
-}
-
-static void
-cpu_load_idt(const void *idt, size_t size)
-{
-    struct cpu_pseudo_desc idtr;
-
-    idtr.address = (uintptr_t)idt;
-    idtr.limit = size - 1;
-    asm volatile("lidt %0" : : "m" (idtr));
-}
-
-static const struct cpu_vendor *
+static const struct cpu_vendor * __init
 cpu_vendor_lookup(const char *str)
 {
     for (size_t i = 0; i < ARRAY_SIZE(cpu_vendors); i++) {
@@ -471,13 +953,13 @@ cpu_init_vendor_id(struct cpu *cpu)
     cpu->vendor_id = vendor->id;
 }
 
-/*
- * Initialize the given cpu structure for the current processor.
- */
 static void __init
-cpu_init(struct cpu *cpu)
+cpu_build(struct cpu *cpu)
 {
     unsigned int eax, ebx, ecx, edx, max_basic, max_extended;
+    void *pcpu_area;
+
+    pcpu_area = percpu_area(cpu->id);
 
     /*
      * Assume at least an i586 processor.
@@ -486,13 +968,23 @@ cpu_init(struct cpu *cpu)
     cpu_intr_restore(CPU_EFL_ONE);
     cpu_set_cr0(CPU_CR0_PG | CPU_CR0_AM | CPU_CR0_WP | CPU_CR0_NE | CPU_CR0_ET
                 | CPU_CR0_TS | CPU_CR0_MP | CPU_CR0_PE);
-    cpu_init_gdt(cpu);
-    cpu_init_ldt();
-    cpu_init_tss(cpu);
+    cpu_gdt_init(&cpu->gdt, cpu_get_tss(cpu), cpu_get_df_tss(cpu), pcpu_area);
+    cpu_gdt_load(&cpu->gdt);
+    cpu_load_ldt();
+    cpu_tss_init(&cpu->tss, cpu_get_df_stack_top(cpu));
 #ifndef __LP64__
-    cpu_init_double_fault_tss(cpu);
+    cpu_tss_init_i386_double_fault(&cpu->df_tss, cpu_get_df_stack_top(cpu));
 #endif /* __LP64__ */
-    cpu_load_idt(cpu_idt, sizeof(cpu_idt));
+    cpu_load_tss();
+    cpu_idt_load(&cpu_idt);
+    cpu_set_percpu_area(cpu, pcpu_area);
+    cpu_set_tls_area();
+
+    /*
+     * Perform the check after initializing the GDT and the per-CPU area
+     * since cpu_id() relies on them to correctly work.
+     */
+    assert(cpu->id == cpu_id());
 
     eax = 0;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
@@ -513,22 +1005,27 @@ cpu_init(struct cpu *cpu)
 
     eax = 1;
     cpu_cpuid(&eax, &ebx, &ecx, &edx);
-    cpu->type = (eax & CPU_TYPE_MASK) >> CPU_TYPE_SHIFT;
-    cpu->family = (eax & CPU_FAMILY_MASK) >> CPU_FAMILY_SHIFT;
+    cpu->type = (eax & CPU_CPUID_TYPE_MASK) >> CPU_CPUID_TYPE_SHIFT;
+    cpu->family = (eax & CPU_CPUID_FAMILY_MASK) >> CPU_CPUID_FAMILY_SHIFT;
 
     if (cpu->family == 0xf) {
-        cpu->family += (eax & CPU_EXTFAMILY_MASK) >> CPU_EXTFAMILY_SHIFT;
+        cpu->family += (eax & CPU_CPUID_EXTFAMILY_MASK)
+                       >> CPU_CPUID_EXTFAMILY_SHIFT;
     }
 
-    cpu->model = (eax & CPU_MODEL_MASK) >> CPU_MODEL_SHIFT;
+    cpu->model = (eax & CPU_CPUID_MODEL_MASK) >> CPU_CPUID_MODEL_SHIFT;
 
     if ((cpu->model == 6) || (cpu->model == 0xf)) {
-        cpu->model += (eax & CPU_EXTMODEL_MASK) >> CPU_EXTMODEL_SHIFT;
+        cpu->model += (eax & CPU_CPUID_EXTMODEL_MASK)
+                      >> CPU_CPUID_EXTMODEL_SHIFT;
     }
 
-    cpu->stepping = (eax & CPU_STEPPING_MASK) >> CPU_STEPPING_SHIFT;
-    cpu->clflush_size = ((ebx & CPU_CLFLUSH_MASK) >> CPU_CLFLUSH_SHIFT) * 8;
-    cpu->initial_apic_id = (ebx & CPU_APIC_ID_MASK) >> CPU_APIC_ID_SHIFT;
+    cpu->stepping = (eax & CPU_CPUID_STEPPING_MASK)
+                    >> CPU_CPUID_STEPPING_SHIFT;
+    cpu->clflush_size = ((ebx & CPU_CPUID_CLFLUSH_MASK)
+                         >> CPU_CPUID_CLFLUSH_SHIFT) * 8;
+    cpu->initial_apic_id = (ebx & CPU_CPUID_APIC_ID_MASK)
+                           >> CPU_CPUID_APIC_ID_SHIFT;
     cpu->features1 = ecx;
     cpu->features2 = edx;
 
@@ -607,10 +1104,11 @@ cpu_setup(void)
 {
     struct cpu *cpu;
 
+    cpu_setup_intr();
+
     cpu = percpu_ptr(cpu_desc, 0);
-    cpu_preinit(cpu, 0, CPU_INVALID_APIC_ID);
-    cpu->double_fault_stack = cpu_double_fault_stack; /* XXX */
-    cpu_init(cpu);
+    cpu_init(cpu, 0, CPU_INVALID_APIC_ID);
+    cpu_build(cpu);
 
     cpu_measure_freq();
 
@@ -618,8 +1116,7 @@ cpu_setup(void)
 }
 
 INIT_OP_DEFINE(cpu_setup,
-               INIT_OP_DEP(percpu_bootstrap, true),
-               INIT_OP_DEP(trap_setup, true));
+               INIT_OP_DEP(percpu_bootstrap, true));
 
 static void __init
 cpu_panic_on_missing_feature(const char *feature)
@@ -654,11 +1151,12 @@ cpu_check_bsp(void)
     return 0;
 }
 
+// TODO Remove panic_setup
 INIT_OP_DEFINE(cpu_check_bsp,
                INIT_OP_DEP(cpu_setup, true),
                INIT_OP_DEP(panic_setup, true));
 
-void
+void __init
 cpu_log_info(const struct cpu *cpu)
 {
     log_info("cpu%u: %s, type %u, family %u, model %u, stepping %u",
@@ -680,7 +1178,7 @@ cpu_log_info(const struct cpu *cpu)
 }
 
 void __init
-cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
+cpu_mp_register_lapic(unsigned int apic_id, bool is_bsp)
 {
     struct cpu *cpu;
     int error;
@@ -703,15 +1201,22 @@ cpu_mp_register_lapic(unsigned int apic_id, int is_bsp)
     }
 
     cpu = percpu_ptr(cpu_desc, cpu_nr_active);
-    cpu_preinit(cpu, cpu_nr_active, apic_id);
+    cpu_init(cpu, cpu_nr_active, apic_id);
     cpu_nr_active++;
+}
+
+static void
+cpu_trigger_double_fault(void)
+{
+    asm volatile("movl $0xdead, %esp; push $0");
 }
 
 static void
 cpu_shutdown_reset(void)
 {
-    cpu_load_idt(NULL, 1);
-    trap_trigger_double_fault();
+    /* Generate a triple fault */
+    cpu_idt_load(NULL);
+    cpu_trigger_double_fault();
 }
 
 static struct shutdown_ops cpu_shutdown_ops = {
@@ -747,7 +1252,6 @@ INIT_OP_DEFINE(cpu_setup_shutdown,
 void __init
 cpu_mp_setup(void)
 {
-    struct vm_page *page;
     uint16_t reset_vector[2];
     struct cpu *cpu;
     unsigned int i;
@@ -775,26 +1279,13 @@ cpu_mp_setup(void)
     io_write_byte(CPU_MP_CMOS_PORT_REG, CPU_MP_CMOS_REG_RESET);
     io_write_byte(CPU_MP_CMOS_PORT_DATA, CPU_MP_CMOS_DATA_RESET_WARM);
 
-    /* TODO Allocate stacks out of the slab allocator for sub-page sizes */
-
     for (i = 1; i < cpu_count(); i++) {
         cpu = percpu_ptr(cpu_desc, i);
-        page = vm_page_alloc(vm_page_order(BOOT_STACK_SIZE),
-                             VM_PAGE_SEL_DIRECTMAP, VM_PAGE_KERNEL);
+        cpu->boot_stack = kmem_alloc(BOOT_STACK_SIZE);
 
-        if (page == NULL) {
+        if (!cpu->boot_stack) {
             panic("cpu: unable to allocate boot stack for cpu%u", i);
         }
-
-        cpu->boot_stack = vm_page_direct_ptr(page);
-        page = vm_page_alloc(vm_page_order(TRAP_STACK_SIZE),
-                             VM_PAGE_SEL_DIRECTMAP, VM_PAGE_KERNEL);
-
-        if (page == NULL) {
-            panic("cpu: unable to allocate double fault stack for cpu%u", i);
-        }
-
-        cpu->double_fault_stack = vm_page_direct_ptr(page);
     }
 
     /*
@@ -829,7 +1320,7 @@ cpu_ap_setup(void)
     struct cpu *cpu;
 
     cpu = percpu_ptr(cpu_desc, boot_ap_id);
-    cpu_init(cpu);
+    cpu_build(cpu);
     cpu_check(cpu_current());
     lapic_ap_setup();
 }
@@ -847,35 +1338,5 @@ cpu_halt_broadcast(void)
         return;
     }
 
-    lapic_ipi_broadcast(TRAP_CPU_HALT);
-}
-
-void
-cpu_halt_intr(struct trap_frame *frame)
-{
-    (void)frame;
-
-    lapic_eoi();
-
-    cpu_halt();
-}
-
-void
-cpu_xcall_intr(struct trap_frame *frame)
-{
-    (void)frame;
-
-    lapic_eoi();
-
-    xcall_intr();
-}
-
-void
-cpu_thread_schedule_intr(struct trap_frame *frame)
-{
-    (void)frame;
-
-    lapic_eoi();
-
-    thread_schedule_intr();
+    lapic_ipi_broadcast(CPU_EXC_HALT);
 }

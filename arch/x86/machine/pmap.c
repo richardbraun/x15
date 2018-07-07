@@ -23,6 +23,7 @@
 #include <stdalign.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <kern/cpumap.h>
@@ -43,7 +44,6 @@
 #include <machine/page.h>
 #include <machine/pmap.h>
 #include <machine/tcb.h>
-#include <machine/trap.h>
 #include <machine/types.h>
 #include <vm/vm_kmem.h>
 #include <vm/vm_page.h>

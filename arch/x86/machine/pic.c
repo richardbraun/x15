@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 Richard Braun.
+ * Copyright (c) 2012-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@
 #include <machine/io.h>
 #include <machine/lapic.h>
 #include <machine/pic.h>
-#include <machine/trap.h>
 
 /*
  * I/O ports.
@@ -155,9 +154,9 @@ static const struct intr_ops pic_ops = {
 };
 
 static void
-pic_intr(struct trap_frame *frame)
+pic_intr(unsigned int vector)
 {
-    intr_handle(frame->vector - TRAP_INTR_FIRST);
+    intr_handle(vector - CPU_EXC_INTR_FIRST);
 }
 
 static void __init
@@ -168,7 +167,7 @@ pic_register(void)
     intr_register_ctl(&pic_ops, NULL, 0, PIC_MAX_INTR);
 
     for (intr = 0; intr <= PIC_MAX_INTR; intr++) {
-        trap_register(TRAP_INTR_FIRST + intr, pic_intr);
+        cpu_register_intr(CPU_EXC_INTR_FIRST + intr, pic_intr);
     }
 }
 
@@ -212,8 +211,8 @@ pic_setup_common(bool register_ctl)
     io_write_byte(PIC_SLAVE_CMD, PIC_ICW1_INIT | PIC_ICW1_IC4);
 
     /* ICW 2 */
-    io_write_byte(PIC_MASTER_IMR, TRAP_INTR_FIRST);
-    io_write_byte(PIC_SLAVE_IMR, TRAP_INTR_FIRST + PIC_NR_INTRS);
+    io_write_byte(PIC_MASTER_IMR, CPU_EXC_INTR_FIRST);
+    io_write_byte(PIC_SLAVE_IMR, CPU_EXC_INTR_FIRST + PIC_NR_INTRS);
 
     /* ICW 3 - Set up cascading */
     io_write_byte(PIC_MASTER_IMR, 1 << PIC_SLAVE_INTR);

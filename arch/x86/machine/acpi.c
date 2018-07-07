@@ -708,5 +708,4 @@ INIT_OP_DEFINE(acpi_setup,
                INIT_OP_DEP(log_setup, true),
                INIT_OP_DEP(percpu_setup, true),
                INIT_OP_DEP(shutdown_bootstrap, true),
-               INIT_OP_DEP(trap_setup, true),
                INIT_OP_DEP(vm_kmem_setup, true));

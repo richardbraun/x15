@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 Richard Braun.
+ * Copyright (c) 2011-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,6 @@
 #include <machine/cpu.h>
 #include <machine/lapic.h>
 #include <machine/pmap.h>
-#include <machine/trap.h>
 #include <vm/vm_kmem.h>
 
 /*
@@ -201,7 +200,7 @@ lapic_compute_freq(void)
 {
     uint32_t c1, c2;
 
-    lapic_write(&lapic_map->svr, LAPIC_SVR_SOFT_EN | TRAP_LAPIC_SPURIOUS);
+    lapic_write(&lapic_map->svr, LAPIC_SVR_SOFT_EN | CPU_EXC_LAPIC_SPURIOUS);
     lapic_write(&lapic_map->timer_dcr, LAPIC_TIMER_DCR_DIV1);
 
     /* The APIC timer counter should never wrap around here */
@@ -222,6 +221,52 @@ lapic_eoi(void)
     lapic_write(&lapic_map->eoi, 0);
 }
 
+#ifdef CONFIG_PERFMON
+static void
+lapic_pmc_overflow_intr(unsigned int vector)
+{
+    (void)vector;
+
+    lapic_eoi();
+
+    /* Reset the LVT entry as it is automatically cleared when triggered */
+    lapic_write(&lapic_map->lvt_pmc, CPU_EXC_LAPIC_PMC_OF);
+
+    perfmon_overflow_intr();
+}
+#endif /* CONFIG_PERFMON */
+
+static void
+lapic_timer_intr(unsigned int vector)
+{
+    (void)vector;
+
+    lapic_eoi();
+    clock_tick_intr();
+}
+
+static void
+lapic_error_intr(unsigned int vector)
+{
+    uint32_t esr;
+
+    (void)vector;
+
+    esr = lapic_read(&lapic_map->esr);
+    log_err("lapic: error on cpu%u: esr:%08x", cpu_id(), esr);
+    lapic_write(&lapic_map->esr, 0);
+    lapic_eoi();
+}
+
+static void
+lapic_spurious_intr(unsigned int vector)
+{
+    (void)vector;
+    log_warning("lapic: spurious interrupt");
+
+    /* No EOI for this interrupt */
+}
+
 static void __init
 lapic_setup_registers(void)
 {
@@ -229,24 +274,31 @@ lapic_setup_registers(void)
      * LVT mask bits can only be cleared when the local APIC is enabled.
      * They are kept disabled while the local APIC is disabled.
      */
-    lapic_write(&lapic_map->svr, LAPIC_SVR_SOFT_EN | TRAP_LAPIC_SPURIOUS);
+    lapic_write(&lapic_map->svr, LAPIC_SVR_SOFT_EN | CPU_EXC_LAPIC_SPURIOUS);
     lapic_write(&lapic_map->tpr, 0);
     lapic_write(&lapic_map->eoi, 0);
     lapic_write(&lapic_map->esr, 0);
     lapic_write(&lapic_map->lvt_timer, LAPIC_LVT_TIMER_PERIODIC
-                                       | TRAP_LAPIC_TIMER);
+                                       | CPU_EXC_LAPIC_TIMER);
     lapic_write(&lapic_map->lvt_lint0, LAPIC_LVT_MASK_INTR);
     lapic_write(&lapic_map->lvt_lint1, LAPIC_LVT_MASK_INTR);
-    lapic_write(&lapic_map->lvt_error, TRAP_LAPIC_ERROR);
+    lapic_write(&lapic_map->lvt_error, CPU_EXC_LAPIC_ERROR);
     lapic_write(&lapic_map->timer_dcr, LAPIC_TIMER_DCR_DIV1);
     lapic_write(&lapic_map->timer_icr, lapic_bus_freq / CLOCK_FREQ);
-    lapic_write(&lapic_map->lvt_pmc, TRAP_LAPIC_PMC_OF);
+    lapic_write(&lapic_map->lvt_pmc, CPU_EXC_LAPIC_PMC_OF);
 }
 
 void __init
 lapic_setup(uint32_t map_addr)
 {
     uint32_t value;
+
+#ifdef CONFIG_PERFMON
+    cpu_register_intr(CPU_EXC_LAPIC_PMC_OF, lapic_pmc_overflow_intr);
+#endif
+    cpu_register_intr(CPU_EXC_LAPIC_TIMER, lapic_timer_intr);
+    cpu_register_intr(CPU_EXC_LAPIC_ERROR, lapic_error_intr);
+    cpu_register_intr(CPU_EXC_LAPIC_SPURIOUS, lapic_spurious_intr);
 
     lapic_map = vm_kmem_map_pa(map_addr, sizeof(*lapic_map), NULL, NULL);
 
@@ -333,49 +385,4 @@ lapic_ipi_broadcast(uint32_t vector)
     lapic_ipi_wait();
     lapic_ipi(0, LAPIC_ICR_DEST_ALL_EXCEPT_SELF
                  | (vector & LAPIC_ICR_VECTOR_MASK));
-}
-
-#ifdef CONFIG_PERFMON
-void
-lapic_pmc_overflow_intr(struct trap_frame *frame)
-{
-    (void)frame;
-
-    lapic_eoi();
-
-    /* Reset the LVT entry as it is automatically cleared when triggered */
-    lapic_write(&lapic_map->lvt_pmc, TRAP_LAPIC_PMC_OF);
-
-    perfmon_overflow_intr();
-}
-#endif /* CONFIG_PERFMON */
-
-void
-lapic_timer_intr(struct trap_frame *frame)
-{
-    (void)frame;
-
-    lapic_eoi();
-    clock_tick_intr();
-}
-
-void
-lapic_error_intr(struct trap_frame *frame)
-{
-    uint32_t esr;
-
-    (void)frame;
-    esr = lapic_read(&lapic_map->esr);
-    log_err("lapic: error on cpu%u: esr:%08x", cpu_id(), esr);
-    lapic_write(&lapic_map->esr, 0);
-    lapic_eoi();
-}
-
-void
-lapic_spurious_intr(struct trap_frame *frame)
-{
-    (void)frame;
-    log_warning("lapic: spurious interrupt");
-
-    /* No EOI for this interrupt */
 }

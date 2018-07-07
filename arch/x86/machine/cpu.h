@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2017 Richard Braun.
+ * Copyright (c) 2010-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,60 @@
 #define X86_CPU_H
 
 #include <limits.h>
+
+#include <machine/page.h>
+
+/*
+ * Architecture defined exception vectors.
+ */
+#define CPU_EXC_DE                  0   /* Divide Error */
+#define CPU_EXC_DB                  1   /* Debug */
+#define CPU_EXC_NMI                 2   /* NMI Interrupt */
+#define CPU_EXC_BP                  3   /* Breakpoint */
+#define CPU_EXC_OF                  4   /* Overflow */
+#define CPU_EXC_BR                  5   /* BOUND Range Exceeded */
+#define CPU_EXC_UD                  6   /* Undefined Opcode */
+#define CPU_EXC_NM                  7   /* No Math Coprocessor */
+#define CPU_EXC_DF                  8   /* Double Fault */
+#define CPU_EXC_TS                  10  /* Invalid TSS */
+#define CPU_EXC_NP                  11  /* Segment Not Present */
+#define CPU_EXC_SS                  12  /* Stack-Segment Fault */
+#define CPU_EXC_GP                  13  /* General Protection */
+#define CPU_EXC_PF                  14  /* Page Fault */
+#define CPU_EXC_MF                  16  /* Math Fault */
+#define CPU_EXC_AC                  17  /* Alignment Check */
+#define CPU_EXC_MC                  18  /* Machine Check */
+#define CPU_EXC_XM                  19  /* SIMD Floating-Point Exception */
+
+/*
+ * Exception vectors used for external interrupts.
+ */
+#define CPU_EXC_INTR_FIRST          32
+#define CPU_EXC_INTR_LAST           223
+
+/*
+ * System defined exception vectors.
+ *
+ * The local APIC assigns one priority every 16 vectors.
+ */
+#define CPU_EXC_XCALL               238
+#define CPU_EXC_THREAD_SCHEDULE     239
+#define CPU_EXC_HALT                240
+#define CPU_EXC_LAPIC_PMC_OF        252
+#define CPU_EXC_LAPIC_TIMER         253
+#define CPU_EXC_LAPIC_ERROR         254
+#define CPU_EXC_LAPIC_SPURIOUS      255
+
+#define CPU_NR_EXC_VECTORS          256
+
+#define CPU_INTR_STACK_SIZE PAGE_SIZE
+
+#define CPU_VENDOR_STR_SIZE 13
+#define CPU_MODEL_NAME_SIZE 49
+
+#define CPU_VENDOR_UNKNOWN  0
+#define CPU_VENDOR_INTEL    1
+#define CPU_VENDOR_AMD      2
 
 /*
  * L1 cache line size.
@@ -49,80 +103,57 @@
 /*
  * Processor privilege levels.
  */
-#define CPU_PL_KERNEL   0
-#define CPU_PL_USER     3
+#define CPU_PL_KERNEL                           0
+#define CPU_PL_USER                             3
 
 /*
  * Control register 0 flags.
  */
-#define CPU_CR0_PE  0x00000001
-#define CPU_CR0_MP  0x00000002
-#define CPU_CR0_TS  0x00000008
-#define CPU_CR0_ET  0x00000010
-#define CPU_CR0_NE  0x00000020
-#define CPU_CR0_WP  0x00010000
-#define CPU_CR0_AM  0x00040000
-#define CPU_CR0_PG  0x80000000
+#define CPU_CR0_PE                              0x00000001
+#define CPU_CR0_MP                              0x00000002
+#define CPU_CR0_TS                              0x00000008
+#define CPU_CR0_ET                              0x00000010
+#define CPU_CR0_NE                              0x00000020
+#define CPU_CR0_WP                              0x00010000
+#define CPU_CR0_AM                              0x00040000
+#define CPU_CR0_PG                              0x80000000
 
 /*
  * Control register 4 flags.
  */
-#define CPU_CR4_PSE 0x00000010
-#define CPU_CR4_PAE 0x00000020
-#define CPU_CR4_PGE 0x00000080
-
-/*
- * EFLAGS register flags.
- */
-#define CPU_EFL_ONE 0x00000002  /* Reserved, must be one */
-#define CPU_EFL_IF  0x00000200
+#define CPU_CR4_PSE                             0x00000010
+#define CPU_CR4_PAE                             0x00000020
+#define CPU_CR4_PGE                             0x00000080
 
 /*
  * Model specific registers.
  */
-#define CPU_MSR_EFER    0xc0000080
-#define CPU_MSR_FSBASE  0xc0000100
-#define CPU_MSR_GSBASE  0xc0000101
+#define CPU_MSR_EFER                            0xc0000080
+#define CPU_MSR_FSBASE                          0xc0000100
+#define CPU_MSR_GSBASE                          0xc0000101
 
 /*
  * EFER MSR flags.
  */
-#define CPU_EFER_LME    0x00000100
+#define CPU_EFER_LME                            0x00000100
 
 /*
  * Feature2 flags.
  *
  * TODO Better names.
  */
-#define CPU_FEATURE2_FPU    0x00000001
-#define CPU_FEATURE2_PSE    0x00000008
-#define CPU_FEATURE2_PAE    0x00000040
-#define CPU_FEATURE2_MSR    0x00000020
-#define CPU_FEATURE2_CX8    0x00000100
-#define CPU_FEATURE2_APIC   0x00000200
-#define CPU_FEATURE2_PGE    0x00002000
+#define CPU_FEATURE2_FPU                        0x00000001
+#define CPU_FEATURE2_PSE                        0x00000008
+#define CPU_FEATURE2_PAE                        0x00000040
+#define CPU_FEATURE2_MSR                        0x00000020
+#define CPU_FEATURE2_CX8                        0x00000100
+#define CPU_FEATURE2_APIC                       0x00000200
+#define CPU_FEATURE2_PGE                        0x00002000
 
-#define CPU_FEATURE4_1GP    0x04000000
-#define CPU_FEATURE4_LM     0x20000000
+#define CPU_FEATURE4_1GP                        0x04000000
+#define CPU_FEATURE4_LM                         0x20000000
 
-/*
- * GDT segment selectors.
- */
-#define CPU_GDT_SEL_NULL    0
-#define CPU_GDT_SEL_CODE    8
-#define CPU_GDT_SEL_DATA    16
-#define CPU_GDT_SEL_TSS     24
-
-#ifdef __LP64__
-#define CPU_GDT_SIZE        40
-#else /* __LP64__ */
-#define CPU_GDT_SEL_DF_TSS  32
-#define CPU_GDT_SEL_PERCPU  40
-#define CPU_GDT_SEL_TLS     48
-#define CPU_GDT_SIZE        56
-#endif /* __LP64__ */
-
-#define CPU_IDT_SIZE 256
+#include <machine/cpu_i.h>
 
 #ifndef __ASSEMBLER__
 
@@ -137,31 +168,55 @@
 #include <machine/pit.h>
 #include <machine/ssp.h>
 
+#define CPU_INTR_TABLE_SIZE (CPU_EXC_INTR_LAST - CPU_EXC_INTR_FIRST)
+
 /*
  * Gate/segment descriptor bits and masks.
  */
-#define CPU_DESC_TYPE_DATA              0x00000200
-#define CPU_DESC_TYPE_CODE              0x00000a00
-#define CPU_DESC_TYPE_TSS               0x00000900
-#define CPU_DESC_TYPE_GATE_INTR         0x00000e00
-#define CPU_DESC_TYPE_GATE_TASK         0x00000500
-#define CPU_DESC_S                      0x00001000
-#define CPU_DESC_PRESENT                0x00008000
-#define CPU_DESC_LONG                   0x00200000
-#define CPU_DESC_DB                     0x00400000
-#define CPU_DESC_GRAN_4KB               0x00800000
+#define CPU_DESC_TYPE_DATA                      0x00000200
+#define CPU_DESC_TYPE_CODE                      0x00000a00
+#define CPU_DESC_TYPE_TSS                       0x00000900
+#define CPU_DESC_TYPE_GATE_INTR                 0x00000e00
+#define CPU_DESC_TYPE_GATE_TASK                 0x00000500
+#define CPU_DESC_S                              0x00001000
+#define CPU_DESC_PRESENT                        0x00008000
+#define CPU_DESC_LONG                           0x00200000
+#define CPU_DESC_DB                             0x00400000
+#define CPU_DESC_GRAN_4KB                       0x00800000
 
-#define CPU_DESC_GATE_OFFSET_LOW_MASK   0x0000ffff
-#define CPU_DESC_GATE_OFFSET_HIGH_MASK  0xffff0000
-#define CPU_DESC_SEG_IST_MASK           0x00000007
-#define CPU_DESC_SEG_BASE_LOW_MASK      0x0000ffff
-#define CPU_DESC_SEG_BASE_MID_MASK      0x00ff0000
-#define CPU_DESC_SEG_BASE_HIGH_MASK     0xff000000
-#define CPU_DESC_SEG_LIMIT_LOW_MASK     0x0000ffff
-#define CPU_DESC_SEG_LIMIT_HIGH_MASK    0x000f0000
+#define CPU_DESC_GATE_OFFSET_LOW_MASK           0x0000ffff
+#define CPU_DESC_GATE_OFFSET_HIGH_MASK          0xffff0000
+#define CPU_DESC_SEG_IST_MASK                   0x00000007
+#define CPU_DESC_SEG_BASE_LOW_MASK              0x0000ffff
+#define CPU_DESC_SEG_BASE_MID_MASK              0x00ff0000
+#define CPU_DESC_SEG_BASE_HIGH_MASK             0xff000000
+#define CPU_DESC_SEG_LIMIT_LOW_MASK             0x0000ffff
+#define CPU_DESC_SEG_LIMIT_HIGH_MASK            0x000f0000
+
+/*
+ * Type for interrupt handler functions.
+ */
+typedef void (*cpu_intr_handler_fn_t)(unsigned int vector);
+
+/*
+ * TLS segment, as expected by the compiler.
+ *
+ * TLS isn't actually used inside the kernel. The current purpose of this
+ * segment is to implement stack protection.
+ *
+ * This is a public structure, made available to the boot module so that
+ * C code that runs early correctly works when built with stack protection.
+ */
+struct cpu_tls_seg {
+    uintptr_t unused[SSP_WORD_TLS_OFFSET];
+    uintptr_t ssp_guard_word;
+};
 
 /*
  * Code or data segment descriptor.
+ *
+ * See Intel 64 and IA-32 Architecture Software Developer's Manual,
+ * Volume 3 System Programming Guide, 3.4.5 Segment Descriptors.
  */
 struct cpu_seg_desc {
     uint32_t low;
@@ -169,105 +224,9 @@ struct cpu_seg_desc {
 };
 
 /*
- * Forward declaration.
- */
-struct trap_frame;
-
-/*
- * IST indexes (0 is reserved).
- */
-#define CPU_TSS_IST_DF 1
-
-struct cpu_tss {
-#ifdef __LP64__
-    uint32_t reserved0;
-    uint64_t rsp0;
-    uint64_t rsp1;
-    uint64_t rsp2;
-    uint64_t ist[8];
-    uint64_t reserved1;
-    uint16_t reserved2;
-#else /* __LP64__ */
-    uint32_t link;
-    uint32_t esp0;
-    uint32_t ss0;
-    uint32_t esp1;
-    uint32_t ss1;
-    uint32_t esp2;
-    uint32_t ss2;
-    uint32_t cr3;
-    uint32_t eip;
-    uint32_t eflags;
-    uint32_t eax;
-    uint32_t ecx;
-    uint32_t edx;
-    uint32_t ebx;
-    uint32_t esp;
-    uint32_t ebp;
-    uint32_t esi;
-    uint32_t edi;
-    uint32_t es;
-    uint32_t cs;
-    uint32_t ss;
-    uint32_t ds;
-    uint32_t fs;
-    uint32_t gs;
-    uint32_t ldt;
-    uint16_t trap_bit;
-#endif /* __LP64__ */
-    uint16_t iobp_base;
-} __packed;
-
-#define CPU_VENDOR_STR_SIZE 13
-#define CPU_MODEL_NAME_SIZE 49
-
-#define CPU_VENDOR_UNKNOWN  0
-#define CPU_VENDOR_INTEL    1
-#define CPU_VENDOR_AMD      2
-
-/*
- * CPU states.
- */
-#define CPU_STATE_OFF   0
-#define CPU_STATE_ON    1
-
-struct cpu {
-    unsigned int id;
-    unsigned int apic_id;
-    char vendor_str[CPU_VENDOR_STR_SIZE];
-    char model_name[CPU_MODEL_NAME_SIZE];
-    unsigned int cpuid_max_basic;
-    unsigned int cpuid_max_extended;
-    unsigned int vendor_id;
-    unsigned int type;
-    unsigned int family;
-    unsigned int model;
-    unsigned int stepping;
-    unsigned int clflush_size;
-    unsigned int initial_apic_id;
-    unsigned int features1;
-    unsigned int features2;
-    unsigned int features3;
-    unsigned int features4;
-    unsigned short phys_addr_width;
-    unsigned short virt_addr_width;
-    alignas(8) char gdt[CPU_GDT_SIZE];
-    struct cpu_tss tss;
-#ifndef __LP64__
-    struct cpu_tss double_fault_tss;
-#endif /* __LP64__ */
-    volatile int state;
-    void *boot_stack;
-    void *double_fault_stack;
-};
-
-struct cpu_tls_seg {
-    uintptr_t unused[SSP_WORD_TLS_OFFSET];
-    uintptr_t ssp_guard_word;
-};
-
-/*
  * Macro to create functions that read/write control registers.
+ *
+ * TODO Break down.
  */
 #define CPU_DECL_GETSET_CR(name)                                            \
 static __always_inline unsigned long                                        \
@@ -298,24 +257,6 @@ CPU_DECL_GETSET_CR(cr0)
 CPU_DECL_GETSET_CR(cr2)
 CPU_DECL_GETSET_CR(cr3)
 CPU_DECL_GETSET_CR(cr4)
-
-/*
- * Return the content of the EFLAGS register.
- *
- * Implies a compiler barrier.
- */
-static __always_inline unsigned long
-cpu_get_eflags(void)
-{
-    unsigned long eflags;
-
-    asm volatile("pushf\n"
-                 "pop %0\n"
-                 : "=r" (eflags)
-                 : : "memory");
-
-    return eflags;
-}
 
 /*
  * Enable local interrupts.
@@ -428,17 +369,7 @@ cpu_halt(void)
  */
 void cpu_halt_broadcast(void);
 
-/*
- * Interrupt handler for inter-processor halt requests.
- */
-void cpu_halt_intr(struct trap_frame *frame);
-
-/*
- * This percpu variable contains the address of the percpu area for the local
- * processor. This is normally the same value stored in the percpu module, but
- * it can be directly accessed through a segment register.
- */
-extern void *cpu_local_area;
+/* Generic percpu accessors */
 
 #define cpu_local_ptr(var)                  \
 MACRO_BEGIN                                 \
@@ -453,7 +384,7 @@ MACRO_END
 
 #define cpu_local_var(var) (*cpu_local_ptr(var))
 
-/* Interrupt-safe percpu accessors for basic types */
+/* Generic interrupt-safe percpu accessors */
 
 #define cpu_local_assign(var, val)          \
     asm("mov %0, %%fs:%1"                   \
@@ -523,6 +454,7 @@ cpu_has_global_pages(void)
  * pages were previously disabled.
  *
  * Implies a full memory barrier.
+ * TODO Update barrier description.
  */
 static __always_inline void
 cpu_enable_global_pages(void)
@@ -533,8 +465,7 @@ cpu_enable_global_pages(void)
 /*
  * CPUID instruction wrapper.
  *
- * The CPUID instruction is a serializing instruction, implying a full
- * memory barrier.
+ * The CPUID instruction is a serializing instruction.
  */
 static __always_inline void
 cpu_cpuid(unsigned int *eax, unsigned int *ebx, unsigned int *ecx,
@@ -581,19 +512,11 @@ cpu_set_msr64(uint32_t msr, uint64_t value)
     cpu_set_msr(msr, high, low);
 }
 
-static __always_inline uint64_t
-cpu_get_tsc(void)
-{
-    uint32_t high, low;
-
-    asm volatile("rdtsc" : "=a" (low), "=d" (high));
-    return ((uint64_t)high << 32) | low;
-}
-
 /*
  * Flush non-global TLB entries.
  *
  * Implies a full memory barrier.
+ * TODO Update barrier description.
  */
 static __always_inline void
 cpu_tlb_flush(void)
@@ -605,6 +528,7 @@ cpu_tlb_flush(void)
  * Flush all TLB entries, including global ones.
  *
  * Implies a full memory barrier.
+ * TODO Update barrier description.
  */
 static __always_inline void
 cpu_tlb_flush_all(void)
@@ -631,6 +555,7 @@ cpu_tlb_flush_all(void)
  * Flush a single page table entry in the TLB.
  *
  * Implies a full memory barrier.
+ * TODO Update barrier description.
  */
 static __always_inline void
 cpu_tlb_flush_va(unsigned long va)
@@ -678,22 +603,14 @@ void cpu_delay(unsigned long usecs);
 void * cpu_get_boot_stack(void);
 
 /*
- * Install an interrupt handler in the IDT.
- *
- * These functions may be called before the cpu module is initialized.
- */
-void cpu_idt_set_gate(unsigned int vector, void (*isr)(void));
-void cpu_idt_set_double_fault(void (*isr)(void));
-
-/*
  * Log processor information.
  */
 void cpu_log_info(const struct cpu *cpu);
 
 /*
- * Register the presence of a local APIC.
+ * Register a local APIC.
  */
-void cpu_mp_register_lapic(unsigned int apic_id, int is_bsp);
+void cpu_mp_register_lapic(unsigned int apic_id, bool is_bsp);
 
 /*
  * Start application processors.
@@ -724,13 +641,8 @@ cpu_apic_id(unsigned int cpu)
 static inline void
 cpu_send_xcall(unsigned int cpu)
 {
-    lapic_ipi_send(cpu_apic_id(cpu), TRAP_XCALL);
+    lapic_ipi_send(cpu_apic_id(cpu), CPU_EXC_XCALL);
 }
-
-/*
- * Interrupt handler for cross-calls.
- */
-void cpu_xcall_intr(struct trap_frame *frame);
 
 /*
  * Send a scheduling interrupt to a remote processor.
@@ -738,13 +650,20 @@ void cpu_xcall_intr(struct trap_frame *frame);
 static inline void
 cpu_send_thread_schedule(unsigned int cpu)
 {
-    lapic_ipi_send(cpu_apic_id(cpu), TRAP_THREAD_SCHEDULE);
+    lapic_ipi_send(cpu_apic_id(cpu), CPU_EXC_THREAD_SCHEDULE);
 }
 
 /*
- * Interrupt handler for scheduling requests.
+ * Register an interrupt handler.
+ *
+ * This function is only available during system initialization, before the
+ * scheduler is started. It is meant for architectural interrupts, including
+ * interrupt controllers, and not directly for drivers, which should use
+ * the machine-independent intr module instead.
+ *
+ * Registration is system-wide.
  */
-void cpu_thread_schedule_intr(struct trap_frame *frame);
+void cpu_register_intr(unsigned int vector, cpu_intr_handler_fn_t fn);
 
 /*
  * This init operation provides :

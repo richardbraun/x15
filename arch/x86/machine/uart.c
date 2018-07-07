@@ -18,6 +18,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include <kern/arg.h>
 #include <kern/console.h>

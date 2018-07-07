@@ -39,7 +39,6 @@
 #include <kern/thread.h>
 #include <machine/boot.h>
 #include <machine/cpu.h>
-#include <machine/trap.h>
 
 struct intr_handler {
     alignas(CPU_L1_SIZE) struct list node;
@@ -79,7 +78,7 @@ struct intr_entry {
 /*
  * Interrupt table.
  */
-static struct intr_entry intr_table[TRAP_INTR_TABLE_SIZE];
+static struct intr_entry intr_table[CPU_INTR_TABLE_SIZE];
 
 /*
  * List of registered controllers.

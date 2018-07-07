@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@
 #include <machine/ioapic.h>
 #include <machine/lapic.h>
 #include <machine/pic.h>
-#include <machine/trap.h>
 #include <vm/vm_kmem.h>
 
 #define IOAPIC_REG_VERSION              0x01
@@ -157,9 +156,9 @@ ioapic_write_entry_high(struct ioapic *ioapic, unsigned int id, uint32_t value)
 }
 
 static void
-ioapic_intr(struct trap_frame *frame)
+ioapic_intr(unsigned int vector)
 {
-    intr_handle(frame->vector - TRAP_INTR_FIRST);
+    intr_handle(vector - CPU_EXC_INTR_FIRST);
 }
 
 static struct ioapic * __init
@@ -194,12 +193,12 @@ ioapic_create(unsigned int apic_id, uintptr_t addr, unsigned int gsi_base)
     ioapic->last_gsi = ioapic->first_gsi + nr_gsis - 1;
 
     /* XXX This assumes that interrupts are mapped 1:1 to traps */
-    if (ioapic->last_gsi > (TRAP_INTR_LAST - TRAP_INTR_FIRST)) {
+    if (ioapic->last_gsi > (CPU_EXC_INTR_LAST - CPU_EXC_INTR_FIRST)) {
         panic("ioapic: invalid interrupt range");
     }
 
     for (i = ioapic->first_gsi; i < ioapic->last_gsi; i++) {
-        trap_register(TRAP_INTR_FIRST + i, ioapic_intr);
+        cpu_register_intr(CPU_EXC_INTR_FIRST + i, ioapic_intr);
     }
 
     log_info("ioapic%u: version:%#x gsis:%u-%u", ioapic->id,
@@ -228,14 +227,14 @@ ioapic_compute_entry(uint32_t *highp, uint32_t *lowp,
                      bool active_high, bool edge_triggered)
 {
     assert(apic_id < 16);
-    assert(intr < (TRAP_NR_VECTORS - TRAP_INTR_FIRST));
+    assert(intr < (CPU_NR_EXC_VECTORS - CPU_EXC_INTR_FIRST));
 
     *highp = apic_id << 24;
     *lowp = (!edge_triggered ? IOAPIC_ENTLOW_LEVEL : 0)
             | (!active_high ? IOAPIC_ENTLOW_ACTIVE_LOW : 0)
             | IOAPIC_ENTLOW_PHYS_DELIVERY
             | IOAPIC_ENTLOW_FIXED_DEST
-            | (TRAP_INTR_FIRST + intr);
+            | (CPU_EXC_INTR_FIRST + intr);
 }
 
 static void
