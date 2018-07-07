@@ -76,11 +76,9 @@ ASM_ENTRY(boot_start)
 
  /*
   * At this point, the processor runs in long mode, but still uses the
-  * compatibility mode code segment. Switch to 64-bit mode with a far return.
+  * compatibility mode code segment. Switch to 64-bit mode with a far jump.
   */
- pushl $BOOT_GDT_SEL_CODE64
- pushl $1f
- lret
+ ljmp $BOOT_GDT_SEL_CODE64, $1f
 
 1:
  .code64
@@ -309,9 +307,7 @@ ASM_ENTRY(boot_ap_start32)
 #ifdef __LP64__
  call boot_setup_tls
  call boot_setup_long_mode
- pushl $BOOT_GDT_SEL_CODE64
- pushl $1f
- lret
+ ljmp $BOOT_GDT_SEL_CODE64, $1f
 
 1:
  .code64
