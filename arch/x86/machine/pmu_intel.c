@@ -143,27 +143,6 @@ pmu_intel_ack_status(uint64_t status)
     return cpu_set_msr64(PMU_INTEL_MSR_GLOBAL_OVF_CTRL, status);
 }
 
-/*
- * TODO Use the compiler built-in once libgcc is linked again.
- */
-static unsigned int
-pmu_popcount(unsigned int bits)
-{
-    unsigned int count;
-
-    count = 0;
-
-    while (bits) {
-        if (bits & 1) {
-            count++;
-        }
-
-        bits >>= 1;
-    }
-
-    return count;
-}
-
 static int
 pmu_intel_translate(unsigned int *raw_event_idp, unsigned event_id)
 {
@@ -380,7 +359,7 @@ pmu_intel_setup(void)
     perfmon_register(&pmu_intel_dev);
     log_info("pmu: intel v%d, nr_pmcs:%u pmc_width:%u events:%#x nr_events:%u",
              pmu->version, pmu->nr_pmcs, pmu->pmc_width, pmu->events,
-             pmu_popcount(pmu->events));
+             __builtin_popcount(pmu->events));
     return 0;
 }
 
