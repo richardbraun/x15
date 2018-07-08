@@ -19,6 +19,8 @@
 #include <machine/asm.h>
 #include <machine/cpu.h>
 
+#define CPU_RED_ZONE_SIZE 128
+
 .text
 
 #ifdef __LP64__
@@ -60,7 +62,28 @@
     addq $16, %rsp              /* skip vector and error */
 .endm
 
+.macro cpu_ll_exc_push_word source offset buffer
+    movq -\offset(\source), \buffer
+    pushq \buffer
+.endm
+
+.macro cpu_ll_exc_push source nr_words buffer
+.set offset, 8
+.rept \nr_words
+    cpu_ll_exc_push_word \source offset \buffer
+.set offset, offset + 8
+.endr
+.endm
+
 .macro cpu_ll_exc_enter vector
+    pushq %rbx                  /* save registers used for stack switching */
+    pushq %rax
+    leaq 64(%rsp), %rbx         /* point to the top of the exception frame */
+    movq -16(%rbx), %rsp        /* point to the thread stack */
+    subq $CPU_RED_ZONE_SIZE, %rsp
+    cpu_ll_exc_push %rbx 6 %rax
+    movq -64(%rbx), %rax        /* restore registers used for stack switching */
+    movq -56(%rbx), %rbx
     pushq $\vector
     cpu_ll_exc_store_registers
     xorq %rbp, %rbp             /* block stack tracing */

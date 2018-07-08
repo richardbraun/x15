@@ -79,9 +79,10 @@ struct cpu_vendor {
 };
 
 /*
- * IST indexes (0 is reserved).
+ * IST indexes (0 means no stack switch).
  */
-#define CPU_TSS_IST_DF 1
+#define CPU_TSS_IST_INTR    1
+#define CPU_TSS_IST_DF      2
 
 /*
  * MP related CMOS ports, registers and values.
@@ -369,7 +370,7 @@ cpu_idt_set_intr_gate(struct cpu_idt *idt, unsigned int vector,
     struct cpu_gate_desc *desc;
 
     desc = cpu_idt_get_desc(idt, vector);
-    cpu_gate_desc_init_intr(desc, fn, 0);
+    cpu_gate_desc_init_intr(desc, fn, CPU_TSS_IST_INTR);
 }
 
 static void __init
@@ -834,11 +835,13 @@ cpu_gdt_load(const struct cpu_gdt *gdt)
 }
 
 static void __init
-cpu_tss_init(struct cpu_tss *tss, const void *df_stack_top)
+cpu_tss_init(struct cpu_tss *tss, const void *intr_stack_top,
+             const void *df_stack_top)
 {
     memset(tss, 0, sizeof(*tss));
 
 #ifdef __LP64__
+    tss->ist[CPU_TSS_IST_INTR] = (uintptr_t)intr_stack_top;
     tss->ist[CPU_TSS_IST_DF] = (uintptr_t)df_stack_top;
 #else /* __LP64__ */
     (void)df_stack_top;
@@ -901,6 +904,12 @@ static struct cpu_tss * __init
 cpu_get_tss(struct cpu *cpu)
 {
     return &cpu->tss;
+}
+
+static void * __init
+cpu_get_intr_stack_top(struct cpu *cpu)
+{
+    return &cpu->intr_stack[sizeof(cpu->intr_stack)];
 }
 
 static struct cpu_tss * __init
@@ -1012,7 +1021,8 @@ cpu_build(struct cpu *cpu)
     cpu_gdt_init(&cpu->gdt, cpu_get_tss(cpu), cpu_get_df_tss(cpu), pcpu_area);
     cpu_gdt_load(&cpu->gdt);
     cpu_load_ldt();
-    cpu_tss_init(&cpu->tss, cpu_get_df_stack_top(cpu));
+    cpu_tss_init(&cpu->tss, cpu_get_intr_stack_top(cpu),
+                 cpu_get_df_stack_top(cpu));
 #ifndef __LP64__
     cpu_tss_init_i386_double_fault(&cpu->df_tss, cpu_get_df_stack_top(cpu));
 #endif /* __LP64__ */
