@@ -28,7 +28,6 @@
 
 #include <kern/atomic_types.h>
 #include <kern/macros.h>
-#include <machine/cpu.h>
 #include <machine/latomic.h>
 
 #define LATOMIC_ALIGN(ptr) MIN(sizeof(*(ptr)), sizeof(ptr))
@@ -56,89 +55,17 @@ _Generic(*(ptr),                                    \
 
 void latomic_invalid_type(void);
 
-#define latomic_swap_n(ptr, val)                    \
-MACRO_BEGIN                                         \
-    unsigned long flags_;                           \
-    typeof(val) ret_;                               \
-                                                    \
-    cpu_intr_save(&flags_);                         \
-    ret_ = *(ptr);                                  \
-    *(ptr) = (val);                                 \
-    cpu_intr_restore(flags_);                       \
-                                                    \
-    ret_;                                           \
-MACRO_END
-
-#define latomic_cas_n(ptr, oval, nval)              \
-MACRO_BEGIN                                         \
-    unsigned long flags_;                           \
-    typeof(oval) ret_;                              \
-                                                    \
-    cpu_intr_save(&flags_);                         \
-                                                    \
-    ret_ = *(ptr);                                  \
-                                                    \
-    if (ret_ == (oval)) {                           \
-        *(ptr) = (nval);                            \
-    }                                               \
-                                                    \
-    cpu_intr_restore(flags_);                       \
-                                                    \
-    ret_;                                           \
-MACRO_END
-
-#define latomic_fetch_op_n(ptr, val, op)            \
-MACRO_BEGIN                                         \
-    unsigned long flags_;                           \
-    typeof(val) ret_;                               \
-                                                    \
-    cpu_intr_save(&flags_);                         \
-    ret_ = *(ptr);                                  \
-    *(ptr) = ret_ op (val);                         \
-    cpu_intr_restore(flags_);                       \
-                                                    \
-    ret_;                                           \
-MACRO_END
-
-#define latomic_fetch_add_n(ptr, val)   latomic_fetch_op_n(ptr, val, +)
-#define latomic_fetch_sub_n(ptr, val)   latomic_fetch_op_n(ptr, val, -)
-#define latomic_fetch_and_n(ptr, val)   latomic_fetch_op_n(ptr, val, &)
-#define latomic_fetch_or_n(ptr, val)    latomic_fetch_op_n(ptr, val, |)
-#define latomic_fetch_xor_n(ptr, val)   latomic_fetch_op_n(ptr, val, ^)
-
-
 /* latomic_load */
 
 #ifndef latomic_load_32
-static inline unsigned int
-latomic_load_32(union atomic_constptr_32 ptr, int memorder)
-{
-    return __atomic_load_n(ptr.ui_ptr, memorder);
-}
+unsigned int latomic_load_32(union atomic_constptr_32 ptr, int memorder);
 #endif /* latomic_load_32 */
 
 #ifndef latomic_load_64
 #ifdef __LP64__
-static inline unsigned long long
-latomic_load_64(union atomic_constptr_64 ptr, int memorder)
-{
-    return __atomic_load_n(ptr.ull_ptr, memorder);
-}
+unsigned long long latomic_load_64(union atomic_constptr_64 ptr, int memorder);
 #else /* __LP64__ */
-static inline unsigned long long
-latomic_load_64(union atomic_constptr_64 ptr, int memorder)
-{
-    unsigned long long ret;
-    unsigned long flags;
-
-    (void)memorder;
-
-    cpu_intr_save(&flags);
-    ret = *ptr.ull_ptr;
-    cpu_intr_restore(flags);
-
-    return ret;
-}
+unsigned long long latomic_load_64(union atomic_constptr_64 ptr, int memorder);
 #endif /* __LP64__ */
 #endif /* latomic_load_64 */
 
@@ -154,35 +81,17 @@ latomic_load_64(union atomic_constptr_64 ptr, int memorder)
 /* latomic_store */
 
 #ifndef latomic_store_32
-static inline void
-latomic_store_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-                 int memorder)
-{
-    __atomic_store_n(ptr.ui_ptr, val.ui, memorder);
-}
+void latomic_store_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
+                      int memorder);
 #endif /* latomic_store_32 */
 
 #ifndef latomic_store_64
 #ifdef __LP64__
-static inline void
-latomic_store_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-                 int memorder)
-{
-    return __atomic_store_n(ptr.ull_ptr, val.ull, memorder);
-}
+void latomic_store_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
+                      int memorder);
 #else /* __LP64__ */
-static inline void
-latomic_store_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-                 int memorder)
-{
-    unsigned long flags;
-
-    (void)memorder;
-
-    cpu_intr_save(&flags);
-    *ptr.ull_ptr = val.ull;
-    cpu_intr_restore(flags);
-}
+void latomic_store_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
+                      int memorder);
 #endif /* __LP64__ */
 #endif /* latomic_store_64 */
 
@@ -198,23 +107,13 @@ latomic_store_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 /* latomic_swap */
 
 #ifndef latomic_swap_32
-static inline unsigned int
-latomic_swap_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-                int memorder)
-{
-    (void)memorder;
-    return latomic_swap_n(ptr.ui_ptr, val.ui);
-}
+unsigned int latomic_swap_32(union atomic_ptr_32 ptr,
+                             union atomic_val_32 val, int memorder);
 #endif /* latomic_swap_32 */
 
 #ifndef latomic_swap_64
-static inline unsigned long long
-latomic_swap_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-                int memorder)
-{
-    (void)memorder;
-    return latomic_swap_n(ptr.ull_ptr, val.ull);
-}
+unsigned long long latomic_swap_64(union atomic_ptr_64 ptr,
+                                   union atomic_val_64 val, int memorder);
 #endif /* latomic_swap_64 */
 
 #ifdef __LP64__
@@ -229,23 +128,14 @@ latomic_swap_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 /* latomic_cas */
 
 #ifndef latomic_cas_32
-static inline unsigned int
-latomic_cas_32(union atomic_ptr_32 ptr, union atomic_val_32 oval,
-               union atomic_val_32 nval, int memorder)
-{
-    (void)memorder;
-    return latomic_cas_n(ptr.ui_ptr, oval.ui, nval.ui);
-}
+unsigned int latomic_cas_32(union atomic_ptr_32 ptr, union atomic_val_32 oval,
+                            union atomic_val_32 nval, int memorder);
 #endif /* latomic_cas_32 */
 
 #ifndef latomic_cas_64
-static inline unsigned long long
-latomic_cas_64(union atomic_ptr_64 ptr, union atomic_val_64 oval,
-               union atomic_val_64 nval, int memorder)
-{
-    (void)memorder;
-    return latomic_cas_n(ptr.ull_ptr, oval.ull, nval.ull);
-}
+unsigned long long latomic_cas_64(union atomic_ptr_64 ptr,
+                                  union atomic_val_64 oval,
+                                  union atomic_val_64 nval, int memorder);
 #endif /* latomic_cas_64 */
 
 #ifdef __LP64__
@@ -260,23 +150,13 @@ latomic_cas_64(union atomic_ptr_64 ptr, union atomic_val_64 oval,
 /* latomic_fetch_add */
 
 #ifndef latomic_fetch_add_32
-static inline unsigned int
-latomic_fetch_add_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-                     int memorder)
-{
-    (void)memorder;
-    return latomic_fetch_add_n(ptr.ui_ptr, val.ui);
-}
+unsigned int latomic_fetch_add_32(union atomic_ptr_32 ptr,
+                                  union atomic_val_32 val, int memorder);
 #endif /* latomic_fetch_add_32 */
 
 #ifndef latomic_fetch_add_64
-static inline unsigned long long
-latomic_fetch_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-                     int memorder)
-{
-    (void)memorder;
-    return latomic_fetch_add_n(ptr.ull_ptr, val.ull);
-}
+unsigned long long latomic_fetch_add_64(union atomic_ptr_64 ptr,
+                                        union atomic_val_64 val, int memorder);
 #endif /* latomic_fetch_add_64 */
 
 #ifdef __LP64__
@@ -291,23 +171,13 @@ latomic_fetch_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 /* latomic_fetch_sub */
 
 #ifndef latomic_fetch_sub_32
-static inline unsigned int
-latomic_fetch_sub_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-                     int memorder)
-{
-    (void)memorder;
-    return latomic_fetch_sub_n(ptr.ui_ptr, val.ui);
-}
+unsigned int latomic_fetch_sub_32(union atomic_ptr_32 ptr,
+                                  union atomic_val_32 val, int memorder);
 #endif /* latomic_fetch_sub_32 */
 
 #ifndef latomic_fetch_sub_64
-static inline unsigned long long
-latomic_fetch_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-                     int memorder)
-{
-    (void)memorder;
-    return latomic_fetch_sub_n(ptr.ull_ptr, val.ull);
-}
+unsigned long long latomic_fetch_sub_64(union atomic_ptr_64 ptr,
+                                        union atomic_val_64 val, int memorder);
 #endif /* latomic_fetch_sub_64 */
 
 #ifdef __LP64__
@@ -322,23 +192,13 @@ latomic_fetch_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 /* latomic_fetch_and */
 
 #ifndef latomic_fetch_and_32
-static inline unsigned int
-latomic_fetch_and_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-                     int memorder)
-{
-    (void)memorder;
-    return latomic_fetch_and_n(ptr.ui_ptr, val.ui);
-}
+unsigned int latomic_fetch_and_32(union atomic_ptr_32 ptr,
+                                  union atomic_val_32 val, int memorder);
 #endif /* latomic_fetch_and_32 */
 
 #ifndef latomic_fetch_and_64
-static inline unsigned long long
-latomic_fetch_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-                     int memorder)
-{
-    (void)memorder;
-    return latomic_fetch_and_n(ptr.ull_ptr, val.ull);
-}
+unsigned long long latomic_fetch_and_64(union atomic_ptr_64 ptr,
+                                        union atomic_val_64 val, int memorder);
 #endif /* latomic_fetch_and_64 */
 
 #ifdef __LP64__
@@ -353,23 +213,13 @@ latomic_fetch_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 /* latomic_fetch_or */
 
 #ifndef latomic_fetch_or_32
-static inline unsigned int
-latomic_fetch_or_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-                    int memorder)
-{
-    (void)memorder;
-    return latomic_fetch_or_n(ptr.ui_ptr, val.ui);
-}
+unsigned int latomic_fetch_or_32(union atomic_ptr_32 ptr,
+                                 union atomic_val_32 val, int memorder);
 #endif /* latomic_fetch_or_32 */
 
 #ifndef latomic_fetch_or_64
-static inline unsigned long long
-latomic_fetch_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-                    int memorder)
-{
-    (void)memorder;
-    return latomic_fetch_or_n(ptr.ull_ptr, val.ull);
-}
+unsigned long long latomic_fetch_or_64(union atomic_ptr_64 ptr,
+                                       union atomic_val_64 val, int memorder);
 #endif /* latomic_fetch_or_64 */
 
 #ifdef __LP64__
@@ -384,23 +234,13 @@ latomic_fetch_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 /* latomic_fetch_xor */
 
 #ifndef latomic_fetch_xor_32
-static inline unsigned int
-latomic_fetch_xor_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-                     int memorder)
-{
-    (void)memorder;
-    return latomic_fetch_xor_n(ptr.ui_ptr, val.ui);
-}
+unsigned int latomic_fetch_xor_32(union atomic_ptr_32 ptr,
+                                  union atomic_val_32 val, int memorder);
 #endif /* latomic_fetch_xor_32 */
 
 #ifndef latomic_fetch_xor_64
-static inline unsigned long long
-latomic_fetch_xor_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-                     int memorder)
-{
-    (void)memorder;
-    return latomic_fetch_xor_n(ptr.ull_ptr, val.ull);
-}
+unsigned long long latomic_fetch_xor_64(union atomic_ptr_64 ptr,
+                                        union atomic_val_64 val, int memorder);
 #endif /* latomic_fetch_xor_64 */
 
 #ifdef __LP64__
@@ -415,23 +255,13 @@ latomic_fetch_xor_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 /* latomic_add */
 
 #ifndef latomic_add_32
-static inline void
-latomic_add_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-               int memorder)
-{
-    (void)memorder;
-    latomic_fetch_add_n(ptr.ui_ptr, val.ui);
-}
+void latomic_add_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
+                    int memorder);
 #endif /* latomic_add_32 */
 
 #ifndef latomic_add_64
-static inline void
-latomic_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-               int memorder)
-{
-    (void)memorder;
-    latomic_fetch_add_n(ptr.ull_ptr, val.ull);
-}
+void latomic_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
+                    int memorder);
 #endif /* latomic_add_64 */
 
 #ifdef __LP64__
@@ -446,23 +276,13 @@ latomic_add_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 /* latomic_sub */
 
 #ifndef latomic_sub_32
-static inline void
-latomic_sub_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-               int memorder)
-{
-    (void)memorder;
-    latomic_fetch_sub_n(ptr.ui_ptr, val.ui);
-}
+void latomic_sub_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
+                    int memorder);
 #endif /* latomic_sub_32 */
 
 #ifndef latomic_sub_64
-static inline void
-latomic_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-               int memorder)
-{
-    (void)memorder;
-    latomic_fetch_sub_n(ptr.ull_ptr, val.ull);
-}
+void latomic_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
+                    int memorder);
 #endif /* latomic_sub_64 */
 
 #ifdef __LP64__
@@ -477,23 +297,13 @@ latomic_sub_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 /* latomic_and */
 
 #ifndef latomic_and_32
-static inline void
-latomic_and_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-               int memorder)
-{
-    (void)memorder;
-    latomic_fetch_and_n(ptr.ui_ptr, val.ui);
-}
+void latomic_and_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
+                    int memorder);
 #endif /* latomic_and_32 */
 
 #ifndef latomic_and_64
-static inline void
-latomic_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-               int memorder)
-{
-    (void)memorder;
-    latomic_fetch_and_n(ptr.ull_ptr, val.ull);
-}
+void latomic_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
+                    int memorder);
 #endif /* latomic_and_64 */
 
 #ifdef __LP64__
@@ -508,23 +318,13 @@ latomic_and_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 /* latomic_or */
 
 #ifndef latomic_or_32
-static inline void
-latomic_or_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-              int memorder)
-{
-    (void)memorder;
-    latomic_fetch_or_n(ptr.ui_ptr, val.ui);
-}
+void latomic_or_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
+                   int memorder);
 #endif /* latomic_or_32 */
 
 #ifndef latomic_or_64
-static inline void
-latomic_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-              int memorder)
-{
-    (void)memorder;
-    latomic_fetch_or_n(ptr.ull_ptr, val.ull);
-}
+void latomic_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
+                   int memorder);
 #endif /* latomic_or_64 */
 
 #ifdef __LP64__
@@ -539,23 +339,13 @@ latomic_or_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
 /* latomic_xor */
 
 #ifndef latomic_xor_32
-static inline void
-latomic_xor_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
-               int memorder)
-{
-    (void)memorder;
-    latomic_fetch_xor_n(ptr.ui_ptr, val.ui);
-}
+void latomic_xor_32(union atomic_ptr_32 ptr, union atomic_val_32 val,
+                    int memorder);
 #endif /* latomic_xor_32 */
 
 #ifndef latomic_xor_64
-static inline void
-latomic_xor_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
-               int memorder)
-{
-    (void)memorder;
-    latomic_fetch_xor_n(ptr.ull_ptr, val.ull);
-}
+void latomic_xor_64(union atomic_ptr_64 ptr, union atomic_val_64 val,
+                    int memorder);
 #endif /* latomic_xor_64 */
 
 #ifdef __LP64__
