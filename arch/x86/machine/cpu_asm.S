@@ -106,12 +106,8 @@
 
 .macro cpu_ll_intr_handle vector
     cpu_ll_exc_enter \vector
-    movq %rbx, %rdi
-    call cpu_get_intr_stack
-    testq %rax, %rax            /* switch stack ? */
-    jz 1f
+    call cpu_get_intr_stack_ptr
     movq %rax, %rsp             /* switch to interrupt stack */
-1:
     movq %rbx, %rdi
     call cpu_intr_main
     cpu_ll_exc_leave
@@ -168,13 +164,8 @@
 
 .macro cpu_ll_intr_handle vector
     cpu_ll_exc_enter \vector
-    pushl %ebx
-    call cpu_get_intr_stack
-    addl $4, %esp               /* fix up stack pointer */
-    testl %eax, %eax            /* switch stack ? */
-    jz 1f
+    call cpu_get_intr_stack_ptr
     movl %eax, %esp             /* switch to interrupt stack */
-1:
     pushl %ebx
     call cpu_intr_main
     cpu_ll_exc_leave

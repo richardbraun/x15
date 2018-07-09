@@ -203,10 +203,8 @@ void cpu_load_gdt(struct cpu_pseudo_desc *gdtr);
  * Return a pointer to the processor-local interrupt stack.
  *
  * This function is called by the low level exception handling code.
- *
- * Return NULL if no stack switching is required.
  */
-void * cpu_get_intr_stack(void);
+void * cpu_get_intr_stack_ptr(void);
 
 /*
  * Common entry points for exceptions and interrupts.
@@ -432,19 +430,6 @@ cpu_delay(unsigned long usecs)
         total -= diff;
         cpu_pause();
     } while (total > 0);
-}
-
-void *
-cpu_get_intr_stack(void)
-{
-    struct cpu *cpu;
-
-    if (thread_interrupted()) {
-        return NULL;
-    }
-
-    cpu = cpu_local_ptr(cpu_desc);
-    return cpu->intr_stack + sizeof(cpu->intr_stack);
 }
 
 static void
@@ -844,6 +829,7 @@ cpu_tss_init(struct cpu_tss *tss, const void *intr_stack_top,
     tss->ist[CPU_TSS_IST_INTR] = (uintptr_t)intr_stack_top;
     tss->ist[CPU_TSS_IST_DF] = (uintptr_t)df_stack_top;
 #else /* __LP64__ */
+    (void)intr_stack_top;
     (void)df_stack_top;
 #endif /* __LP64__ */
 }
@@ -1202,6 +1188,17 @@ cpu_check_bsp(void)
 INIT_OP_DEFINE(cpu_check_bsp,
                INIT_OP_DEP(cpu_setup, true),
                INIT_OP_DEP(panic_setup, true));
+
+void *
+cpu_get_intr_stack_ptr(void)
+{
+    struct cpu *cpu;
+
+    assert(!thread_interrupted());
+
+    cpu = cpu_local_ptr(cpu_desc);
+    return cpu_get_intr_stack_top(cpu);
+}
 
 void __init
 cpu_log_info(const struct cpu *cpu)
