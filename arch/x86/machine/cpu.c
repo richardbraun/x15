@@ -343,7 +343,7 @@ cpu_gate_desc_init_intr(struct cpu_gate_desc *desc, cpu_ll_exc_fn_t fn,
     desc->word3 = addr >> 32;
     desc->word4 = 0;
 #else /* __LP64__ */
-    assert(ist_index == 0);
+    (void)ist_index;
 #endif /* __LP64__ */
 }
 
