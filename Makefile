@@ -233,8 +233,9 @@ ifneq ($(TOOLCHAIN_NAME),)
 TOOLCHAIN_PREFIX = $(TOOLCHAIN_NAME)-
 endif
 
-CPP := $(CC) -E
-NM  := $(TOOLCHAIN_PREFIX)nm
+CPP         := $(CC) -E
+NM          := $(TOOLCHAIN_PREFIX)nm
+OBJCOPY     := $(TOOLCHAIN_PREFIX)objcopy
 
 CFLAGS ?= -O2 -g
 

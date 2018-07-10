@@ -1,3 +1,12 @@
+define run_qemu_x86
+	$(call xbuild_action,QEMU,$@) \
+		$(SRCDIR)/arch/x86/tools/qemu.sh "$(OBJCOPY)"
+endef
+
+.PHONY: qemu
+qemu: x15
+	$(call run_qemu_x86)
+
 ifeq ($(shell uname -m),x86_64)
   KCONFIG_DEFCONFIG := amd64_defconfig
 else
