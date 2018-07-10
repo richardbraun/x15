@@ -35,7 +35,7 @@ semaphore_wait_slow_common(struct semaphore *semaphore,
 
     error = 0;
 
-    sleepq = sleepq_lend(semaphore, false, &flags);
+    sleepq = sleepq_lend_intr_save(semaphore, false, &flags);
 
     for (;;) {
         prev = semaphore_dec(semaphore);
@@ -55,7 +55,7 @@ semaphore_wait_slow_common(struct semaphore *semaphore,
         }
     }
 
-    sleepq_return(sleepq, flags);
+    sleepq_return_intr_restore(sleepq, flags);
 
     return error;
 }
@@ -81,7 +81,7 @@ semaphore_post_slow(struct semaphore *semaphore)
     struct sleepq *sleepq;
     unsigned long flags;
 
-    sleepq = sleepq_acquire(semaphore, false, &flags);
+    sleepq = sleepq_acquire_intr_save(semaphore, false, &flags);
 
     if (sleepq == NULL) {
         return;
@@ -89,5 +89,5 @@ semaphore_post_slow(struct semaphore *semaphore)
 
     sleepq_signal(sleepq);
 
-    sleepq_release(sleepq, flags);
+    sleepq_release_intr_restore(sleepq, flags);
 }

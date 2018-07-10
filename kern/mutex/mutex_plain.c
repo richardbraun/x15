@@ -76,12 +76,11 @@ mutex_plain_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
 {
     unsigned int state;
     struct sleepq *sleepq;
-    unsigned long flags;
     int error;
 
     error = 0;
 
-    sleepq = sleepq_lend(mutex, false, &flags);
+    sleepq = sleepq_lend(mutex, false);
 
     for (;;) {
         state = atomic_swap(&mutex->state, MUTEX_CONTENDED, ATOMIC_RELEASE);
@@ -121,7 +120,7 @@ mutex_plain_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
     }
 
 out:
-    sleepq_return(sleepq, flags);
+    sleepq_return(sleepq);
 
     return error;
 }
@@ -145,9 +144,8 @@ void
 mutex_plain_unlock_slow(struct mutex *mutex)
 {
     struct sleepq *sleepq;
-    unsigned long flags;
 
-    sleepq = sleepq_acquire(mutex, false, &flags);
+    sleepq = sleepq_acquire(mutex, false);
 
     if (sleepq == NULL) {
         return;
@@ -155,7 +153,7 @@ mutex_plain_unlock_slow(struct mutex *mutex)
 
     sleepq_signal(sleepq);
 
-    sleepq_release(sleepq, flags);
+    sleepq_release(sleepq);
 }
 
 static int

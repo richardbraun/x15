@@ -124,13 +124,12 @@ mutex_adaptive_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
     uintptr_t self, owner;
     struct sleepq *sleepq;
     struct thread *thread;
-    unsigned long flags;
     int error;
 
     error = 0;
     self = (uintptr_t)thread_self();
 
-    sleepq = sleepq_lend(mutex, false, &flags);
+    sleepq = sleepq_lend(mutex, false);
 
     mutex_adaptive_set_contended(mutex);
 
@@ -223,7 +222,7 @@ mutex_adaptive_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
     }
 
 out:
-    sleepq_return(sleepq, flags);
+    sleepq_return(sleepq);
 
     return error;
 }
@@ -248,7 +247,6 @@ mutex_adaptive_unlock_slow(struct mutex *mutex)
 {
     uintptr_t self, owner;
     struct sleepq *sleepq;
-    unsigned long flags;
     int error;
 
     self = (uintptr_t)thread_self() | MUTEX_ADAPTIVE_CONTENDED;
@@ -301,12 +299,12 @@ mutex_adaptive_unlock_slow(struct mutex *mutex)
          * on the current thread, in which case the latter doesn't return,
          * averting the need for an additional reference.
          */
-        sleepq = sleepq_tryacquire(mutex, false, &flags);
+        sleepq = sleepq_tryacquire(mutex, false);
 
         if (sleepq != NULL) {
             mutex_adaptive_inc_sc(MUTEX_ADAPTIVE_SC_SIGNALS);
             sleepq_signal(sleepq);
-            sleepq_release(sleepq, flags);
+            sleepq_release(sleepq);
             break;
         }
 

@@ -33,12 +33,11 @@ condition_wait_common(struct condition *condition, struct mutex *mutex,
                       bool timed, uint64_t ticks)
 {
     struct sleepq *sleepq;
-    unsigned long flags;
     int error;
 
     mutex_assert_locked(mutex);
 
-    sleepq = sleepq_lend(condition, true, &flags);
+    sleepq = sleepq_lend(condition, true);
 
     mutex_unlock(mutex);
 
@@ -49,7 +48,7 @@ condition_wait_common(struct condition *condition, struct mutex *mutex,
         error = 0;
     }
 
-    sleepq_return(sleepq, flags);
+    sleepq_return(sleepq);
 
     mutex_lock(mutex);
 
@@ -76,9 +75,8 @@ void
 condition_signal(struct condition *condition)
 {
     struct sleepq *sleepq;
-    unsigned long flags;
 
-    sleepq = sleepq_acquire(condition, true, &flags);
+    sleepq = sleepq_acquire(condition, true);
 
     if (sleepq == NULL) {
         return;
@@ -86,16 +84,15 @@ condition_signal(struct condition *condition)
 
     sleepq_signal(sleepq);
 
-    sleepq_release(sleepq, flags);
+    sleepq_release(sleepq);
 }
 
 void
 condition_broadcast(struct condition *condition)
 {
     struct sleepq *sleepq;
-    unsigned long flags;
 
-    sleepq = sleepq_acquire(condition, true, &flags);
+    sleepq = sleepq_acquire(condition, true);
 
     if (sleepq == NULL) {
         return;
@@ -103,5 +100,5 @@ condition_broadcast(struct condition *condition)
 
     sleepq_broadcast(sleepq);
 
-    sleepq_release(sleepq, flags);
+    sleepq_release(sleepq);
 }

@@ -265,8 +265,8 @@ sleepq_destroy(struct sleepq *sleepq)
     kmem_cache_free(&sleepq_cache, sleepq);
 }
 
-struct sleepq *
-sleepq_acquire(const void *sync_obj, bool condition, unsigned long *flags)
+static struct sleepq *
+sleepq_acquire_common(const void *sync_obj, bool condition, unsigned long *flags)
 {
     struct sleepq_bucket *bucket;
     struct sleepq *sleepq;
@@ -275,20 +275,30 @@ sleepq_acquire(const void *sync_obj, bool condition, unsigned long *flags)
 
     bucket = sleepq_bucket_get(sync_obj, condition);
 
-    spinlock_lock_intr_save(&bucket->lock, flags);
+    if (flags) {
+        spinlock_lock_intr_save(&bucket->lock, flags);
+    } else {
+        spinlock_lock(&bucket->lock);
+    }
 
     sleepq = sleepq_bucket_lookup(bucket, sync_obj);
 
     if (sleepq == NULL) {
-        spinlock_unlock_intr_restore(&bucket->lock, *flags);
+        if (flags) {
+            spinlock_unlock_intr_restore(&bucket->lock, *flags);
+        } else {
+            spinlock_unlock(&bucket->lock);
+        }
+
         return NULL;
     }
 
     return sleepq;
 }
 
-struct sleepq *
-sleepq_tryacquire(const void *sync_obj, bool condition, unsigned long *flags)
+static struct sleepq *
+sleepq_tryacquire_common(const void *sync_obj, bool condition,
+                         unsigned long *flags)
 {
     struct sleepq_bucket *bucket;
     struct sleepq *sleepq;
@@ -298,7 +308,11 @@ sleepq_tryacquire(const void *sync_obj, bool condition, unsigned long *flags)
 
     bucket = sleepq_bucket_get(sync_obj, condition);
 
-    error = spinlock_trylock_intr_save(&bucket->lock, flags);
+    if (flags) {
+        error = spinlock_trylock_intr_save(&bucket->lock, flags);
+    } else {
+        error = spinlock_trylock(&bucket->lock);
+    }
 
     if (error) {
         return NULL;
@@ -307,15 +321,52 @@ sleepq_tryacquire(const void *sync_obj, bool condition, unsigned long *flags)
     sleepq = sleepq_bucket_lookup(bucket, sync_obj);
 
     if (sleepq == NULL) {
-        spinlock_unlock_intr_restore(&bucket->lock, *flags);
+        if (flags) {
+            spinlock_unlock_intr_restore(&bucket->lock, *flags);
+        } else {
+            spinlock_unlock(&bucket->lock);
+        }
+
         return NULL;
     }
 
     return sleepq;
 }
 
+struct sleepq *
+sleepq_acquire(const void *sync_obj, bool condition)
+{
+    return sleepq_acquire_common(sync_obj, condition, NULL);
+}
+
+struct sleepq *
+sleepq_tryacquire(const void *sync_obj, bool condition)
+{
+    return sleepq_tryacquire_common(sync_obj, condition, NULL);
+}
+
 void
-sleepq_release(struct sleepq *sleepq, unsigned long flags)
+sleepq_release(struct sleepq *sleepq)
+{
+    spinlock_unlock(&sleepq->bucket->lock);
+}
+
+struct sleepq *
+sleepq_acquire_intr_save(const void *sync_obj, bool condition,
+                         unsigned long *flags)
+{
+    return sleepq_acquire_common(sync_obj, condition, flags);
+}
+
+struct sleepq *
+sleepq_tryacquire_intr_save(const void *sync_obj, bool condition,
+                            unsigned long *flags)
+{
+    return sleepq_tryacquire_common(sync_obj, condition, flags);
+}
+
+void
+sleepq_release_intr_restore(struct sleepq *sleepq, unsigned long flags)
 {
     spinlock_unlock_intr_restore(&sleepq->bucket->lock, flags);
 }
@@ -344,8 +395,8 @@ sleepq_pop_free(struct sleepq *sleepq)
     return free_sleepq;
 }
 
-struct sleepq *
-sleepq_lend(const void *sync_obj, bool condition, unsigned long *flags)
+static struct sleepq *
+sleepq_lend_common(const void *sync_obj, bool condition, unsigned long *flags)
 {
     struct sleepq_bucket *bucket;
     struct sleepq *sleepq, *prev;
@@ -357,7 +408,11 @@ sleepq_lend(const void *sync_obj, bool condition, unsigned long *flags)
 
     bucket = sleepq_bucket_get(sync_obj, condition);
 
-    spinlock_lock_intr_save(&bucket->lock, flags);
+    if (flags) {
+        spinlock_lock_intr_save(&bucket->lock, flags);
+    } else {
+        spinlock_lock(&bucket->lock);
+    }
 
     prev = sleepq_bucket_lookup(bucket, sync_obj);
 
@@ -372,8 +427,8 @@ sleepq_lend(const void *sync_obj, bool condition, unsigned long *flags)
     return sleepq;
 }
 
-void
-sleepq_return(struct sleepq *sleepq, unsigned long flags)
+static void
+sleepq_return_common(struct sleepq *sleepq, unsigned long *flags)
 {
     struct sleepq_bucket *bucket;
     struct sleepq *free_sleepq;
@@ -389,10 +444,39 @@ sleepq_return(struct sleepq *sleepq, unsigned long flags)
         free_sleepq = sleepq;
     }
 
-    spinlock_unlock_intr_restore(&bucket->lock, flags);
+    if (flags) {
+        spinlock_unlock_intr_restore(&bucket->lock, *flags);
+    } else {
+        spinlock_unlock(&bucket->lock);
+    }
 
     sleepq_assert_init_state(free_sleepq);
     thread_sleepq_return(free_sleepq);
+}
+
+struct sleepq *
+sleepq_lend(const void *sync_obj, bool condition)
+{
+    return sleepq_lend_common(sync_obj, condition, NULL);
+}
+
+void
+sleepq_return(struct sleepq *sleepq)
+{
+    sleepq_return_common(sleepq, NULL);
+}
+
+struct sleepq *
+sleepq_lend_intr_save(const void *sync_obj, bool condition,
+                      unsigned long *flags)
+{
+    return sleepq_lend_common(sync_obj, condition, flags);
+}
+
+void
+sleepq_return_intr_restore(struct sleepq *sleepq, unsigned long flags)
+{
+    sleepq_return_common(sleepq, &flags);
 }
 
 static void

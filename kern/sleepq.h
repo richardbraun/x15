@@ -47,8 +47,7 @@ void sleepq_destroy(struct sleepq *sleepq);
 /*
  * Acquire/release a sleep queue.
  *
- * Acquiring a sleep queue serializes all access and disables both
- * preemption and interrupts.
+ * Acquiring a sleep queue serializes all access and disables preemption.
  *
  * The condition argument must be true if the synchronization object
  * is a condition variable.
@@ -57,11 +56,22 @@ void sleepq_destroy(struct sleepq *sleepq);
  * return NULL if internal state shared by unrelated synchronization
  * objects is locked.
  */
-struct sleepq * sleepq_acquire(const void *sync_obj, bool condition,
-                               unsigned long *flags);
-struct sleepq * sleepq_tryacquire(const void *sync_obj, bool condition,
-                                  unsigned long *flags);
-void sleepq_release(struct sleepq *sleepq, unsigned long flags);
+struct sleepq * sleepq_acquire(const void *sync_obj, bool condition);
+struct sleepq * sleepq_tryacquire(const void *sync_obj, bool condition);
+void sleepq_release(struct sleepq *sleepq);
+
+/*
+ * Versions of the sleep queue acquisition functions that also disable
+ * interrupts.
+ */
+struct sleepq * sleepq_acquire_intr_save(const void *sync_obj,
+                                         bool condition,
+                                         unsigned long *flags);
+struct sleepq * sleepq_tryacquire_intr_save(const void *sync_obj,
+                                            bool condition,
+                                            unsigned long *flags);
+void sleepq_release_intr_restore(struct sleepq *sleepq,
+                                 unsigned long flags);
 
 /*
  * Lend/return a sleep queue.
@@ -82,9 +92,16 @@ void sleepq_release(struct sleepq *sleepq, unsigned long flags);
  * The condition argument must be true if the synchronization object
  * is a condition variable.
  */
-struct sleepq * sleepq_lend(const void *sync_obj, bool condition,
-                            unsigned long *flags);
-void sleepq_return(struct sleepq *sleepq, unsigned long flags);
+struct sleepq * sleepq_lend(const void *sync_obj, bool condition);
+void sleepq_return(struct sleepq *sleepq);
+
+/*
+ * Versions of the sleep queue lending functions that also disable
+ * interrupts.
+ */
+struct sleepq * sleepq_lend_intr_save(const void *sync_obj, bool condition,
+                                      unsigned long *flags);
+void sleepq_return_intr_restore(struct sleepq *sleepq, unsigned long flags);
 
 /*
  * Return true if the given sleep queue has no waiters.
