@@ -973,6 +973,5 @@ biosmem_free_usable(void)
 
 INIT_OP_DEFINE(biosmem_free_usable,
                INIT_OP_DEP(boot_save_data, true),
-               INIT_OP_DEP(panic_setup, true),
                INIT_OP_DEP(log_setup, true),
                INIT_OP_DEP(vm_page_setup, true));

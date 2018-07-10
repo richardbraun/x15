@@ -19,7 +19,6 @@
 #include <stdio.h>
 
 #include <kern/atomic.h>
-#include <kern/init.h>
 #include <kern/panic.h>
 #include <machine/cpu.h>
 #include <machine/strace.h>
@@ -55,13 +54,3 @@ panic(const char *format, ...)
      * Never reached.
      */
 }
-
-static int __init
-panic_setup(void)
-{
-    return 0;
-}
-
-INIT_OP_DEFINE(panic_setup,
-               INIT_OP_DEP(cpu_setup, true),
-               INIT_OP_DEP(printf_setup, true));

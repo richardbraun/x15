@@ -1184,10 +1184,8 @@ cpu_check_bsp(void)
     return 0;
 }
 
-// TODO Remove panic_setup
 INIT_OP_DEFINE(cpu_check_bsp,
-               INIT_OP_DEP(cpu_setup, true),
-               INIT_OP_DEP(panic_setup, true));
+               INIT_OP_DEP(cpu_setup, true));
 
 void *
 cpu_get_intr_stack_ptr(void)

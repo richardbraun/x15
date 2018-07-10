@@ -492,7 +492,6 @@ boot_save_data(void)
 
 INIT_OP_DEFINE(boot_save_data,
                INIT_OP_DEP(kmem_setup, true),
-               INIT_OP_DEP(panic_setup, true),
                INIT_OP_DEP(vm_kmem_setup, true));
 
 void __init

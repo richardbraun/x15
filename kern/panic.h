@@ -20,18 +20,15 @@
 
 #include <stdnoreturn.h>
 
-#include <kern/init.h>
-
 /*
  * Print the given message and halt the system immediately.
+ *
+ * If in doubt whether to call this function or not because of dependency
+ * issues, users are encouraged to call this function, even if it results
+ * in undefined behavior, because it should most likely cause a freeze or
+ * reset, which is considered better than a silent failure.
  */
 noreturn void panic(const char *format, ...)
     __attribute__((format(printf, 1, 2)));
-
-/*
- * This init operation provides :
- *  - module fully initialized
- */
-INIT_OP_DECLARE(panic_setup);
 
 #endif /* KERN_PANIC_H */

@@ -467,7 +467,6 @@ log_start(void)
 
 INIT_OP_DEFINE(log_start,
                INIT_OP_DEP(log_setup, true),
-               INIT_OP_DEP(panic_setup, true),
                INIT_OP_DEP(thread_setup, true));
 
 static void

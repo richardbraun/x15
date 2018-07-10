@@ -336,7 +336,6 @@ intr_bootstrap(void)
 INIT_OP_DEFINE(intr_bootstrap,
                INIT_OP_DEP(kmem_setup, true),
                INIT_OP_DEP(log_setup, true),
-               INIT_OP_DEP(panic_setup, true),
                INIT_OP_DEP(spinlock_setup, true),
                INIT_OP_DEP(thread_bootstrap, true));
 
