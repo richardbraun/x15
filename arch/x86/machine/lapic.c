@@ -209,8 +209,9 @@ lapic_compute_freq(void)
     cpu_delay(LAPIC_TIMER_CAL_DELAY);
     c2 = lapic_read(&lapic_map->timer_ccr);
     lapic_bus_freq = (c1 - c2) * (1000000 / LAPIC_TIMER_CAL_DELAY);
-    log_info("lapic: bus frequency: %u.%02u MHz", lapic_bus_freq / 1000000,
-             lapic_bus_freq % 1000000);
+    log_info("lapic: bus frequency: %u.%02u MHz",
+             (unsigned int)(lapic_bus_freq / 1000000),
+             (unsigned int)(lapic_bus_freq % 1000000));
     lapic_write(&lapic_map->timer_icr, lapic_bus_freq / CLOCK_FREQ);
     lapic_write(&lapic_map->svr, 0);
 }
@@ -253,7 +254,7 @@ lapic_error_intr(unsigned int vector)
     (void)vector;
 
     esr = lapic_read(&lapic_map->esr);
-    log_err("lapic: error on cpu%u: esr:%08x", cpu_id(), esr);
+    log_err("lapic: error on cpu%u: esr:%08x", cpu_id(), (unsigned int)esr);
     lapic_write(&lapic_map->esr, 0);
     lapic_eoi();
 }
