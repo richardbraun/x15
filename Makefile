@@ -182,6 +182,7 @@ help:
 	@$(if $(BOARDS), \
 		$(foreach b, $(BOARDS), \
 		printf "  %-24s - Build for %s\\n" $(b) $(subst _defconfig,,$(b));))
+	@$(ARCH_HELP)
 	@printf '\n'
 	@printf 'Options:\n'
 	@printf '  make V=0                 - Quiet build\n'

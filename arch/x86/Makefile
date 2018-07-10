@@ -13,6 +13,10 @@ else
   KCONFIG_DEFCONFIG := i386_defconfig
 endif
 
+define ARCH_HELP
+	@printf '  qemu                     - Run kernel in QEMU\n'
+endef
+
 # Prevent GCC from generating any FP code by mistake.
 XBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow
 XBUILD_CFLAGS += $(call cc-option,-mno-avx,)
