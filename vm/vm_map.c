@@ -702,9 +702,11 @@ vm_map_init(struct vm_map *map, struct pmap *pmap,
 #ifdef CONFIG_SHELL
 
 static void
-vm_map_shell_info(int argc, char **argv)
+vm_map_shell_info(struct shell *shell, int argc, char **argv)
 {
     const struct task *task;
+
+    (void)shell;
 
     if (argc < 2) {
         goto error;
@@ -733,7 +735,7 @@ static struct shell_cmd vm_map_shell_cmds[] = {
 static int __init
 vm_map_setup_shell(void)
 {
-    SHELL_REGISTER_CMDS(vm_map_shell_cmds);
+    SHELL_REGISTER_CMDS(vm_map_shell_cmds, shell_get_main_cmd_set());
     return 0;
 }
 

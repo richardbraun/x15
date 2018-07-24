@@ -1168,9 +1168,11 @@ out:
 }
 
 static void
-kmem_shell_info(int argc, char **argv)
+kmem_shell_info(struct shell *shell, int argc, char **argv)
 {
     struct kmem_cache *cache;
+
+    (void)shell;
 
     if (argc < 2) {
         kmem_info();
@@ -1195,7 +1197,7 @@ static struct shell_cmd kmem_shell_cmds[] = {
 static int __init
 kmem_setup_shell(void)
 {
-    SHELL_REGISTER_CMDS(kmem_shell_cmds);
+    SHELL_REGISTER_CMDS(kmem_shell_cmds, shell_get_main_cmd_set());
     return 0;
 }
 

@@ -668,8 +668,9 @@ vm_page_info(void)
 }
 
 static void
-vm_page_shell_info(int argc, char **argv)
+vm_page_shell_info(struct shell *shell, int argc, char **argv)
 {
+    (void)shell;
     (void)argc;
     (void)argv;
     vm_page_info();
@@ -684,7 +685,7 @@ static struct shell_cmd vm_page_shell_cmds[] = {
 static int __init
 vm_page_setup_shell(void)
 {
-    SHELL_REGISTER_CMDS(vm_page_shell_cmds);
+    SHELL_REGISTER_CMDS(vm_page_shell_cmds, shell_get_main_cmd_set());
     return 0;
 }
 

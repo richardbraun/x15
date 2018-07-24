@@ -29,8 +29,9 @@ static struct plist shutdown_ops_list;
 #ifdef CONFIG_SHELL
 
 static void
-shutdown_shell_halt(int argc, char **argv)
+shutdown_shell_halt(struct shell *shell, int argc, char **argv)
 {
+    (void)shell;
     (void)argc;
     (void)argv;
 
@@ -38,8 +39,9 @@ shutdown_shell_halt(int argc, char **argv)
 }
 
 static void
-shutdown_shell_reboot(int argc, char **argv)
+shutdown_shell_reboot(struct shell *shell, int argc, char **argv)
 {
+    (void)shell;
     (void)argc;
     (void)argv;
 
@@ -58,7 +60,7 @@ static struct shell_cmd shutdown_shell_cmds[] = {
 static int __init
 shutdown_setup_shell(void)
 {
-    SHELL_REGISTER_CMDS(shutdown_shell_cmds);
+    SHELL_REGISTER_CMDS(shutdown_shell_cmds, shell_get_main_cmd_set());
     return 0;
 }
 

@@ -2220,7 +2220,7 @@ thread_setup_runq(struct thread_runq *runq)
  * tracing.
  */
 static void
-thread_shell_trace(int argc, char *argv[])
+thread_shell_trace(struct shell *shell, int argc, char *argv[])
 {
     const char *task_name, *thread_name;
     struct thread_runq *runq;
@@ -2228,6 +2228,8 @@ thread_shell_trace(int argc, char *argv[])
     unsigned long flags;
     struct task *task;
     int error;
+
+    (void)shell;
 
     if (argc != 3) {
         error = EINVAL;
@@ -2278,7 +2280,7 @@ static struct shell_cmd thread_shell_cmds[] = {
 static int __init
 thread_setup_shell(void)
 {
-    SHELL_REGISTER_CMDS(thread_shell_cmds);
+    SHELL_REGISTER_CMDS(thread_shell_cmds, shell_get_main_cmd_set());
     return 0;
 }
 

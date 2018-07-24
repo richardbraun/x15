@@ -36,9 +36,11 @@ static struct mutex syscnt_lock;
 #ifdef CONFIG_SHELL
 
 static void
-syscnt_shell_info(int argc, char **argv)
+syscnt_shell_info(struct shell *shell, int argc, char **argv)
 {
     char *prefix;
+
+    (void)shell;
 
     prefix = (argc >= 2) ? argv[1] : NULL;
     syscnt_info(prefix);
@@ -53,7 +55,7 @@ static struct shell_cmd syscnt_shell_cmds[] = {
 static int __init
 syscnt_setup_shell(void)
 {
-    SHELL_REGISTER_CMDS(syscnt_shell_cmds);
+    SHELL_REGISTER_CMDS(syscnt_shell_cmds, shell_get_main_cmd_set());
     return 0;
 }
 

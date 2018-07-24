@@ -380,10 +380,12 @@ log_dump(unsigned int level)
 }
 
 static void
-log_shell_dump(int argc, char **argv)
+log_shell_dump(struct shell *shell, int argc, char **argv)
 {
     unsigned int level;
     int ret;
+
+    (void)shell;
 
     if (argc != 2) {
         level = log_print_level;
@@ -418,7 +420,7 @@ static struct shell_cmd log_shell_cmds[] = {
 static int __init
 log_setup_shell(void)
 {
-    SHELL_REGISTER_CMDS(log_shell_cmds);
+    SHELL_REGISTER_CMDS(log_shell_cmds, shell_get_main_cmd_set());
     return 0;
 }
 

@@ -62,10 +62,12 @@ task_init(struct task *task, const char *name, struct vm_map *map)
 #ifdef CONFIG_SHELL
 
 static void
-task_shell_info(int argc, char *argv[])
+task_shell_info(struct shell *shell, int argc, char *argv[])
 {
     struct task *task;
     int error;
+
+    (void)shell;
 
     if (argc == 1) {
         task_info(NULL);
@@ -97,7 +99,7 @@ static struct shell_cmd task_shell_cmds[] = {
 static int __init
 task_setup_shell(void)
 {
-    SHELL_REGISTER_CMDS(task_shell_cmds);
+    SHELL_REGISTER_CMDS(task_shell_cmds, shell_get_main_cmd_set());
     return 0;
 }
 
