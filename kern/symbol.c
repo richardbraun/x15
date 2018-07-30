@@ -21,17 +21,26 @@
 #include <kern/macros.h>
 #include <kern/symbol.h>
 
-const size_t symbol_table_size __weak;
-const struct symbol *symbol_table_ptr __weak;
+/*
+ * XXX Clang doesn't consider that weak symbols may change at link time
+ * by default, which turns the lookup into a no-op when optimizations
+ * are enabled. Make these variables volatile to work around this issue.
+ */
+const volatile size_t symbol_table_size __weak;
+const struct symbol * volatile symbol_table_ptr __weak;
 
 const struct symbol *
 symbol_lookup(uintptr_t addr)
 {
-    const struct symbol *symbol;
+    const struct symbol *table, *symbol;
     uintptr_t start, end;
+    size_t size;
 
-    for (size_t i = 0; i < symbol_table_size; i++) {
-        symbol = &symbol_table_ptr[i];
+    table = symbol_table_ptr;
+    size = symbol_table_size;
+
+    for (size_t i = 0; i < size; i++) {
+        symbol = &table[i];
 
         if (!symbol->name || (symbol->size == 0)) {
             continue;
