@@ -10,11 +10,11 @@ symtab = []
 for line in sys.stdin:
     line = line.strip()
     parts = line.split(' ')
-    del parts[2]
 
-    if len(parts) != 3 or parts[2].startswith("__func__."):
+    if len(parts) != 4 or parts[3].startswith("__func__."):
         continue
 
+    del parts[2]
     sym = {'addr': parts[0], 'size': parts[1], 'name': parts[2]}
     symtab.append(sym)
 
