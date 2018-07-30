@@ -34,8 +34,8 @@ $QEMU_EXE $KVM \
           -gdb tcp::1234 \
           -m $RAM \
           -smp $NR_CPUS \
-          -monitor stdio \
+          -nographic \
           -kernel x15 \
-          -append "console=atcons"
+          -append "console=uart0"
 
 rm -rf $TMPDIR
