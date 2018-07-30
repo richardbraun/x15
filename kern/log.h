@@ -23,8 +23,8 @@
 
 #include <stdarg.h>
 
-
 #include <kern/init.h>
+
 enum {
     LOG_EMERG,
     LOG_ALERT,
