@@ -41,10 +41,10 @@ strace_show_one(unsigned int index, uintptr_t ip)
     symbol = symbol_lookup(ip);
 
     if (!symbol) {
-        printf("#%u [" STRACE_ADDR_FORMAT "]\n", index, (unsigned long)ip);
+        printf("#%02u [" STRACE_ADDR_FORMAT "]\n", index, (unsigned long)ip);
     } else {
         offset = ip - symbol->addr;
-        printf("#%u [" STRACE_ADDR_FORMAT "] %s+%#lx/%#lx\n",
+        printf("#%02u [" STRACE_ADDR_FORMAT "] %s+%#lx/%#lx\n",
                index, (unsigned long)ip, symbol->name,
                (unsigned long)offset, (unsigned long)symbol->size);
     }
