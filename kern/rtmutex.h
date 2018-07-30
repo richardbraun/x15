@@ -26,8 +26,10 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 
+#include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/macros.h>
 #include <kern/rtmutex_i.h>
@@ -35,7 +37,14 @@
 
 struct rtmutex;
 
-#define rtmutex_assert_locked(rtmutex) assert((rtmutex)->owner != 0)
+static inline bool
+rtmutex_locked(const struct rtmutex *rtmutex)
+{
+    uintptr_t owner;
+
+    owner = atomic_load(&rtmutex->owner, ATOMIC_RELAXED);
+    return (owner != 0);
+}
 
 /*
  * Initialize a real-time mutex.

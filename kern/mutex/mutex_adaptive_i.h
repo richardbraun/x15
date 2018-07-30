@@ -25,6 +25,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include <kern/atomic.h>
@@ -48,7 +49,14 @@ mutex_adaptive_init(struct mutex *mutex)
     mutex->owner = 0;
 }
 
-#define mutex_adaptive_assert_locked(mutex) assert((mutex)->owner != 0)
+static inline bool
+mutex_adaptive_locked(const struct mutex *mutex)
+{
+    uintptr_t owner;
+
+    owner = atomic_load(&mutex->owner, ATOMIC_RELAXED);
+    return (owner != 0);
+}
 
 static inline int
 mutex_adaptive_lock_fast(struct mutex *mutex)
@@ -89,7 +97,7 @@ void mutex_adaptive_unlock_slow(struct mutex *mutex);
  */
 
 #define mutex_impl_init             mutex_adaptive_init
-#define mutex_impl_assert_locked    mutex_adaptive_assert_locked
+#define mutex_impl_locked           mutex_adaptive_locked
 
 static inline int
 mutex_impl_trylock(struct mutex *mutex)

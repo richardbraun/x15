@@ -111,14 +111,14 @@ sleepq_waiter_wakeup(struct sleepq_waiter *waiter)
     thread_wakeup(waiter->thread);
 }
 
-static void
-sleepq_assert_init_state(const struct sleepq *sleepq)
+static bool
+sleepq_init_state_valid(const struct sleepq *sleepq)
 {
-    assert(sleepq->bucket == NULL);
-    assert(sleepq->sync_obj == NULL);
-    assert(list_empty(&sleepq->waiters));
-    assert(sleepq->oldest_waiter == NULL);
-    assert(sleepq->next_free == NULL);
+    return (sleepq->bucket == NULL)
+           && (sleepq->sync_obj == NULL)
+           && (list_empty(&sleepq->waiters))
+           && (sleepq->oldest_waiter == NULL)
+           && (sleepq->next_free == NULL);
 }
 
 static void
@@ -254,14 +254,14 @@ sleepq_create(void)
         return NULL;
     }
 
-    sleepq_assert_init_state(sleepq);
+    assert(sleepq_init_state_valid(sleepq));
     return sleepq;
 }
 
 void
 sleepq_destroy(struct sleepq *sleepq)
 {
-    sleepq_assert_init_state(sleepq);
+    assert(sleepq_init_state_valid(sleepq));
     kmem_cache_free(&sleepq_cache, sleepq);
 }
 
@@ -404,7 +404,7 @@ sleepq_lend_common(const void *sync_obj, bool condition, unsigned long *flags)
     assert(sync_obj != NULL);
 
     sleepq = thread_sleepq_lend();
-    sleepq_assert_init_state(sleepq);
+    assert(sleepq_init_state_valid(sleepq));
 
     bucket = sleepq_bucket_get(sync_obj, condition);
 
@@ -450,7 +450,7 @@ sleepq_return_common(struct sleepq *sleepq, unsigned long *flags)
         spinlock_unlock(&bucket->lock);
     }
 
-    sleepq_assert_init_state(free_sleepq);
+    assert(sleepq_init_state_valid(free_sleepq));
     thread_sleepq_return(free_sleepq);
 }
 

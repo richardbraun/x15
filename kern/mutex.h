@@ -23,6 +23,7 @@
 #ifndef KERN_MUTEX_H
 #define KERN_MUTEX_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #if defined(CONFIG_MUTEX_ADAPTIVE)
@@ -47,7 +48,11 @@ mutex_init(struct mutex *mutex)
     mutex_impl_init(mutex);
 }
 
-#define mutex_assert_locked(mutex) mutex_impl_assert_locked(mutex)
+static inline bool
+mutex_locked(const struct mutex *mutex)
+{
+    return mutex_impl_locked(mutex);
+}
 
 /*
  * Attempt to lock the given mutex.

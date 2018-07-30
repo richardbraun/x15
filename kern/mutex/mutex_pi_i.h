@@ -23,6 +23,7 @@
        " use <kern/mutex.h> instead"
 #endif
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include <kern/mutex_types.h>
@@ -38,8 +39,11 @@ mutex_impl_init(struct mutex *mutex)
     rtmutex_init(&mutex->rtmutex);
 }
 
-#define mutex_impl_assert_locked(mutex) \
-    rtmutex_assert_locked(&(mutex)->rtmutex)
+static inline bool
+mutex_impl_locked(const struct mutex *mutex)
+{
+    return rtmutex_locked(&mutex->rtmutex);
+}
 
 static inline int
 mutex_impl_trylock(struct mutex *mutex)

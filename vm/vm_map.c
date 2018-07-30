@@ -21,6 +21,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -127,28 +128,23 @@ vm_map_entry_cmp_insert(const struct rbtree_node *a,
     return vm_map_entry_cmp_lookup(entry->start, b);
 }
 
-#ifndef NDEBUG
-static void
-vm_map_request_assert_valid(const struct vm_map_request *request)
+static bool
+vm_map_request_valid(const struct vm_map_request *request)
 {
-    assert((request->object != NULL) || (request->offset == 0));
-    assert(vm_page_aligned(request->offset));
-    assert(vm_page_aligned(request->start));
-    assert(request->size > 0);
-    assert(vm_page_aligned(request->size));
-    assert((request->start + request->size) > request->start);
-    assert((request->align == 0) || (request->align >= PAGE_SIZE));
-    assert(ISP2(request->align));
-
-    assert((VM_MAP_PROT(request->flags) & VM_MAP_MAXPROT(request->flags))
-           == VM_MAP_PROT(request->flags));
-    assert(!(request->flags & VM_MAP_FIXED)
-           || (request->align == 0)
-           || P2ALIGNED(request->start, request->align));
+    return ((request->object != NULL) || (request->offset == 0))
+           && (vm_page_aligned(request->offset))
+           && (vm_page_aligned(request->start))
+           && (request->size > 0)
+           && (vm_page_aligned(request->size))
+           && ((request->start + request->size) > request->start)
+           && ((request->align == 0) || (request->align >= PAGE_SIZE))
+           && (ISP2(request->align))
+           && ((VM_MAP_PROT(request->flags) & VM_MAP_MAXPROT(request->flags))
+               == VM_MAP_PROT(request->flags))
+           && (!(request->flags & VM_MAP_FIXED)
+               || (request->align == 0)
+               || P2ALIGNED(request->start, request->align));
 }
-#else /* NDEBUG */
-#define vm_map_request_assert_valid(request)
-#endif /* NDEBUG */
 
 /*
  * Look up an entry in a map.
@@ -376,7 +372,7 @@ vm_map_prepare(struct vm_map *map, uintptr_t start,
     request->flags = flags;
     request->object = object;
     request->offset = offset;
-    vm_map_request_assert_valid(request);
+    assert(vm_map_request_valid(request));
 
     if (flags & VM_MAP_FIXED) {
         error = vm_map_find_fixed(map, request);

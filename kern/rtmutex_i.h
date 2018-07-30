@@ -47,8 +47,11 @@
 #define RTMUTEX_OWNER_MASK  (~((uintptr_t)(RTMUTEX_FORCE_WAIT \
                                            | RTMUTEX_CONTENDED)))
 
-#define rtmutex_assert_owner_aligned(owner) \
-    assert(((owner) & ~RTMUTEX_OWNER_MASK) == 0)
+static inline bool
+rtmutex_owner_aligned(uintptr_t owner)
+{
+    return (((owner) & ~RTMUTEX_OWNER_MASK) == 0);
+}
 
 static inline uintptr_t
 rtmutex_lock_fast(struct rtmutex *rtmutex)
@@ -56,7 +59,7 @@ rtmutex_lock_fast(struct rtmutex *rtmutex)
     uintptr_t owner;
 
     owner = (uintptr_t)thread_self();
-    rtmutex_assert_owner_aligned(owner);
+    assert(rtmutex_owner_aligned(owner));
     return atomic_cas(&rtmutex->owner, 0, owner, ATOMIC_ACQUIRE);
 }
 
@@ -66,7 +69,7 @@ rtmutex_unlock_fast(struct rtmutex *rtmutex)
     uintptr_t owner, prev_owner;
 
     owner = (uintptr_t)thread_self();
-    rtmutex_assert_owner_aligned(owner);
+    assert(rtmutex_owner_aligned(owner));
     prev_owner = atomic_cas(&rtmutex->owner, owner, 0, ATOMIC_RELEASE);
     assert((prev_owner & RTMUTEX_OWNER_MASK) == owner);
     return prev_owner;

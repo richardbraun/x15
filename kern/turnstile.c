@@ -402,14 +402,14 @@ turnstile_td_propagate_priority(struct turnstile_td *td)
     turnstile_td_propagate_priority_loop(td);
 }
 
-static void
-turnstile_assert_init_state(const struct turnstile *turnstile)
+static bool
+turnstile_init_state_valid(const struct turnstile *turnstile)
 {
-    assert(turnstile->bucket == NULL);
-    assert(turnstile->sync_obj == NULL);
-    assert(plist_empty(&turnstile->waiters));
-    assert(turnstile->next_free == NULL);
-    assert(turnstile->top_waiter == NULL);
+    return (turnstile->bucket == NULL)
+           && (turnstile->sync_obj == NULL)
+           && (plist_empty(&turnstile->waiters))
+           && (turnstile->next_free == NULL)
+           && (turnstile->top_waiter == NULL);
 }
 
 static void
@@ -530,14 +530,14 @@ turnstile_create(void)
         return NULL;
     }
 
-    turnstile_assert_init_state(turnstile);
+    assert(turnstile_init_state_valid(turnstile));
     return turnstile;
 }
 
 void
 turnstile_destroy(struct turnstile *turnstile)
 {
-    turnstile_assert_init_state(turnstile);
+    assert(turnstile_init_state_valid(turnstile));
     kmem_cache_free(&turnstile_cache, turnstile);
 }
 
@@ -604,7 +604,7 @@ turnstile_lend(const void *sync_obj)
     assert(sync_obj != NULL);
 
     turnstile = thread_turnstile_lend();
-    turnstile_assert_init_state(turnstile);
+    assert(turnstile_init_state_valid(turnstile));
 
     td = thread_turnstile_td(thread_self());
     bucket = turnstile_bucket_get(sync_obj);
@@ -654,7 +654,7 @@ turnstile_return(struct turnstile *turnstile)
 
     spinlock_unlock(&bucket->lock);
 
-    turnstile_assert_init_state(free_turnstile);
+    assert(turnstile_init_state_valid(turnstile));
     thread_turnstile_return(free_turnstile);
 }
 

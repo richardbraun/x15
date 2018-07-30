@@ -39,9 +39,6 @@
 
 struct spinlock;
 
-/* TODO Remove, let users do it instead */
-#define spinlock_assert_locked(lock) assert(spinlock_locked(lock))
-
 static inline bool
 spinlock_locked(const struct spinlock *lock)
 {

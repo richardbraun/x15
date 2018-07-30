@@ -25,12 +25,14 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/mutex_types.h>
 
+/* TODO Fix namespace */
 #define MUTEX_UNLOCKED  0
 #define MUTEX_LOCKED    1
 #define MUTEX_CONTENDED 2
@@ -41,8 +43,14 @@ mutex_plain_init(struct mutex *mutex)
     mutex->state = MUTEX_UNLOCKED;
 }
 
-#define mutex_plain_assert_locked(mutex) \
-    assert((mutex)->state != MUTEX_UNLOCKED)
+static inline bool
+mutex_plain_locked(const struct mutex *mutex)
+{
+    unsigned int state;
+
+    state = atomic_load(&mutex->state, ATOMIC_RELAXED);
+    return (state != MUTEX_UNLOCKED);
+}
 
 static inline int
 mutex_plain_lock_fast(struct mutex *mutex)
@@ -82,7 +90,7 @@ void mutex_plain_unlock_slow(struct mutex *mutex);
  */
 
 #define mutex_impl_init             mutex_plain_init
-#define mutex_impl_assert_locked    mutex_plain_assert_locked
+#define mutex_impl_locked           mutex_plain_locked
 
 static inline int
 mutex_impl_trylock(struct mutex *mutex)

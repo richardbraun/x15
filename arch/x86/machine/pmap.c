@@ -21,6 +21,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdalign.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -503,22 +504,17 @@ pmap_ap_setup_paging(unsigned int ap_id)
 #endif /* CONFIG_X86_PAE */
 }
 
-/*
- * Check address range with regard to physical map.
- */
-#define pmap_assert_range(pmap, start, end)             \
-MACRO_BEGIN                                             \
-    assert((start) < (end));                            \
-    assert(((end) <= PMAP_START_DIRECTMAP_ADDRESS)      \
-           || ((start) >= PMAP_END_DIRECTMAP_ADDRESS)); \
-                                                        \
-    if ((pmap) == pmap_get_kernel_pmap()) {                        \
-        assert(((start) >= PMAP_START_KMEM_ADDRESS)     \
-               && ((end) <= PMAP_END_KMEM_ADDRESS));    \
-    } else {                                            \
-        assert((end) <= PMAP_END_ADDRESS);              \
-    }                                                   \
-MACRO_END
+static bool
+pmap_range_valid(const struct pmap *pmap, uintptr_t start, uintptr_t end)
+{
+    return (start < end)
+           && ((end <= PMAP_START_DIRECTMAP_ADDRESS)
+               || (start >= PMAP_END_DIRECTMAP_ADDRESS))
+           && ((pmap == pmap_get_kernel_pmap())
+               ? ((start >= PMAP_START_KMEM_ADDRESS)
+                  && (end <= PMAP_END_KMEM_ADDRESS))
+               : (end <= PMAP_END_ADDRESS));
+}
 
 static inline pmap_pte_t *
 pmap_ptp_from_pa(phys_addr_t pa)
@@ -1223,7 +1219,7 @@ pmap_enter(struct pmap *pmap, uintptr_t va, phys_addr_t pa,
 
     va = vm_page_trunc(va);
     pa = vm_page_trunc(pa);
-    pmap_assert_range(pmap, va, va + PAGE_SIZE);
+    assert(pmap_range_valid(pmap, va, va + PAGE_SIZE));
 
     oplist = pmap_update_oplist_get();
     error = pmap_update_oplist_prepare(oplist, pmap);
@@ -1296,7 +1292,7 @@ pmap_remove(struct pmap *pmap, uintptr_t va, const struct cpumap *cpumap)
     int error;
 
     va = vm_page_trunc(va);
-    pmap_assert_range(pmap, va, va + PAGE_SIZE);
+    assert(pmap_range_valid(pmap, va, va + PAGE_SIZE));
 
     oplist = pmap_update_oplist_get();
     error = pmap_update_oplist_prepare(oplist, pmap);
@@ -1347,7 +1343,7 @@ pmap_protect(struct pmap *pmap, uintptr_t va, int prot,
     int error;
 
     va = vm_page_trunc(va);
-    pmap_assert_range(pmap, va, va + PAGE_SIZE);
+    assert(pmap_range_valid(pmap, va, va + PAGE_SIZE));
 
     oplist = pmap_update_oplist_get();
     error = pmap_update_oplist_prepare(oplist, pmap);

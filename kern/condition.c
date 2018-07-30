@@ -35,7 +35,7 @@ condition_wait_common(struct condition *condition, struct mutex *mutex,
     struct sleepq *sleepq;
     int error;
 
-    mutex_assert_locked(mutex);
+    assert(mutex_locked(mutex));
 
     sleepq = sleepq_lend(condition, true);
 
