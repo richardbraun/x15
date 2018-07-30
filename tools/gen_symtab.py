@@ -5,7 +5,6 @@ Embedded symbol table generator.
 
 import sys
 
-symtab_size = 0
 symtab = []
 
 for line in sys.stdin:
@@ -16,15 +15,19 @@ for line in sys.stdin:
     if len(parts) != 3 or parts[2].startswith("__func__."):
         continue
 
-    symtab.append("{ 0x%s, 0x%s, \"%s\" }" % tuple(parts))
-    symtab_size += 1
+    sym = {'addr': parts[0], 'size': parts[1], 'name': parts[2]}
+    symtab.append(sym)
 
 print("#include <kern/symbol.h>")
+
+for index, sym in enumerate(symtab):
+    print("static const char symbol_name_%u[] __symbol_table = \"%s\";" % (index, sym['name']))
+
 print("const struct symbol symbol_table[] __symbol_table = {")
 
-for elem in symtab:
-    print("    " + elem + ",",)
+for index, sym in enumerate(symtab):
+    print("    { 0x%s, 0x%s, symbol_name_%u }," % (sym['addr'], sym['size'], index))
 
 print("};")
-print("const size_t symbol_table_size = %d;" % symtab_size)
+print("const size_t symbol_table_size = %d;" % len(symtab))
 print("const struct symbol *symbol_table_ptr = symbol_table;")
