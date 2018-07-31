@@ -72,6 +72,7 @@
  *                                        |
  *                                        +-------------
  *
+ * TODO Explain the need for separate work/reader window flips.
  * TODO Improve atomic acknowledgment scalability.
  * TODO Handle large amounts of deferred works.
  * TODO Priority boosting of slow readers.
