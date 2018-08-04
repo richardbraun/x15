@@ -120,6 +120,10 @@
 .endr
 .endm
 
+/*
+ * Note that, unlike i386, the CPU aligns the stack frame to 16 bytes,
+ * and skipping the red zone keeps the stack pointer correctly aligned.
+ */
 .macro cpu_ll_exc_enter vector
     pushq %rbx                              /* save registers used for */
     pushq %rax                              /* stack switching */
@@ -146,6 +150,7 @@
 .macro cpu_ll_exc_handle vector
     cpu_ll_exc_enter \vector
     movq %rbx, %rdi
+    andq $(~(CPU_DATA_ALIGN - 1)), %rsp
     call cpu_exc_main
     cpu_ll_exc_leave
 .endm
@@ -201,6 +206,11 @@
     movl %esp, %ebx                         /* save frame */
 .endm
 
+.macro cpu_ll_exc_align_stack nr_args
+    andl $(~(CPU_DATA_ALIGN - 1)), %esp
+    addl $((\nr_args * CPU_WORD_SIZE) % CPU_DATA_ALIGN), %esp
+.endm
+
 .macro cpu_ll_exc_leave
     movl %ebx, %esp                         /* restore stack */
     call thread_schedule                    /* schedule threads */
@@ -210,6 +220,7 @@
 
 .macro cpu_ll_exc_handle vector
     cpu_ll_exc_enter \vector
+    cpu_ll_exc_align_stack 1
     pushl %ebx
     call cpu_exc_main
     cpu_ll_exc_leave
@@ -219,6 +230,7 @@
     cpu_ll_exc_enter \vector
     call cpu_get_intr_stack_ptr
     movl %eax, %esp                         /* switch to interrupt stack */
+    cpu_ll_exc_align_stack 1
     pushl %ebx
     call cpu_intr_main
     cpu_ll_exc_leave

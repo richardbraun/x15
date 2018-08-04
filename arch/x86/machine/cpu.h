@@ -90,9 +90,16 @@
 #define CPU_WORD_SIZE (LONG_BIT / 8)
 
 /*
- * Data alignment, normally the word size.
+ * Data alignment.
+ *
+ * This is used to align regions of memory that can store any type of
+ * data, such as stacks and sections. The modern i386 as well as the
+ * amd64 System V ABIs both mandate 16 byte data alignment. Kernel
+ * software could use smaller alignments, but this one is meant to
+ * be linked against static libraries, and in particular libgcc, which
+ * are built for standard ABIs.
  */
-#define CPU_DATA_ALIGN CPU_WORD_SIZE
+#define CPU_DATA_ALIGN 16
 
 /*
  * Function alignment.

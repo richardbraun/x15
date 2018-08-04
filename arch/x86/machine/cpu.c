@@ -118,9 +118,15 @@ struct cpu_pseudo_desc {
     uintptr_t address;
 } __packed;
 
+#ifdef __LP64__
+#define cpu_exc_frame_attrs
+#else /* __LP64__ */
+#define cpu_exc_frame_attrs __packed
+#endif /* __LP64__ */
+
 struct cpu_exc_frame {
     unsigned long words[CPU_EXC_FRAME_SIZE];
-};
+} cpu_exc_frame_attrs;
 
 /*
  * Type for low level exception handlers.
