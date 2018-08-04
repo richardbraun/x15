@@ -118,57 +118,9 @@ struct cpu_pseudo_desc {
     uintptr_t address;
 } __packed;
 
-#ifdef __LP64__
-
 struct cpu_exc_frame {
-    uint64_t rax;
-    uint64_t rbx;
-    uint64_t rcx;
-    uint64_t rdx;
-    uint64_t rbp;
-    uint64_t rsi;
-    uint64_t rdi;
-    uint64_t r8;
-    uint64_t r9;
-    uint64_t r10;
-    uint64_t r11;
-    uint64_t r12;
-    uint64_t r13;
-    uint64_t r14;
-    uint64_t r15;
-    uint64_t vector;
-    uint64_t error;
-    uint64_t rip;
-    uint64_t cs;
-    uint64_t rflags;
-    uint64_t rsp;
-    uint64_t ss;
-} __packed;
-
-#else /* __LP64__ */
-
-struct cpu_exc_frame {
-    uint32_t eax;
-    uint32_t ebx;
-    uint32_t ecx;
-    uint32_t edx;
-    uint32_t ebp;
-    uint32_t esi;
-    uint32_t edi;
-    uint16_t ds;
-    uint16_t es;
-    uint16_t fs;
-    uint16_t gs;
-    uint32_t vector;
-    uint32_t error;
-    uint32_t eip;
-    uint32_t cs;
-    uint32_t eflags;
-    uint32_t esp;       /* esp and ss are undefined if trapped in kernel */
-    uint32_t ss;
-} __packed;
-
-#endif /* __LP64__ */
+    unsigned long words[CPU_EXC_FRAME_SIZE];
+};
 
 /*
  * Type for low level exception handlers.
@@ -455,21 +407,32 @@ cpu_show_frame(const struct cpu_exc_frame *frame)
            "cpu: vector: %lu error: %08lx\n"
            "cpu: rip: %016lx cs: %lu rflags: %016lx\n"
            "cpu: rsp: %016lx ss: %lu\n",
-           (unsigned long)frame->rax, (unsigned long)frame->rbx,
-           (unsigned long)frame->rcx, (unsigned long)frame->rdx,
-           (unsigned long)frame->rbp, (unsigned long)frame->rsi,
-           (unsigned long)frame->rdi, (unsigned long)frame->r8,
-           (unsigned long)frame->r9, (unsigned long)frame->r10,
-           (unsigned long)frame->r11, (unsigned long)frame->r12,
-           (unsigned long)frame->r13, (unsigned long)frame->r14,
-           (unsigned long)frame->r15, (unsigned long)frame->vector,
-           (unsigned long)frame->error, (unsigned long)frame->rip,
-           (unsigned long)frame->cs, (unsigned long)frame->rflags,
-           (unsigned long)frame->rsp, (unsigned long)frame->ss);
+           frame->words[CPU_EXC_FRAME_RAX],
+           frame->words[CPU_EXC_FRAME_RBX],
+           frame->words[CPU_EXC_FRAME_RCX],
+           frame->words[CPU_EXC_FRAME_RDX],
+           frame->words[CPU_EXC_FRAME_RBP],
+           frame->words[CPU_EXC_FRAME_RSI],
+           frame->words[CPU_EXC_FRAME_RDI],
+           frame->words[CPU_EXC_FRAME_R8],
+           frame->words[CPU_EXC_FRAME_R9],
+           frame->words[CPU_EXC_FRAME_R10],
+           frame->words[CPU_EXC_FRAME_R11],
+           frame->words[CPU_EXC_FRAME_R12],
+           frame->words[CPU_EXC_FRAME_R13],
+           frame->words[CPU_EXC_FRAME_R14],
+           frame->words[CPU_EXC_FRAME_R15],
+           frame->words[CPU_EXC_FRAME_VECTOR],
+           frame->words[CPU_EXC_FRAME_ERROR],
+           frame->words[CPU_EXC_FRAME_RIP],
+           frame->words[CPU_EXC_FRAME_CS],
+           frame->words[CPU_EXC_FRAME_RFLAGS],
+           frame->words[CPU_EXC_FRAME_RSP],
+           frame->words[CPU_EXC_FRAME_SS]);
 
     /* XXX Until the page fault handler is written */
-    if (frame->vector == 14) {
-        printf("cpu: cr2: %016lx\n", (unsigned long)cpu_get_cr2());
+    if (frame->words[CPU_EXC_FRAME_VECTOR] == 14) {
+        printf("cpu: cr2: %016lx\n", cpu_get_cr2());
     }
 }
 
@@ -480,9 +443,10 @@ cpu_show_frame(const struct cpu_exc_frame *frame)
 {
     unsigned long esp, ss;
 
-    if ((frame->cs & CPU_PL_USER) || (frame->vector == CPU_EXC_DF)) {
-        esp = frame->esp;
-        ss = frame->ss;
+    if ((frame->words[CPU_EXC_FRAME_CS] & CPU_PL_USER)
+        || (frame->words[CPU_EXC_FRAME_VECTOR] == CPU_EXC_DF)) {
+        esp = frame->words[CPU_EXC_FRAME_ESP];
+        ss = frame->words[CPU_EXC_FRAME_SS];
     } else {
         esp = 0;
         ss = 0;
@@ -490,24 +454,33 @@ cpu_show_frame(const struct cpu_exc_frame *frame)
 
     printf("cpu: eax: %08lx ebx: %08lx ecx: %08lx edx: %08lx\n"
            "cpu: ebp: %08lx esi: %08lx edi: %08lx\n"
-           "cpu: ds: %hu es: %hu fs: %hu gs: %hu\n"
+           "cpu: ds: %lu es: %lu fs: %lu gs: %lu\n"
            "cpu: vector: %lu error: %08lx\n"
            "cpu: eip: %08lx cs: %lu eflags: %08lx\n"
            "cpu: esp: %08lx ss: %lu\n",
-           (unsigned long)frame->eax, (unsigned long)frame->ebx,
-           (unsigned long)frame->ecx, (unsigned long)frame->edx,
-           (unsigned long)frame->ebp, (unsigned long)frame->esi,
-           (unsigned long)frame->edi, (unsigned short)frame->ds,
-           (unsigned short)frame->es, (unsigned short)frame->fs,
-           (unsigned short)frame->gs, (unsigned long)frame->vector,
-           (unsigned long)frame->error, (unsigned long)frame->eip,
-           (unsigned long)frame->cs, (unsigned long)frame->eflags,
-           (unsigned long)esp, (unsigned long)ss);
+           frame->words[CPU_EXC_FRAME_EAX],
+           frame->words[CPU_EXC_FRAME_EBX],
+           frame->words[CPU_EXC_FRAME_ECX],
+           frame->words[CPU_EXC_FRAME_EDX],
+           frame->words[CPU_EXC_FRAME_EBP],
+           frame->words[CPU_EXC_FRAME_ESI],
+           frame->words[CPU_EXC_FRAME_EDI],
+           frame->words[CPU_EXC_FRAME_DS],
+           frame->words[CPU_EXC_FRAME_ES],
+           frame->words[CPU_EXC_FRAME_FS],
+           frame->words[CPU_EXC_FRAME_GS],
+           frame->words[CPU_EXC_FRAME_VECTOR],
+           frame->words[CPU_EXC_FRAME_ERROR],
+           frame->words[CPU_EXC_FRAME_EIP],
+           frame->words[CPU_EXC_FRAME_CS],
+           frame->words[CPU_EXC_FRAME_EFLAGS],
+           esp,
+           ss);
 
 
     /* XXX Until the page fault handler is written */
-    if (frame->vector == 14) {
-        printf("cpu: cr2: %08lx\n", (unsigned long)cpu_get_cr2());
+    if (frame->words[CPU_EXC_FRAME_VECTOR] == 14) {
+        printf("cpu: cr2: %08lx\n", cpu_get_cr2());
     }
 }
 
@@ -516,11 +489,7 @@ cpu_show_frame(const struct cpu_exc_frame *frame)
 static void
 cpu_show_stack(const struct cpu_exc_frame *frame)
 {
-#ifdef __LP64__
-    strace_show(frame->rip, frame->rbp);
-#else /* __LP64__ */
-    strace_show(frame->eip, frame->ebp);
-#endif /* __LP64__ */
+    strace_show(frame->words[CPU_EXC_FRAME_PC], frame->words[CPU_EXC_FRAME_FP]);
 }
 
 static void
@@ -538,24 +507,24 @@ cpu_exc_double_fault(const struct cpu_exc_frame *frame)
      * main TSS by the processor. Build a proper exception frame from there.
      */
     cpu = cpu_current();
-    frame_store.eax = cpu->tss.eax;
-    frame_store.ebx = cpu->tss.ebx;
-    frame_store.ecx = cpu->tss.ecx;
-    frame_store.edx = cpu->tss.edx;
-    frame_store.ebp = cpu->tss.ebp;
-    frame_store.esi = cpu->tss.esi;
-    frame_store.edi = cpu->tss.edi;
-    frame_store.ds = cpu->tss.ds;
-    frame_store.es = cpu->tss.es;
-    frame_store.fs = cpu->tss.fs;
-    frame_store.gs = cpu->tss.gs;
-    frame_store.vector = CPU_EXC_DF;
-    frame_store.error = 0;
-    frame_store.eip = cpu->tss.eip;
-    frame_store.cs = cpu->tss.cs;
-    frame_store.eflags = cpu->tss.eflags;
-    frame_store.esp = cpu->tss.esp;
-    frame_store.ss = cpu->tss.ss;
+    frame_store.words[CPU_EXC_FRAME_EAX]    = cpu->tss.eax;
+    frame_store.words[CPU_EXC_FRAME_EBX]    = cpu->tss.ebx;
+    frame_store.words[CPU_EXC_FRAME_ECX]    = cpu->tss.ecx;
+    frame_store.words[CPU_EXC_FRAME_EDX]    = cpu->tss.edx;
+    frame_store.words[CPU_EXC_FRAME_EBP]    = cpu->tss.ebp;
+    frame_store.words[CPU_EXC_FRAME_ESI]    = cpu->tss.esi;
+    frame_store.words[CPU_EXC_FRAME_EDI]    = cpu->tss.edi;
+    frame_store.words[CPU_EXC_FRAME_DS]     = cpu->tss.ds;
+    frame_store.words[CPU_EXC_FRAME_ES]     = cpu->tss.es;
+    frame_store.words[CPU_EXC_FRAME_FS]     = cpu->tss.fs;
+    frame_store.words[CPU_EXC_FRAME_GS]     = cpu->tss.gs;
+    frame_store.words[CPU_EXC_FRAME_VECTOR] = CPU_EXC_DF;
+    frame_store.words[CPU_EXC_FRAME_ERROR]  = 0;
+    frame_store.words[CPU_EXC_FRAME_EIP]    = cpu->tss.eip;
+    frame_store.words[CPU_EXC_FRAME_CS]     = cpu->tss.cs;
+    frame_store.words[CPU_EXC_FRAME_EFLAGS] = cpu->tss.eflags;
+    frame_store.words[CPU_EXC_FRAME_ESP]    = cpu->tss.esp;
+    frame_store.words[CPU_EXC_FRAME_SS]     = cpu->tss.ss;
     frame = &frame_store;
 #endif /* __LP64__ */
 
@@ -570,8 +539,10 @@ void
 cpu_exc_main(const struct cpu_exc_frame *frame)
 {
     const struct cpu_exc_handler *handler;
+    unsigned int vector;
 
-    handler = cpu_get_exc_handler(frame->vector);
+    vector = (unsigned int)frame->words[CPU_EXC_FRAME_VECTOR];
+    handler = cpu_get_exc_handler(vector);
     cpu_exc_handler_run(handler, frame);
     assert(!cpu_intr_enabled());
 }
@@ -580,11 +551,13 @@ void
 cpu_intr_main(const struct cpu_exc_frame *frame)
 {
     const struct cpu_intr_handler *handler;
+    unsigned int vector;
 
-    handler = cpu_get_intr_handler(frame->vector);
+    vector = (unsigned int)frame->words[CPU_EXC_FRAME_VECTOR];
+    handler = cpu_get_intr_handler(vector);
 
     thread_intr_enter();
-    cpu_intr_handler_run(handler, frame->vector);
+    cpu_intr_handler_run(handler, vector);
     thread_intr_leave();
 
     assert(!cpu_intr_enabled());

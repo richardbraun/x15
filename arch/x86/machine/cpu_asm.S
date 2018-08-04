@@ -18,12 +18,57 @@
 #include <kern/init.h>
 #include <machine/asm.h>
 #include <machine/cpu.h>
+#include <machine/cpu_i.h>
 
 #define CPU_RED_ZONE_SIZE 128
+
+/*
+ * Macro used to compute an offset, in bytes, between two indexes in a
+ * low level exception frame. The indexes may be given in any order.
+ */
+#define CPU_LEF_OFFSET(index1, index2) (((index2) - (index1)) * CPU_WORD_SIZE)
 
 .text
 
 #ifdef __LP64__
+
+/*
+ * Number of CPU registers on exception.
+ *
+ * These are the registers automatically pushed by the CPU when an exception
+ * is taken, including the error code.
+ */
+#define CPU_NR_CRE (CPU_EXC_FRAME_SIZE - CPU_EXC_FRAME_ERROR)
+
+/*
+ * Remaining size when taking an exception.
+ *
+ * This is the total size of an exception frame without the registers
+ * automatically pushed by the CPU and those saved for stack switching.
+ */
+#define CPU_LEF_EXC_REM CPU_LEF_OFFSET(CPU_EXC_FRAME_ERROR - 2, \
+                                       CPU_EXC_FRAME_SIZE)
+
+/*
+ * RSP offset, from the top of the exception frame.
+ */
+#define CPU_LEF_RSP     CPU_LEF_OFFSET(CPU_EXC_FRAME_SIZE, \
+                                       CPU_EXC_FRAME_RSP)
+
+/*
+ * Offsets where registers used for stack switching are saved when taking
+ * an exception, from the top of the exception frame.
+ */
+#define CPU_LEF_EXC_RAX CPU_LEF_OFFSET(CPU_EXC_FRAME_SIZE, \
+                                       CPU_EXC_FRAME_ERROR - 2)
+#define CPU_LEF_EXC_RBX CPU_LEF_OFFSET(CPU_EXC_FRAME_SIZE, \
+                                       CPU_EXC_FRAME_ERROR - 1)
+
+/*
+ * Size used to store the vector and the error code.
+ */
+#define CPU_LEF_VEC_ERR CPU_LEF_OFFSET(CPU_EXC_FRAME_VECTOR, \
+                                       CPU_EXC_FRAME_ERROR + 1)
 
 .macro cpu_ll_exc_store_registers
     pushq %r15
@@ -59,7 +104,7 @@
     popq %r13
     popq %r14
     popq %r15
-    addq $16, %rsp              /* skip vector and error */
+    addq $CPU_LEF_VEC_ERR, %rsp             /* skip vector and error */
 .endm
 
 .macro cpu_ll_exc_push_word source offset buffer
@@ -68,31 +113,32 @@
 .endm
 
 .macro cpu_ll_exc_push source nr_words buffer
-.set offset, 8
+.set offset, CPU_WORD_SIZE
 .rept \nr_words
     cpu_ll_exc_push_word \source offset \buffer
-.set offset, offset + 8
+.set offset, offset + CPU_WORD_SIZE
 .endr
 .endm
 
 .macro cpu_ll_exc_enter vector
-    pushq %rbx                  /* save registers used for stack switching */
-    pushq %rax
-    leaq 64(%rsp), %rbx         /* point to the top of the exception frame */
-    movq -16(%rbx), %rsp        /* point to the thread stack */
-    subq $CPU_RED_ZONE_SIZE, %rsp
-    cpu_ll_exc_push %rbx 6 %rax
-    movq -64(%rbx), %rax        /* restore registers used for stack switching */
-    movq -56(%rbx), %rbx
-    pushq $\vector
+    pushq %rbx                              /* save registers used for */
+    pushq %rax                              /* stack switching */
+    leaq CPU_LEF_EXC_REM(%rsp), %rbx        /* point to exception frame top */
+    movq CPU_LEF_RSP(%rbx), %rsp            /* point to thread stack */
+    subq $CPU_RED_ZONE_SIZE, %rsp           /* skip red zone */
+    cpu_ll_exc_push %rbx, CPU_NR_CRE, %rax  /* copy frame start from interrupt
+                                               stack to thread stack */
+    movq CPU_LEF_EXC_RAX(%rbx), %rax        /* restore registers used */
+    movq CPU_LEF_EXC_RBX(%rbx), %rbx        /* for stack switching */
+    pushq $\vector                          /* complete exception frame */
     cpu_ll_exc_store_registers
-    xorq %rbp, %rbp             /* block stack tracing */
-    movq %rsp, %rbx             /* save frame */
+    xorq %rbp, %rbp                         /* block stack tracing */
+    movq %rsp, %rbx                         /* save frame */
 .endm
 
 .macro cpu_ll_exc_leave
-    movq %rbx, %rsp             /* restore stack */
-    call thread_schedule        /* schedule threads */
+    movq %rbx, %rsp                         /* restore stack */
+    call thread_schedule                    /* schedule threads */
     cpu_ll_exc_load_registers
     iretq
 .endm
@@ -107,7 +153,7 @@
 .macro cpu_ll_intr_handle vector
     cpu_ll_exc_enter \vector
     call cpu_get_intr_stack_ptr
-    movq %rax, %rsp             /* switch to interrupt stack */
+    movq %rax, %rsp                         /* switch to interrupt stack */
     movq %rbx, %rdi
     call cpu_intr_main
     cpu_ll_exc_leave
@@ -115,11 +161,17 @@
 
 #else /* __LP64__ */
 
+/*
+ * Size used to store the segment registers, the vector and the error code.
+ */
+#define CPU_LEF_SEGS_VEC_ERR CPU_LEF_OFFSET(CPU_EXC_FRAME_DS, \
+                                            CPU_EXC_FRAME_ERROR + 1)
+
 .macro cpu_ll_exc_store_registers
-    pushw %gs
-    pushw %fs
-    pushw %es
-    pushw %ds
+    pushl %gs
+    pushl %fs
+    pushl %es
+    pushl %ds
     pushl %edi
     pushl %esi
     pushl %ebp
@@ -138,19 +190,20 @@
     popl %ebp
     popl %esi
     popl %edi
-    addl $16, %esp              /* skip segment registers, vector and error */
+    addl $CPU_LEF_SEGS_VEC_ERR, %esp        /* skip segment registers,
+                                               vector and error */
 .endm
 
 .macro cpu_ll_exc_enter vector
     pushl $\vector
     cpu_ll_exc_store_registers
-    xorl %ebp, %ebp             /* block stack tracing */
-    movl %esp, %ebx             /* save frame */
+    xorl %ebp, %ebp                         /* block stack tracing */
+    movl %esp, %ebx                         /* save frame */
 .endm
 
 .macro cpu_ll_exc_leave
-    movl %ebx, %esp             /* restore stack */
-    call thread_schedule        /* schedule threads */
+    movl %ebx, %esp                         /* restore stack */
+    call thread_schedule                    /* schedule threads */
     cpu_ll_exc_load_registers
     iretl
 .endm
@@ -165,7 +218,7 @@
 .macro cpu_ll_intr_handle vector
     cpu_ll_exc_enter \vector
     call cpu_get_intr_stack_ptr
-    movl %eax, %esp             /* switch to interrupt stack */
+    movl %eax, %esp                         /* switch to interrupt stack */
     pushl %ebx
     call cpu_intr_main
     cpu_ll_exc_leave

@@ -19,6 +19,68 @@
 #define X86_CPU_I_H
 
 /*
+ * Exception frame offets.
+ */
+
+#ifdef __LP64__
+
+#define CPU_EXC_FRAME_RAX       0
+#define CPU_EXC_FRAME_RBX       1
+#define CPU_EXC_FRAME_RCX       2
+#define CPU_EXC_FRAME_RDX       3
+#define CPU_EXC_FRAME_RBP       4
+#define CPU_EXC_FRAME_RSI       5
+#define CPU_EXC_FRAME_RDI       6
+#define CPU_EXC_FRAME_R8        7
+#define CPU_EXC_FRAME_R9        8
+#define CPU_EXC_FRAME_R10       9
+#define CPU_EXC_FRAME_R11       10
+#define CPU_EXC_FRAME_R12       11
+#define CPU_EXC_FRAME_R13       12
+#define CPU_EXC_FRAME_R14       13
+#define CPU_EXC_FRAME_R15       14
+#define CPU_EXC_FRAME_VECTOR    15
+#define CPU_EXC_FRAME_ERROR     16
+#define CPU_EXC_FRAME_RIP       17
+#define CPU_EXC_FRAME_CS        18
+#define CPU_EXC_FRAME_RFLAGS    19
+#define CPU_EXC_FRAME_RSP       20
+#define CPU_EXC_FRAME_SS        21
+#define CPU_EXC_FRAME_SIZE      22
+
+#define CPU_EXC_FRAME_FP        CPU_EXC_FRAME_RBP
+#define CPU_EXC_FRAME_SP        CPU_EXC_FRAME_RSP
+#define CPU_EXC_FRAME_PC        CPU_EXC_FRAME_RIP
+
+#else /* __LP64__ */
+
+#define CPU_EXC_FRAME_EAX       0
+#define CPU_EXC_FRAME_EBX       1
+#define CPU_EXC_FRAME_ECX       2
+#define CPU_EXC_FRAME_EDX       3
+#define CPU_EXC_FRAME_EBP       4
+#define CPU_EXC_FRAME_ESI       5
+#define CPU_EXC_FRAME_EDI       6
+#define CPU_EXC_FRAME_DS        7
+#define CPU_EXC_FRAME_ES        8
+#define CPU_EXC_FRAME_FS        9
+#define CPU_EXC_FRAME_GS        10
+#define CPU_EXC_FRAME_VECTOR    11
+#define CPU_EXC_FRAME_ERROR     12
+#define CPU_EXC_FRAME_EIP       13
+#define CPU_EXC_FRAME_CS        14
+#define CPU_EXC_FRAME_EFLAGS    15
+#define CPU_EXC_FRAME_ESP       16
+#define CPU_EXC_FRAME_SS        17 /* esp and ss are undefined if trapped in kernel */
+#define CPU_EXC_FRAME_SIZE      18
+
+#define CPU_EXC_FRAME_FP        CPU_EXC_FRAME_EBP
+#define CPU_EXC_FRAME_SP        CPU_EXC_FRAME_ESP
+#define CPU_EXC_FRAME_PC        CPU_EXC_FRAME_EIP
+
+#endif /* __LP64__ */
+
+/*
  * EFLAGS register flags.
  */
 #define CPU_EFL_ONE 0x00000002  /* Reserved, must be set */

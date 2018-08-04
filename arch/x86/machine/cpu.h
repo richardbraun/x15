@@ -85,9 +85,14 @@
 #define CPU_L1_SIZE 64
 
 /*
+ * CPU word size, 4 or 8 bytes.
+ */
+#define CPU_WORD_SIZE (LONG_BIT / 8)
+
+/*
  * Data alignment, normally the word size.
  */
-#define CPU_DATA_ALIGN (LONG_BIT / 8)
+#define CPU_DATA_ALIGN CPU_WORD_SIZE
 
 /*
  * Function alignment.
