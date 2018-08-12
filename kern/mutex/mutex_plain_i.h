@@ -32,15 +32,14 @@
 #include <kern/init.h>
 #include <kern/mutex_types.h>
 
-/* TODO Fix namespace */
-#define MUTEX_UNLOCKED  0
-#define MUTEX_LOCKED    1
-#define MUTEX_CONTENDED 2
+#define MUTEX_PLAIN_UNLOCKED    0
+#define MUTEX_PLAIN_LOCKED      1
+#define MUTEX_PLAIN_CONTENDED   2
 
 static inline void
 mutex_plain_init(struct mutex *mutex)
 {
-    mutex->state = MUTEX_UNLOCKED;
+    mutex->state = MUTEX_PLAIN_UNLOCKED;
 }
 
 static inline bool
@@ -49,7 +48,7 @@ mutex_plain_locked(const struct mutex *mutex)
     unsigned int state;
 
     state = atomic_load(&mutex->state, ATOMIC_RELAXED);
-    return (state != MUTEX_UNLOCKED);
+    return (state != MUTEX_PLAIN_UNLOCKED);
 }
 
 static inline int
@@ -57,10 +56,10 @@ mutex_plain_lock_fast(struct mutex *mutex)
 {
     unsigned int state;
 
-    state = atomic_cas(&mutex->state, MUTEX_UNLOCKED,
-                       MUTEX_LOCKED, ATOMIC_ACQUIRE);
+    state = atomic_cas(&mutex->state, MUTEX_PLAIN_UNLOCKED,
+                       MUTEX_PLAIN_LOCKED, ATOMIC_ACQUIRE);
 
-    if (unlikely(state != MUTEX_UNLOCKED)) {
+    if (unlikely(state != MUTEX_PLAIN_UNLOCKED)) {
         return EBUSY;
     }
 
@@ -72,9 +71,9 @@ mutex_plain_unlock_fast(struct mutex *mutex)
 {
     unsigned int state;
 
-    state = atomic_swap(&mutex->state, MUTEX_UNLOCKED, ATOMIC_RELEASE);
+    state = atomic_swap(&mutex->state, MUTEX_PLAIN_UNLOCKED, ATOMIC_RELEASE);
 
-    if (unlikely(state == MUTEX_CONTENDED)) {
+    if (unlikely(state == MUTEX_PLAIN_CONTENDED)) {
         return EBUSY;
     }
 

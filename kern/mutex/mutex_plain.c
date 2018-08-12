@@ -83,9 +83,10 @@ mutex_plain_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
     sleepq = sleepq_lend(mutex, false);
 
     for (;;) {
-        state = atomic_swap(&mutex->state, MUTEX_CONTENDED, ATOMIC_RELEASE);
+        state = atomic_swap(&mutex->state, MUTEX_PLAIN_CONTENDED,
+                            ATOMIC_RELEASE);
 
-        if (state == MUTEX_UNLOCKED) {
+        if (state == MUTEX_PLAIN_UNLOCKED) {
             break;
         }
 
@@ -105,8 +106,8 @@ mutex_plain_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
 
         if (sleepq_empty(sleepq)) {
             mutex_plain_inc_sc(MUTEX_PLAIN_SC_ERROR_DOWNGRADES);
-            atomic_cas(&mutex->state, MUTEX_CONTENDED,
-                       MUTEX_LOCKED, ATOMIC_RELAXED);
+            atomic_cas(&mutex->state, MUTEX_PLAIN_CONTENDED,
+                       MUTEX_PLAIN_LOCKED, ATOMIC_RELAXED);
         }
 
         goto out;
@@ -116,7 +117,7 @@ mutex_plain_lock_slow_common(struct mutex *mutex, bool timed, uint64_t ticks)
 
     if (sleepq_empty(sleepq)) {
         mutex_plain_inc_sc(MUTEX_PLAIN_SC_DOWNGRADES);
-        atomic_store(&mutex->state, MUTEX_LOCKED, ATOMIC_RELAXED);
+        atomic_store(&mutex->state, MUTEX_PLAIN_LOCKED, ATOMIC_RELAXED);
     }
 
 out:
