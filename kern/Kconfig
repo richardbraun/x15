@@ -94,6 +94,16 @@ config THREAD_STACK_GUARD
 
 	  If unsure, disable.
 
+config THREAD_MAX_TSD_KEYS
+	int "Maximum number of thread-specific data (TSD) keys"
+	default 0
+	---help---
+	  This option is intended for application code embedded in the kernel
+	  which may use TSD. The kernel itself never uses them. A value of 0
+	  completely disables TSD support.
+
+	  If unsure, set to 0.
+
 config PERFMON
 	def_bool n
 

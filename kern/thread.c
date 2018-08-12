@@ -330,15 +330,20 @@ static struct {
 
 #define thread_fs_highest_round (thread_fs_highest_round_struct.value)
 
+#if CONFIG_THREAD_MAX_TSD_KEYS != 0
+
 /*
- * Number of TSD keys actually allocated.
+ * Number of allocated TSD keys.
  */
-static unsigned int thread_nr_keys __read_mostly;
+static unsigned int thread_nr_tsd_keys __read_mostly;
 
 /*
  * Destructors installed for each key.
  */
-static thread_dtor_fn_t thread_dtors[THREAD_KEYS_MAX] __read_mostly;
+static thread_tsd_dtor_fn_t thread_tsd_dtors[CONFIG_THREAD_MAX_TSD_KEYS]
+    __read_mostly;
+
+#endif /* CONFIG_THREAD_MAX_TSD_KEYS != 0 */
 
 /*
  * Number of processors which have requested the scheduler to run.
@@ -1724,7 +1729,9 @@ thread_init_booter(unsigned int cpu)
     thread_set_user_sched_class(booter, THREAD_SCHED_CLASS_IDLE);
     thread_set_user_priority(booter, 0);
     thread_reset_real_priority(booter);
+#if CONFIG_THREAD_MAX_TSD_KEYS
     memset(booter->tsd, 0, sizeof(booter->tsd));
+#endif /* CONFIG_THREAD_MAX_TSD_KEYS != 0 */
     booter->task = task_get_kernel_task();
     snprintf(booter->name, sizeof(booter->name),
              THREAD_KERNEL_PREFIX "thread_boot/%u", cpu);
@@ -1777,6 +1784,7 @@ thread_main(void (*fn)(void *), void *arg)
     thread_exit();
 }
 
+#if CONFIG_THREAD_MAX_TSD_KEYS != 0
 static void
 thread_destroy_tsd(struct thread *thread)
 {
@@ -1785,8 +1793,8 @@ thread_destroy_tsd(struct thread *thread)
 
     i = 0;
 
-    while (i < thread_nr_keys) {
-        if ((thread->tsd[i] == NULL) || (thread_dtors[i] == NULL)) {
+    while (i < thread_nr_tsd_keys) {
+        if ((thread->tsd[i] == NULL) || (thread_tsd_dtors[i] == NULL)) {
             i++;
             continue;
         }
@@ -1797,13 +1805,16 @@ thread_destroy_tsd(struct thread *thread)
          */
         ptr = thread->tsd[i];
         thread->tsd[i] = NULL;
-        thread_dtors[i](ptr);
+        thread_tsd_dtors[i](ptr);
 
         if (thread->tsd[i] == NULL) {
             i++;
         }
     }
 }
+#else /* CONFIG_THREAD_MAX_TSD_KEYS != 0 */
+#define thread_destroy_tsd(thread) ((void)(thread))
+#endif /* CONFIG_THREAD_MAX_TSD_KEYS != 0 */
 
 static int
 thread_init(struct thread *thread, void *stack,
@@ -1852,7 +1863,9 @@ thread_init(struct thread *thread, void *stack,
     thread_set_user_sched_class(thread, thread_policy_to_class(attr->policy));
     thread_set_user_priority(thread, attr->priority);
     thread_reset_real_priority(thread);
+#if CONFIG_THREAD_MAX_TSD_KEYS != 0
     memset(thread->tsd, 0, sizeof(thread->tsd));
+#endif /* CONFIG_THREAD_MAX_TSD_KEYS != 0 */
     thread->join_waiter = NULL;
     spinlock_init(&thread->join_lock);
     thread->terminating = false;
@@ -2923,20 +2936,22 @@ thread_propagate_priority(void)
     turnstile_td_propagate_priority(thread_turnstile_td(thread));
 }
 
+#if CONFIG_THREAD_MAX_TSD_KEYS != 0
 void
-thread_key_create(unsigned int *keyp, thread_dtor_fn_t dtor)
+thread_key_create(unsigned int *keyp, thread_tsd_dtor_fn_t dtor)
 {
     unsigned int key;
 
-    key = atomic_fetch_add(&thread_nr_keys, 1, ATOMIC_RELAXED);
+    key = atomic_fetch_add(&thread_nr_tsd_keys, 1, ATOMIC_RELAXED);
 
-    if (key >= THREAD_KEYS_MAX) {
+    if (key >= ARRAY_SIZE(thread_tsd_dtors)) {
         panic("thread: maximum number of keys exceeded");
     }
 
-    thread_dtors[key] = dtor;
+    thread_tsd_dtors[key] = dtor;
     *keyp = key;
 }
+#endif /* CONFIG_THREAD_MAX_TSD_KEYS != 0 */
 
 unsigned int
 thread_cpu(const struct thread *thread)

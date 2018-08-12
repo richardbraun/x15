@@ -664,9 +664,15 @@ thread_rcu_reader(struct thread *thread)
 }
 
 /*
+ * Thread-specific data functions.
+ */
+
+#if CONFIG_THREAD_MAX_TSD_KEYS != 0
+
+/*
  * Type for thread-specific data destructor.
  */
-typedef void (*thread_dtor_fn_t)(void *);
+typedef void (*thread_tsd_dtor_fn_t)(void *);
 
 /*
  * Allocate a TSD key.
@@ -674,7 +680,7 @@ typedef void (*thread_dtor_fn_t)(void *);
  * If not NULL, the destructor is called on thread destruction on the pointer
  * associated with the allocated key.
  */
-void thread_key_create(unsigned int *keyp, thread_dtor_fn_t dtor);
+void thread_key_create(unsigned int *keyp, thread_tsd_dtor_fn_t dtor);
 
 /*
  * Set the pointer associated with a key for the given thread.
@@ -711,6 +717,8 @@ thread_get_specific(unsigned int key)
 {
     return thread_tsd_get(thread_self(), key);
 }
+
+#endif /* CONFIG_THREAD_MAX_TSD_KEYS != 0 */
 
 static inline const char *
 thread_name(const struct thread *thread)

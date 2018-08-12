@@ -66,11 +66,6 @@ struct thread_fs_data {
 };
 
 /*
- * Maximum number of thread-specific data keys.
- */
-#define THREAD_KEYS_MAX 4
-
-/*
  * Thread structure.
  *
  * Threads don't have their own lock. Instead, the associated run queue
@@ -152,9 +147,11 @@ struct thread {
     /*
      * Thread-specific data.
      *
-     * TODO Make optional.
+     * TSD are reserved for application use.
      */
-    void *tsd[THREAD_KEYS_MAX];
+#if CONFIG_THREAD_MAX_TSD_KEYS != 0
+    void *tsd[CONFIG_THREAD_MAX_TSD_KEYS];
+#endif /* CONFIG_THREAD_MAX_TSD_KEYS != 0 */
 
     /*
      * Members related to termination.
