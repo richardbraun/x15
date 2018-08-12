@@ -72,7 +72,20 @@
  *                                        |
  *                                        +-------------
  *
- * TODO Explain the need for separate work/reader window flips.
+ * On each processor, work window flips are separate from reader window
+ * flips in order to correctly handle situations such as this one, where
+ * "wf" denotes a window flip for both works and readers :
+ *
+ * t ---->
+ *
+ * CPU0   wf load                           flush
+ * CPU1            wf                       flush
+ * global          no-new-reader ... no-ref       loaded value now invalid
+ *
+ * After its window flip, CPU0 may load data from the previous window with
+ * a reader linked to the current window, because it doesn't know that there
+ * may still be new works queued on the previous window.
+ *
  * TODO Improve atomic acknowledgment scalability.
  * TODO Handle large amounts of deferred works.
  * TODO Priority boosting of slow readers.
