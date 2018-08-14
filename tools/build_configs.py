@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import pathlib
 
 def quote_if_needed(value):
     if not value.isdigit() and value != 'y' and value != 'n':
@@ -106,20 +107,13 @@ large_options_dict.update({
     'CONFIG_THREAD_STACK_GUARD'     : ['y', 'n'],
 })
 
-# TODO Generate this list from test/test_*.c
-test_list = [
-    'CONFIG_TEST_MODULE_ATOMIC',
-    'CONFIG_TEST_MODULE_BULLETIN',
-    'CONFIG_TEST_MODULE_MUTEX',
-    'CONFIG_TEST_MODULE_MUTEX_PI',
-    'CONFIG_TEST_MODULE_PMAP_UPDATE_MP',
-    'CONFIG_TEST_MODULE_RCU_DEFER',
-    'CONFIG_TEST_MODULE_SREF_DIRTY_ZEROES',
-    'CONFIG_TEST_MODULE_SREF_NOREF',
-    'CONFIG_TEST_MODULE_SREF_WEAKREF',
-    'CONFIG_TEST_MODULE_VM_PAGE_FILL',
-    'CONFIG_TEST_MODULE_XCALL',
-]
+def gen_test_module_option(path):
+    name = path.name
+    root, ext = os.path.splitext(name)
+    return 'CONFIG_' + root.upper()
+
+test_path = pathlib.Path('test')
+test_list = [gen_test_module_option(p) for p in test_path.glob('test_*.c')]
 
 test_options_dict = dict(small_options_dict)
 
