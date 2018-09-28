@@ -330,6 +330,8 @@ endef
 .x15.sorted_init_ops: $(filter %.c,$(x15_SOURCES)) include/generated/autoconf.h
 	$(call gen_sorted_init_ops)
 
+# Adding the sorted initialization operations as a dependency allows checking
+# for loops at build time.
 x15_DEPS := $(x15_LDS) .x15.sorted_init_ops
 
 # Compiling produces dependency rules as a side-effect. When the dependency
