@@ -139,6 +139,9 @@ struct thread {
      */
     bool boosted;   /* (r,t) */
 
+    /* True if the thread is marked to suspend */
+    bool suspend;   /* (r) */
+
     union {
         struct thread_rt_data rt_data;  /* (r) */
         struct thread_fs_data fs_data;  /* (r) */

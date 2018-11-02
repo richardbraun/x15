@@ -61,6 +61,9 @@ config TEST_MODULE_SREF_NOREF
 config TEST_MODULE_SREF_WEAKREF
 	bool "sref_weakref"
 
+config TEST_MODULE_THREAD_SUSPEND
+	bool "thread_suspend"
+
 config TEST_MODULE_VM_PAGE_FILL
 	bool "vm_page_fill"
 

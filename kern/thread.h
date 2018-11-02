@@ -77,9 +77,10 @@ struct thread_sched_data {
 /*
  * Thread states.
  */
-#define THREAD_RUNNING  0
-#define THREAD_SLEEPING 1
-#define THREAD_DEAD     2
+#define THREAD_RUNNING      0
+#define THREAD_SLEEPING     1
+#define THREAD_DEAD         2
+#define THREAD_SUSPENDED    3
 
 /*
  * Scheduling policies.
@@ -237,11 +238,33 @@ int thread_timedsleep(struct spinlock *interlock, const void *wchan_addr,
  * Schedule a thread for execution on a processor.
  *
  * If the target thread is NULL, the calling thread, or already in the
- * running state, no action is performed and EINVAL is returned.
+ * running state, or in the suspended state, no action is performed and
+ * EINVAL is returned.
  *
  * TODO Describe memory ordering with regard to thread_sleep().
  */
 int thread_wakeup(struct thread *thread);
+
+/*
+ * Suspend a thread.
+ *
+ * A suspended thread may only be resumed by calling thread_resume().
+ *
+ * This operation is asynchronous, i.e. the caller must not expect the target
+ * thread to be suspended on return.
+ *
+ * If attempting to suspend core system threads, the request is ignored and
+ * EINVAL is returned.
+ */
+int thread_suspend(struct thread *thread);
+
+/*
+ * Resume a thread.
+ *
+ * This call is equivalent to thread_wakeup(), with the exception that
+ * it may also wake up suspended threads.
+ */
+int thread_resume(struct thread *thread);
 
 /*
  * Suspend execution of the calling thread.
