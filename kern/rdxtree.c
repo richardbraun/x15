@@ -109,13 +109,11 @@ struct rdxtree_node {
 
 static struct kmem_cache rdxtree_node_cache;
 
-#ifndef NDEBUG
 static bool
 rdxtree_alignment_valid(const void *ptr)
 {
     return (((uintptr_t)ptr & ~RDXTREE_ENTRY_ADDR_MASK) == 0);
 }
-#endif /* NDEBUG */
 
 static inline void *
 rdxtree_entry_addr(void *entry)
