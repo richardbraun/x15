@@ -89,9 +89,9 @@ all_cc_options_dict = {
 # option when building a configuration.
 
 small_options_dict = {
-    'CONFIG_CC_EXE'                 : ['gcc', 'clang'],
+    'CONFIG_COMPILER'               : ['gcc', 'clang'],
     'CONFIG_64BITS'                 : ['y', 'n'],
-    'CONFIG_CC_OPTIONS'             : gen_cc_options_list(all_cc_options_dict),
+    'CONFIG_COMPILER_OPTIONS'       : gen_cc_options_list(all_cc_options_dict),
     'CONFIG_SMP'                    : ['y', 'n'],
     'CONFIG_MAX_CPUS'               : ['1', '128'],
     'CONFIG_ASSERT'                 : ['y', 'n'],
@@ -147,20 +147,20 @@ passing_filters_list += gen_exclusive_boolean_filters_list(test_list,
 blocking_filters_list = [
     # XXX Clang currently cannot build the kernel with LTO.
     {
-        'CONFIG_CC_EXE'         :   [True, 'clang'],
-        'CONFIG_CC_OPTIONS'     :   [True, re.compile('-flto')],
+        'CONFIG_COMPILER'           :   [True, 'clang'],
+        'CONFIG_COMPILER_OPTIONS'   :   [True, re.compile('-flto')],
     },
     {
-        'CONFIG_SMP'            :   [True, 'y'],
-        'CONFIG_MAX_CPUS'       :   [True, '1'],
+        'CONFIG_SMP'                :   [True, 'y'],
+        'CONFIG_MAX_CPUS'           :   [True, '1'],
     },
     {
-        'CONFIG_SMP'            :   [True, 'n'],
-        'CONFIG_MAX_CPUS'       :   [False, '1'],
+        'CONFIG_SMP'                :   [True, 'n'],
+        'CONFIG_MAX_CPUS'           :   [False, '1'],
     },
     {
-        'CONFIG_64BITS'         :   [True, 'y'],
-        'CONFIG_X86_PAE'        :   [True, 'y'],
+        'CONFIG_64BITS'             :   [True, 'y'],
+        'CONFIG_X86_PAE'            :   [True, 'y'],
     },
 ]
 
