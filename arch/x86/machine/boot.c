@@ -537,7 +537,15 @@ boot_get_ap_stack(void)
     unsigned int index;
 
     index = boot_ap_id - 1;
-    assert(boot_ap_id < ARRAY_SIZE(boot_ap_stacks));
+
+    /*
+     * TODO Remove this check once all the SMP-related code has been cleanly
+     * isolated.
+     */
+#if CONFIG_SMP
+    assert(index< ARRAY_SIZE(boot_ap_stacks));
+#endif /* CONFIG_SMP */
+
     return boot_ap_stacks[index];
 }
 
