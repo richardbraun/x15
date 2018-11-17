@@ -136,8 +136,9 @@ rtmutex_lock_slow_common(struct rtmutex *rtmutex, bool timed, uint64_t ticks)
         /*
          * Keep in mind more than one thread may have timed out on waiting.
          * These threads aren't considered waiters, making the turnstile
-         * empty. The first to reacquire the turnstile clears the contention
-         * bits, allowing the owner to unlock through the fast path.
+         * potentially empty. The first to reacquire the turnstile clears
+         * the contention bits, allowing the owner to unlock through the
+         * fast path.
          */
         if (turnstile_empty(turnstile)) {
             owner = atomic_load(&rtmutex->owner, ATOMIC_RELAXED);

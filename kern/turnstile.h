@@ -152,11 +152,11 @@ bool turnstile_empty(const struct turnstile *turnstile);
  * The turnstile must be lent when calling this function. It is
  * released and later reacquired before returning from this function.
  *
- * The calling thread is considered a waiter as long as it didn't
- * reacquire the turnstile. This means that signalling a turnstile
- * has no visible effect on the number of waiters until the turnstile
- * is released, e.g. if a single thread is waiting and another signals
- * the turnstile, the turnstile is not immediately considered empty.
+ * Unless a timeout occurs, the calling thread is considered a waiter
+ * as long as it didn't reacquire the turnstile. This means that signalling
+ * a turnstile has no immediate visible effect on the number of waiters,
+ * e.g. if a single thread is waiting and another signals the turnstile,
+ * the turnstile is not immediately considered empty.
  *
  * If owner isn't NULL, it must refer to the thread currently owning
  * the associated synchronization object. The priority of the caller
@@ -166,8 +166,9 @@ bool turnstile_empty(const struct turnstile *turnstile);
  * When bounding the duration of the wait, the caller must pass an absolute
  * time in ticks, and ETIMEDOUT is returned if that time is reached before
  * the turnstile is signalled. In addition, if a timeout occurs, the calling
- * thread temporarily releases the turnstile before returning, causing other
- * threads to consider the turnstile as empty.
+ * thread isn't considered a waiter any more. Other threads may be able to
+ * acquire the turnstile and consider it empty, despite the fact that threads
+ * may not have returned from this function yet.
  */
 void turnstile_wait(struct turnstile *turnstile, const char *wchan,
                     struct thread *owner);
