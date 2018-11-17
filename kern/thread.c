@@ -2634,33 +2634,35 @@ thread_suspend(struct thread *thread)
     thread_preempt_disable();
     runq = thread_lock_runq(thread, &flags);
 
-    if ((thread == runq->idler) || (thread == runq->balancer)) {
+    if ((thread == runq->idler)
+        || (thread == runq->balancer)
+        || (thread->state == THREAD_DEAD)) {
         error = EINVAL;
-        goto done;
     } else if ((thread->state == THREAD_SUSPENDED) || (thread->suspend)) {
-        error = EAGAIN;
-        goto done;
-    }
-
-    if (thread->state == THREAD_SLEEPING) {
+        error = 0;
+    } else if (thread->state == THREAD_SLEEPING) {
         thread->state = THREAD_SUSPENDED;
-    } else if (thread != runq->current) {
-        thread->state = THREAD_SUSPENDED;
-        thread_runq_remove(runq, thread);
+        error = 0;
     } else {
-        thread->suspend = true;
+        assert(thread->state == THREAD_RUNNING);
 
-        if (runq == thread_runq_local()) {
-            runq = thread_runq_schedule(runq);
+        if (thread != runq->current) {
+            thread->state = THREAD_SUSPENDED;
+            thread_runq_remove(runq, thread);
         } else {
-            thread_set_flag(thread, THREAD_YIELD);
-            cpu_send_thread_schedule(thread_runq_cpu(runq));
+            thread->suspend = true;
+
+            if (runq == thread_runq_local()) {
+                runq = thread_runq_schedule(runq);
+            } else {
+                thread_set_flag(thread, THREAD_YIELD);
+                cpu_send_thread_schedule(thread_runq_cpu(runq));
+            }
         }
+
+        error = 0;
     }
 
-    error = 0;
-
-done:
     thread_unlock_runq(runq, flags);
     thread_preempt_enable();
 

@@ -253,8 +253,10 @@ int thread_wakeup(struct thread *thread);
  * This operation is asynchronous, i.e. the caller must not expect the target
  * thread to be suspended on return.
  *
- * If attempting to suspend core system threads, the request is ignored and
- * EINVAL is returned.
+ * If attempting to suspend core system threads, or threads in the dead state,
+ * or if the given thread is NULL, the request is ignored and EINVAL is
+ * returned. If the target thread is already suspended, the call turns into
+ * a no-op and merely returns success.
  */
 int thread_suspend(struct thread *thread);
 
