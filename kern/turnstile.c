@@ -654,7 +654,7 @@ turnstile_return(struct turnstile *turnstile)
 
     spinlock_unlock(&bucket->lock);
 
-    assert(turnstile_init_state_valid(turnstile));
+    assert(turnstile_init_state_valid(free_turnstile));
     thread_turnstile_return(free_turnstile);
 }
 
