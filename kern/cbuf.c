@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 Richard Braun.
+ * Copyright (c) 2015-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,21 +50,28 @@ cbuf_index(const struct cbuf *cbuf, size_t abs_index)
 static void
 cbuf_update_start(struct cbuf *cbuf)
 {
-    /* Mind integer overflows */
     if (cbuf_size(cbuf) > cbuf->capacity) {
         cbuf->start = cbuf->end - cbuf->capacity;
+    }
+}
+
+static void
+cbuf_update_end(struct cbuf *cbuf)
+{
+    if (cbuf_size(cbuf) > cbuf->capacity) {
+        cbuf->end = cbuf->start + cbuf->capacity;
     }
 }
 
 int
 cbuf_push(struct cbuf *cbuf, const void *buf, size_t size, bool erase)
 {
-    size_t free_size;
-
     if (!erase) {
-        free_size = cbuf_capacity(cbuf) - cbuf_size(cbuf);
+        size_t avail_size;
 
-        if (size > free_size) {
+        avail_size = cbuf_avail_size(cbuf);
+
+        if (size > avail_size) {
             return EAGAIN;
         }
     }
@@ -90,12 +97,12 @@ cbuf_pop(struct cbuf *cbuf, void *buf, size_t *sizep)
 int
 cbuf_pushb(struct cbuf *cbuf, uint8_t byte, bool erase)
 {
-    size_t free_size;
-
     if (!erase) {
-        free_size = cbuf_capacity(cbuf) - cbuf_size(cbuf);
+        size_t avail_size;
 
-        if (free_size == 0) {
+        avail_size = cbuf_avail_size(cbuf);
+
+        if (avail_size == 0) {
             return EAGAIN;
         }
     }
@@ -116,7 +123,11 @@ cbuf_popb(struct cbuf *cbuf, void *bytep)
     }
 
     ptr = bytep;
-    *ptr = cbuf->buf[cbuf_index(cbuf, cbuf->start)];
+
+    if (ptr) {
+        *ptr = cbuf->buf[cbuf_index(cbuf, cbuf->start)];
+    }
+
     cbuf->start++;
     return 0;
 }
@@ -127,20 +138,21 @@ cbuf_write(struct cbuf *cbuf, size_t index, const void *buf, size_t size)
     uint8_t *start, *end, *buf_end;
     size_t new_end, skip;
 
-    if (!cbuf_range_valid(cbuf, index, cbuf->end)) {
+    if (!cbuf_index_valid(cbuf, index)) {
         return EINVAL;
     }
 
     new_end = index + size;
 
-    if (!cbuf_range_valid(cbuf, cbuf->start, new_end)) {
+    if (!cbuf_index_valid(cbuf, new_end)) {
         cbuf->end = new_end;
+        cbuf_update_start(cbuf);
 
-        if (size > cbuf_capacity(cbuf)) {
-            skip = size - cbuf_capacity(cbuf);
+        if (size > cbuf->capacity) {
+            skip = size - cbuf->capacity;
             buf += skip;
             index += skip;
-            size = cbuf_capacity(cbuf);
+            size = cbuf->capacity;
         }
     }
 
@@ -148,7 +160,7 @@ cbuf_write(struct cbuf *cbuf, size_t index, const void *buf, size_t size)
     end = start + size;
     buf_end = cbuf->buf + cbuf->capacity;
 
-    if ((end <= cbuf->buf) || (end > buf_end)) {
+    if ((end < cbuf->buf) || (end > buf_end)) {
         skip = buf_end - start;
         memcpy(start, buf, skip);
         buf += skip;
@@ -157,7 +169,6 @@ cbuf_write(struct cbuf *cbuf, size_t index, const void *buf, size_t size)
     }
 
     memcpy(start, buf, size);
-    cbuf_update_start(cbuf);
     return 0;
 }
 
@@ -167,8 +178,7 @@ cbuf_read(const struct cbuf *cbuf, size_t index, void *buf, size_t *sizep)
     const uint8_t *start, *end, *buf_end;
     size_t size;
 
-    /* At least one byte must be available */
-    if (!cbuf_range_valid(cbuf, index, index + 1)) {
+    if (!cbuf_index_valid(cbuf, index)) {
         return EINVAL;
     }
 
@@ -186,12 +196,33 @@ cbuf_read(const struct cbuf *cbuf, size_t index, void *buf, size_t *sizep)
         size = *sizep;
     } else {
         size = buf_end - start;
-        memcpy(buf, start, size);
-        buf += size;
+
+        if (buf) {
+            memcpy(buf, start, size);
+            buf += size;
+        }
+
         start = cbuf->buf;
         size = *sizep - size;
     }
 
-    memcpy(buf, start, size);
+    if (buf) {
+        memcpy(buf, start, size);
+    }
+
     return 0;
+}
+
+void
+cbuf_set_start(struct cbuf *cbuf, size_t start)
+{
+    cbuf->start = start;
+    cbuf_update_end(cbuf);
+}
+
+void
+cbuf_set_end(struct cbuf *cbuf, size_t end)
+{
+    cbuf->end = end;
+    cbuf_update_start(cbuf);
 }

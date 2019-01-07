@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2017 Richard Braun.
+ * Copyright (c) 2015-2018 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
  * http://git.sceen.net/rbraun/librbraun.git/
  *
  *
- * Circular byte buffer.
+ * FIFO circular byte buffer.
  */
 
 #ifndef KERN_CBUF_H
@@ -85,6 +85,13 @@ cbuf_range_valid(const struct cbuf *cbuf, size_t start, size_t end)
             && ((cbuf->end - end) <= cbuf_size(cbuf)));
 }
 
+static inline bool
+cbuf_index_valid(const struct cbuf *cbuf, size_t index)
+{
+    return ((index - cbuf->start) <= cbuf_size(cbuf))
+           && ((cbuf->end - index) <= cbuf_size(cbuf));
+}
+
 /*
  * Initialize a circular buffer.
  *
@@ -105,10 +112,13 @@ int cbuf_push(struct cbuf *cbuf, const void *buf, size_t size, bool erase);
  * Pop data from a circular buffer.
  *
  * On entry, the sizep argument points to the size of the output buffer.
- * On exit, it is updated to the number of bytes actually transferred.
+ * On return, it is updated to the number of bytes actually transferred.
  *
- * If the buffer is empty, EAGAIN is returned, and the size of the
- * output buffer is undefined.
+ * If the buffer is empty, EAGAIN is returned, and the size of the output
+ * buffer is unmodified.
+ *
+ * The output buffer may be NULL, in which case this function acts as if
+ * it wasn't, but without writing output data.
  */
 int cbuf_pop(struct cbuf *cbuf, void *buf, size_t *sizep);
 
@@ -124,6 +134,9 @@ int cbuf_pushb(struct cbuf *cbuf, uint8_t byte, bool erase);
  * Pop a byte from a circular buffer.
  *
  * If the buffer is empty, EAGAIN is returned.
+ *
+ * The output byte pointer may be NULL, in which case this function acts
+ * as if it wasn't, but without writing output data.
  */
 int cbuf_popb(struct cbuf *cbuf, void *bytep);
 
@@ -140,12 +153,27 @@ int cbuf_write(struct cbuf *cbuf, size_t index, const void *buf, size_t size);
  * Read from a circular buffer at a specific location.
  *
  * On entry, the sizep argument points to the size of the output buffer.
- * On exit, it is updated to the number of bytes actually transferred.
+ * On return, it is updated to the number of bytes actually transferred.
  *
  * If the given index is outside buffer boundaries, EINVAL is returned.
  *
  * The circular buffer isn't changed by this operation.
+ *
+ * The output buffer may be NULL, in which case this function acts as if
+ * it wasn't, but without writing output data.
  */
 int cbuf_read(const struct cbuf *cbuf, size_t index, void *buf, size_t *sizep);
+
+/*
+ * Set the value of the start/end index.
+ *
+ * These functions provide low level access to the circular buffer boundaries
+ * while making sure its size doesn't exceed its capacity.
+ *
+ * Users should try and find a higher level way to manipulate the circular
+ * buffer, and only resort to using these functions if there's no other choice.
+ */
+void cbuf_set_start(struct cbuf *cbuf, size_t start);
+void cbuf_set_end(struct cbuf *cbuf, size_t end);
 
 #endif /* KERN_CBUF_H */
