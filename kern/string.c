@@ -258,6 +258,8 @@ strerror(int error)
         return "no such file or directory";
     case EOVERFLOW:
         return "value too large to be stored in data type";
+    case EMSGSIZE:
+        return "message too long";
     default:
         return "unknown error";
     }

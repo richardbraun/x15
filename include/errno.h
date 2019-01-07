@@ -30,5 +30,6 @@
 #define ETIMEDOUT           10
 #define ENOENT              11
 #define EOVERFLOW           12
+#define EMSGSIZE            13
 
 #endif /* ERRNO_H */
