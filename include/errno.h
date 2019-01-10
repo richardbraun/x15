@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Richard Braun.
+ * Copyright (c) 2018-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,5 +29,6 @@
 #define ESRCH               9
 #define ETIMEDOUT           10
 #define ENOENT              11
+#define EOVERFLOW           12
 
 #endif /* ERRNO_H */

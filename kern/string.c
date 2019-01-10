@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 Richard Braun.
+ * Copyright (c) 2012-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -256,6 +256,8 @@ strerror(int error)
         return "timeout error";
     case ENOENT:
         return "no such file or directory";
+    case EOVERFLOW:
+        return "value too large to be stored in data type";
     default:
         return "unknown error";
     }
