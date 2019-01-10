@@ -52,9 +52,10 @@ void sleepq_destroy(struct sleepq *sleepq);
  * The condition argument must be true if the synchronization object
  * is a condition variable.
  *
- * Note that, in the case of the non-blocking variant, the call may also
- * return NULL if internal state shared by unrelated synchronization
- * objects is locked.
+ * If no sleep queue has been lent for the synchronization object, NULL
+ * is returned. Note that, in the case of the non-blocking variant,
+ * the call may also return NULL if internal state shared by unrelated
+ * synchronization objects is locked.
  */
 struct sleepq * sleepq_acquire(const void *sync_obj, bool condition);
 struct sleepq * sleepq_tryacquire(const void *sync_obj, bool condition);
@@ -76,16 +77,15 @@ void sleepq_release_intr_restore(struct sleepq *sleepq,
 /*
  * Lend/return a sleep queue.
  *
- * A thread lends its private sleep queue to the sleepq module in
- * order to prepare its sleep. The sleep queue obtained on lending
- * is either the thread's queue, or an already existing queue for
- * this synchronization object if another thread is waiting.
+ * Most often, a thread lends its private sleep queue to the sleepq
+ * module in order to prepare its sleep. The sleep queue obtained
+ * on lending is either the thread's queue, or an already existing
+ * queue for this synchronization object if another thread is waiting.
  *
- * When multiple threads are waiting on the same queue, the extra
- * queues lent are kept in an internal free list, used when threads
- * are awaken to return a queue to them.
- *
- * Note that the sleep queue returned may not be the one lent.
+ * When multiple threads lend their sleep queue for the same synchronization
+ * object, the extra queues lent are kept in an internal free list, used
+ * when threads are awaken to return a queue to them. As a result, the
+ * sleep queue returned may not be the one lent.
  *
  * The sleep queue obtained when lending is automatically acquired.
  *
