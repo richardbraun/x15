@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,47 +18,11 @@
 #ifndef KERN_SEMAPHORE_I_H
 #define KERN_SEMAPHORE_I_H
 
-#include <assert.h>
 #include <stdint.h>
 
-#include <kern/atomic.h>
-
 struct semaphore {
-    unsigned int value;
+    uint16_t value;
+    uint16_t max_value;
 };
-
-static inline unsigned int
-semaphore_dec(struct semaphore *semaphore)
-{
-    unsigned int prev, value;
-
-    do {
-        value = atomic_load(&semaphore->value, ATOMIC_RELAXED);
-
-        if (value == 0) {
-            break;
-        }
-
-        prev = atomic_cas(&semaphore->value, value, value - 1, ATOMIC_ACQUIRE);
-    } while (prev != value);
-
-    return value;
-}
-
-static inline unsigned int
-semaphore_inc(struct semaphore *semaphore)
-{
-    unsigned int prev;
-
-    prev = atomic_fetch_add(&semaphore->value, 1, ATOMIC_RELEASE);
-    assert(prev != SEMAPHORE_VALUE_MAX);
-    return prev;
-}
-
-void semaphore_wait_slow(struct semaphore *semaphore);
-
-int semaphore_timedwait_slow(struct semaphore *semaphore, uint64_t ticks);
-
-void semaphore_post_slow(struct semaphore *semaphore);
 
 #endif /* KERN_SEMAPHORE_I_H */

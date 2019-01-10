@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,43 +16,37 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 
 #include <kern/semaphore.h>
 #include <kern/semaphore_i.h>
 #include <kern/sleepq.h>
 
-static int
-semaphore_wait_slow_common(struct semaphore *semaphore,
-                           bool timed, uint64_t ticks)
+void
+semaphore_init(struct semaphore *semaphore, uint16_t value, uint16_t max_value)
+{
+    assert(value <= max_value);
+
+    semaphore->value = value;
+    semaphore->max_value = max_value;
+}
+
+int
+semaphore_trywait(struct semaphore *semaphore)
 {
     struct sleepq *sleepq;
     unsigned long flags;
-    unsigned int prev;
     int error;
-
-    error = 0;
 
     sleepq = sleepq_lend_intr_save(semaphore, false, &flags);
 
-    for (;;) {
-        prev = semaphore_dec(semaphore);
-
-        if (prev != 0) {
-            break;
-        }
-
-        if (!timed) {
-            sleepq_wait(sleepq, "sem");
-        } else {
-            error = sleepq_timedwait(sleepq, "sem", ticks);
-
-            if (error) {
-                break;
-            }
-        }
+    if (semaphore->value == 0) {
+        error = EAGAIN;
+    } else {
+        semaphore->value--;
+        error = 0;
     }
 
     sleepq_return_intr_restore(sleepq, flags);
@@ -61,33 +55,72 @@ semaphore_wait_slow_common(struct semaphore *semaphore,
 }
 
 void
-semaphore_wait_slow(struct semaphore *semaphore)
-{
-    int error;
-
-    error = semaphore_wait_slow_common(semaphore, false, 0);
-    assert(!error);
-}
-
-int
-semaphore_timedwait_slow(struct semaphore *semaphore, uint64_t ticks)
-{
-    return semaphore_wait_slow_common(semaphore, true, ticks);
-}
-
-void
-semaphore_post_slow(struct semaphore *semaphore)
+semaphore_wait(struct semaphore *semaphore)
 {
     struct sleepq *sleepq;
     unsigned long flags;
 
-    sleepq = sleepq_acquire_intr_save(semaphore, false, &flags);
+    sleepq = sleepq_lend_intr_save(semaphore, false, &flags);
 
-    if (sleepq == NULL) {
-        return;
+    for (;;) {
+        if (semaphore->value != 0) {
+            semaphore->value--;
+            break;
+        }
+
+        sleepq_wait(sleepq, "sem");
     }
 
-    sleepq_signal(sleepq);
+    sleepq_return_intr_restore(sleepq, flags);
+}
 
-    sleepq_release_intr_restore(sleepq, flags);
+int
+semaphore_timedwait(struct semaphore *semaphore, uint64_t ticks)
+{
+    struct sleepq *sleepq;
+    unsigned long flags;
+    int error;
+
+    sleepq = sleepq_lend_intr_save(semaphore, false, &flags);
+
+    for (;;) {
+        if (semaphore->value != 0) {
+            semaphore->value--;
+            error = 0;
+            break;
+        }
+
+        error = sleepq_timedwait(sleepq, "sem", ticks);
+
+        if (error) {
+            break;
+        }
+    }
+
+    sleepq_return_intr_restore(sleepq, flags);
+
+    return error;
+}
+
+int
+semaphore_post(struct semaphore *semaphore)
+{
+    struct sleepq *sleepq;
+    unsigned long flags;
+    int error;
+
+    sleepq = sleepq_lend_intr_save(semaphore, false, &flags);
+
+    if (semaphore->value == semaphore->max_value) {
+        error = EOVERFLOW;
+    } else {
+        assert(semaphore->value < semaphore->max_value);
+        semaphore->value++;
+        sleepq_signal(sleepq);
+        error = 0;
+    }
+
+    sleepq_return_intr_restore(sleepq, flags);
+
+    return error;
 }

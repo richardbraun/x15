@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
  * They are used to synchronize access to resources and signal events.
  *
  * The main operations supported by semaphores are waiting and signalling.
- * A semaphore is implemented as an atomic integer with an initial value.
- * Waiting on a semaphore means decrementing that integer, whereas signalling
+ * A semaphore is implemented as a counter with an initial value. Waiting
+ * on a semaphore means decrementing that counter, whereas signalling
  * means incrementing it. Waiting can only succeed if the semaphore value
  * is strictly greater than 0.
  *
@@ -48,10 +48,6 @@
 #include <errno.h>
 #include <stdint.h>
 
-#include <kern/atomic.h>
-
-#define SEMAPHORE_VALUE_MAX 32768
-
 #include <kern/semaphore_i.h>
 
 struct semaphore;
@@ -59,12 +55,8 @@ struct semaphore;
 /*
  * Initialize a semaphore.
  */
-static inline void
-semaphore_init(struct semaphore *semaphore, unsigned int value)
-{
-    assert(value <= SEMAPHORE_VALUE_MAX);
-    semaphore->value = value;
-}
+void semaphore_init(struct semaphore *semaphore, uint16_t value,
+                    uint16_t max_value);
 
 /*
  * Attempt to decrement a semaphore.
@@ -73,19 +65,7 @@ semaphore_init(struct semaphore *semaphore, unsigned int value)
  *
  * Return 0 on success, EAGAIN if the semaphore could not be decremented.
  */
-static inline int
-semaphore_trywait(struct semaphore *semaphore)
-{
-    unsigned int prev;
-
-    prev = semaphore_dec(semaphore);
-
-    if (prev == 0) {
-        return EAGAIN;
-    }
-
-    return 0;
-}
+int semaphore_trywait(struct semaphore *semaphore);
 
 /*
  * Wait on a semaphore.
@@ -93,17 +73,7 @@ semaphore_trywait(struct semaphore *semaphore)
  * If the semaphore value cannot be decremented, the calling thread sleeps
  * until the semaphore value is incremented.
  */
-static inline void
-semaphore_wait(struct semaphore *semaphore)
-{
-    unsigned int prev;
-
-    prev = semaphore_dec(semaphore);
-
-    if (prev == 0) {
-        semaphore_wait_slow(semaphore);
-    }
-}
+void semaphore_wait(struct semaphore *semaphore);
 
 /*
  * Wait on a semaphore, with a time boundary.
@@ -112,47 +82,20 @@ semaphore_wait(struct semaphore *semaphore)
  *
  * If successful, the semaphore is decremented, otherwise an error is returned.
  */
-static inline int
-semaphore_timedwait(struct semaphore *semaphore, uint64_t ticks)
-{
-    unsigned int prev;
-
-    prev = semaphore_dec(semaphore);
-
-    if (prev == 0) {
-        return semaphore_timedwait_slow(semaphore, ticks);
-    }
-
-    return 0;
-}
+int semaphore_timedwait(struct semaphore *semaphore, uint64_t ticks);
 
 /*
  * Signal a semaphore.
  *
- * If the semaphore value becomes strictly greater than 0, a thread waiting
- * on the semaphore is awaken.
+ * This function attempts to increment the semaphore value. If successful, and
+ * if one or more threads are waiting on the semaphore, one of them is awaken.
  *
- * A semaphore may be signalled from interrupt context.
+ * A semaphore may safely be signalled from interrupt context.
+ *
+ * If successful, the semaphore is incremented. Otherwise, if the semaphore
+ * value is already at its maximum before calling this function, EOVERFLOW
+ * is returned.
  */
-static inline void
-semaphore_post(struct semaphore *semaphore)
-{
-    unsigned int prev;
-
-    prev = semaphore_inc(semaphore);
-
-    if (prev == 0) {
-        semaphore_post_slow(semaphore);
-    }
-}
-
-/*
- * Get the value of a semaphore.
- */
-static inline unsigned int
-semaphore_getvalue(const struct semaphore *semaphore)
-{
-    return atomic_load(&semaphore->value, ATOMIC_RELAXED);
-}
+int semaphore_post(struct semaphore *semaphore);
 
 #endif /* KERN_SEMAPHORE_H */
