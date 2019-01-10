@@ -7,6 +7,7 @@ x15_SOURCES-$(CONFIG_TEST_MODULE_PERFMON_THREAD)        += test/test_perfmon_thr
 x15_SOURCES-$(CONFIG_TEST_MODULE_PERFMON_TORTURE)       += test/test_perfmon_torture.c
 x15_SOURCES-$(CONFIG_TEST_MODULE_PMAP_UPDATE_MP)        += test/test_pmap_update_mp.c
 x15_SOURCES-$(CONFIG_TEST_MODULE_RCU_DEFER)             += test/test_rcu_defer.c
+x15_SOURCES-$(CONFIG_TEST_MODULE_SEMAPHORE)             += test/test_semaphore.c
 x15_SOURCES-$(CONFIG_TEST_MODULE_SREF_DIRTY_ZEROES)     += test/test_sref_dirty_zeroes.c
 x15_SOURCES-$(CONFIG_TEST_MODULE_SREF_NOREF)            += test/test_sref_noref.c
 x15_SOURCES-$(CONFIG_TEST_MODULE_SREF_WEAKREF)          += test/test_sref_weakref.c

@@ -52,6 +52,9 @@ config TEST_MODULE_PMAP_UPDATE_MP
 config TEST_MODULE_RCU_DEFER
 	bool "rcu_defer"
 
+config TEST_MODULE_SEMAPHORE
+	bool "semaphore"
+
 config TEST_MODULE_SREF_DIRTY_ZEROES
 	bool "sref_dirty_zeroes"
 
