@@ -88,7 +88,7 @@ int semaphore_timedwait(struct semaphore *semaphore, uint64_t ticks);
  * Signal a semaphore.
  *
  * This function attempts to increment the semaphore value. If successful, and
- * if one or more threads are waiting on the semaphore, one of them is awaken.
+ * if one or more threads are waiting on the semaphore, one of them is awoken.
  *
  * A semaphore may safely be signalled from interrupt context.
  *

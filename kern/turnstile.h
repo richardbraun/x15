@@ -130,7 +130,7 @@ void turnstile_release(struct turnstile *turnstile);
  *
  * When multiple threads are waiting on the same turnstile, the extra
  * turnstiles lent are kept in an internal free list, used when threads
- * are awaken to return a turnstile to them.
+ * are awoken to return a turnstile to them.
  *
  * Note that the turnstile returned may not be the one lent.
  *

@@ -66,7 +66,7 @@
  * the least and should be the most frequent to report progress. Because of
  * contention from B, D and E on M3, D rarely gets boosted. The reason is
  * that, when B owns the mutex, E is likely to wait on M3 soon enough that
- * it will be awaken before D, preventing the conditions for priority
+ * it will be awoken before D, preventing the conditions for priority
  * inheritance to occur.
  *
  * Note that the test uses regular mutexes instead of real-time mutexes,

@@ -1545,7 +1545,7 @@ static struct thread_runq *
 thread_sched_idle_select_runq(struct thread *thread)
 {
     (void)thread;
-    panic("thread: idler threads cannot be awaken");
+    panic("thread: idler threads cannot be awoken");
 }
 
 static noreturn void

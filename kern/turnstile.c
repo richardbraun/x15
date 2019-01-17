@@ -108,7 +108,7 @@ struct turnstile {
 struct turnstile_waiter {
     struct plist_node node; /* (b,t) */
     struct thread *thread;  /* (b,t) */
-    bool awaken;            /* (b)   */
+    bool awoken;            /* (b)   */
 };
 
 #define TURNSTILE_HTABLE_SIZE 128
@@ -134,7 +134,7 @@ turnstile_waiter_init(struct turnstile_waiter *waiter, struct thread *thread)
 {
     plist_node_init(&waiter->node, thread_real_global_priority(thread));
     waiter->thread = thread;
-    waiter->awaken = false;
+    waiter->awoken = false;
 }
 
 static unsigned int
@@ -146,19 +146,19 @@ turnstile_waiter_priority(const struct turnstile_waiter *waiter)
 static bool
 turnstile_waiter_awaken(const struct turnstile_waiter *waiter)
 {
-    return waiter->awaken;
+    return waiter->awoken;
 }
 
 static void
 turnstile_waiter_set_awaken(struct turnstile_waiter *waiter)
 {
-    waiter->awaken = true;
+    waiter->awoken = true;
 }
 
 static void
 turnstile_waiter_clear_awaken(struct turnstile_waiter *waiter)
 {
-    waiter->awaken = false;
+    waiter->awoken = false;
 }
 
 static void
@@ -756,7 +756,7 @@ turnstile_wait_common(struct turnstile *turnstile, const char *wchan,
             break;
         }
 
-        /* Otherwise, make sure the new top waiter is awaken */
+        /* Otherwise, make sure the new top waiter is awoken */
         turnstile_waiter_wakeup(turnstile->top_waiter);
         turnstile_waiter_clear_awaken(&waiter);
     }

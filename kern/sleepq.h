@@ -84,7 +84,7 @@ void sleepq_release_intr_restore(struct sleepq *sleepq,
  *
  * When multiple threads lend their sleep queue for the same synchronization
  * object, the extra queues lent are kept in an internal free list, used
- * when threads are awaken to return a queue to them. As a result, the
+ * when threads are awoken to return a queue to them. As a result, the
  * sleep queue returned may not be the one lent.
  *
  * The sleep queue obtained when lending is automatically acquired.
@@ -139,7 +139,7 @@ int sleepq_timedwait(struct sleepq *sleepq, const char *wchan, uint64_t ticks);
  * acquired) when waiting, and acquired in order to signal it,
  * wake-ups are serialized and cannot be missed.
  *
- * At least one thread is awaken if any threads are waiting on the sleep
+ * At least one thread is awoken if any threads are waiting on the sleep
  * queue.
  *
  * Broadcasting a sleep queue wakes up all waiting threads.

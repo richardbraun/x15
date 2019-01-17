@@ -571,7 +571,7 @@ sleepq_wait_common(struct sleepq *sleepq, const char *wchan,
     next = sleepq_get_last_waiter(sleepq);
 
     /*
-     * Checking against the oldest waiter is enough as waiters are awaken
+     * Checking against the oldest waiter is enough as waiters are awoken
      * in strict FIFO order.
      */
     if (next && (next != sleepq->oldest_waiter)) {

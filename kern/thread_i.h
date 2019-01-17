@@ -164,7 +164,7 @@ struct thread {
      *     sets its state to dead before calling the scheduler.
      *  2/ Another thread must either already be joining, or join later.
      *     When the thread reference counter drops to zero, the terminating
-     *     flag is set, and the joining thread is awaken, if any. After that,
+     *     flag is set, and the joining thread is awoken, if any. After that,
      *     the join operation polls the state until it sees the target thread
      *     as dead, and then releases its resources.
      */

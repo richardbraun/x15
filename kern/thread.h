@@ -225,7 +225,7 @@ void thread_join(struct thread *thread);
  *
  * When bounding the duration of the sleep, the caller must pass an absolute
  * time in ticks, and ETIMEDOUT is returned if that time is reached before
- * the thread is awaken.
+ * the thread is awoken.
  *
  * Implies a memory barrier.
  */
