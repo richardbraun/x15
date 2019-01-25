@@ -52,14 +52,6 @@ static struct thread *log_thread;
 static struct cbuf log_cbuf;
 static char log_buffer[LOG_BUFFER_SIZE];
 
-/*
- * This index is used by the log thread to report what it has consumed
- * so that producers can detect overruns.
- */
-static size_t log_index;
-
-static size_t log_nr_overruns;
-
 static unsigned int log_print_level;
 
 /*
@@ -92,6 +84,7 @@ struct log_consume_ctx {
     char buf[LOG_MSG_SIZE];
     size_t index;
     size_t size;
+    size_t nr_overruns;
 };
 
 static void
@@ -101,18 +94,7 @@ log_consume_ctx_init(struct log_consume_ctx *ctx, struct cbuf *cbuf)
     ctx->cbuf_index = cbuf_start(cbuf);
     ctx->index = 0;
     ctx->size = 0;
-}
-
-static size_t
-log_consume_ctx_index(const struct log_consume_ctx *ctx)
-{
-    return ctx->cbuf_index;
-}
-
-static void
-log_consume_ctx_set_index(struct log_consume_ctx *ctx, size_t index)
-{
-    ctx->cbuf_index = index;
+    ctx->nr_overruns = 0;
 }
 
 static bool
@@ -121,23 +103,41 @@ log_consume_ctx_empty(const struct log_consume_ctx *ctx)
     return ctx->cbuf_index == cbuf_end(ctx->cbuf);
 }
 
+static size_t
+log_consume_ctx_reset_overruns(struct log_consume_ctx *ctx)
+{
+    size_t nr_overruns;
+
+    nr_overruns = ctx->nr_overruns;
+    ctx->nr_overruns = 0;
+    return nr_overruns;
+}
+
 static int
 log_consume_ctx_pop(struct log_consume_ctx *ctx, char *byte)
 {
     int error;
 
-    if (ctx->index >= ctx->size) {
+    if (ctx->index == ctx->size) {
         ctx->index = 0;
         ctx->size = sizeof(ctx->buf);
         error = cbuf_read(ctx->cbuf, ctx->cbuf_index, ctx->buf, &ctx->size);
 
         if (error) {
-            ctx->cbuf_index = cbuf_start(ctx->cbuf);
+            size_t new_cbuf_index;
+
+            assert(error == EINVAL);
+            new_cbuf_index = cbuf_start(ctx->cbuf);
+            ctx->nr_overruns = new_cbuf_index - ctx->cbuf_index;
+            ctx->cbuf_index = new_cbuf_index;
+            ctx->size = 0;
             return error;
         }
     }
 
     ctx->cbuf_index++;
+    assert(ctx->size <= sizeof(ctx->buf));
+    assert(ctx->index < ctx->size);
     *byte = ctx->buf[ctx->index];
     ctx->index++;
     return 0;
@@ -227,6 +227,7 @@ log_record_init_consume(struct log_record *record, struct log_consume_ctx *ctx)
         error = log_consume_ctx_pop(ctx, &c);
 
         if (error) {
+            marker_found = false;
             continue;
         }
 
@@ -287,7 +288,7 @@ log_start_shell(unsigned long *flags)
 
 #else /* CONFIG_SHELL */
 #define log_start_shell(flags)
-#endif /* CONFIG_SHELL*/
+#endif /* CONFIG_SHELL */
 
 static void
 log_run(void *arg)
@@ -313,22 +314,16 @@ log_run(void *arg)
              * a clean ordered output.
              */
             log_start_shell(&flags);
-            log_index = log_consume_ctx_index(&ctx);
 
             thread_sleep(&log_lock, &log_cbuf, "log_cbuf");
-
-            log_consume_ctx_set_index(&ctx, log_index);
         }
 
         error = log_record_init_consume(&record, &ctx);
 
         /* Drain the log buffer before reporting overruns */
         if (log_consume_ctx_empty(&ctx)) {
-            nr_overruns = log_nr_overruns;
-            log_nr_overruns = 0;
+            nr_overruns = log_consume_ctx_reset_overruns(&ctx);
         }
-
-        log_index = log_consume_ctx_index(&ctx);
 
         spinlock_unlock_intr_restore(&log_lock, flags);
 
@@ -343,8 +338,6 @@ log_run(void *arg)
         }
 
         spinlock_lock_intr_save(&log_lock, &flags);
-
-        log_consume_ctx_set_index(&ctx, log_index);
     }
 }
 
@@ -434,7 +427,6 @@ static int __init
 log_setup(void)
 {
     cbuf_init(&log_cbuf, log_buffer, sizeof(log_buffer));
-    log_index = cbuf_start(&log_cbuf);
     spinlock_init(&log_lock);
     log_print_level = LOG_INFO;
 
@@ -474,15 +466,7 @@ INIT_OP_DEFINE(log_start,
 static void
 log_write(const void *s, size_t size)
 {
-    int error;
-
-    error = cbuf_push(&log_cbuf, s, size, true);
-    assert(!error);
-
-    if (!cbuf_range_valid(&log_cbuf, log_index, log_index + 1)) {
-        log_nr_overruns += cbuf_start(&log_cbuf) - log_index;
-        log_index = cbuf_start(&log_cbuf);
-    }
+    cbuf_push(&log_cbuf, s, size, true);
 }
 
 int
