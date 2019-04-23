@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,10 +26,10 @@
 #include <string.h>
 
 #include <kern/arg.h>
-#include <kern/cbuf.h>
 #include <kern/init.h>
 #include <kern/log.h>
 #include <kern/macros.h>
+#include <kern/mbuf.h>
 #include <kern/panic.h>
 #include <kern/shell.h>
 #include <kern/spinlock.h>
@@ -45,14 +45,18 @@
 
 #define LOG_MSG_SIZE 128
 
-#define LOG_MARKER 0x1
+#define LOG_PRINT_LEVEL LOG_INFO
 
 static struct thread *log_thread;
 
-static struct cbuf log_cbuf;
+static struct mbuf log_mbuf;
 static char log_buffer[LOG_BUFFER_SIZE];
 
-static unsigned int log_print_level;
+static unsigned int log_nr_overruns;
+
+#ifdef CONFIG_SHELL
+static bool log_shell_started = false;
+#endif
 
 /*
  * Global lock.
@@ -61,86 +65,41 @@ static unsigned int log_print_level;
  */
 static struct spinlock log_lock;
 
-/*
- * A record starts with a marker byte and ends with a null terminating byte.
- *
- * There must be no null byte inside the header, and the buffer is expected
- * to be a standard null-terminated string.
- */
 struct log_record {
-    uint8_t mark;
     uint8_t level;
-    char buffer[LOG_MSG_SIZE];
+    char msg[LOG_MSG_SIZE];
 };
 
-/*
- * A consumer context allows faster, buffered reads of the circular buffer,
- * by retaining bytes that weren't consumed in case a read spans multiple
- * records.
- */
-struct log_consume_ctx {
-    struct cbuf *cbuf;
-    size_t cbuf_index;
-    char buf[LOG_MSG_SIZE];
+struct log_consumer {
+    struct mbuf *mbuf;
     size_t index;
-    size_t size;
-    size_t nr_overruns;
 };
 
 static void
-log_consume_ctx_init(struct log_consume_ctx *ctx, struct cbuf *cbuf)
+log_consumer_init(struct log_consumer *ctx, struct mbuf *mbuf)
 {
-    ctx->cbuf = cbuf;
-    ctx->cbuf_index = cbuf_start(cbuf);
-    ctx->index = 0;
-    ctx->size = 0;
-    ctx->nr_overruns = 0;
-}
-
-static bool
-log_consume_ctx_empty(const struct log_consume_ctx *ctx)
-{
-    return ctx->cbuf_index == cbuf_end(ctx->cbuf);
-}
-
-static size_t
-log_consume_ctx_reset_overruns(struct log_consume_ctx *ctx)
-{
-    size_t nr_overruns;
-
-    nr_overruns = ctx->nr_overruns;
-    ctx->nr_overruns = 0;
-    return nr_overruns;
+    ctx->mbuf = mbuf;
+    ctx->index = mbuf_start(mbuf);
 }
 
 static int
-log_consume_ctx_pop(struct log_consume_ctx *ctx, char *byte)
+log_consumer_pop(struct log_consumer *ctx, struct log_record *record)
 {
+    size_t size;
     int error;
 
-    if (ctx->index == ctx->size) {
-        ctx->index = 0;
-        ctx->size = sizeof(ctx->buf);
-        error = cbuf_read(ctx->cbuf, ctx->cbuf_index, ctx->buf, &ctx->size);
+    for (;;) {
+        size = sizeof(*record);
+        error = mbuf_read(ctx->mbuf, &ctx->index, record, &size);
 
-        if (error) {
-            size_t new_cbuf_index;
-
-            assert(error == EINVAL);
-            new_cbuf_index = cbuf_start(ctx->cbuf);
-            ctx->nr_overruns = new_cbuf_index - ctx->cbuf_index;
-            ctx->cbuf_index = new_cbuf_index;
-            ctx->size = 0;
-            return error;
+        if (error != EINVAL) {
+            break;
+        } else {
+            ctx->index = mbuf_start(ctx->mbuf);
         }
     }
 
-    ctx->cbuf_index++;
-    assert(ctx->size <= sizeof(ctx->buf));
-    assert(ctx->index < ctx->size);
-    *byte = ctx->buf[ctx->index];
-    ctx->index++;
-    return 0;
+    return error;
 }
 
 static const char *
@@ -168,104 +127,17 @@ log_level2str(unsigned int level)
     }
 }
 
-static char
-log_level2char(unsigned int level)
-{
-    assert(level < LOG_NR_LEVELS);
-    return '0' + level;
-}
-
-static uint8_t
-log_char2level(char c)
-{
-    uint8_t level;
-
-    level = c - '0';
-    assert(level < LOG_NR_LEVELS);
-    return level;
-}
-
 static void
-log_record_init_produce(struct log_record *record, unsigned int level)
-{
-    record->mark = LOG_MARKER;
-    record->level = log_level2char(level);
-}
-
-static void
-log_record_consume(struct log_record *record, char c, size_t *sizep)
-{
-    char *ptr;
-
-    assert(*sizep < sizeof(*record));
-
-    ptr = (char *)record;
-    ptr[*sizep] = c;
-    (*sizep)++;
-}
-
-static int
-log_record_init_consume(struct log_record *record, struct log_consume_ctx *ctx)
-{
-    bool marker_found;
-    size_t size;
-    int error;
-    char c;
-
-    marker_found = false;
-    size = 0;
-
-    for (;;) {
-        if (log_consume_ctx_empty(ctx)) {
-            if (!marker_found) {
-                return EINVAL;
-            }
-
-            break;
-        }
-
-        error = log_consume_ctx_pop(ctx, &c);
-
-        if (error) {
-            marker_found = false;
-            continue;
-        }
-
-        if (!marker_found) {
-            if (c != LOG_MARKER) {
-                continue;
-            }
-
-            marker_found = true;
-            log_record_consume(record, c, &size);
-            continue;
-        } else if (size == offsetof(struct log_record, level)) {
-            record->level = log_char2level(c);
-            size++;
-            continue;
-        }
-
-        log_record_consume(record, c, &size);
-
-        if (c == '\0') {
-            break;
-        }
-    }
-
-    return 0;
-}
-
-static void
-log_record_print(const struct log_record *record, unsigned int level)
+log_print_record(const struct log_record *record, unsigned int level)
 {
     if (record->level > level) {
         return;
     }
 
     if (record->level <= LOG_WARNING) {
-        printf("%7s %s\n", log_level2str(record->level), record->buffer);
+        printf("%7s %s\n", log_level2str(record->level), record->msg);
     } else {
-        printf("%s\n", record->buffer);
+        printf("%s\n", record->msg);
     }
 }
 
@@ -274,16 +146,14 @@ log_record_print(const struct log_record *record, unsigned int level)
 static void
 log_start_shell(unsigned long *flags)
 {
-    static bool shell_started = false;
-
-    if (shell_started) {
+    if (log_shell_started) {
         return;
     }
 
+    log_shell_started = true;
     spinlock_unlock_intr_restore(&log_lock, *flags);
     shell_start();
     spinlock_lock_intr_save(&log_lock, flags);
-    shell_started = true;
 }
 
 #else /* CONFIG_SHELL */
@@ -293,49 +163,47 @@ log_start_shell(unsigned long *flags)
 static void
 log_run(void *arg)
 {
-    unsigned long flags, nr_overruns;
-    struct log_consume_ctx ctx;
-    struct log_record record;
-    int error;
+    struct log_consumer ctx;
+    unsigned long flags;
 
     (void)arg;
 
-    nr_overruns = 0;
-
     spinlock_lock_intr_save(&log_lock, &flags);
 
-    log_consume_ctx_init(&ctx, &log_cbuf);
+    log_consumer_init(&ctx, &log_mbuf);
 
     for (;;) {
-        while (log_consume_ctx_empty(&ctx)) {
+        struct log_record record;
+
+        for (;;) {
+            int error;
+
+            error = log_consumer_pop(&ctx, &record);
+
+            if (!error) {
+                break;
+            } else if (log_nr_overruns != 0) {
+                record.level = LOG_ERR;
+                snprintf(record.msg, sizeof(record.msg),
+                         "log: buffer overruns, %u messages dropped",
+                         log_nr_overruns);
+                log_nr_overruns = 0;
+                break;
+            }
+
             /*
-             * Starting the shell after the log thread sleeps for the first
-             * time cleanly serializes log messages and shell prompt, making
+             * Starting the shell when the log thread sleeps for the first
+             * time serializes log messages and shell prompt, resulting in
              * a clean ordered output.
              */
             log_start_shell(&flags);
 
-            thread_sleep(&log_lock, &log_cbuf, "log_cbuf");
-        }
-
-        error = log_record_init_consume(&record, &ctx);
-
-        /* Drain the log buffer before reporting overruns */
-        if (log_consume_ctx_empty(&ctx)) {
-            nr_overruns = log_consume_ctx_reset_overruns(&ctx);
+            thread_sleep(&log_lock, &log_mbuf, "log_mbuf");
         }
 
         spinlock_unlock_intr_restore(&log_lock, flags);
 
-        if (!error) {
-            log_record_print(&record, log_print_level);
-        }
-
-        if (nr_overruns != 0) {
-            log_msg(LOG_ERR, "log: buffer overruns, %lu bytes dropped",
-                    nr_overruns);
-            nr_overruns = 0;
-        }
+        log_print_record(&record, LOG_PRINT_LEVEL);
 
         spinlock_lock_intr_save(&log_lock, &flags);
     }
@@ -346,17 +214,17 @@ log_run(void *arg)
 static void
 log_dump(unsigned int level)
 {
-    struct log_consume_ctx ctx;
+    struct log_consumer ctx;
     struct log_record record;
     unsigned long flags;
     int error;
 
     spinlock_lock_intr_save(&log_lock, &flags);
 
-    log_consume_ctx_init(&ctx, &log_cbuf);
+    log_consumer_init(&ctx, &log_mbuf);
 
     for (;;) {
-        error = log_record_init_consume(&record, &ctx);
+        error = log_consumer_pop(&ctx, &record);
 
         if (error) {
             break;
@@ -364,7 +232,7 @@ log_dump(unsigned int level)
 
         spinlock_unlock_intr_restore(&log_lock, flags);
 
-        log_record_print(&record, level);
+        log_print_record(&record, level);
 
         spinlock_lock_intr_save(&log_lock, &flags);
     }
@@ -381,7 +249,7 @@ log_shell_dump(struct shell *shell, int argc, char **argv)
     (void)shell;
 
     if (argc != 2) {
-        level = log_print_level;
+        level = LOG_PRINT_LEVEL;
     } else {
         ret = sscanf(argv[1], "%u", &level);
 
@@ -426,9 +294,9 @@ INIT_OP_DEFINE(log_setup_shell,
 static int __init
 log_setup(void)
 {
-    cbuf_init(&log_cbuf, log_buffer, sizeof(log_buffer));
+    mbuf_init(&log_mbuf, log_buffer, sizeof(log_buffer),
+              sizeof(struct log_record));
     spinlock_init(&log_lock);
-    log_print_level = LOG_INFO;
 
     boot_log_info();
     arg_log_info();
@@ -463,12 +331,6 @@ INIT_OP_DEFINE(log_start,
                INIT_OP_DEP(log_setup, true),
                INIT_OP_DEP(thread_setup, true));
 
-static void
-log_write(const void *s, size_t size)
-{
-    cbuf_push(&log_cbuf, s, size, true);
-}
-
 int
 log_msg(unsigned int level, const char *format, ...)
 {
@@ -487,31 +349,39 @@ log_vmsg(unsigned int level, const char *format, va_list ap)
 {
     struct log_record record;
     unsigned long flags;
-    int nr_chars;
+    int error, nr_chars;
     size_t size;
     char *ptr;
 
-    log_record_init_produce(&record, level);
-    nr_chars = vsnprintf(record.buffer, sizeof(record.buffer), format, ap);
+    assert(level < LOG_NR_LEVELS);
+    record.level = level;
+    nr_chars = vsnprintf(record.msg, sizeof(record.msg), format, ap);
 
-    if ((unsigned int)nr_chars >= sizeof(record.buffer)) {
+    if ((unsigned int)nr_chars >= sizeof(record.msg)) {
         log_msg(LOG_ERR, "log: message too large");
         goto out;
     }
 
-    ptr = strchr(record.buffer, '\n');
+    ptr = strchr(record.msg, '\n');
 
     if (ptr != NULL) {
         *ptr = '\0';
-        nr_chars = ptr - record.buffer;
+        nr_chars = ptr - record.msg;
     }
 
     assert(nr_chars >= 0);
-    size = offsetof(struct log_record, buffer) + nr_chars + 1;
+    size = offsetof(struct log_record, msg) + nr_chars + 1;
 
     spinlock_lock_intr_save(&log_lock, &flags);
-    log_write(&record, size);
+
+    error = mbuf_push(&log_mbuf, &record, size, false);
+
+    if (error) {
+        log_nr_overruns++;
+    }
+
     thread_wakeup(log_thread);
+
     spinlock_unlock_intr_restore(&log_lock, flags);
 
 out:
