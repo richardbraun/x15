@@ -374,7 +374,7 @@ log_vmsg(unsigned int level, const char *format, va_list ap)
 
     spinlock_lock_intr_save(&log_lock, &flags);
 
-    error = mbuf_push(&log_mbuf, &record, size, false);
+    error = mbuf_push(&log_mbuf, &record, size, true);
 
     if (error) {
         log_nr_overruns++;
