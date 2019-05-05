@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -316,7 +316,7 @@ timer_process(struct timer *timer)
     }
 
     if (timer_is_high_prio(timer)) {
-        work_flags = TIMER_TF_HIGH_PRIO;
+        work_flags = WORK_HIGHPRIO;
     } else {
         work_flags = 0;
     }
