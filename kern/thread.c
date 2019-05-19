@@ -105,7 +105,6 @@
 #include <kern/shell.h>
 #include <kern/sleepq.h>
 #include <kern/spinlock.h>
-#include <kern/sref.h>
 #include <kern/syscnt.h>
 #include <kern/task.h>
 #include <kern/thread.h>
@@ -2724,8 +2723,6 @@ thread_run_scheduler(void)
     thread = thread_self();
     assert(thread == runq->current);
     assert(thread->preempt_level == (THREAD_SUSPEND_PREEMPT_LEVEL - 1));
-
-    sref_register();
 
     spinlock_lock(&runq->lock);
     thread = thread_runq_get_next(thread_runq_local());

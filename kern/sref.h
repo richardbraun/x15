@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 Richard Braun.
+ * Copyright (c) 2014-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,24 +49,6 @@ struct sref_weakref;
 typedef void (*sref_noref_fn_t)(struct sref_counter *);
 
 #include <kern/sref_i.h>
-
-/*
- * Manage registration of the current processor.
- *
- * Registering tells the sref module that the current processor reports
- * periodic events. When a processor enters a state in which reporting
- * periodic events becomes irrelevant, it unregisters itself so that the
- * other registered processors don't need to wait for it to make progress.
- * For example, this is done inside the idle loop since it is obviously
- * impossible to obtain or release references while idling.
- *
- * Unregistration can fail if internal data still require processing, in
- * which case a maintenance thread is awoken and EBUSY is returned.
- *
- * Preemption must be disabled when calling these functions.
- */
-void sref_register(void);
-int sref_unregister(void);
 
 /*
  * Report a periodic event (normally the periodic timer interrupt) on the
