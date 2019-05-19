@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Richard Braun.
+ * Copyright (c) 2014-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@
 #include <test/test.h>
 #include <vm/vm_kmem.h>
 
-#define NR_LOOPS (100UL * 1000 * 1000)
+#define TEST_NR_LOOPS (10UL * 1000 * 1000)
 
 struct test_obj {
     struct sref_counter ref_counter;
@@ -154,7 +154,7 @@ test_run(void *arg)
     condition_broadcast(&test_condition);
     mutex_unlock(&test_lock);
 
-    for (loop = 0; loop < NR_LOOPS; loop++) {
+    for (loop = 0; loop < TEST_NR_LOOPS; loop++) {
         test_manipulate_counter(obj);
     }
 
