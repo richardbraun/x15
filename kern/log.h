@@ -85,6 +85,12 @@ int log_vdebug(const char *format, va_list ap)
     __attribute__((format(printf, 1, 0)));
 
 /*
+ * The bulletin returned by this function is used to notify the initial log
+ * dump so that console output is well ordered.
+ */
+struct bulletin * log_get_bulletin(void);
+
+/*
  * This init operation provides :
  *  - message logging
  *

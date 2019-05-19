@@ -26,6 +26,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <kern/bulletin.h>
 #include <kern/hash.h>
 #include <kern/init.h>
 #include <kern/log.h>
@@ -66,6 +67,8 @@ struct shell_esc_seq {
  */
 #define SHELL_ERASE_BS  '\b'
 #define SHELL_ERASE_DEL '\x7f'
+
+static struct bulletin_sub shell_log_bulletin_sub;
 
 static const char *
 shell_find_word(const char *str)
@@ -1114,7 +1117,7 @@ shell_process_ctrl_char(struct shell *shell, char c)
     return 0;
 }
 
-void
+static void
 shell_run(struct shell *shell)
 {
     int c, error, escape;
@@ -1204,12 +1207,37 @@ shell_main_vfprintf(void *io_object, const char *format, va_list ap)
     vprintf(format, ap);
 }
 
+static void
+shell_main_run(void *arg)
+{
+    shell_run(arg);
+}
+
+static void
+shell_start(uintptr_t value, void *arg)
+{
+    struct thread_attr attr;
+    struct thread *thread;
+    int error;
+
+    (void)value;
+    (void)arg;
+
+    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "shell");
+    thread_attr_set_detached(&attr);
+    error = thread_create(&thread, &attr, shell_main_run, &shell_main);
+    error_check(error, "thread_create");
+}
+
 static int __init
 shell_setup(void)
 {
     shell_cmd_set_init(&shell_main_cmd_set);
     shell_init(&shell_main, &shell_main_cmd_set,
                shell_main_getc, shell_main_vfprintf, NULL);
+    bulletin_subscribe(log_get_bulletin(), &shell_log_bulletin_sub,
+                       shell_start, NULL);
+
     return 0;
 }
 
@@ -1222,23 +1250,4 @@ struct shell_cmd_set * __init
 shell_get_main_cmd_set(void)
 {
     return &shell_main_cmd_set;
-}
-
-static void
-shell_main_run(void *arg)
-{
-    shell_run(arg);
-}
-
-void __init
-shell_start(void)
-{
-    struct thread_attr attr;
-    struct thread *thread;
-    int error;
-
-    thread_attr_init(&attr, THREAD_KERNEL_PREFIX "shell");
-    thread_attr_set_detached(&attr);
-    error = thread_create(&thread, &attr, shell_main_run, &shell_main);
-    error_check(error, "thread_create");
 }

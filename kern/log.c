@@ -26,6 +26,7 @@
 #include <string.h>
 
 #include <kern/arg.h>
+#include <kern/bulletin.h>
 #include <kern/init.h>
 #include <kern/log.h>
 #include <kern/macros.h>
@@ -54,9 +55,8 @@ static char log_buffer[LOG_BUFFER_SIZE];
 
 static unsigned int log_nr_overruns;
 
-#ifdef CONFIG_SHELL
-static bool log_shell_started = false;
-#endif
+static bool log_bulletin_published;
+static struct bulletin log_bulletin;
 
 /*
  * Global lock.
@@ -141,25 +141,6 @@ log_print_record(const struct log_record *record, unsigned int level)
     }
 }
 
-#ifdef CONFIG_SHELL
-
-static void
-log_start_shell(unsigned long *flags)
-{
-    if (log_shell_started) {
-        return;
-    }
-
-    log_shell_started = true;
-    spinlock_unlock_intr_restore(&log_lock, *flags);
-    shell_start();
-    spinlock_lock_intr_save(&log_lock, flags);
-}
-
-#else /* CONFIG_SHELL */
-#define log_start_shell(flags)
-#endif /* CONFIG_SHELL */
-
 static void
 log_run(void *arg)
 {
@@ -191,12 +172,10 @@ log_run(void *arg)
                 break;
             }
 
-            /*
-             * Starting the shell when the log thread sleeps for the first
-             * time serializes log messages and shell prompt, resulting in
-             * a clean ordered output.
-             */
-            log_start_shell(&flags);
+            if (!log_bulletin_published) {
+                bulletin_publish(&log_bulletin, 0);
+                log_bulletin_published = true;
+            }
 
             thread_sleep(&log_lock, &log_mbuf, "log_mbuf");
         }
@@ -297,6 +276,7 @@ log_setup(void)
     mbuf_init(&log_mbuf, log_buffer, sizeof(log_buffer),
               sizeof(struct log_record));
     spinlock_init(&log_lock);
+    bulletin_init(&log_bulletin);
 
     boot_log_info();
     arg_log_info();
@@ -538,4 +518,10 @@ int
 log_vdebug(const char *format, va_list ap)
 {
     return log_vmsg(LOG_DEBUG, format, ap);
+}
+
+struct bulletin *
+log_get_bulletin(void)
+{
+    return &log_bulletin;
 }

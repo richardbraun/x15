@@ -115,13 +115,6 @@ void shell_init(struct shell *shell, struct shell_cmd_set *cmd_set,
                 void *io_object);
 
 /*
- * Run the shell.
- *
- * This function doesn't return.
- */
-void shell_run(struct shell *shell);
-
-/*
  * Obtain the command set associated with a shell.
  */
 struct shell_cmd_set * shell_get_cmd_set(struct shell *shell);
@@ -141,6 +134,5 @@ void shell_vprintf(struct shell *shell, const char *format, va_list ap)
 INIT_OP_DECLARE(shell_setup);
 
 struct shell_cmd_set * shell_get_main_cmd_set(void);
-void shell_start(void);
 
 #endif /* KERN_SHELL_H */
