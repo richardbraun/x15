@@ -51,6 +51,7 @@
 
 #include <kern/init.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/log2.h>
 #include <kern/kmem.h>
 #include <kern/kmem_i.h>
@@ -449,7 +450,7 @@ kmem_cache_error(struct kmem_cache *cache, void *buf, int error, void *arg)
 {
     struct kmem_buftag *buftag;
 
-    printf("kmem: error: cache: %s, buffer: %p\n", cache->name, buf);
+    printf_ln("kmem: error: cache: %s, buffer: %p", cache->name, buf);
 
     switch(error) {
     case KMEM_ERR_INVALID:
@@ -1107,7 +1108,7 @@ fast_free:
 }
 
 void
-kmem_cache_info(struct kmem_cache *cache)
+kmem_cache_info(struct kmem_cache *cache, log_print_fn_t print_fn)
 {
     char flags_str[64];
 
@@ -1117,28 +1118,23 @@ kmem_cache_info(struct kmem_cache *cache)
 
     mutex_lock(&cache->lock);
 
-    printf("kmem:         flags: 0x%x%s\n"
-           "kmem:      obj_size: %zu\n"
-           "kmem:         align: %zu\n"
-           "kmem:      buf_size: %zu\n"
-           "kmem:   bufctl_dist: %zu\n"
-           "kmem:     slab_size: %zu\n"
-           "kmem:     color_max: %zu\n"
-           "kmem: bufs_per_slab: %lu\n"
-           "kmem:       nr_objs: %lu\n"
-           "kmem:       nr_bufs: %lu\n"
-           "kmem:      nr_slabs: %lu\n"
-           "kmem: nr_free_slabs: %lu\n"
-           "kmem:   buftag_dist: %zu\n"
-           "kmem:   redzone_pad: %zu\n",
-           cache->flags, flags_str, cache->obj_size,
-           cache->align, cache->buf_size, cache->bufctl_dist,
-           cache->slab_size, cache->color_max, cache->bufs_per_slab,
-           cache->nr_objs, cache->nr_bufs, cache->nr_slabs,
-           cache->nr_free_slabs, cache->buftag_dist, cache->redzone_pad);
+    print_fn("kmem:         flags: 0x%x%s", cache->flags, flags_str);
+    print_fn("kmem:      obj_size: %zu", cache->obj_size);
+    print_fn("kmem:         align: %zu", cache->align);
+    print_fn("kmem:      buf_size: %zu", cache->buf_size);
+    print_fn("kmem:   bufctl_dist: %zu", cache->bufctl_dist);
+    print_fn("kmem:     slab_size: %zu", cache->slab_size);
+    print_fn("kmem:     color_max: %zu", cache->color_max);
+    print_fn("kmem: bufs_per_slab: %lu", cache->bufs_per_slab);
+    print_fn("kmem:       nr_objs: %lu", cache->nr_objs);
+    print_fn("kmem:       nr_bufs: %lu", cache->nr_bufs);
+    print_fn("kmem:      nr_slabs: %lu", cache->nr_slabs);
+    print_fn("kmem: nr_free_slabs: %lu", cache->nr_free_slabs);
+    print_fn("kmem:   buftag_dist: %zu", cache->buftag_dist);
+    print_fn("kmem:   redzone_pad: %zu", cache->redzone_pad);
 
 #ifdef KMEM_USE_CPU_LAYER
-    printf("kmem: cpu_pool_size: %d\n", cache->cpu_pool_type->array_size);
+    print_fn("kmem: cpu_pool_size: %d", cache->cpu_pool_type->array_size);
 #endif /* KMEM_USE_CPU_LAYER */
 
     mutex_unlock(&cache->lock);
@@ -1175,16 +1171,16 @@ kmem_shell_info(struct shell *shell, int argc, char **argv)
     (void)shell;
 
     if (argc < 2) {
-        kmem_info();
+        kmem_info(printf_ln);
     } else {
         cache = kmem_lookup_cache(argv[1]);
 
         if (cache == NULL) {
-            printf("kmem: info: invalid argument\n");
+            printf_ln("kmem: info: invalid argument");
             return;
         }
 
-        kmem_cache_info(cache);
+        kmem_cache_info(cache, printf_ln);
     }
 }
 
@@ -1383,7 +1379,7 @@ kmem_free(void *ptr, size_t size)
 }
 
 void
-kmem_info(void)
+kmem_info(log_print_fn_t print_fn)
 {
     size_t total_reclaim, total_reclaim_physical, total_reclaim_virtual;
     size_t total, total_physical, total_virtual;
@@ -1397,10 +1393,10 @@ kmem_info(void)
     total_reclaim_physical = 0;
     total_reclaim_virtual = 0;
 
-    printf("kmem: cache                  obj slab  bufs   objs   bufs "
-           "   total reclaimable\n"
-           "kmem: name                  size size /slab  usage  count "
-           "  memory      memory\n");
+    print_fn("kmem: cache                  obj slab  bufs   objs   bufs "
+             "   total reclaimable");
+    print_fn("kmem: name                  size size /slab  usage  count "
+             "  memory      memory");
 
     mutex_lock(&kmem_cache_list_lock);
 
@@ -1420,18 +1416,18 @@ kmem_info(void)
             total_reclaim_physical += mem_reclaim;
         }
 
-        printf("kmem: %-19s %6zu %3zuk  %4lu %6lu %6lu %7zuk %10zuk\n",
-               cache->name, cache->obj_size, cache->slab_size >> 10,
-               cache->bufs_per_slab, cache->nr_objs, cache->nr_bufs,
-               mem_usage, mem_reclaim);
+        print_fn("kmem: %-19s %6zu %3zuk  %4lu %6lu %6lu %7zuk %10zuk",
+                 cache->name, cache->obj_size, cache->slab_size >> 10,
+                 cache->bufs_per_slab, cache->nr_objs, cache->nr_bufs,
+                 mem_usage, mem_reclaim);
 
         mutex_unlock(&cache->lock);
     }
 
     mutex_unlock(&kmem_cache_list_lock);
 
-    printf("total: %zuk (phys: %zuk virt: %zuk), "
-           "reclaim: %zuk (phys: %zuk virt: %zuk)\n",
-           total, total_physical, total_virtual,
-           total_reclaim, total_reclaim_physical, total_reclaim_virtual);
+    print_fn("total: %zuk (phys: %zuk virt: %zuk), "
+             "reclaim: %zuk (phys: %zuk virt: %zuk)",
+             total, total_physical, total_virtual,
+             total_reclaim, total_reclaim_physical, total_reclaim_virtual);
 }

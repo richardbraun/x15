@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Richard Braun.
+ * Copyright (c) 2014-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include <kern/error.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
@@ -69,9 +70,9 @@ test_inc(void *arg)
         }
 
         printf("counter global value: %lu\n", test_counter.value);
-        syscnt_info("sref_epoch");
-        syscnt_info("sref_dirty_zero");
-        syscnt_info("sref_true_zero");
+        syscnt_info("sref_epoch", log_info);
+        syscnt_info("sref_dirty_zero", log_info);
+        syscnt_info("sref_true_zero", log_info);
     }
 }
 

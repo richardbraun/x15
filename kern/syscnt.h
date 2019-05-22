@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 Richard Braun.
+ * Copyright (c) 2014-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 
 #include <kern/atomic.h>
 #include <kern/init.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/spinlock.h>
 
@@ -125,7 +126,7 @@ syscnt_dec(struct syscnt *syscnt)
  * A prefix can be used to filter the output, where only counters with the
  * given prefix are displayed. If NULL, all counters are reported.
  */
-void syscnt_info(const char *prefix);
+void syscnt_info(const char *prefix, log_print_fn_t print_fn);
 
 /*
  * This init operation provides :

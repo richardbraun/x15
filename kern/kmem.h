@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 Richard Braun.
+ * Copyright (c) 2010-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <stddef.h>
 
 #include <kern/init.h>
+#include <kern/log.h>
 
 /*
  * Object cache.
@@ -76,7 +77,7 @@ void kmem_cache_free(struct kmem_cache *cache, void *obj);
  *
  * If cache is NULL, this function displays all managed caches.
  */
-void kmem_cache_info(struct kmem_cache *cache);
+void kmem_cache_info(struct kmem_cache *cache, log_print_fn_t print_fn);
 
 /*
  * Allocate size bytes of uninitialized memory.
@@ -98,7 +99,7 @@ void kmem_free(void *ptr, size_t size);
 /*
  * Display global kernel memory information.
  */
-void kmem_info(void);
+void kmem_info(log_print_fn_t print_fn);
 
 /*
  * This init operation provides :

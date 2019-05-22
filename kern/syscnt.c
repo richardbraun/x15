@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 Richard Braun.
+ * Copyright (c) 2014-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,12 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/mutex.h>
 #include <kern/shell.h>
 #include <kern/spinlock.h>
@@ -43,7 +45,7 @@ syscnt_shell_info(struct shell *shell, int argc, char **argv)
     (void)shell;
 
     prefix = (argc >= 2) ? argv[1] : NULL;
-    syscnt_info(prefix);
+    syscnt_info(prefix, printf_ln);
 }
 
 static struct shell_cmd syscnt_shell_cmds[] = {
@@ -96,7 +98,7 @@ syscnt_register(struct syscnt *syscnt, const char *name)
 }
 
 void
-syscnt_info(const char *prefix)
+syscnt_info(const char *prefix, log_print_fn_t print_fn)
 {
     struct syscnt *syscnt;
     size_t length, prefix_length;
@@ -118,8 +120,8 @@ syscnt_info(const char *prefix)
 
         value = syscnt_read(syscnt);
 
-        printf("syscnt: %40s %20llu\n", syscnt->name,
-               (unsigned long long)value);
+        print_fn("syscnt: %40s %20llu", syscnt->name,
+                 (unsigned long long)value);
     }
 
     mutex_unlock(&syscnt_lock);

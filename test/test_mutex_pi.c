@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -312,7 +312,7 @@ test_manage_b(void *arg)
         }
 
         printf("b:%u ", i);
-        syscnt_info("thread_boosts");
+        syscnt_info("thread_boosts", log_info);
     }
 }
 

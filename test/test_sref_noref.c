@@ -41,6 +41,7 @@
 #include <kern/init.h>
 #include <kern/error.h>
 #include <kern/kmem.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
@@ -106,9 +107,9 @@ test_obj_noref(struct sref_counter *counter)
     obj = structof(counter, struct test_obj, ref_counter);
     vm_kmem_free(obj, sizeof(*obj));
     printf("0 references, page released\n");
-    syscnt_info("sref_epoch");
-    syscnt_info("sref_dirty_zero");
-    syscnt_info("sref_true_zero");
+    syscnt_info("sref_epoch", log_info);
+    syscnt_info("sref_dirty_zero", log_info);
+    syscnt_info("sref_true_zero", log_info);
 }
 
 static void

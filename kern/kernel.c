@@ -17,6 +17,7 @@
 
 #include <kern/init.h>
 #include <kern/kernel.h>
+#include <kern/log.h>
 #include <kern/thread.h>
 #include <machine/cpu.h>
 #include <test/test.h>
@@ -28,7 +29,7 @@ kernel_main(void)
     assert(!cpu_intr_enabled());
 
     init_setup();
-    vm_page_log_info();
+    vm_page_info(log_info);
 
 #ifdef CONFIG_TEST_MODULE
     test_setup();

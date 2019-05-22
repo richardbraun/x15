@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Richard Braun.
+ * Copyright (c) 2012-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/spinlock.h>
 #include <kern/thread.h>
 #include <vm/vm_map.h>
@@ -116,7 +117,7 @@ struct thread * task_lookup_thread(struct task *task, const char *name);
  *
  * If task is NULL, this function displays all tasks.
  */
-void task_info(struct task *task);
+void task_info(struct task *task, log_print_fn_t print_fn);
 
 /*
  * This init operation provides :

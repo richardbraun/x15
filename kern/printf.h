@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010 Richard Braun.
+ * Copyright (c) 2010-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,6 +39,12 @@ int printf(const char *format, ...)
     __attribute__((format(printf, 1, 2)));
 
 int vprintf(const char *format, va_list ap)
+    __attribute__((format(printf, 1, 0)));
+
+int printf_ln(const char *format, ...)
+    __attribute__((format(printf, 1, 2)));
+
+int vprintf_ln(const char *format, va_list ap)
     __attribute__((format(printf, 1, 0)));
 
 /*

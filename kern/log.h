@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,6 +36,15 @@ enum {
     LOG_DEBUG,
     LOG_NR_LEVELS,
 };
+
+/*
+ * Type for function pointers that may be used as either a log function
+ * or printf.
+ *
+ * One call to a log print function produces a single log line, with a
+ * newline character.
+ */
+typedef int (*log_print_fn_t)(const char *format, ...);
 
 /*
  * Generate a message and send it to the log thread.

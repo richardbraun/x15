@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -154,9 +154,9 @@ test_report_syscnt(struct timer *timer)
     uint64_t time;
 
 #ifdef CONFIG_MUTEX_PI
-    syscnt_info("rtmutex");
+    syscnt_info("rtmutex", log_info);
 #else /* CONFIG_MUTEX_PI */
-    syscnt_info("mutex");
+    syscnt_info("mutex", log_info);
 #endif /* CONFIG_MUTEX_PI */
 
     time = timer_get_time(timer) + clock_ticks_from_ms(TEST_REPORT_INTERVAL);

@@ -643,29 +643,7 @@ vm_page_bootalloc(size_t size)
     panic("vm_page: no physical memory available");
 }
 
-static void
-vm_page_info_common(int (*print_fn)(const char *format, ...))
-{
-    struct vm_page_zone *zone;
-    unsigned long pages;
-    unsigned int i;
-
-    for (i = 0; i < vm_page_zones_size; i++) {
-        zone = &vm_page_zones[i];
-        pages = (unsigned long)(zone->pages_end - zone->pages);
-        print_fn("vm_page: %s: pages: %lu (%luM), free: %lu (%luM)\n",
-                 vm_page_zone_name(i), pages, pages >> (20 - PAGE_SHIFT),
-                 zone->nr_free_pages, zone->nr_free_pages >> (20 - PAGE_SHIFT));
-    }
-}
-
 #ifdef CONFIG_SHELL
-
-static void
-vm_page_info(void)
-{
-    vm_page_info_common(printf);
-}
 
 static void
 vm_page_shell_info(struct shell *shell, int argc, char **argv)
@@ -673,7 +651,8 @@ vm_page_shell_info(struct shell *shell, int argc, char **argv)
     (void)shell;
     (void)argc;
     (void)argv;
-    vm_page_info();
+
+    vm_page_info(printf_ln);
 }
 
 static struct shell_cmd vm_page_shell_cmds[] = {
@@ -854,7 +833,17 @@ vm_page_zone_name(unsigned int zone_index)
 }
 
 void
-vm_page_log_info(void)
+vm_page_info(log_print_fn_t print_fn)
 {
-    vm_page_info_common(log_info);
+    struct vm_page_zone *zone;
+    unsigned long pages;
+    unsigned int i;
+
+    for (i = 0; i < vm_page_zones_size; i++) {
+        zone = &vm_page_zones[i];
+        pages = (unsigned long)(zone->pages_end - zone->pages);
+        print_fn("vm_page: %s: pages: %lu (%luM), free: %lu (%luM)",
+                 vm_page_zone_name(i), pages, pages >> (20 - PAGE_SHIFT),
+                 zone->nr_free_pages, zone->nr_free_pages >> (20 - PAGE_SHIFT));
+    }
 }

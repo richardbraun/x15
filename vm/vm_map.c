@@ -29,6 +29,7 @@
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/mutex.h>
 #include <kern/panic.h>
@@ -713,13 +714,13 @@ vm_map_shell_info(struct shell *shell, int argc, char **argv)
             goto error;
         }
 
-        vm_map_info(task_get_vm_map(task));
+        vm_map_info(task_get_vm_map(task), printf_ln);
     }
 
     return;
 
 error:
-    printf("vm_map: info: invalid arguments\n");
+    printf_ln("vm_map: info: invalid arguments");
 }
 
 static struct shell_cmd vm_map_shell_cmds[] = {
@@ -803,7 +804,7 @@ error_map:
 }
 
 void
-vm_map_info(struct vm_map *map)
+vm_map_info(struct vm_map *map, log_print_fn_t print_fn)
 {
     struct vm_map_entry *entry;
     const char *type, *name;
@@ -816,10 +817,10 @@ vm_map_info(struct vm_map *map)
 
     mutex_lock(&map->lock);
 
-    printf("vm_map: %s: %016lx-%016lx\n"
-           "vm_map:      start             end          "
-           "size     offset   flags    type\n", name,
-           (unsigned long)map->start, (unsigned long)map->end);
+    print_fn("vm_map: %s: %016lx-%016lx"
+             "vm_map:      start             end          "
+             "size     offset   flags    type\n", name,
+             (unsigned long)map->start, (unsigned long)map->end);
 
     list_for_each_entry(&map->entry_list, entry, list_node) {
         if (entry->object == NULL) {
@@ -828,13 +829,13 @@ vm_map_info(struct vm_map *map)
             type = "object";
         }
 
-        printf("vm_map: %016lx %016lx %8luk %08llx %08x %s\n",
-               (unsigned long)entry->start, (unsigned long)entry->end,
-               (unsigned long)(entry->end - entry->start) >> 10,
-               (unsigned long long)entry->offset, entry->flags, type);
+        print_fn("vm_map: %016lx %016lx %8luk %08llx %08x %s",
+                 (unsigned long)entry->start, (unsigned long)entry->end,
+                 (unsigned long)(entry->end - entry->start) >> 10,
+                 (unsigned long long)entry->offset, entry->flags, type);
     }
 
-    printf("vm_map: total: %zuk\n", map->size >> 10);
+    print_fn("vm_map: total: %zuk", map->size >> 10);
 
     mutex_unlock(&map->lock);
 }

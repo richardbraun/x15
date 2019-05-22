@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Richard Braun.
+ * Copyright (c) 2017-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@
 
 #include <kern/error.h>
 #include <kern/init.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/sref.h>
 #include <kern/syscnt.h>
@@ -74,10 +75,10 @@ test_run(void *arg)
         for (j = 0; j < 0x20000000; j++);
 
         printf("run: iterations: %lu\n", i);
-        syscnt_info("sref_epoch");
-        syscnt_info("sref_dirty_zero");
-        syscnt_info("sref_revive");
-        syscnt_info("sref_true_zero");
+        syscnt_info("sref_epoch", log_info);
+        syscnt_info("sref_dirty_zero", log_info);
+        syscnt_info("sref_revive", log_info);
+        syscnt_info("sref_true_zero", log_info);
     }
 }
 

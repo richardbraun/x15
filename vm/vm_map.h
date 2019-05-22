@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 Richard Braun.
+ * Copyright (c) 2011-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 
 #include <kern/init.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/mutex.h>
 #include <kern/rbtree.h>
 #include <machine/pmap.h>
@@ -120,7 +121,7 @@ int vm_map_create(struct vm_map **mapp);
 /*
  * Display information about a memory map.
  */
-void vm_map_info(struct vm_map *map);
+void vm_map_info(struct vm_map *map, log_print_fn_t print_fn);
 
 /*
  * This init operation provides :

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Richard Braun.
+ * Copyright (c) 2012-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <kern/init.h>
 #include <kern/kmem.h>
 #include <kern/list.h>
+#include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/shell.h>
 #include <kern/spinlock.h>
@@ -70,7 +71,7 @@ task_shell_info(struct shell *shell, int argc, char *argv[])
     (void)shell;
 
     if (argc == 1) {
-        task_info(NULL);
+        task_info(NULL, printf_ln);
         return;
     } else {
         task = task_lookup(argv[1]);
@@ -80,14 +81,14 @@ task_shell_info(struct shell *shell, int argc, char *argv[])
             goto error;
         }
 
-        task_info(task);
+        task_info(task, printf_ln);
         task_unref(task);
     }
 
     return;
 
 error:
-    printf("task: info: %s\n", strerror(error));
+    printf_ln("task: info: %s", strerror(error));
 }
 
 static struct shell_cmd task_shell_cmds[] = {
@@ -227,7 +228,7 @@ task_lookup_thread(struct task *task, const char *name)
 }
 
 void
-task_info(struct task *task)
+task_info(struct task *task, log_print_fn_t print_fn)
 {
     struct thread *thread;
 
@@ -235,7 +236,7 @@ task_info(struct task *task)
         spinlock_lock(&task_list_lock);
 
         list_for_each_entry(&task_list, task, node) {
-            task_info(task);
+            task_info(task, print_fn);
         }
 
         spinlock_unlock(&task_list_lock);
@@ -245,7 +246,7 @@ task_info(struct task *task)
 
     spinlock_lock(&task->lock);
 
-    printf("task: name: %s, threads:\n", task->name);
+    print_fn("task: name: %s, threads:", task->name);
 
     /*
      * Don't grab any lock when accessing threads, so that the function
@@ -256,16 +257,16 @@ task_info(struct task *task)
      * TODO Handle tasks and threads names modifications.
      */
     list_for_each_entry(&task->threads, thread, task_node) {
-        printf(TASK_INFO_ADDR_FMT " %c %8s:" TASK_INFO_ADDR_FMT
-               " %.2s:%02hu %02u %s\n",
-               (unsigned long)thread,
-               thread_state_to_chr(thread_state(thread)),
-               thread_wchan_desc(thread),
-               (unsigned long)thread_wchan_addr(thread),
-               thread_sched_class_to_str(thread_user_sched_class(thread)),
-               thread_user_priority(thread),
-               thread_real_global_priority(thread),
-               thread_name(thread));
+        print_fn(TASK_INFO_ADDR_FMT " %c %8s:" TASK_INFO_ADDR_FMT
+                 " %.2s:%02hu %02u %s",
+                 (unsigned long)thread,
+                 thread_state_to_chr(thread_state(thread)),
+                 thread_wchan_desc(thread),
+                 (unsigned long)thread_wchan_addr(thread),
+                 thread_sched_class_to_str(thread_user_sched_class(thread)),
+                 thread_user_priority(thread),
+                 thread_real_global_priority(thread),
+                 thread_name(thread));
     }
 
     spinlock_unlock(&task->lock);
