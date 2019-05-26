@@ -55,7 +55,6 @@ static char log_buffer[LOG_BUFFER_SIZE];
 
 static unsigned int log_nr_overruns;
 
-static bool log_bulletin_published;
 static struct bulletin log_bulletin;
 
 /*
@@ -146,8 +145,11 @@ log_run(void *arg)
 {
     struct log_consumer ctx;
     unsigned long flags;
+    bool published;
 
     (void)arg;
+
+    published = false;
 
     spinlock_lock_intr_save(&log_lock, &flags);
 
@@ -172,9 +174,12 @@ log_run(void *arg)
                 break;
             }
 
-            if (!log_bulletin_published) {
+            if (!published) {
+                spinlock_unlock_intr_restore(&log_lock, flags);
                 bulletin_publish(&log_bulletin, 0);
-                log_bulletin_published = true;
+                spinlock_lock_intr_save(&log_lock, &flags);
+
+                published = true;
             }
 
             thread_sleep(&log_lock, &log_mbuf, "log_mbuf");
