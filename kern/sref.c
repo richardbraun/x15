@@ -82,6 +82,18 @@
 #define SREF_EPOCH_ID_INIT_VALUE ((unsigned int)-500)
 
 /*
+ * Since review queues are processor-local, at least two local epochs
+ * must have passed before a zero is considered a true zero. As a result,
+ * three queues are required, one for the current epoch, and two more.
+ * The queues are stored in an array used as a ring buffer that moves
+ * forward with each new local epoch. Indexing in this array is done
+ * with a binary mask instead of a modulo, for performance reasons, and
+ * consequently, the array size must be at least the nearest power-of-two
+ * above three.
+ */
+#define SREF_NR_QUEUES P2ROUND(3, 2)
+
+/*
  * Number of counters in review queue beyond which to issue a warning.
  */
 #define SREF_NR_COUNTERS_WARN 10000
@@ -172,7 +184,7 @@ struct sref_cache {
     unsigned int epoch_id;
     struct sref_delta deltas[SREF_CACHE_DELTA_TABLE_SIZE];
     struct list valid_deltas;
-    struct sref_queue queues[2];
+    struct sref_queue queues[SREF_NR_QUEUES];
     struct thread *manager;
     struct syscnt sc_collisions;
     struct syscnt sc_flushes;
@@ -444,28 +456,29 @@ sref_cache_get_queue(struct sref_cache *cache, size_t index)
 }
 
 static struct sref_queue *
-sref_cache_get_prev_queue(struct sref_cache *cache)
+sref_cache_get_queue_by_epoch_id(struct sref_cache *cache,
+                                 unsigned int epoch_id)
 {
-    return sref_cache_get_queue(cache, (cache->epoch_id - 1) & 1);
-}
+    size_t mask;
 
-static struct sref_queue *
-sref_cache_get_current_queue(struct sref_cache *cache)
-{
-    return sref_cache_get_queue(cache, cache->epoch_id & 1);
+    mask = ARRAY_SIZE(cache->queues) - 1;
+    return sref_cache_get_queue(cache, epoch_id & mask);
 }
 
 static void
 sref_cache_schedule_review(struct sref_cache *cache,
                            struct sref_counter *counter)
 {
+    struct sref_queue *queue;
+
     assert(!sref_counter_is_queued(counter));
     assert(!sref_counter_is_dirty(counter));
 
     sref_counter_mark_queued(counter);
     sref_counter_mark_dying(counter);
 
-    sref_queue_push(sref_cache_get_current_queue(cache), counter);
+    queue = sref_cache_get_queue_by_epoch_id(cache, cache->epoch_id);
+    sref_queue_push(queue, counter);
 }
 
 static void
@@ -674,7 +687,7 @@ sref_cache_needs_management(struct sref_cache *cache)
     assert(!cpu_intr_enabled());
     assert(!thread_preempt_enabled());
 
-    queue = sref_cache_get_prev_queue(cache);
+    queue = sref_cache_get_queue_by_epoch_id(cache, cache->epoch_id - 2);
     return sref_cache_is_dirty(cache) || !sref_queue_empty(queue);
 }
 
@@ -711,7 +724,7 @@ sref_cache_flush(struct sref_cache *cache, struct sref_queue *queue)
     sref_cache_clear_dirty(cache);
     sref_cache_set_flushed(cache);
 
-    prev_queue = sref_cache_get_prev_queue(cache);
+    prev_queue = sref_cache_get_queue_by_epoch_id(cache, cache->epoch_id - 2);
     sref_queue_move(queue, prev_queue);
     sref_queue_init(prev_queue);
 
