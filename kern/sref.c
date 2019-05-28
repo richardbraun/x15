@@ -319,38 +319,54 @@ sref_counter_hash(const struct sref_counter *counter)
 static bool
 sref_counter_is_queued(const struct sref_counter *counter)
 {
-    return counter->flags & SREF_QUEUED;
+    return counter->flags & SREF_CNTF_QUEUED;
 }
 
 static void
 sref_counter_mark_queued(struct sref_counter *counter)
 {
-    counter->flags |= SREF_QUEUED;
+    counter->flags |= SREF_CNTF_QUEUED;
 }
 
 static void
 sref_counter_clear_queued(struct sref_counter *counter)
 {
-    counter->flags &= ~SREF_QUEUED;
+    counter->flags &= ~SREF_CNTF_QUEUED;
 }
 
 static bool
 sref_counter_is_dirty(const struct sref_counter *counter)
 {
-    return counter->flags & SREF_DIRTY;
+    return counter->flags & SREF_CNTF_DIRTY;
 }
 
 static void
 sref_counter_mark_dirty(struct sref_counter *counter)
 {
-    counter->flags |= SREF_DIRTY;
+    counter->flags |= SREF_CNTF_DIRTY;
 }
 
 static void
 sref_counter_clear_dirty(struct sref_counter *counter)
 {
-    counter->flags &= ~SREF_DIRTY;
+    counter->flags &= ~SREF_CNTF_DIRTY;
 }
+
+#ifdef SREF_VERIFY
+
+static bool
+sref_counter_is_unreferenced(const struct sref_counter *counter)
+{
+    return counter->flags & SREF_CNTF_UNREF;
+}
+
+static void
+sref_counter_mark_unreferenced(struct sref_counter *counter)
+{
+    counter->flags |= SREF_CNTF_UNREF;
+}
+
+#endif /* SREF_VERIFY */
 
 static void
 sref_counter_mark_dying(struct sref_counter *counter)
@@ -726,6 +742,10 @@ sref_queue_review(struct sref_queue *queue, struct sref_cache *cache)
 
         spinlock_lock_intr_save(&counter->lock, &flags);
 
+#ifdef SREF_VERIFY
+        assert(!sref_counter_is_unreferenced(counter));
+#endif /* SREF_VERIFY */
+
         assert(sref_counter_is_queued(counter));
         sref_counter_clear_queued(counter);
 
@@ -733,36 +753,47 @@ sref_queue_review(struct sref_queue *queue, struct sref_cache *cache)
             sref_counter_clear_dirty(counter);
             sref_counter_clear_dying(counter);
             spinlock_unlock_intr_restore(&counter->lock, flags);
+            continue;
+        }
+
+        if (sref_counter_is_dirty(counter)) {
+            requeue = true;
+            nr_dirty_zeroes++;
+            sref_counter_clear_dirty(counter);
         } else {
-            if (sref_counter_is_dirty(counter)) {
+            error = sref_counter_kill_weakref(counter);
+
+            if (!error) {
+                requeue = false;
+            } else {
                 requeue = true;
-                nr_dirty_zeroes++;
-                sref_counter_clear_dirty(counter);
-            } else {
-                error = sref_counter_kill_weakref(counter);
-
-                if (!error) {
-                    requeue = false;
-                } else {
-                    requeue = true;
-                    nr_revives++;
-                }
+                nr_revives++;
             }
+        }
 
-            if (requeue) {
-                sref_cache_schedule_review(cache, counter);
-                spinlock_unlock_intr_restore(&counter->lock, flags);
-            } else {
-                /*
-                 * Keep in mind that the work structure shares memory with
-                 * the counter data. Unlocking isn't needed here, since this
-                 * counter is now really at 0, but do it for consistency.
-                 */
-                spinlock_unlock_intr_restore(&counter->lock, flags);
-                nr_true_zeroes++;
-                work_init(&counter->work, sref_counter_noref);
-                work_queue_push(&works, &counter->work);
-            }
+        if (requeue) {
+            sref_cache_schedule_review(cache, counter);
+            spinlock_unlock_intr_restore(&counter->lock, flags);
+        } else {
+
+            /*
+             * Keep in mind that the work structure shares memory with
+             * the counter data.
+             */
+
+#ifdef SREF_VERIFY
+            sref_counter_mark_unreferenced(counter);
+#endif /* SREF_VERIFY */
+
+            /*
+             * Unlocking isn't needed here, since this counter is now
+             * really at 0, but do it for consistency.
+             */
+            spinlock_unlock_intr_restore(&counter->lock, flags);
+
+            nr_true_zeroes++;
+            work_init(&counter->work, sref_counter_noref);
+            work_queue_push(&works, &counter->work);
         }
     }
 

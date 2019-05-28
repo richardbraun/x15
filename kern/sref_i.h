@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2018 Richard Braun.
+ * Copyright (c) 2014-2019 Richard Braun.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,10 @@
 #include <kern/spinlock.h>
 #include <kern/work.h>
 
+#ifdef CONFIG_SREF_DEBUG
+#define SREF_VERIFY
+#endif
+
 #define SREF_WEAKREF_DYING  ((uintptr_t)1)
 #define SREF_WEAKREF_MASK   (~SREF_WEAKREF_DYING)
 
@@ -42,8 +46,12 @@ struct sref_weakref {
     uintptr_t addr;
 };
 
-#define SREF_QUEUED 0x1
-#define SREF_DIRTY  0x2
+/*
+ * Counter flags.
+ */
+#define SREF_CNTF_QUEUED  0x1     /* Queued for review */
+#define SREF_CNTF_DIRTY   0x2     /* Dirty zero seen */
+#define SREF_CNTF_UNREF   0x4     /* Unreferenced, for debugging only */
 
 /*
  * Scalable reference counter.
@@ -60,7 +68,11 @@ struct sref_weakref {
 struct sref_counter {
     sref_noref_fn_t noref_fn;
 
+#ifdef SREF_VERIFY
+    struct {
+#else /* SREF_VERIFY */
     union {
+#endif /* SREF_VERIFY */
         struct {
             struct slist_node node;         /* (g) */
             struct spinlock lock;

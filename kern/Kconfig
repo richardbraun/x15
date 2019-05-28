@@ -164,4 +164,11 @@ config SPINLOCK_DEBUG
 	---help---
 	  Enable spinlock ownership tracking.
 
+config SREF_DEBUG
+	bool "Scalable reference counter debugging"
+	select ASSERT
+	default n
+	---help---
+	  Enable scalable reference counter debugging
+
 endmenu
