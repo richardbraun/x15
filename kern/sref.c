@@ -811,7 +811,7 @@ sref_queue_review(struct sref_queue *queue, struct sref_cache *cache)
     }
 
     if (work_queue_nr_works(&works) != 0) {
-        work_queue_schedule(&works, 0);
+        work_queue_schedule(&works, WORK_HIGHPRIO);
     }
 
     sref_data_update_stats(cache->data, nr_dirty_zeroes,
