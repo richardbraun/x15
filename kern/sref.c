@@ -53,7 +53,6 @@
 #include <kern/sref_i.h>
 #include <kern/syscnt.h>
 #include <kern/thread.h>
-#include <kern/timer.h>
 #include <machine/cpu.h>
 
 /*
@@ -107,8 +106,7 @@
  * of pending acknowledgment counter, and increments its local epoch ID,
  * preventing additional flushes during the same epoch.
  *
- * The last processor to acknowledge arms a timer to schedule the start
- * of the next epoch.
+ * The last processor to acknowledge starts the next epoch.
  *
  * The epoch ID and the pending acknowledgments counter fill an entire
  * cache line each in order to avoid false sharing on SMP. Whenever
@@ -128,7 +126,6 @@ struct sref_data {
         alignas(CPU_L1_SIZE) unsigned int nr_pending_acks;
     };
 
-    struct timer timer;
     struct syscnt sc_epochs;
     struct syscnt sc_dirty_zeroes;
     struct syscnt sc_true_zeroes;
@@ -215,26 +212,15 @@ sref_data_check_epoch_id(const struct sref_data *data, unsigned int epoch_id)
 }
 
 static void
-sref_data_start_epoch(struct timer *timer)
+sref_data_start_epoch(struct sref_data *data)
 {
-    struct sref_data *data;
     unsigned int epoch_id;
 
-    data = structof(timer, struct sref_data, timer);
     assert(data->nr_pending_acks == 0);
     data->nr_pending_acks = cpu_count();
 
     epoch_id = atomic_load(&data->epoch_id, ATOMIC_RELAXED);
     atomic_store(&data->epoch_id, epoch_id + 1, ATOMIC_RELEASE);
-}
-
-static void
-sref_data_schedule_timer(struct sref_data *data)
-{
-    uint64_t ticks;
-
-    ticks = clock_ticks_from_ms(SREF_EPOCH_START_DELAY);
-    timer_schedule(&data->timer, clock_get_time() + ticks);
 }
 
 static void
@@ -250,7 +236,7 @@ sref_data_ack_cpu(struct sref_data *data)
     }
 
     syscnt_inc(&data->sc_epochs);
-    sref_data_schedule_timer(data);
+    sref_data_start_epoch(data);
 }
 
 static void
@@ -932,9 +918,6 @@ sref_data_init(struct sref_data *data)
     data->epoch_id = SREF_EPOCH_ID_INIT_VALUE;
     data->nr_pending_acks = 0;
 
-    timer_init(&data->timer, sref_data_start_epoch, TIMER_HIGH_PRIO);
-    sref_data_schedule_timer(data);
-
     syscnt_register(&data->sc_epochs, "sref_epochs");
     syscnt_register(&data->sc_dirty_zeroes, "sref_dirty_zeroes");
     syscnt_register(&data->sc_true_zeroes, "sref_true_zeroes");
@@ -953,8 +936,7 @@ INIT_OP_DEFINE(sref_bootstrap,
                INIT_OP_DEP(cpu_setup, true),
                INIT_OP_DEP(spinlock_setup, true),
                INIT_OP_DEP(syscnt_setup, true),
-               INIT_OP_DEP(thread_bootstrap, true),
-               INIT_OP_DEP(timer_bootstrap, true));
+               INIT_OP_DEP(thread_bootstrap, true));
 
 static int __init
 sref_setup(void)
@@ -966,6 +948,8 @@ sref_setup(void)
     for (unsigned int i = 0; i < cpu_count(); i++) {
         sref_cache_init_manager(percpu_ptr(sref_cache, i), i);
     }
+
+    sref_data_start_epoch(&sref_data);
 
     return 0;
 }
