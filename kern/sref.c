@@ -56,11 +56,6 @@
 #include <machine/cpu.h>
 
 /*
- * Delay (in milliseconds) until a new global epoch starts.
- */
-#define SREF_EPOCH_START_DELAY 10
-
-/*
  * Per-cache delta table size.
  */
 #define SREF_CACHE_DELTA_TABLE_SIZE 4096
