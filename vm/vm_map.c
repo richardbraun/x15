@@ -817,10 +817,10 @@ vm_map_info(struct vm_map *map, log_print_fn_t print_fn)
 
     mutex_lock(&map->lock);
 
-    print_fn("vm_map: %s: %016lx-%016lx"
-             "vm_map:      start             end          "
-             "size     offset   flags    type\n", name,
+    print_fn("vm_map: %s: %016lx-%016lx", name,
              (unsigned long)map->start, (unsigned long)map->end);
+    print_fn("vm_map:      start             end          "
+             "size     offset   flags    type");
 
     list_for_each_entry(&map->entry_list, entry, list_node) {
         if (entry->object == NULL) {
