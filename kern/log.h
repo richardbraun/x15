@@ -44,7 +44,8 @@ enum {
  * One call to a log print function produces a single log line, with a
  * newline character.
  */
-typedef int (*log_print_fn_t)(const char *format, ...);
+typedef int (*log_print_fn_t)(const char *format, ...)
+    __attribute__((format(printf, 1, 2)));
 
 /*
  * Generate a message and send it to the log thread.
