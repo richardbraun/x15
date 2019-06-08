@@ -126,10 +126,13 @@ struct sref_data {
         alignas(CPU_L1_SIZE) unsigned int nr_pending_acks;
     };
 
+    uint64_t start_ts;
     struct syscnt sc_epochs;
     struct syscnt sc_dirty_zeroes;
     struct syscnt sc_true_zeroes;
     struct syscnt sc_revives;
+    struct syscnt sc_last_epoch_ms;
+    struct syscnt sc_longest_epoch_ms;
 };
 
 /*
@@ -214,10 +217,20 @@ sref_data_check_epoch_id(const struct sref_data *data, unsigned int epoch_id)
 static void
 sref_data_start_epoch(struct sref_data *data)
 {
+    uint64_t now, duration;
     unsigned int epoch_id;
+
+    now = clock_get_time();
+    duration = clock_ticks_to_ms(now - data->start_ts);
+    syscnt_set(&data->sc_last_epoch_ms, duration);
+
+    if (duration > syscnt_read(&data->sc_longest_epoch_ms)) {
+        syscnt_set(&data->sc_longest_epoch_ms, duration);
+    }
 
     assert(data->nr_pending_acks == 0);
     data->nr_pending_acks = cpu_count();
+    data->start_ts = now;
 
     epoch_id = atomic_load(&data->epoch_id, ATOMIC_RELAXED);
     atomic_store(&data->epoch_id, epoch_id + 1, ATOMIC_RELEASE);
@@ -917,11 +930,14 @@ sref_data_init(struct sref_data *data)
 {
     data->epoch_id = SREF_EPOCH_ID_INIT_VALUE;
     data->nr_pending_acks = 0;
+    data->start_ts = clock_get_time();
 
     syscnt_register(&data->sc_epochs, "sref_epochs");
     syscnt_register(&data->sc_dirty_zeroes, "sref_dirty_zeroes");
     syscnt_register(&data->sc_true_zeroes, "sref_true_zeroes");
     syscnt_register(&data->sc_revives, "sref_revives");
+    syscnt_register(&data->sc_last_epoch_ms, "sref_last_epoch_ms");
+    syscnt_register(&data->sc_longest_epoch_ms, "sref_longest_epoch_ms");
 }
 
 static int __init
