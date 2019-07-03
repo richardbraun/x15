@@ -226,8 +226,6 @@ void thread_join(struct thread *thread);
  * When bounding the duration of the sleep, the caller must pass an absolute
  * time in ticks, and ETIMEDOUT is returned if that time is reached before
  * the thread is awoken.
- *
- * Implies a memory barrier.
  */
 void thread_sleep(struct spinlock *interlock, const void *wchan_addr,
                   const char *wchan_desc);
@@ -240,8 +238,6 @@ int thread_timedsleep(struct spinlock *interlock, const void *wchan_addr,
  * If the target thread is NULL, the calling thread, or already in the
  * running state, or in the suspended state, no action is performed and
  * EINVAL is returned.
- *
- * TODO Describe memory ordering with regard to thread_sleep().
  */
 int thread_wakeup(struct thread *thread);
 
@@ -286,8 +282,6 @@ noreturn void thread_run_scheduler(void);
  * This call does nothing if preemption is disabled, or the scheduler
  * determines the caller should continue to run (e.g. it's currently the only
  * runnable thread).
- *
- * Implies a full memory barrier if a context switch occurred.
  */
 void thread_yield(void);
 

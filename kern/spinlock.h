@@ -73,7 +73,8 @@ void spinlock_init(struct spinlock *lock);
  *
  * Return 0 on success, EBUSY if the spin lock is already locked.
  *
- * Preemption is disabled on success.
+ * If the operation succeeds, prior calls to spinlock_unlock on the same
+ * spin lock synchronize with this operation.
  */
 static inline int
 spinlock_trylock(struct spinlock *lock)
@@ -98,7 +99,8 @@ spinlock_trylock(struct spinlock *lock)
  *
  * A spin lock can only be locked once.
  *
- * This function disables preemption.
+ * Prior calls to spinlock_unlock on the same spin lock synchronize with
+ * this operation.
  */
 static inline void
 spinlock_lock(struct spinlock *lock)
@@ -112,8 +114,6 @@ spinlock_lock(struct spinlock *lock)
  *
  * The spin lock must be locked, and must have been locked on the same
  * processor it is unlocked on.
- *
- * This function may reenable preemption.
  */
 static inline void
 spinlock_unlock(struct spinlock *lock)
@@ -132,9 +132,11 @@ spinlock_unlock(struct spinlock *lock)
  *
  * Return 0 on success, EBUSY if the spin lock is already locked.
  *
- * Preemption and interrupts are disabled on success, in which case the
- * flags passed by the caller are filled with the previous value of the
- * CPU flags.
+ * Interrupts are disabled on success, in which case the flags passed
+ * by the caller are filled with the previous value of the CPU flags.
+ *
+ * If the operation succeeds, prior calls to spinlock_unlock on the same
+ * spin lock synchronize with this operation.
  */
 static inline int
 spinlock_trylock_intr_save(struct spinlock *lock, unsigned long *flags)
