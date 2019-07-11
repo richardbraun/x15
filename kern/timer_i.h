@@ -40,7 +40,7 @@ struct timer {
     };
 
     uint64_t ticks;             /* (c)     */
-    timer_fn_t fn;
+    timer_handler_fn_t fn;
     unsigned int cpu;           /* (c,a,*) */
     unsigned short state;       /* (c)     */
     unsigned short flags;       /* (c)     */

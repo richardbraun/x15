@@ -435,7 +435,7 @@ INIT_OP_DEFINE(timer_setup,
                INIT_OP_DEP(spinlock_setup, true));
 
 void
-timer_init(struct timer *timer, timer_fn_t fn, int flags)
+timer_init(struct timer *timer, timer_handler_fn_t fn, int flags)
 {
     timer->fn = fn;
     timer->cpu = TIMER_INVALID_CPU;

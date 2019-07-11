@@ -35,9 +35,11 @@
 struct timer;
 
 /*
- * Type for timer functions.
+ * Type for timer callbacks.
+ *
+ * These functions implement handler operations.
  */
-typedef void (*timer_fn_t)(struct timer *);
+typedef void (*timer_handler_fn_t)(struct timer *);
 
 #include <kern/timer_i.h>
 
@@ -59,7 +61,7 @@ timer_get_time(const struct timer *timer)
  * Timers that are reponsible for releasing their own resources must
  * be detached.
  */
-void timer_init(struct timer *timer, timer_fn_t fn, int flags);
+void timer_init(struct timer *timer, timer_handler_fn_t fn, int flags);
 
 /*
  * Schedule a timer.
@@ -67,10 +69,12 @@ void timer_init(struct timer *timer, timer_fn_t fn, int flags);
  * The time of expiration is an absolute time in ticks.
  *
  * Timers may safely be rescheduled after completion. Periodic timers are
- * implemented by rescheduling from the handler.
+ * implemented by rescheduling from the timer handler.
  *
  * If the timer has been canceled, this function does nothing. A
  * canceled timer must be reinitialized before being scheduled again.
+ *
+ * This operation synchronizes with handler operations on the same timer.
  *
  * This function may safely be called in interrupt context.
  */
@@ -81,13 +85,16 @@ void timer_schedule(struct timer *timer, uint64_t ticks);
  *
  * The given timer must not be detached.
  *
- * If the timer has already expired, this function waits until the timer
- * function completes, or returns immediately if the function has already
- * completed.
+ * If the timer is still scheduled, it is canceled, i.e. its handler
+ * operation won't start. Otherwise, if the timer has already expired,
+ * this function waits until the handler operation completes, or returns
+ * immediately if the handler operation has already completed.
  *
  * This function may safely be called from the timer handler, but not on
- * the current timer. Canceling a timer from the handler is achieved by
+ * the same timer. Canceling a timer from the timer handler is achieved by
  * simply not rescheduling it.
+ *
+ * Handler operations on the same timer synchronize with this operation.
  */
 void timer_cancel(struct timer *timer);
 
