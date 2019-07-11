@@ -60,6 +60,9 @@ mutex_locked(const struct mutex *mutex)
  * This function may not sleep.
  *
  * Return 0 on success, EBUSY if the mutex is already locked.
+ *
+ * If the operation succeeds, prior unlock operations on the same mutex
+ * synchronize with this operation.
  */
 static inline int
 mutex_trylock(struct mutex *mutex)
@@ -73,6 +76,9 @@ mutex_trylock(struct mutex *mutex)
  * On return, the mutex is locked. A mutex can only be locked once.
  *
  * This function may sleep.
+ *
+ * Prior unlock operations on the same mutex synchronize with this
+ * operation.
  */
 static inline void
 mutex_lock(struct mutex *mutex)
@@ -89,6 +95,9 @@ mutex_lock(struct mutex *mutex)
  * A mutex can only be locked once.
  *
  * This function may sleep.
+ *
+ * Prior unlock operations on the same mutex synchronize with this
+ * operation.
  */
 static inline int
 mutex_timedlock(struct mutex *mutex, uint64_t ticks)
@@ -101,6 +110,9 @@ mutex_timedlock(struct mutex *mutex, uint64_t ticks)
  *
  * The mutex must be locked, and must have been locked by the calling
  * thread.
+ *
+ * This operation synchronizes with subsequent lock operations on the same
+ * mutex.
  */
 static inline void
 mutex_unlock(struct mutex *mutex)

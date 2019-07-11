@@ -113,10 +113,11 @@ spinlock_lock(struct spinlock *lock)
 /*
  * Unlock a spin lock.
  *
- * The spin lock must be locked, and must have been locked on the same
- * processor it is unlocked on.
+ * The spin lock must be locked, and must have been locked by the calling
+ * thread.
  *
- * This operation synchronizes with subsequent lock operations.
+ * This operation synchronizes with subsequent lock operations on the same
+ * spin lock.
  */
 static inline void
 spinlock_unlock(struct spinlock *lock)
@@ -180,12 +181,13 @@ spinlock_lock_intr_save(struct spinlock *lock, unsigned long *flags)
 /*
  * Unlock a spin lock.
  *
- * The spin lock must be locked, and must have been locked on the same
- * processor it is unlocked on.
+ * The spin lock must be locked, and must have been locked by the calling
+ * thread.
  *
  * The CPU flags, obtained from a locking operation, are restored.
  *
- * This operation synchronizes with subsequent lock operations.
+ * This operation synchronizes with subsequent lock operations on the same
+ * spin lock.
  */
 static inline void
 spinlock_unlock_intr_restore(struct spinlock *lock, unsigned long flags)
