@@ -38,6 +38,10 @@ struct timer;
  * Type for timer callbacks.
  *
  * These functions implement handler operations.
+ *
+ * Scheduling a timer synchronizes with handler operations on the same
+ * timer, and these operations synchronize with cancel operations on the
+ * same timer.
  */
 typedef void (*timer_handler_fn_t)(struct timer *);
 
