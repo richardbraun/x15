@@ -39,9 +39,9 @@ struct timer;
  *
  * These functions implement handler operations.
  *
- * Scheduling a timer synchronizes with handler operations on the same
- * timer, and these operations synchronize with cancel operations on the
- * same timer.
+ * The schedule operation on a timer synchronizes with the handler
+ * operation on the same timer, and a handler operation on a timer
+ * synchronizes with cancel operations on the same timer.
  */
 typedef void (*timer_handler_fn_t)(struct timer *);
 
@@ -50,8 +50,7 @@ typedef void (*timer_handler_fn_t)(struct timer *);
 /*
  * Return the absolute expiration time of the timer, in ticks.
  *
- * This function may not be called while another thread is scheduling the
- * timer.
+ * This function isn't thread-safe.
  */
 static inline uint64_t
 timer_get_time(const struct timer *timer)
@@ -78,7 +77,7 @@ void timer_init(struct timer *timer, timer_handler_fn_t fn, int flags);
  * If the timer has been canceled, this function does nothing. A
  * canceled timer must be reinitialized before being scheduled again.
  *
- * This operation synchronizes with handler operations on the same timer.
+ * This operation synchronizes with the handler operation on the same timer.
  *
  * This function may safely be called in interrupt context.
  */
@@ -98,7 +97,8 @@ void timer_schedule(struct timer *timer, uint64_t ticks);
  * the same timer. Canceling a timer from the timer handler is achieved by
  * simply not rescheduling it.
  *
- * Handler operations on the same timer synchronize with this operation.
+ * A prior handler operation on the same timer synchronizes with this
+ * operation.
  */
 void timer_cancel(struct timer *timer);
 
