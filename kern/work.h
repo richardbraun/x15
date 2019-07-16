@@ -35,10 +35,6 @@
 
 /*
  * Deferred work.
- *
- * This structure should be embedded in objects related to the work. It
- * stores the work function and is passed to it as its only parameter.
- * The function can then find the containing object with the structof macro.
  */
 struct work;
 
@@ -48,7 +44,12 @@ struct work;
 struct work_queue;
 
 /*
- * Type for work functions.
+ * Type for work callbacks.
+ *
+ * These functions implement handler operations.
+ *
+ * Scheduling work synchronizes with handler operations on the same
+ * work.
  */
 typedef void (*work_fn_t)(struct work *);
 
@@ -135,6 +136,8 @@ work_init(struct work *work, work_fn_t fn)
  * it can be reused.
  *
  * This function may be called from interrupt context.
+ *
+ * This operation synchronizes with handler operations on the same work.
  */
 void work_schedule(struct work *work, int flags);
 void work_queue_schedule(struct work_queue *queue, int flags);
