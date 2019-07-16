@@ -48,8 +48,8 @@ struct work_queue;
  *
  * These functions implement handler operations.
  *
- * Scheduling work synchronizes with handler operations on the same
- * work.
+ * The schedule operation on a work synchronizes with the handler operation
+ * on the same work.
  */
 typedef void (*work_fn_t)(struct work *);
 
@@ -132,14 +132,23 @@ work_init(struct work *work, work_fn_t fn)
 /*
  * Schedule work for deferred processing.
  *
+ * This operation synchronizes with the handler operation on the same work.
+ *
+ * This function may be called from interrupt context.
+ */
+void work_schedule(struct work *work, int flags);
+
+/*
+ * Schedule a queue of works.
+ *
  * After being scheduled, a work queue must be reinitialized before
  * it can be reused.
  *
  * This function may be called from interrupt context.
  *
- * This operation synchronizes with handler operations on the same work.
+ * This functon is semantically identical to scheduling each work in the
+ * queue individually, but more efficiently.
  */
-void work_schedule(struct work *work, int flags);
 void work_queue_schedule(struct work_queue *queue, int flags);
 
 /*
