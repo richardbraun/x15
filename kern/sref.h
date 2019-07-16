@@ -45,6 +45,11 @@ struct sref_weakref;
 
 /*
  * Type for no-reference functions.
+ *
+ * These functions implement no-reference operations.
+ *
+ * Prior decrement operations on a counter synchronize with the no-reference
+ * operation on the same counter.
  */
 typedef void (*sref_noref_fn_t)(struct sref_counter *);
 
@@ -74,7 +79,8 @@ void sref_counter_init(struct sref_counter *counter,
  *
  * These functions may safely be called in interrupt context.
  *
- * These functions imply a compiler barrier.
+ * Decrement operations on a counter synchronize with the no-reference
+ * operation on the same counter.
  */
 void sref_counter_inc(struct sref_counter *counter);
 void sref_counter_dec(struct sref_counter *counter);
