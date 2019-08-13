@@ -28,17 +28,12 @@
  * different from C11, the memory barrier guarantees are hereby translated
  * into memory ordering guarantees :
  *
- *  1. Release-acquire ordering is enforced between the end of all
- *     read-side critical sections starting before a grace period starts
- *     and the start of all works deferred before the same grace period
- *     starts.
- *  2. Release-acquire ordering is enforced between the start of all
- *     read-side critical sections ending after a grace period ends
- *     and all the work deferrals done before the same grace period
- *     starts.
- *  3. Release-acquire ordering is enforced between all the work deferrals
- *     done before a grace period starts and the start of all works deferred
- *     before the same grace period starts.
+ *  1. All read-side critical sections started before a grace period
+ *     synchronize with all works deferred before the same grace period.
+ *  2. All work deferrals done before a grace period synchronize with
+ *     all read-side critical sections completed after the same grace period.
+ *  3. All work deferrals done before a grace period synchronize with
+ *     all works deferred before the same grace period.
  *
  * [1] https://www.kernel.org/doc/Documentation/RCU/Design/Requirements/Requirements.html.
  */
@@ -79,9 +74,6 @@ struct rcu_reader;
  * be used in interrupt context. It is not allowed to sleep inside a
  * read-side critical section. However, it is allowed to acquire locks
  * that don't sleep, such as spin locks.
- *
- * Entering or leaving a critical section doesn't provide any memory
- * ordering guarantee.
  */
 
 static inline void
@@ -99,7 +91,7 @@ rcu_read_leave(void)
 }
 
 /*
- * Initialize a RCU reader.
+ * Initialize an RCU reader.
  */
 void rcu_reader_init(struct rcu_reader *reader);
 
@@ -122,9 +114,6 @@ void rcu_report_periodic_event(void);
 /*
  * Defer a work until all existing read-side references are dropped,
  * without blocking.
- *
- * The given work is scheduled when all existing read-side references
- * are dropped.
  */
 void rcu_defer(struct work *work);
 
@@ -132,7 +121,7 @@ void rcu_defer(struct work *work);
  * Wait for all existing read-side references to be dropped.
  *
  * This function sleeps, and may do so for a moderately long duration,
- * at leat a few system timer ticks, sometimes a lot more.
+ * at least a few system timer ticks, sometimes a lot more.
  */
 void rcu_wait(void);
 
