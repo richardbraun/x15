@@ -671,9 +671,7 @@ thread_runq_schedule(struct thread_runq *runq)
 
         /*
          * That's where the true context switch occurs. The next thread must
-         * unlock the run queue and reenable preemption. Note that unlocking
-         * and locking the run queue again is equivalent to a full memory
-         * barrier.
+         * unlock the run queue and reenable preemption.
          */
         latomic_fence(LATOMIC_ACQ_REL);
         tcb_switch(&prev->tcb, &next->tcb);
