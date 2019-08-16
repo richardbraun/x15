@@ -49,9 +49,6 @@
 
 /*
  * Memory orders for local atomic operations.
- *
- * These work like those in the atomic module, but are implemented
- * with simple compiler barriers instead of full memory fences.
  */
 #define LATOMIC_RELAXED __ATOMIC_RELAXED
 #define LATOMIC_ACQUIRE __ATOMIC_ACQUIRE
