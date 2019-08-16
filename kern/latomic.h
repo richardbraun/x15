@@ -31,6 +31,11 @@
  * as memory-mapped device registers, while other operations only require
  * interrupt safety.
  *
+ * Also note that interrupts are considered to strictly match the definition
+ * of signals as described in the specification of program execution in
+ * the C language. This defines the forms of communication allowed with
+ * interrupts handlers.
+ *
  * This header provides a generic implementation. Architectures can
  * individually override any of the operations provided by this module.
  */
@@ -140,10 +145,6 @@ MACRO_BEGIN                                                                 \
     latomic_select(ptr, xor)(ptr, val, memorder);                           \
 MACRO_END
 
-#define latomic_fence(memorder)             \
-MACRO_BEGIN                                 \
-    assert(memorder != LATOMIC_RELAXED);    \
-    barrier();                              \
-MACRO_END
+#define latomic_fence(memorder) __atomic_signal_fence(memorder)
 
 #endif /* KERN_LATOMIC_H */
