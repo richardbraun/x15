@@ -2690,7 +2690,7 @@ thread_delay(uint64_t ticks, bool absolute)
 }
 
 static void __init
-thread_boot_barrier(void)
+thread_boot_barrier_wait(void)
 {
     unsigned int nr_cpus;
 
@@ -2717,7 +2717,7 @@ thread_run_scheduler(void)
 
     assert(!cpu_intr_enabled());
 
-    thread_boot_barrier();
+    thread_boot_barrier_wait();
 
     runq = thread_runq_local();
     thread = thread_self();
