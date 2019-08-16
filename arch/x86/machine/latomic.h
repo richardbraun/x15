@@ -30,21 +30,21 @@
 #include <kern/macros.h>
 
 /*
- * Memory ordering is implemented with compiler barriers on entry, exit,
+ * Memory ordering is implemented with atomic signal fences on entry, exit,
  * both, or neither, according to the specified ordering.
  */
 
 #define latomic_x86_enter(memorder)                                         \
 MACRO_BEGIN                                                                 \
     if ((memorder) != LATOMIC_RELAXED && (memorder) != LATOMIC_ACQUIRE) {   \
-        barrier();                                                          \
+        __atomic_signal_fence(__ATOMIC_ACQ_REL);                            \
     }                                                                       \
 MACRO_END
 
 #define latomic_x86_leave(memorder)                                         \
 MACRO_BEGIN                                                                 \
     if ((memorder) != LATOMIC_RELAXED && (memorder) != LATOMIC_RELEASE) {   \
-        barrier();                                                          \
+        __atomic_signal_fence(__ATOMIC_ACQ_REL);                            \
     }                                                                       \
 MACRO_END
 
