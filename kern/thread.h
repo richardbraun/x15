@@ -523,15 +523,23 @@ void thread_propagate_priority(void);
 /*
  * Migration control functions.
  *
- * Functions that change the migration state are implicit compiler barriers.
+ * Critical sections based on migration may safely nest.
  */
 
+/*
+ * Check if the current thread is pinned to the current processor.
+ */
 static inline int
 thread_pinned(void)
 {
     return thread_self()->pin_level != 0;
 }
 
+/*
+ * Pin the current thread to the current processor.
+ *
+ * This is an intra-thread acquire operation.
+ */
 static inline void
 thread_pin(void)
 {
@@ -543,6 +551,11 @@ thread_pin(void)
     barrier();
 }
 
+/*
+ * Unpin the current thread from the current processor.
+ *
+ * This is an intra-thread release operation.
+ */
 static inline void
 thread_unpin(void)
 {
@@ -557,15 +570,23 @@ thread_unpin(void)
 /*
  * Preemption control functions.
  *
- * Functions that change the preemption state are implicit compiler barriers.
+ * Critical sections based on preemption may safely nest.
  */
 
+/*
+ * Check if preemption is enabled.
+ */
 static inline int
 thread_preempt_enabled(void)
 {
     return thread_self()->preempt_level == 0;
 }
 
+/*
+ * Disable preemption.
+ *
+ * This is an intra-thread acquire operation.
+ */
 static inline void
 thread_preempt_disable(void)
 {
@@ -577,6 +598,16 @@ thread_preempt_disable(void)
     barrier();
 }
 
+/*
+ * Enable preemption.
+ *
+ * On leaving the outer-most preemption-based critical section, this
+ * function doesn't check for a runnable higher priority thread and
+ * never performs voluntary preemption. This may break real-time behavior
+ * and should never be used in application code.
+ *
+ * This is an intra-thread release operation.
+ */
 static inline void
 thread_preempt_enable_no_resched(void)
 {
@@ -594,6 +625,11 @@ thread_preempt_enable_no_resched(void)
      */
 }
 
+/*
+ * Enable preemption.
+ *
+ * This is an intra-thread release operation.
+ */
 static inline void
 thread_preempt_enable(void)
 {
@@ -607,6 +643,11 @@ thread_preempt_enable(void)
     thread_schedule();
 }
 
+/*
+ * Disable preemption and interrupts.
+ *
+ * This is an intra-thread acquire operation.
+ */
 static inline void
 thread_preempt_disable_intr_save(unsigned long *flags)
 {
@@ -614,6 +655,11 @@ thread_preempt_disable_intr_save(unsigned long *flags)
     cpu_intr_save(flags);
 }
 
+/*
+ * Enable preemption and restore interrupts.
+ *
+ * This is an intra-thread release operation.
+ */
 static inline void
 thread_preempt_enable_intr_restore(unsigned long flags)
 {
@@ -624,15 +670,23 @@ thread_preempt_enable_intr_restore(unsigned long flags)
 /*
  * Interrupt level control functions.
  *
- * Functions that change the interrupt level are implicit compiler barriers.
+ * Critical sections based on interrupt level may safely nest.
  */
 
+/*
+ * Check if the processor is currently in interrupt context.
+ */
 static inline bool
 thread_interrupted(void)
 {
     return thread_self()->intr_level != 0;
 }
 
+/*
+ * Check if the processor is correctly running in interrupt context.
+ *
+ * This function is mostly intended for assertions.
+ */
 static inline bool
 thread_check_intr_context(void)
 {
@@ -641,6 +695,11 @@ thread_check_intr_context(void)
            && !thread_preempt_enabled();
 }
 
+/*
+ * Enter interrupt context.
+ *
+ * This is an intra-thread acquire operation.
+ */
 static inline void
 thread_intr_enter(void)
 {
@@ -657,6 +716,11 @@ thread_intr_enter(void)
     barrier();
 }
 
+/*
+ * Leave interrupt context.
+ *
+ * This is an intra-thread release operation.
+ */
 static inline void
 thread_intr_leave(void)
 {
