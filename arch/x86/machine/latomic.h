@@ -36,14 +36,14 @@
 
 #define latomic_x86_enter(memorder)                                         \
 MACRO_BEGIN                                                                 \
-    if ((memorder) != LATOMIC_RELAXED && (memorder) != LATOMIC_RELEASE) {   \
+    if ((memorder) != LATOMIC_RELAXED && (memorder) != LATOMIC_ACQUIRE) {   \
         barrier();                                                          \
     }                                                                       \
 MACRO_END
 
 #define latomic_x86_leave(memorder)                                         \
 MACRO_BEGIN                                                                 \
-    if ((memorder) != LATOMIC_RELAXED && (memorder) != LATOMIC_ACQUIRE) {   \
+    if ((memorder) != LATOMIC_RELAXED && (memorder) != LATOMIC_RELEASE) {   \
         barrier();                                                          \
     }                                                                       \
 MACRO_END
