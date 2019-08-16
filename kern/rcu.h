@@ -43,6 +43,7 @@
 
 #include <kern/atomic.h>
 #include <kern/init.h>
+#include <kern/latomic.h>
 #include <kern/rcu_i.h>
 #include <kern/rcu_types.h>
 #include <kern/thread.h>
@@ -76,17 +77,27 @@ struct rcu_reader;
  * that don't sleep, such as spin locks.
  */
 
+/*
+ * Enter a read-side critical section.
+ *
+ * This is an intra-thread acquire operation.
+ */
 static inline void
 rcu_read_enter(void)
 {
     rcu_reader_inc(thread_rcu_reader(thread_self()));
-    barrier();
+    latomic_fence(LATOMIC_ACQ_REL);
 }
 
+/*
+ * Leave a read-side critical section.
+ *
+ * This is an intra-thread release operation.
+ */
 static inline void
 rcu_read_leave(void)
 {
-    barrier();
+    latomic_fence(LATOMIC_ACQ_REL);
     rcu_reader_dec(thread_rcu_reader(thread_self()));
 }
 
