@@ -96,6 +96,7 @@
 #include <kern/cpumap.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
+#include <kern/latomic.h>
 #include <kern/list.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
@@ -674,7 +675,9 @@ thread_runq_schedule(struct thread_runq *runq)
          * and locking the run queue again is equivalent to a full memory
          * barrier.
          */
+        latomic_fence(LATOMIC_ACQ_REL);
         tcb_switch(&prev->tcb, &next->tcb);
+        latomic_fence(LATOMIC_ACQ_REL);
 
         /*
          * The thread is dispatched on a processor once again.
@@ -685,7 +688,6 @@ thread_runq_schedule(struct thread_runq *runq)
          *    referenced any more.
          *  - The current thread may have been migrated to another processor.
          */
-        barrier();
         thread_runq_schedule_load(prev);
 
         next = NULL;

@@ -43,6 +43,7 @@
 #include <kern/init.h>
 #include <kern/cpumap.h>
 #include <kern/kernel.h>
+#include <kern/latomic.h>
 #include <kern/macros.h>
 #include <kern/spinlock_types.h>
 #include <kern/turnstile_types.h>
@@ -548,7 +549,7 @@ thread_pin(void)
     thread = thread_self();
     thread->pin_level++;
     assert(thread->pin_level != 0);
-    barrier();
+    latomic_fence(LATOMIC_ACQ_REL);
 }
 
 /*
@@ -561,7 +562,7 @@ thread_unpin(void)
 {
     struct thread *thread;
 
-    barrier();
+    latomic_fence(LATOMIC_ACQ_REL);
     thread = thread_self();
     assert(thread->pin_level != 0);
     thread->pin_level--;
@@ -595,7 +596,7 @@ thread_preempt_disable(void)
     thread = thread_self();
     thread->preempt_level++;
     assert(thread->preempt_level != 0);
-    barrier();
+    latomic_fence(LATOMIC_ACQ_REL);
 }
 
 /*
@@ -613,7 +614,7 @@ thread_preempt_enable_no_resched(void)
 {
     struct thread *thread;
 
-    barrier();
+    latomic_fence(LATOMIC_ACQ_REL);
     thread = thread_self();
     assert(thread->preempt_level != 0);
     thread->preempt_level--;
@@ -713,7 +714,7 @@ thread_intr_enter(void)
 
     thread->intr_level++;
     assert(thread->intr_level != 0);
-    barrier();
+    latomic_fence(LATOMIC_ACQ_REL);
 }
 
 /*
@@ -726,7 +727,7 @@ thread_intr_leave(void)
 {
     struct thread *thread;
 
-    barrier();
+    latomic_fence(LATOMIC_ACQ_REL);
     thread = thread_self();
     assert(thread->intr_level != 0);
     thread->intr_level--;
