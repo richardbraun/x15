@@ -75,8 +75,6 @@
 #define likely(expr)        __builtin_expect(!!(expr), 1)
 #define unlikely(expr)      __builtin_expect(!!(expr), 0)
 
-#define barrier()           asm volatile("" : : : "memory")
-
 /*
  * The following macros may be provided by the C environment.
  */
