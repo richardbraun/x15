@@ -267,6 +267,9 @@ int thread_resume(struct thread *thread);
 
 /*
  * Suspend execution of the calling thread.
+ *
+ * If this function causes the calling thread to yield the processor,
+ * this is an intra-thread release-acquire operation.
  */
 void thread_delay(uint64_t ticks, bool absolute);
 
