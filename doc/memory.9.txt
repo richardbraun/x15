@@ -28,12 +28,15 @@ INTRA-THREAD MEMORY ORDERING
 Memory ordering in a single thread of execution behaves as defined by
 the C specification the kernel is conforming to. This means that the
 generated code must not change the _observable behavior_ of the program,
-which is informally called the "as-if rule". During its execution,
-the kernel may change the environment. For example, it may configure
-an MMU and change the entire memory map. Environmental changes may
-conflict with compiler optimizations. Since the compiler cannot
-recognize these changes and adjust the generated code accordingly,
-this is a responsibility of the developer.
+which is informally called the _as-if rule_. During its execution,
+the kernel may change the environment, and environmental changes may
+conflict with compiler optimizations. For example, it may configure
+an MMU and change the entire memory map. Compiler optimizations, and
+in particular instruction reordering, may cause instructions intended
+to run with the new memory map to run with the previous one, and
+potentially trigger a fault. Since the compiler cannot recognize such
+situations and adjust the generated code accordingly, this is a
+responsibility of the developer.
 
 This memory model defines several ways to control code generation.
 
@@ -41,16 +44,15 @@ Local atomic operations
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 _Local atomic operations_, as defined in module:kern/latomic, are similar
-to the standard atomic operations, but are only valid on a single processor.
-They are atomic with respect to one another and interrupts. They may
-be used for communication between a thread and an interrupt handler
-interrupting that thread. Because local atomic operations may not be
-used for inter-processor communication, they allow a cheaper implementation
-than atomic operations. Because they only need to be atomic with respect
-to one another and interrupts, they may be built using a generic and
-portable implementation using interrupt-based critical sections, which
-is useful when starting a new port, or if the target architecture supports
-a single processor at most and doesn't provide atomic instructions.
+to global atomic operations, but are only valid on a single processor.
+They are atomic with respect to one another and interrupts. Because they
+may not be used for inter-processor communication, they allow a cheaper
+implementation than atomic operations. Because they only need to be
+atomic with respect to one another and interrupts, they may be provided by
+a generic and portable implementation built with interrupt-based critical
+sections, which is useful when starting a new port, or if the target
+architecture supports a single processor at most and doesn't provide
+atomic instructions.
 
 Strong sequencing
 ~~~~~~~~~~~~~~~~~
@@ -64,7 +66,7 @@ they affect the implementation in addition to the abstract machine.
 Here is the list of strong sequence points :
 
 * SC local atomic operation or fence
-* SC atomic operation or fence
+* SC global atomic operation or fence
 * volatile inline assembly with the memory clobber
 
 SEE
