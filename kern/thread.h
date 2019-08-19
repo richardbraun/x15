@@ -227,6 +227,9 @@ void thread_join(struct thread *thread);
  * When bounding the duration of the sleep, the caller must pass an absolute
  * time in ticks, and ETIMEDOUT is returned if that time is reached before
  * the thread is awoken.
+ *
+ * If this function causes the current thread to yield the processor,
+ * this is an intra-thread release-acquire operation.
  */
 void thread_sleep(struct spinlock *interlock, const void *wchan_addr,
                   const char *wchan_desc);
@@ -542,7 +545,7 @@ thread_pinned(void)
 /*
  * Pin the current thread to the current processor.
  *
- * This is an intra-thread acquire operation.
+ * This is an intra-thread release-acquire operation.
  */
 static inline void
 thread_pin(void)
