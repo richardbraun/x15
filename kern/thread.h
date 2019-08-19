@@ -215,7 +215,7 @@ void thread_join(struct thread *thread);
  * if that thread is holding the interlock.
  *
  * As a special exception, threads that use preemption as a synchronization
- * mechanism can ommit the interlock and pass a NULL pointer instead.
+ * mechanism can omit the interlock and pass a NULL pointer instead.
  * In any case, the preemption nesting level must strictly be one when calling
  * this function.
  *
