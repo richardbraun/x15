@@ -8,6 +8,7 @@ ASCIIDOC_SOURCES := \
         doc/cenv.9.txt \
         doc/init.9.txt \
         doc/intro.9.txt \
+        doc/memory.9.txt \
         doc/style.9.txt \
         doc/xbuild.9.txt
 

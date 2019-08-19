@@ -1,0 +1,75 @@
+MEMORY(9)
+========
+:doctype:       manpage
+:man source:    X15
+:man manual:    X15 Kernel Developer{rsquo}s Manual
+
+NAME
+----
+
+memory - Memory model
+
+DESCRIPTION
+-----------
+
+This document describes the memory model of the kernel.
+
+The X15 kernel uses the freestanding execution environment. As a result,
+atomics as provided by <stdatomic.h> are not available. Instead, the kernel
+provides its own library of atomic operations, based on the GCC "built-in
+functions for memory model aware atomic operations". In addition, it also
+provides "local atomic" operations, interrupt-safe operations that are
+atomic on the local processor. These operations can transparently replace
+atomic operations on single-processor configurations.
+
+INTRA-THREAD MEMORY ORDERING
+----------------------------
+
+Memory ordering in a single thread of execution behaves as defined by
+the C specification the kernel is conforming to. This means that the
+generated code must not change the _observable behavior_ of the program,
+which is informally called the "as-if rule". During its execution,
+the kernel may change the environment. For example, it may configure
+an MMU and change the entire memory map. Environmental changes may
+conflict with compiler optimizations. Since the compiler cannot
+recognize these changes and adjust the generated code accordingly,
+this is a responsibility of the developer.
+
+This memory model defines several ways to control code generation.
+
+Local atomic operations
+~~~~~~~~~~~~~~~~~~~~~~~
+
+_Local atomic operations_, as defined in module:kern/latomic, are similar
+to the standard atomic operations, but are only valid on a single processor.
+They are atomic with respect to one another and interrupts. They may
+be used for communication between a thread and an interrupt handler
+interrupting that thread. Because local atomic operations may not be
+used for inter-processor communication, they allow a cheaper implementation
+than atomic operations. Because they only need to be atomic with respect
+to one another and interrupts, they may be built using a generic and
+portable implementation using interrupt-based critical sections, which
+is useful when starting a new port, or if the target architecture supports
+a single processor at most and doesn't provide atomic instructions.
+
+Strong sequencing
+~~~~~~~~~~~~~~~~~
+
+_Strong sequence points_ are defined as sequence points that affect the
+implementation in addition to the abstract machine. The _strongly
+sequenced before_ and _strongly sequenced after_ relations are similar
+to _sequenced before_ and _sequenced after_ respectively, except that
+they affect the implementation in addition to the abstract machine.
+
+Here is the list of strong sequence points :
+
+* SC local atomic operation or fence
+* SC atomic operation or fence
+* volatile inline assembly with the memory clobber
+
+SEE
+---
+
+manpage:intro
+
+{x15-operating-system}

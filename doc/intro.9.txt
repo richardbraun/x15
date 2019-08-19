@@ -276,6 +276,8 @@ manpage:cenv
 
 manpage:init
 
+manpage:memory
+
 manpage:style
 
 manpage:xbuild
