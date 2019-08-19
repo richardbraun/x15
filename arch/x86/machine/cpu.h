@@ -283,7 +283,9 @@ cpu_set_ ## name(unsigned long value)                                       \
  *  static inline unsigned long cpu_get_crX(void);
  *  static inline void cpu_set_crX(unsigned long);
  *
- * They all imply a compiler barrier.
+ * Setting a control register executes a serializing instruction.
+ *
+ * These are intra-thread release-acquire operations.
  */
 CPU_DECL_GETSET_CR(cr0)
 CPU_DECL_GETSET_CR(cr2)
@@ -293,7 +295,7 @@ CPU_DECL_GETSET_CR(cr4)
 /*
  * Enable local interrupts.
  *
- * Implies a compiler barrier.
+ * This is an intra-thread release operation.
  */
 static __always_inline void
 cpu_intr_enable(void)
@@ -304,7 +306,7 @@ cpu_intr_enable(void)
 /*
  * Disable local interrupts.
  *
- * Implies a compiler barrier.
+ * This is an intra-thread acquire operation.
  */
 static __always_inline void
 cpu_intr_disable(void)
@@ -315,7 +317,7 @@ cpu_intr_disable(void)
 /*
  * Restore the content of the EFLAGS register, possibly enabling interrupts.
  *
- * Implies a compiler barrier.
+ * This is an intra-thread release operation.
  */
 static __always_inline void
 cpu_intr_restore(unsigned long flags)
@@ -330,7 +332,7 @@ cpu_intr_restore(unsigned long flags)
  * Disable local interrupts, returning the previous content of the EFLAGS
  * register.
  *
- * Implies a compiler barrier.
+ * This is an intra-thread acquire operation.
  */
 static __always_inline void
 cpu_intr_save(unsigned long *flags)
@@ -341,8 +343,6 @@ cpu_intr_save(unsigned long *flags)
 
 /*
  * Return true if interrupts are enabled.
- *
- * Implies a compiler barrier.
  */
 static __always_inline int
 cpu_intr_enabled(void)
@@ -356,7 +356,7 @@ cpu_intr_enabled(void)
 /*
  * Spin-wait loop hint.
  *
- * Implies a compiler barrier.
+ * This is an intra-thread release-acquire operation.
  */
 static __always_inline void
 cpu_pause(void)
@@ -371,7 +371,7 @@ cpu_pause(void)
  * allow the processor handling them before entering the idle state if they
  * were disabled before calling this function.
  *
- * Implies a compiler barrier.
+ * This is an intra-thread release-acquire operation.
  */
 static __always_inline void
 cpu_idle(void)
@@ -382,7 +382,7 @@ cpu_idle(void)
 /*
  * Halt the CPU.
  *
- * Implies a compiler barrier.
+ * This is an intra-thread release operation.
  */
 noreturn static __always_inline void
 cpu_halt(void)
@@ -467,12 +467,26 @@ cpu_has_feature(const struct cpu *cpu, enum cpu_feature feature)
     return cpu_feature_map_test(&cpu->feature_map, feature);
 }
 
+/*
+ * Enable the Page Size Extension.
+ *
+ * This function executes a serializing instruction.
+ *
+ * This is an intra-thread release-acquire operation.
+ */
 static __always_inline void
 cpu_enable_pse(void)
 {
     cpu_set_cr4(cpu_get_cr4() | CPU_CR4_PSE);
 }
 
+/*
+ * Enable the Physical Address Extension.
+ *
+ * This function executes a serializing instruction.
+ *
+ * This is an intra-thread release-acquire operation.
+ */
 static __always_inline void
 cpu_enable_pae(void)
 {
@@ -491,8 +505,9 @@ cpu_has_global_pages(void)
  * As a side effect, this function causes a complete TLB flush if global
  * pages were previously disabled.
  *
- * Implies a full memory barrier.
- * TODO Update barrier description.
+ * This function executes a serializing instruction.
+ *
+ * This is an intra-thread release-acquire operation.
  */
 static __always_inline void
 cpu_enable_global_pages(void)
@@ -503,7 +518,9 @@ cpu_enable_global_pages(void)
 /*
  * CPUID instruction wrapper.
  *
- * The CPUID instruction is a serializing instruction.
+ * This function executes a serializing instruction.
+ *
+ * This is an intra-thread release-acquire operation.
  */
 static __always_inline void
 cpu_cpuid(unsigned int *eax, unsigned int *ebx, unsigned int *ecx,
@@ -529,7 +546,11 @@ cpu_get_msr64(uint32_t msr)
 }
 
 /*
- * Implies a full memory barrier.
+ * Set a model-specific register.
+ *
+ * This function executes a serializing instruction.
+ *
+ * This is an intra-thread release-acquire operation.
  */
 static inline void
 cpu_set_msr(uint32_t msr, uint32_t high, uint32_t low)
@@ -538,7 +559,11 @@ cpu_set_msr(uint32_t msr, uint32_t high, uint32_t low)
 }
 
 /*
- * Implies a full memory barrier.
+ * Set a model-specific register.
+ *
+ * This function executes a serializing instruction.
+ *
+ * This is an intra-thread release-acquire operation.
  */
 static inline void
 cpu_set_msr64(uint32_t msr, uint64_t value)
@@ -553,8 +578,9 @@ cpu_set_msr64(uint32_t msr, uint64_t value)
 /*
  * Flush non-global TLB entries.
  *
- * Implies a full memory barrier.
- * TODO Update barrier description.
+ * This function executes a serializing instruction.
+ *
+ * This is an intra-thread release-acquire operation.
  */
 static __always_inline void
 cpu_tlb_flush(void)
@@ -565,8 +591,9 @@ cpu_tlb_flush(void)
 /*
  * Flush all TLB entries, including global ones.
  *
- * Implies a full memory barrier.
- * TODO Update barrier description.
+ * This function executes a serializing instruction.
+ *
+ * This is an intra-thread release-acquire operation.
  */
 static __always_inline void
 cpu_tlb_flush_all(void)
@@ -592,8 +619,9 @@ cpu_tlb_flush_all(void)
 /*
  * Flush a single page table entry in the TLB.
  *
- * Implies a full memory barrier.
- * TODO Update barrier description.
+ * This function executes a serializing instruction.
+ *
+ * This is an intra-thread release-acquire operation.
  */
 static __always_inline void
 cpu_tlb_flush_va(unsigned long va)
@@ -632,6 +660,9 @@ uint64_t cpu_get_freq(void);
 
 /*
  * Busy-wait for a given amount of time, in microseconds.
+ *
+ * If the function produces a delay, i.e. the duration argument is strictly
+ * greater than zero, this is an intra-thread release-acquire operation.
  */
 void cpu_delay(unsigned long usecs);
 

@@ -26,6 +26,7 @@
 #include <kern/atomic.h>
 #include <kern/init.h>
 #include <kern/kmem.h>
+#include <kern/latomic.h>
 #include <kern/log.h>
 #include <kern/macros.h>
 #include <kern/panic.h>
@@ -376,7 +377,9 @@ cpu_delay(unsigned long usecs)
 {
     int64_t total, prev, count, diff;
 
-    assert(usecs != 0);
+    if (usecs == 0) {
+        return;
+    }
 
     total = DIV_CEIL((int64_t)usecs * cpu_freq, 1000000);
     prev = cpu_get_tsc();

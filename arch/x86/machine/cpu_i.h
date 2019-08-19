@@ -239,8 +239,6 @@ cpu_feature_map_test(const struct cpu_feature_map *map,
 /*
  * Return the content of the EFLAGS register.
  *
- * Implies a compiler barrier.
- *
  * TODO Add cpu_flags_t type.
  */
 static __always_inline unsigned long
@@ -250,8 +248,7 @@ cpu_get_eflags(void)
 
     asm volatile("pushf\n"
                  "pop %0\n"
-                 : "=r" (eflags)
-                 : : "memory");
+                 : "=r" (eflags));
 
     return eflags;
 }
