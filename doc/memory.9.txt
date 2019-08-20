@@ -121,7 +121,8 @@ operations, they could in theory be reordered across fences. It is
 assumed that all the built-in atomic operations provided by the
 compiler are volatile-qualified. Local atomic operations must also
 be volatile-qualified. With current compiler implementations, this
-guarantees that atomic operations may not be reordered across fences.
+guarantees that local atomic operations may not be reordered across
+fences.
 
 SEE
 ---
