@@ -72,7 +72,8 @@ sequenced before_ and _strongly sequenced after_ relations are similar
 to _sequenced before_ and _sequenced after_ respectively, except that
 they affect the implementation in addition to the abstract machine.
 Strong sequencing only affects compiler optimizations and reorderings
-of loads and stores, and hardware fence instructions are not emitted.
+of loads and stores; whether hardware fence instructions are emitted
+or not isn't affected.
 
 Here is the list of strong sequence points :
 
