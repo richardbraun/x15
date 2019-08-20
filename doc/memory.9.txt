@@ -15,12 +15,21 @@ DESCRIPTION
 This document describes the memory model of the kernel.
 
 The X15 kernel uses the freestanding execution environment. As a result,
-atomics as provided by <stdatomic.h> are not available. Instead, the kernel
-provides its own library of atomic operations, based on the GCC "built-in
-functions for memory model aware atomic operations". In addition, it also
-provides "local atomic" operations, interrupt-safe operations that are
-atomic on the local processor. These operations can transparently replace
-atomic operations on single-processor configurations.
+atomic operations as provided by <stdatomic.h> are not available. Instead,
+the kernel provides its own library of atomic operations. In addition,
+it also provides "local atomic" operations, interrupt-safe operations that
+are atomic on the local processor. These operations can transparently
+replace atomic operations on single-processor configurations.
+
+For portability, atomic operations are restricted to 32-bit and 64-bit
+accesses. The availability of 64-bit atomic operations is indicated
+by the definition of the ATOMIC_HAVE_64B_OPS macro.
+
+Terms
+~~~~~
+
+AR:: acquire-release
+SC:: sequentially-consistent
 
 INTRA-THREAD MEMORY ORDERING
 ----------------------------
@@ -38,7 +47,7 @@ potentially trigger a fault. Since the compiler cannot recognize such
 situations and adjust the generated code accordingly, this is a
 responsibility of the developer.
 
-This memory model defines several ways to control code generation.
+There are several ways to control code generation.
 
 Local atomic operations
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -62,6 +71,8 @@ implementation in addition to the abstract machine. The _strongly
 sequenced before_ and _strongly sequenced after_ relations are similar
 to _sequenced before_ and _sequenced after_ respectively, except that
 they affect the implementation in addition to the abstract machine.
+Strong sequencing only affects compiler optimizations and reorderings
+of loads and stores, and hardware fence instructions are not emitted.
 
 Here is the list of strong sequence points :
 
@@ -69,9 +80,53 @@ Here is the list of strong sequence points :
 * SC global atomic operation or fence
 * volatile inline assembly with the memory clobber
 
+Technically, AR local atomic fences also are strong sequence points,
+but for consistency with AR global atomic fences, which may not be
+strong sequence points, they are not part of the list.
+
+INTER-THREAD MEMORY ORDERING
+----------------------------
+
+Global atomic operations
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+_Global atomic operations_, as defined in module:kern/atomic, behave
+similarly to the atomic operations as defined by the C specification
+the kernel is conforming to. One major difference though is that they
+apply to standard integer types.
+
+There are no special provisions for initialization. Initializing a
+variable must simply happen before any other access to that variable.
+For example, this may be achieved with a release-write to the variable,
+or with a regular write before an operation that synchronizes with
+another operation that precedes regular accesses to the variable.
+This makes the interface surface of the atomic module much more compact
+than the standard one.
+
+IMPLEMENTATION
+--------------
+
+Global atomic operations are implemented using the GCC "built-in
+functions for memory model aware atomic operations".
+
+Local atomic operations may be implemented with a generic and portable
+implementation built with interrupt-based critical sections that is
+part of the module:kern/latomic module. Architecture-specific code
+may partially or completely override the machine-independent
+implementation.
+
+Note that, because the compiler doesn't know about local atomic
+operations, they could in theory be reordered across fences. It is
+assumed that all the built-in atomic operations provided by the
+compiler are volatile-qualified. Local atomic operations must also
+be volatile-qualified. With current compiler implementations, this
+guarantees that atomic operations may not be reordered across fences.
+
 SEE
 ---
 
 manpage:intro
 
-{x15-operating-system}
+{c-specification}
+
+{gcc-atomics}

@@ -40,6 +40,8 @@
  * listed, so that unsupported ones don't select pointer operations.
  * Instead, they select a function with an explicit name indicating
  * an invalid type.
+ *
+ * TODO Fix implementation for signed types.
  */
 #define atomic_select(ptr, op)                      \
 _Generic(*(ptr),                                    \

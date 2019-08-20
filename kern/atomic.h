@@ -26,6 +26,9 @@
  *
  * TODO Replace mentions of "memory barriers" throughout the code with
  * C11 memory model terminology.
+ *
+ * TODO Decide if architecture-specific atomic operations should be
+ * provided, and if so, how.
  */
 
 #ifndef KERN_ATOMIC_H
