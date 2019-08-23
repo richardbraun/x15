@@ -99,10 +99,9 @@ apply to standard integer types.
 There are no special provisions for initialization. Initializing a
 variable must simply happen before any other access to that variable.
 For example, this may be achieved with a release-write to the variable,
-or with a regular write before an operation that synchronizes with
-another operation that precedes regular accesses to the variable.
-This makes the interface surface of the atomic module much more compact
-than the standard one.
+or with a regular write that preceding a release sequence. This makes
+the interface surface of the atomic module much more compact than
+the standard one.
 
 IMPLEMENTATION
 --------------
