@@ -24,9 +24,6 @@
  * Some configurations may not support 64-bit operations. Check if the
  * ATOMIC_HAVE_64B_OPS macro is defined to find out.
  *
- * TODO Replace mentions of "memory barriers" throughout the code with
- * C11 memory model terminology.
- *
  * TODO Decide if architecture-specific atomic operations should be
  * provided, and if so, how.
  */

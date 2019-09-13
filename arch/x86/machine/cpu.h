@@ -266,7 +266,7 @@ cpu_get_ ## name(void)                                                      \
 {                                                                           \
     unsigned long name;                                                     \
                                                                             \
-    asm volatile("mov %%" __QUOTE(name) ", %0" : "=r" (name) : : "memory"); \
+    asm volatile("mov %%" __QUOTE(name) ", %0" : "=r" (name));              \
     return name;                                                            \
 }                                                                           \
                                                                             \
@@ -285,7 +285,7 @@ cpu_set_ ## name(unsigned long value)                                       \
  *
  * Setting a control register executes a serializing instruction.
  *
- * These are intra-thread release-acquire operations.
+ * There is a strong sequence point when setting a control register.
  */
 CPU_DECL_GETSET_CR(cr0)
 CPU_DECL_GETSET_CR(cr2)
@@ -295,7 +295,7 @@ CPU_DECL_GETSET_CR(cr4)
 /*
  * Enable local interrupts.
  *
- * This is an intra-thread release operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_intr_enable(void)
@@ -306,7 +306,7 @@ cpu_intr_enable(void)
 /*
  * Disable local interrupts.
  *
- * This is an intra-thread acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_intr_disable(void)
@@ -317,7 +317,7 @@ cpu_intr_disable(void)
 /*
  * Restore the content of the EFLAGS register, possibly enabling interrupts.
  *
- * This is an intra-thread release operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_intr_restore(unsigned long flags)
@@ -332,7 +332,7 @@ cpu_intr_restore(unsigned long flags)
  * Disable local interrupts, returning the previous content of the EFLAGS
  * register.
  *
- * This is an intra-thread acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_intr_save(unsigned long *flags)
@@ -356,7 +356,7 @@ cpu_intr_enabled(void)
 /*
  * Spin-wait loop hint.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_pause(void)
@@ -371,7 +371,7 @@ cpu_pause(void)
  * allow the processor handling them before entering the idle state if they
  * were disabled before calling this function.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_idle(void)
@@ -382,7 +382,7 @@ cpu_idle(void)
 /*
  * Halt the CPU.
  *
- * This is an intra-thread release operation.
+ * There is a strong sequence point during this operation.
  */
 noreturn static __always_inline void
 cpu_halt(void)
@@ -472,7 +472,7 @@ cpu_has_feature(const struct cpu *cpu, enum cpu_feature feature)
  *
  * This function executes a serializing instruction.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_enable_pse(void)
@@ -485,7 +485,7 @@ cpu_enable_pse(void)
  *
  * This function executes a serializing instruction.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_enable_pae(void)
@@ -507,7 +507,7 @@ cpu_has_global_pages(void)
  *
  * This function executes a serializing instruction.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_enable_global_pages(void)
@@ -520,7 +520,7 @@ cpu_enable_global_pages(void)
  *
  * This function executes a serializing instruction.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_cpuid(unsigned int *eax, unsigned int *ebx, unsigned int *ecx,
@@ -550,7 +550,7 @@ cpu_get_msr64(uint32_t msr)
  *
  * This function executes a serializing instruction.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 cpu_set_msr(uint32_t msr, uint32_t high, uint32_t low)
@@ -563,7 +563,7 @@ cpu_set_msr(uint32_t msr, uint32_t high, uint32_t low)
  *
  * This function executes a serializing instruction.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 cpu_set_msr64(uint32_t msr, uint64_t value)
@@ -580,7 +580,7 @@ cpu_set_msr64(uint32_t msr, uint64_t value)
  *
  * This function executes a serializing instruction.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_tlb_flush(void)
@@ -593,7 +593,7 @@ cpu_tlb_flush(void)
  *
  * This function executes a serializing instruction.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_tlb_flush_all(void)
@@ -621,7 +621,7 @@ cpu_tlb_flush_all(void)
  *
  * This function executes a serializing instruction.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static __always_inline void
 cpu_tlb_flush_va(unsigned long va)
@@ -661,8 +661,9 @@ uint64_t cpu_get_freq(void);
 /*
  * Busy-wait for a given amount of time, in microseconds.
  *
- * If the function produces a delay, i.e. the duration argument is strictly
- * greater than zero, this is an intra-thread release-acquire operation.
+ * If calling this function produces a delay, i.e. the duration argument
+ * is strictly greater than zero, there is a strong sequence point during
+ * this operation.
  */
 void cpu_delay(unsigned long usecs);
 

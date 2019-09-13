@@ -80,24 +80,24 @@ struct rcu_reader;
 /*
  * Enter a read-side critical section.
  *
- * This is an intra-thread acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 rcu_read_enter(void)
 {
     rcu_reader_inc(thread_rcu_reader(thread_self()));
-    latomic_fence(LATOMIC_ACQ_REL);
+    latomic_fence(LATOMIC_SEQ_CST);
 }
 
 /*
  * Leave a read-side critical section.
  *
- * This is an intra-thread release operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 rcu_read_leave(void)
 {
-    latomic_fence(LATOMIC_ACQ_REL);
+    latomic_fence(LATOMIC_SEQ_CST);
     rcu_reader_dec(thread_rcu_reader(thread_self()));
 }
 

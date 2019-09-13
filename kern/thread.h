@@ -229,7 +229,7 @@ void thread_join(struct thread *thread);
  * the thread is awoken.
  *
  * If this function causes the current thread to yield the processor,
- * this is an intra-thread release-acquire operation.
+ * there is a strong sequence point during this operation.
  */
 void thread_sleep(struct spinlock *interlock, const void *wchan_addr,
                   const char *wchan_desc);
@@ -272,7 +272,7 @@ int thread_resume(struct thread *thread);
  * Suspend execution of the calling thread.
  *
  * If this function causes the calling thread to yield the processor,
- * this is an intra-thread release-acquire operation.
+ * there is a strong sequence point during this operation.
  */
 void thread_delay(uint64_t ticks, bool absolute);
 
@@ -545,7 +545,7 @@ thread_pinned(void)
 /*
  * Pin the current thread to the current processor.
  *
- * This is an intra-thread release-acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 thread_pin(void)
@@ -561,7 +561,7 @@ thread_pin(void)
 /*
  * Unpin the current thread from the current processor.
  *
- * This is an intra-thread release operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 thread_unpin(void)
@@ -592,7 +592,7 @@ thread_preempt_enabled(void)
 /*
  * Disable preemption.
  *
- * This is an intra-thread acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 thread_preempt_disable(void)
@@ -613,7 +613,7 @@ thread_preempt_disable(void)
  * never performs voluntary preemption. This may break real-time behavior
  * and should never be used in application code.
  *
- * This is an intra-thread release operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 thread_preempt_enable_no_resched(void)
@@ -635,7 +635,7 @@ thread_preempt_enable_no_resched(void)
 /*
  * Enable preemption.
  *
- * This is an intra-thread release operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 thread_preempt_enable(void)
@@ -653,7 +653,7 @@ thread_preempt_enable(void)
 /*
  * Disable preemption and interrupts.
  *
- * This is an intra-thread acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 thread_preempt_disable_intr_save(unsigned long *flags)
@@ -665,7 +665,7 @@ thread_preempt_disable_intr_save(unsigned long *flags)
 /*
  * Enable preemption and restore interrupts.
  *
- * This is an intra-thread release operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 thread_preempt_enable_intr_restore(unsigned long flags)
@@ -705,7 +705,7 @@ thread_check_intr_context(void)
 /*
  * Enter interrupt context.
  *
- * This is an intra-thread acquire operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 thread_intr_enter(void)
@@ -726,7 +726,7 @@ thread_intr_enter(void)
 /*
  * Leave interrupt context.
  *
- * This is an intra-thread release operation.
+ * There is a strong sequence point during this operation.
  */
 static inline void
 thread_intr_leave(void)
